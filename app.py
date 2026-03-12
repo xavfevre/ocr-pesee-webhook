@@ -70,7 +70,7 @@ def extract_with_mistral(image_base64: str, mime_type: str = "image/jpeg") -> di
     client = Mistral(api_key=MISTRAL_API_KEY)
 
     response = client.chat.complete(
-        model="mistral-small-latest",
+        model="pixtral-12b-2409",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
