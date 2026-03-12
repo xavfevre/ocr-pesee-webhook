@@ -65,8 +65,21 @@ EXTRACTION_PROMPT = """Extrais les données de ce bon de pesée dans ce format J
 }"""
 
 
+def resize_image(image_base64: str, max_size: int = 1024) -> str:
+    """Redimensionne l'image en base64 à max_size px max."""
+    from PIL import Image
+    import io as _io
+    img_bytes = base64.b64decode(image_base64)
+    img = Image.open(_io.BytesIO(img_bytes))
+    img.thumbnail((max_size, max_size), Image.LANCZOS)
+    buf = _io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
 def extract_with_mistral(image_base64: str, mime_type: str = "image/jpeg") -> dict:
     """Appel Mistral Vision et retourne le dict extrait."""
+    image_base64 = resize_image(image_base64)
     client = Mistral(api_key=MISTRAL_API_KEY)
 
     response = client.chat.complete(
