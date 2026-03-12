@@ -22,6 +22,7 @@ ODOO_DB          = os.environ.get("ODOO_DB")            # ex: maquignon
 ODOO_USER        = os.environ.get("ODOO_USER")          # email du compte technique
 ODOO_PASSWORD    = os.environ.get("ODOO_PASSWORD")      # mot de passe ou API key
 WEBHOOK_SECRET   = os.environ.get("WEBHOOK_SECRET", "") # token de sécurité optionnel
+ODOO_WORKSHEET_MODEL = os.environ.get("ODOO_WORKSHEET_MODEL", "x_project_task_worksheet_template_1_line")
 
 # ─── MAPPING champs OCR → noms techniques Odoo (à adapter) ───────────────────
 # Remplace par tes vrais noms x_studio_* de la worksheet
@@ -130,37 +131,53 @@ def odoo_write(worksheet_id: int, extracted: dict):
 
 
 # ─── ENDPOINT PRINCIPAL ───────────────────────────────────────────────────────
+def odoo_fetch_image(worksheet_id: int, model: str) -> str:
+    """Récupère l'image base64 depuis Odoo via XML-RPC."""
+    common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+    uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+    if not uid:
+        raise ValueError("Authentification Odoo échouée")
+    models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+    result = models.execute_kw(
+        ODOO_DB, uid, ODOO_PASSWORD,
+        model, "read",
+        [[worksheet_id]],
+        {"fields": ["x_studio_photo_bon"]}
+    )
+    if not result or not result[0].get("x_studio_photo_bon"):
+        raise ValueError(f"Pas d'image sur le record {worksheet_id}")
+    return result[0]["x_studio_photo_bon"]  # déjà en base64
+
+
 @app.route("/ocr-pesee", methods=["POST"])
 def ocr_pesee():
     """
-    Payload attendu (JSON) :
+    Payload attendu (webhook natif Odoo ou manuel) :
     {
-        "worksheet_id": 42,
-        "image_base64": "<base64>",
-        "mime_type": "image/jpeg",   // optionnel
-        "secret": "xxx"              // optionnel si WEBHOOK_SECRET défini
+        "id": 42,                   // ID du record (webhook Odoo natif)
+        "model": "x_project_...",   // nom du modèle (optionnel)
     }
     """
     try:
-        # Vérification secret
-        if WEBHOOK_SECRET:
-            secret = request.json.get("secret", "")
-            if secret != WEBHOOK_SECRET:
-                return jsonify({"error": "Unauthorized"}), 401
-
         data = request.get_json(force=True)
-        worksheet_id = data.get("worksheet_id")
-        image_base64 = data.get("image_base64")
-        mime_type    = data.get("mime_type", "image/jpeg")
+        app.logger.info(f"Webhook reçu: {data}")
 
-        if not worksheet_id or not image_base64:
-            return jsonify({"error": "worksheet_id et image_base64 requis"}), 400
+        # Odoo native webhook envoie {"_id": ..., "_model": ...}
+        worksheet_id = data.get("_id") or data.get("id") or data.get("worksheet_id")
+        model = data.get("_model") or data.get("model") or ODOO_WORKSHEET_MODEL
 
-        # 1. Extraction OCR
-        extracted = extract_with_mistral(image_base64, mime_type)
+        if not worksheet_id:
+            return jsonify({"error": "id requis"}), 400
+
+        # 1. Récupération de l'image depuis Odoo
+        image_base64 = odoo_fetch_image(int(worksheet_id), model)
+        app.logger.info(f"Image récupérée pour record {worksheet_id}")
+
+        # 2. Extraction OCR via Mistral
+        extracted = extract_with_mistral(image_base64)
         app.logger.info(f"OCR extrait: {extracted}")
 
-        # 2. Écriture Odoo
+        # 3. Écriture des champs dans Odoo
         odoo_write(int(worksheet_id), extracted)
 
         return jsonify({
