@@ -133,7 +133,7 @@ def odoo_write(worksheet_id: int, extracted: dict):
 
     # Modèle de la worksheet FSM — à vérifier selon ta config
     # Peut être "worksheet.document" ou "project.task" selon implémentation
-    model = "worksheet.document"
+    model = ODOO_WORKSHEET_MODEL
 
     result = models.execute_kw(
         ODOO_DB, uid, ODOO_PASSWORD,
