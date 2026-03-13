@@ -38,6 +38,7 @@ FIELD_MAP = {
     "pesee2_poids"  : "x_studio_pesee2_poids",
     "pesee2_ticket" : "x_studio_pesee2_ticket",
     "poids_net"     : "x_studio_poids_net",
+    "date_bon"      : "x_studio_date_bon",
 }
 
 # ─── PROMPT MISTRAL ───────────────────────────────────────────────────────────
@@ -61,8 +62,11 @@ EXTRACTION_PROMPT = """Extrais les données de ce bon de pesée dans ce format J
   "pesee1_ticket": "...",
   "pesee2_poids": 0,
   "pesee2_ticket": "...",
-  "poids_net": 0
-}"""
+  "poids_net": 0,
+  "date_bon": "..."
+}
+
+Pour "date_bon" : cherche d'abord une date isolée en haut du bon (ex: "04/03/2026"). Si absente, prends la date de la Pesée n°1. Format retourné : JJ/MM/AAAA."""
 
 
 def resize_image(image_base64: str, max_size: int = 1024) -> str:
