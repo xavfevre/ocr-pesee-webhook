@@ -128,6 +128,9 @@ def odoo_write(worksheet_id: int, extracted: dict):
         if val is not None:
             vals[odoo_field] = val
 
+    # Statut OCR
+    vals["x_studio_ocr_statut"] = "✅ OCR terminé — Poids net : {} kg".format(extracted.get("poids_net", "?"))
+
     if not vals:
         raise ValueError("Aucune valeur extraite à écrire")
 
@@ -144,6 +147,19 @@ def odoo_write(worksheet_id: int, extracted: dict):
 
 
 # ─── ENDPOINT PRINCIPAL ───────────────────────────────────────────────────────
+def odoo_write_statut(worksheet_id: int, model: str, statut: str):
+    """Écrit uniquement le statut OCR sur la worksheet."""
+    try:
+        common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+        uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+        if uid:
+            models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+            models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+                model, "write", [[worksheet_id], {"x_studio_ocr_statut": statut}])
+    except:
+        pass
+
+
 def odoo_fetch_image(worksheet_id: int, model: str) -> str:
     """Récupère l'image base64 depuis Odoo via XML-RPC."""
     common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
@@ -182,6 +198,9 @@ def ocr_pesee():
         if not worksheet_id:
             return jsonify({"error": "id requis"}), 400
 
+        # 0. Statut "en cours"
+        odoo_write_statut(int(worksheet_id), model, "⏳ OCR en cours...")
+
         # 1. Récupération de l'image depuis Odoo
         image_base64 = odoo_fetch_image(int(worksheet_id), model)
         app.logger.info(f"Image récupérée pour record {worksheet_id}")
@@ -203,6 +222,11 @@ def ocr_pesee():
         return jsonify({"error": f"Mistral JSON parse error: {str(e)}"}), 422
     except Exception as e:
         app.logger.error(f"Erreur webhook: {str(e)}")
+        try:
+            if worksheet_id:
+                odoo_write_statut(int(worksheet_id), ODOO_WORKSHEET_MODEL, f"❌ OCR erreur: {str(e)[:100]}")
+        except:
+            pass
         return jsonify({"error": str(e)}), 500
 
 
