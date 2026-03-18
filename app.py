@@ -161,6 +161,66 @@ def odoo_write(worksheet_id: int, extracted: dict):
     return result
 
 
+def odoo_add_section_commande(worksheet_id: int, extracted: dict):
+    """Ajoute une ligne de section sur la commande liée à la tâche."""
+    common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+    uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+    if not uid:
+        return
+
+    models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+
+    # 1. Récupérer la tâche liée à la feuille
+    ws = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+        ODOO_WORKSHEET_MODEL, "read",
+        [[worksheet_id]], {"fields": ["x_project_task_id"]})
+    if not ws or not ws[0].get("x_project_task_id"):
+        app.logger.info("Pas de tâche liée à la feuille")
+        return
+
+    task_id = ws[0]["x_project_task_id"][0]
+
+    # 2. Récupérer la commande via sale_line_id sur la tâche
+    task = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+        "project.task", "read",
+        [[task_id]], {"fields": ["sale_line_id", "name"]})
+    if not task or not task[0].get("sale_line_id"):
+        app.logger.info("Pas de commande liée à la tâche")
+        return
+
+    sale_line_id = task[0]["sale_line_id"][0]
+
+    # 3. Récupérer l'order_id depuis la ligne de commande
+    line = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+        "sale.order.line", "read",
+        [[sale_line_id]], {"fields": ["order_id"]})
+    if not line or not line[0].get("order_id"):
+        return
+
+    order_id = line[0]["order_id"][0]
+
+    # 4. Construire le libellé de la section
+    num = extracted.get("numero_bon") or ""
+    date = extracted.get("date_bon") or ""
+    client = extracted.get("client") or ""
+    vehicule = extracted.get("vehicule") or ""
+    poids = extracted.get("poids_net") or 0
+    poids_t = round(poids / 1000, 3) if poids else 0
+
+    section_name = f"Bon n°{num} | {date} | {client} | {vehicule} | {poids_t} T"
+
+    # 5. Créer la ligne de section sur la commande
+    models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+        "sale.order.line", "create",
+        [{
+            "order_id": order_id,
+            "display_type": "line_section",
+            "name": section_name,
+        }])
+
+    app.logger.info(f"Section créée sur commande {order_id}: {section_name}")
+
+
 # ─── ENDPOINT PRINCIPAL ───────────────────────────────────────────────────────
 def odoo_write_statut(worksheet_id: int, model: str, statut: str):
     """Écrit uniquement le statut OCR sur la worksheet."""
@@ -226,6 +286,9 @@ def ocr_pesee():
 
         # 3. Écriture des champs dans Odoo
         odoo_write(int(worksheet_id), extracted)
+
+        # 4. Section sur la commande
+        odoo_add_section_commande(int(worksheet_id), extracted)
 
         return jsonify({
             "status": "ok",
