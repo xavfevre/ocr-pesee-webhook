@@ -42,27 +42,49 @@ FIELD_MAP = {
 }
 
 # ─── PROMPT MISTRAL ───────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """Tu es un système d'extraction de données sur des bons de pesée/livraison français.
-Tu reçois une photo ou scan d'un bon et tu dois extraire les valeurs dans un JSON strict.
+SYSTEM_PROMPT = """Tu es un système d'extraction de données sur des documents de transport français.
+Tu reçois une photo ou scan et tu dois IDENTIFIER le type de document puis extraire les valeurs dans un JSON strict.
 
-RÈGLES CRITIQUES :
-1. POIDS : Toujours retourner en kg (entier). Si le bon indique des tonnes (T ou t), multiplie par 1000 (ex: 29,800 T → 29800). Si en kg, retourne tel quel.
-2. NUMÉRO DE BON : cherche "Bon N°", "BON N°", "Numéro de bon", "No", "Numero", "n°", "BON DE LIVRAISON N°" etc.
-3. CLIENT : cherche "Client", "CLIENT", "Client n°" (prends le nom pas le code)
-4. TRANSPORTEUR : cherche "Transporteur", "Transport", "MAQUIGNON" si c'est la valeur
-5. PRODUIT : cherche "Produit", "PRODUIT", "Article", "Libellé", "Description"
-6. CHANTIER : cherche "Chantier", "CHANTIER", "Destination", "Lieu livr."
-7. VÉHICULE : cherche "Véhicule", "Immat", "Tracteur", la plaque d'immatriculation
-8. PESÉE 1 : cherche "Pesée n°1", "Poids Pesee1", "Poids brut", "BRUT", "Poids Entrée"
-9. PESÉE 2 : cherche "Pesée n°2", "Poids Pesee2", "Tare", "TARE", "Poids Sortie"
-10. POIDS NET : cherche "Poids net", "NET", "Net", "Matieres", "Quantité" en dernière instance
-11. DATE : cherche une date isolée en tête de document. Sinon prends la date de la première pesée. Format JJ/MM/AAAA.
-12. Si une valeur est absente ou illisible, retourne null.
-13. Retourne UNIQUEMENT le JSON, sans markdown, sans texte autour.
+TYPES DE DOCUMENTS RECONNUS :
+A) BON DE PESÉE / BON DE LIVRAISON carrière : contient "Bon de pesée", "Pesée n°1/2", "Poids net"
+B) LETTRE DE VOITURE : contient "LETTRE DE VOITURE", "LVN", "CHARGEMENT", "DÉCHARGEMENT", "MARCHANDISES"
+
+RÈGLES COMMUNES :
+1. POIDS : Toujours en kg entier. Si tonnes → multiplier par 1000 (ex: 29,320 T → 29320)
+2. DATE : Format JJ/MM/AAAA. Si absent, prendre la date de la première pesée.
+3. Si valeur absente ou illisible → null
+4. Retourne UNIQUEMENT le JSON, sans markdown.
+
+MAPPING SELON TYPE :
+
+Pour BON DE PESÉE :
+- numero_bon → "Bon N°", "BON N°", "Numéro de bon", "No", "n°"
+- client → "Client" (nom, pas le code)
+- transporteur → "Transporteur"
+- produit → "Produit", "Article", "Libellé"
+- chantier → "Chantier", "Destination", "Lieu livr."
+- vehicule → "Véhicule", "Immat Tracteur", plaque d'immatriculation
+- pesee1_poids → "Pesée n°1", "Poids brut", "BRUT", "Poids Entrée"
+- pesee2_poids → "Pesée n°2", "Tare", "TARE", "Poids Sortie"
+- poids_net → "Poids net", "NET", "Net", "Matieres"
+- date_bon → date isolée en tête, sinon date pesée 1
+
+Pour LETTRE DE VOITURE :
+- numero_bon → "N° LVN", "n° LVN", numéro en haut du document
+- client → "CHARGEMENT" (lieu/société de chargement)
+- transporteur → "CONDUCTEUR" (nom du conducteur)
+- produit → "NATURE" (nature de la marchandise)
+- chantier → "DÉCHARGEMENT" (lieu/société de déchargement)
+- vehicule → "VEHICULE" (immatriculation)
+- pesee1_poids → null (pas de pesée 1)
+- pesee2_poids → null (pas de pesée 2)
+- poids_net → "POIDS" (en kg, convertir si tonnes)
+- date_bon → "DATE" en haut du document
 """
 
-EXTRACTION_PROMPT = """Extrais les données de ce bon de pesée/livraison dans ce format JSON exact :
+EXTRACTION_PROMPT = """Identifie le type de document et extrais les données dans ce format JSON exact :
 {
+  "type_document": "bon_pesee" ou "lettre_voiture",
   "numero_bon": "...",
   "client": "...",
   "transporteur": "...",
