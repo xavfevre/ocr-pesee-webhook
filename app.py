@@ -42,15 +42,26 @@ FIELD_MAP = {
 }
 
 # ─── PROMPT MISTRAL ───────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """Tu es un système d'extraction de données sur des bons de pesée français.
-Tu reçois une photo d'un bon de pesée et tu dois extraire les valeurs dans un JSON strict.
-Règles :
-- Les poids sont en kg, retourne uniquement le nombre entier (ex: 15020, pas "15 020 kg")
-- Si une valeur est absente ou illisible, retourne null
-- Retourne UNIQUEMENT le JSON, sans markdown, sans texte autour
+SYSTEM_PROMPT = """Tu es un système d'extraction de données sur des bons de pesée/livraison français.
+Tu reçois une photo ou scan d'un bon et tu dois extraire les valeurs dans un JSON strict.
+
+RÈGLES CRITIQUES :
+1. POIDS : Toujours retourner en kg (entier). Si le bon indique des tonnes (T ou t), multiplie par 1000 (ex: 29,800 T → 29800). Si en kg, retourne tel quel.
+2. NUMÉRO DE BON : cherche "Bon N°", "BON N°", "Numéro de bon", "No", "Numero", "n°", "BON DE LIVRAISON N°" etc.
+3. CLIENT : cherche "Client", "CLIENT", "Client n°" (prends le nom pas le code)
+4. TRANSPORTEUR : cherche "Transporteur", "Transport", "MAQUIGNON" si c'est la valeur
+5. PRODUIT : cherche "Produit", "PRODUIT", "Article", "Libellé", "Description"
+6. CHANTIER : cherche "Chantier", "CHANTIER", "Destination", "Lieu livr."
+7. VÉHICULE : cherche "Véhicule", "Immat", "Tracteur", la plaque d'immatriculation
+8. PESÉE 1 : cherche "Pesée n°1", "Poids Pesee1", "Poids brut", "BRUT", "Poids Entrée"
+9. PESÉE 2 : cherche "Pesée n°2", "Poids Pesee2", "Tare", "TARE", "Poids Sortie"
+10. POIDS NET : cherche "Poids net", "NET", "Net", "Matieres", "Quantité" en dernière instance
+11. DATE : cherche une date isolée en tête de document. Sinon prends la date de la première pesée. Format JJ/MM/AAAA.
+12. Si une valeur est absente ou illisible, retourne null.
+13. Retourne UNIQUEMENT le JSON, sans markdown, sans texte autour.
 """
 
-EXTRACTION_PROMPT = """Extrais les données de ce bon de pesée dans ce format JSON exact :
+EXTRACTION_PROMPT = """Extrais les données de ce bon de pesée/livraison dans ce format JSON exact :
 {
   "numero_bon": "...",
   "client": "...",
@@ -66,7 +77,7 @@ EXTRACTION_PROMPT = """Extrais les données de ce bon de pesée dans ce format J
   "date_bon": "..."
 }
 
-Pour "date_bon" : cherche d'abord une date isolée en haut du bon (ex: "04/03/2026"). Si absente, prends la date de la Pesée n°1. Format retourné : JJ/MM/AAAA."""
+RAPPEL : poids_net, pesee1_poids, pesee2_poids TOUJOURS en kg entier (multiplier par 1000 si tonnes)."""
 
 
 def resize_image(image_base64: str, max_size: int = 1024) -> str:
