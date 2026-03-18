@@ -114,40 +114,38 @@ def resize_image(image_base64: str, max_size: int = 1024) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def extract_with_mistral(image_base64: str, mime_type: str = "image/jpeg") -> dict:
-    """Appel Mistral Vision et retourne le dict extrait."""
+def extract_with_mistral(image_base64, mime_type="image/jpeg"):
+    """Appel Mistral Vision avec retry automatique sur rate limit (429)."""
+    import time
     image_base64 = resize_image(image_base64)
     client = Mistral(api_key=MISTRAL_API_KEY)
-
-    response = client.chat.complete(
-        model="mistral-large-latest",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{mime_type};base64,{image_base64}"
-                        }
-                    },
-                    {"type": "text", "text": EXTRACTION_PROMPT}
-                ]
-            }
-        ],
-        max_tokens=512,
-        temperature=0.0,
-    )
-
-    raw = response.choices[0].message.content.strip()
-
-    # Nettoyage au cas où Mistral renvoie des backticks
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
-
-    return json.loads(raw)
-
+    last_error = None
+    for attempt in range(4):
+        if attempt > 0:
+            wait = attempt * 3
+            app.logger.info("Rate limit - retry %d/3 dans %ds" % (attempt, wait))
+            time.sleep(wait)
+        try:
+            response = client.chat.complete(
+                model="mistral-large-latest",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": "data:%s;base64,%s" % (mime_type, image_base64)}},
+                        {"type": "text", "text": EXTRACTION_PROMPT}
+                    ]}
+                ],
+                max_tokens=512,
+                temperature=0.0,
+            )
+            raw = response.choices[0].message.content.strip()
+            raw = raw.replace("```json", "").replace("```", "").strip()
+            return json.loads(raw)
+        except Exception as e:
+            last_error = e
+            if "429" not in str(e) and "rate" not in str(e).lower():
+                raise
+    raise last_error
 
 def odoo_write(worksheet_id: int, extracted: dict):
     """Écrit les champs extraits sur la worksheet Odoo via JSON-RPC."""
