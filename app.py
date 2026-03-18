@@ -308,6 +308,117 @@ def ocr_pesee():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/add-section", methods=["POST"])
+def add_section():
+    """
+    Appelé quand une ligne est ajoutée sur une commande.
+    Payload Odoo : {"_id": <line_id>, "_model": "sale.order.line"}
+    Logique : remonte tâche → feuille OCR → insère section avant la ligne.
+    """
+    try:
+        data = request.get_json(force=True)
+        app.logger.info(f"add-section reçu: {data}")
+
+        line_id = data.get("_id") or data.get("id")
+        if not line_id:
+            return jsonify({"error": "id requis"}), 400
+
+        common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+        uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+        if not uid:
+            return jsonify({"error": "Auth Odoo échouée"}), 500
+        models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+
+        # 1. Lire la ligne créée
+        line = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            "sale.order.line", "read",
+            [[int(line_id)]],
+            {"fields": ["order_id", "sequence", "display_type", "product_id"]})
+        if not line:
+            return jsonify({"error": "Ligne introuvable"}), 404
+
+        line = line[0]
+
+        # Ignorer si c'est déjà une section ou une note
+        if line.get("display_type"):
+            return jsonify({"status": "skipped", "reason": "already section/note"})
+
+        order_id = line["order_id"][0]
+        line_sequence = line.get("sequence", 10)
+
+        # 2. Chercher la tâche liée à la commande
+        tasks = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            "project.task", "search_read",
+            [[["sale_line_id.order_id", "=", order_id]]],
+            {"fields": ["id", "name"], "limit": 1})
+        if not tasks:
+            return jsonify({"status": "skipped", "reason": "pas de tâche liée"})
+
+        task_id = tasks[0]["id"]
+
+        # 3. Chercher la feuille OCR liée à la tâche avec poids_net rempli
+        worksheets = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            ODOO_WORKSHEET_MODEL, "search_read",
+            [[["x_project_task_id", "=", task_id],
+              ["x_studio_poids_net", ">", 0]]],
+            {"fields": [
+                "x_studio_numero_bon", "x_studio_date_bon",
+                "x_studio_client_pesee", "x_studio_vehicule",
+                "x_studio_poids_net"
+            ], "limit": 1})
+        if not worksheets:
+            return jsonify({"status": "skipped", "reason": "pas de feuille OCR remplie"})
+
+        ws = worksheets[0]
+        num     = ws.get("x_studio_numero_bon") or ""
+        date    = ws.get("x_studio_date_bon") or ""
+        client  = ws.get("x_studio_client_pesee") or ""
+        vehicule = ws.get("x_studio_vehicule") or ""
+        poids   = ws.get("x_studio_poids_net") or 0
+        poids_t = round(poids / 1000, 3) if poids else 0
+
+        section_name = f"Bon n°{num} | {date} | {client} | {vehicule} | {poids_t} T"
+
+        # 4. Vérifier qu'une section identique n'existe pas déjà
+        existing = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            "sale.order.line", "search",
+            [[["order_id", "=", order_id],
+              ["display_type", "=", "line_section"],
+              ["name", "=", section_name]]])
+        if existing:
+            return jsonify({"status": "skipped", "reason": "section déjà présente"})
+
+        # 5. Décaler les lignes existantes pour faire de la place
+        all_lines = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            "sale.order.line", "search_read",
+            [[["order_id", "=", order_id],
+              ["sequence", ">=", line_sequence],
+              ["id", "!=", int(line_id)]]],
+            {"fields": ["id", "sequence"]})
+
+        for l in all_lines:
+            models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+                "sale.order.line", "write",
+                [[l["id"]], {"sequence": l["sequence"] + 1}])
+
+        # 6. Créer la section avec sequence juste avant la ligne
+        models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            "sale.order.line", "create",
+            [{
+                "order_id": order_id,
+                "display_type": "line_section",
+                "name": section_name,
+                "sequence": line_sequence,
+            }])
+
+        app.logger.info(f"Section créée: {section_name}")
+        return jsonify({"status": "ok", "section": section_name})
+
+    except Exception as e:
+        app.logger.error(f"Erreur add-section: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
