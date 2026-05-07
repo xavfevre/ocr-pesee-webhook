@@ -242,6 +242,55 @@ def odoo_add_section_commande(worksheet_id: int, extracted: dict):
 
 
 # ─── ENDPOINT PRINCIPAL ───────────────────────────────────────────────────────
+def odoo_enrich_extracted(worksheet_id: int, model: str, extracted: dict, uid, models) -> dict:
+    """Remplace date_bon et vehicule par les valeurs Odoo fiables."""
+    import re as _re
+    
+    ws = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+        model, "read",
+        [[worksheet_id]],
+        {"fields": ["x_studio_date", "x_studio_immat_tracteur"]})
+    
+    if not ws:
+        return extracted
+    
+    ws = ws[0]
+    
+    # 1. Date → depuis x_studio_date (format Odoo: "2026-05-07" → "07/05/2026")
+    odoo_date = ws.get("x_studio_date")
+    if odoo_date:
+        try:
+            parts = str(odoo_date).split("-")
+            if len(parts) == 3:
+                extracted["date_bon"] = "%s/%s/%s" % (parts[2], parts[1], parts[0])
+        except:
+            pass
+    
+    # 2. Véhicule → extraire immat depuis x_studio_immat_tracteur
+    # x_studio_immat_tracteur est un Many2one → retourne [id, "nom"]
+    immat_raw = ws.get("x_studio_immat_tracteur")
+    if immat_raw:
+        # Si Many2one → prendre le nom (index 1)
+        if isinstance(immat_raw, (list, tuple)) and len(immat_raw) > 1:
+            immat_str = str(immat_raw[1])
+        else:
+            immat_str = str(immat_raw)
+        
+        # Extraire immatriculation française : AB-123-CD ou AB 123 CD ou ancienne AA-123-AA
+        plate = _re.search(r'[A-Z]{2}[-s ]?[0-9]{3}[-s ]?[A-Z]{2}', immat_str.upper())
+        if plate:
+            extracted["vehicule"] = plate.group(0).replace(" ", "-")
+        else:
+            # Fallback : prendre le dernier mot qui ressemble à une immat
+            words = immat_str.split()
+            for w in reversed(words):
+                if _re.match(r'^[A-Z0-9]{4,10}$', w.upper()):
+                    extracted["vehicule"] = w.upper()
+                    break
+    
+    return extracted
+
+
 def odoo_write_statut(worksheet_id: int, model: str, statut: str):
     """Écrit uniquement le statut OCR sur la worksheet."""
     try:
@@ -302,6 +351,13 @@ def ocr_pesee():
 
         # 2. Extraction OCR via Mistral
         extracted = extract_with_mistral(image_base64)
+
+        # 2b. Enrichissement avec données Odoo fiables
+        common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+        uid_enrich = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+        if uid_enrich:
+            models_enrich = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+            extracted = odoo_enrich_extracted(int(worksheet_id), model, extracted, uid_enrich, models_enrich)
         app.logger.info(f"OCR extrait: {extracted}")
 
         # 3. Écriture des champs dans Odoo
