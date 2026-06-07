@@ -1,0 +1,28 @@
+name: Keep Render service warm
+
+# Garde le service Render éveillé pour éviter les "cold starts" (le free tier
+# s'endort après ~15 min d'inactivité → le 1er scan échoue/timeoute).
+# NB : les workflows planifiés ne tournent que sur la branche par défaut (après merge),
+# et GitHub peut décaler le cron de quelques minutes. Pour un keep-warm précis,
+# un pinger externe (cron-job.org / UptimeRobot toutes les 10 min) reste plus fiable.
+
+on:
+  schedule:
+    - cron: '*/13 * * * *'   # ~toutes les 13 min (avant la mise en veille à 15 min)
+  workflow_dispatch:          # lancement manuel possible
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health (réveille le service si endormi)
+        run: |
+          url="https://ocr-pesee-webhook.onrender.com/health"
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 70 "$url" || echo "000")
+            echo "essai $i → HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 25
+          done
+          echo "::warning::service non confirmé éveillé après 3 essais"
+          exit 0   # best-effort : ne pas faire échouer le workflow
