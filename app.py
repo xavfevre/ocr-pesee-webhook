@@ -16,6 +16,7 @@ import base64
 import socket
 import re
 import xmlrpc.client
+from datetime import datetime
 from functools import wraps
 from flask import Flask, request, jsonify
 
@@ -272,19 +273,19 @@ def _section_name(extracted_or_ws, from_ws=False):
 
 
 def odoo_upsert_section(models, uid, order_id: int, section_name: str):
-    """Crée la section, ou MET À JOUR la section 'Bon n°...' existante (idempotent → pas de doublon)."""
+    """Crée ou met à jour la section correspondant à ce bon (match par numéro de bon)."""
     existing = x(models, uid, "sale.order.line", "search_read",
                  [("order_id", "=", order_id), ("display_type", "=", "line_section")],
                  fields=["id", "name"])
-    bon_sections = [s for s in existing if (s.get("name") or "").startswith("Bon n°")]
+    # Déjà identique → rien à faire
     if any((s.get("name") or "") == section_name for s in existing):
         return "unchanged"
-    if bon_sections:
-        x(models, uid, "sale.order.line", "write", [bon_sections[0]["id"]], {"name": section_name})
-        # supprime d'éventuels doublons de sections "Bon n°"
-        dups = [s["id"] for s in bon_sections[1:]]
-        if dups:
-            x(models, uid, "sale.order.line", "unlink", dups)
+    # Chercher une section existante pour ce même numéro de bon (première partie avant "|")
+    bon_prefix = section_name.split("|")[0].strip()
+    matching = [s for s in existing
+                if (s.get("name") or "").split("|")[0].strip() == bon_prefix]
+    if matching:
+        x(models, uid, "sale.order.line", "write", [matching[0]["id"]], {"name": section_name})
         return "updated"
     x(models, uid, "sale.order.line", "create",
       {"order_id": order_id, "display_type": "line_section", "name": section_name})
@@ -403,6 +404,105 @@ def add_section():
 
     except Exception as e:
         app.logger.error(f"Erreur add-section: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def _parse_section_date(name: str) -> datetime:
+    """Extrait la date d'un libellé 'Bon n°... | DD/MM/YYYY | ...' pour le tri."""
+    try:
+        parts = name.split("|")
+        if len(parts) >= 2:
+            return datetime.strptime(parts[1].strip(), "%d/%m/%Y")
+    except Exception:
+        pass
+    return datetime.max  # sections sans date lisible vont à la fin
+
+
+@app.route("/sort-sections", methods=["POST"])
+@require_secret
+def sort_sections():
+    """
+    Trie les sections 'Bon n°...' d'une commande par date chronologique.
+    Payload Odoo : {"_id": <order_id>} ou {"order_id": <order_id>}
+    Les lignes produit situées avant la première section 'Bon n°' restent en tête.
+    """
+    try:
+        data = request.get_json(force=True)
+        app.logger.info(f"sort-sections reçu: {data}")
+        order_id = data.get("_id") or data.get("id") or data.get("order_id")
+        if not order_id:
+            return jsonify({"error": "id requis"}), 400
+        order_id = int(order_id)
+
+        uid, models = odoo_connect()
+
+        # 1. Toutes les lignes triées par séquence actuelle
+        all_lines = x(models, uid, "sale.order.line", "search_read",
+                      [("order_id", "=", order_id)],
+                      fields=["id", "sequence", "display_type", "name"],
+                      order="sequence asc, id asc")
+
+        # 2. Construire les groupes : lignes pré-section + blocs [section + ses produits]
+        pre_lines = []
+        groups = []          # liste de (section_line, [product_lines])
+        current_section = None
+        current_products = []
+
+        for line in all_lines:
+            is_bon = (
+                line.get("display_type") == "line_section"
+                and (line.get("name") or "").startswith("Bon n°")
+            )
+            if is_bon:
+                if current_section is not None:
+                    groups.append((current_section, current_products))
+                else:
+                    pre_lines = list(current_products)
+                current_section = line
+                current_products = []
+            else:
+                current_products.append(line)
+
+        if current_section is not None:
+            groups.append((current_section, current_products))
+        elif current_products:
+            pre_lines.extend(current_products)
+
+        if not groups:
+            return jsonify({"status": "skipped", "reason": "aucune section Bon n° trouvée"})
+
+        # 3. Trier les blocs par date extraite du libellé de section
+        groups.sort(key=lambda g: _parse_section_date(g[0].get("name") or ""))
+
+        # 4. Réassigner les séquences : pré-lignes d'abord, puis sections triées
+        seq = 10
+        updates = []
+
+        for line in pre_lines:
+            updates.append((line["id"], seq))
+            seq += 10
+
+        for section_line, product_lines in groups:
+            updates.append((section_line["id"], seq))
+            seq += 10
+            for pl in product_lines:
+                updates.append((pl["id"], seq))
+                seq += 10
+
+        # 5. Écriture en base
+        for line_id, new_seq in updates:
+            x(models, uid, "sale.order.line", "write", [line_id], {"sequence": new_seq})
+
+        app.logger.info(f"sort-sections OK: {len(groups)} sections triées sur commande {order_id}")
+        return jsonify({
+            "status": "ok",
+            "order_id": order_id,
+            "sections_triees": len(groups),
+            "ordre": [section.get("name") for section, _ in groups],
+        })
+
+    except Exception as e:
+        app.logger.error(f"Erreur sort-sections: {e}")
         return jsonify({"error": str(e)}), 500
 
 
