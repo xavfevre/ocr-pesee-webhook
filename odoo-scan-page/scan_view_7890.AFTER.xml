@@ -35,6 +35,8 @@
       .zone-card{flex:1;background:#fff;border-radius:12px;padding:10px 8px 8px;text-align:center;}
       .zone-name{color:#0f172a;font-weight:800;font-size:16px;margin-bottom:6px;}
       .zone-bc{width:100%;height:auto;display:block;}
+      .zone-btn{width:100%;margin-top:8px;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;}
+      .zone-btn:active{background:#1e40af;}
       .scan-btns{display:flex;gap:10px;margin-top:14px;}
       .scan-btn{flex:1;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;}
       .scan-btn-undo{background:#b45309;color:#fff;}
@@ -82,10 +84,12 @@
         <div class="zone-card">
           <div class="zone-name">📍 Stock Atelier</div>
           <img class="zone-bc" alt="Stock Atelier" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Atelier&amp;width=600&amp;height=120"/>
+          <button class="zone-btn" data-zone="Stock Atelier">Valider Stock Atelier</button>
         </div>
         <div class="zone-card">
           <div class="zone-name">📍 Stock Usine</div>
           <img class="zone-bc" alt="Stock Usine" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Usine&amp;width=600&amp;height=120"/>
+          <button class="zone-btn" data-zone="Stock Usine">Valider Stock Usine</button>
         </div>
       </div>
 
@@ -395,6 +399,10 @@
   });
   document.getElementById('btn-refresh').addEventListener('click', function(){ refresh().then(function(){ input.focus(); }); });
   document.getElementById('btn-cloture').addEventListener('click', function(){ cloture(); });
+  var zbtns = document.querySelectorAll('.zone-btn');
+  for(var zi=0; zi&lt;zbtns.length; zi++){
+    zbtns[zi].addEventListener('click', function(){ setZone(this.getAttribute('data-zone')); });
+  }
 
   refresh();
   input.focus();
