@@ -1,5 +1,6 @@
-import xmlrpc.client, ssl, urllib.request
-URL="https://maquignon.odoo.com"; DB="maquignon"; USER="<USER>"; PWD="<MDP>"
+import xmlrpc.client, ssl, urllib.request, os
+URL=os.environ.get("ODOO_URL","https://maquignon.odoo.com"); DB=os.environ.get("ODOO_DB","maquignon")
+USER=os.environ.get("ODOO_USER","<USER>"); PWD=os.environ.get("ODOO_PWD","<MDP>")
 ctx=ssl.create_default_context()
 uid=xmlrpc.client.ServerProxy(f"{URL}/xmlrpc/2/common",context=ctx).authenticate(DB,USER,PWD,{})
 models=xmlrpc.client.ServerProxy(f"{URL}/xmlrpc/2/object",context=ctx)
@@ -15,6 +16,7 @@ JS = r"""
   var zoneEl = document.getElementById('colis-zone');
   var colisActif = false;
   var colisLocked = false;
+  var RELOC = null;
   var pending = null;     // {id,name,total,remaining,hasLines}
   var qteStr  = '';
 
@@ -206,7 +208,7 @@ JS = r"""
       .then(refresh).then(function(){ beep(true); input.focus(); })
       .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
   }
-  // ----- emplacement = CLÔTURE : enregistre le stock + imprime + verrouille -----
+  // ----- emplacement = CLÔTURE : déplace le stock + imprime + verrouille -----
   function setZone(val){
     if(!colisActif){ setRes('⚠️ Scanner une palette d\'abord'); beep(false); return; }
     var label = (val.replace(/^ZONE[-_ ]?/i, '').trim()) || val;
@@ -217,8 +219,14 @@ JS = r"""
     ]).then(function(c){
       if((c[0] + c[1]) === 0){ setRes('⚠️ Palette vide — scannez au moins un OF avant de clôturer'); beep(false); input.focus(); return; }
       window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
+      var warn = '';
       return rpc('stock.package','write',[[cid],{x_studio_zone: label, x_studio_cloturee:true}])
-        .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Clôturé → ' + label + ' (imprimé + verrouillé)'}]); })
+        .then(function(){
+          if(!RELOC){ return null; }
+          return rpc('ir.actions.server','run',[[RELOC]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE}})
+            .catch(function(){ warn = ' (⚠️ déplacement stock à vérifier)'; });
+        })
+        .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Clôturé → ' + label + ' · imprimé · verrouillé' + warn}]); })
         .then(refresh).then(function(){ beep(true); input.focus(); });
     }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
   }
@@ -286,6 +294,7 @@ JS = r"""
     zbtns[zi].addEventListener('click', function(){ setZone(this.getAttribute('data-zone')); });
   }
 
+  rpc('ir.actions.server','search',[[['name','=','Relocaliser palette (emplacement)']]]).then(function(r){ RELOC = (r && r[0]) || null; }).catch(function(){});
   rpc('x_poste_de_scan','write',[[POSTE],{x_studio_rsultat:false}]).then(refresh).catch(refresh);
   input.focus();
 })();
@@ -443,9 +452,9 @@ print("readback len", len(a), "| qte-pop:", 'qte-pop' in a, "| btn-cloture:", 'b
       "| colis-zone:", 'colis-zone' in a, "| setZone:", 'setZone' in a, "| cloture():", 'function cloture' in a)
 import urllib.request
 try:
-    req=urllib.request.Request("https://maquignon.odoo.com/scan", headers={'User-Agent':'Mozilla/5.0'})
+    req=urllib.request.Request(URL+"/scan", headers={'User-Agent':'Mozilla/5.0'})
     html=urllib.request.urlopen(req, context=ctx, timeout=30).read().decode('utf-8','replace')
-    print("GET /scan ->", len(html), "| btn-cloture:", 'btn-cloture' in html, "| ZONE:", 'ZONE' in html, "| CLOTURE:", 'CLOTURE' in html)
+    print("GET", URL, "/scan ->", len(html), "| RELOC lookup:", 'Relocaliser palette' in html, "| zone-btn:", 'zone-btn' in html)
 except Exception as e:
     print("GET /scan err:", e)
 

@@ -76,5 +76,22 @@ imprimée **et verrouillée** : les actions serveur **1585** (scan) et **1914**
 
 ## Champs ajoutés (stock.package)
 
-- `x_studio_zone` (char) — emplacement/zone de la palette.
+- `x_studio_zone` (char) — emplacement/zone scanné (libellé opérateur).
 - `x_studio_cloturee` (booléen) — palette clôturée/verrouillée.
+
+## Emplacements réels + déplacement de stock
+
+- Emplacements internes créés sous « Maq » : **Stock Atelier** et **Stock Usine**
+  (`stock.location`, usage interne).
+- Action serveur **« Relocaliser palette (emplacement) »** (`server_action_relocate_palette.py`,
+  modèle `x_poste_de_scan`, état=code) : à la clôture, mappe `x_studio_zone` →
+  `stock.location` (par nom) et fait un **transfert interne réel** de la palette
+  vers cet emplacement → l'inventaire Odoo reflète l'emplacement.
+- La page `/scan` retrouve l'action par son nom (`RELOC`) et l'exécute juste avant
+  de libérer le poste. Si le déplacement échoue, la clôture (impression + verrou)
+  est tout de même conservée, avec un avertissement.
+
+## Déploiement multi-bases
+
+`deploy_scan.py` lit `ODOO_URL` / `ODOO_DB` / `ODOO_USER` / `ODOO_PWD` (défaut maquignon).
+Déployé sur `maquignon` et la base de test `testmaq2406261629`.
