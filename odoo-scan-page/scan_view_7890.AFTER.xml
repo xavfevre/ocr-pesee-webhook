@@ -71,7 +71,7 @@
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
-      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>, puis le <b>code-barre de l'emplacement</b> ci-dessous. <b>CLÔTURE</b> = imprimer &amp; verrouiller.</div>
+      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Pour finir, scannez le <b>code-barre de l'emplacement</b> (ou touchez le bouton) : la palette est <b>imprimée + verrouillée</b>.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
@@ -84,17 +84,16 @@
         <div class="zone-card">
           <div class="zone-name">📍 Stock Atelier</div>
           <img class="zone-bc" alt="Stock Atelier" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Atelier&amp;width=600&amp;height=120"/>
-          <button class="zone-btn" data-zone="Stock Atelier">Valider Stock Atelier</button>
+          <button class="zone-btn" data-zone="Stock Atelier">Clôturer → Stock Atelier</button>
         </div>
         <div class="zone-card">
           <div class="zone-name">📍 Stock Usine</div>
           <img class="zone-bc" alt="Stock Usine" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Usine&amp;width=600&amp;height=120"/>
-          <button class="zone-btn" data-zone="Stock Usine">Valider Stock Usine</button>
+          <button class="zone-btn" data-zone="Stock Usine">Clôturer → Stock Usine</button>
         </div>
       </div>
 
       <div class="scan-btns">
-        <button class="scan-btn scan-btn-cloture" id="btn-cloture">✅ Clôturer &amp; imprimer</button>
         <button class="scan-btn scan-btn-undo" id="btn-undo">↩️ Retirer dernier OF</button>
         <button class="scan-btn scan-btn-refresh" id="btn-refresh">↻ Rafraîchir</button>
       </div>
@@ -330,12 +329,14 @@
       .then(refresh).then(function(){ beep(true); input.focus(); })
       .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
   }
-  // ----- emplacement : scanner un code ZONE-xxx -----
+  // ----- emplacement = CLÔTURE : enregistre le stock + imprime + verrouille -----
   function setZone(val){
     if(!colisActif){ setRes('⚠️ Scanner une palette d\'abord'); beep(false); return; }
     var label = (val.replace(/^ZONE[-_ ]?/i, '').trim()) || val;
-    rpc('stock.package','write',[[colisActif],{x_studio_zone: label}])
-      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_scanner:false, x_studio_rsultat:'📍 Emplacement : ' + label}]); })
+    var cid = colisActif;
+    window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
+    rpc('stock.package','write',[[cid],{x_studio_zone: label, x_studio_cloturee:true}])
+      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Clôturé → ' + label + ' (imprimé + verrouillé)'}]); })
       .then(refresh).then(function(){ beep(true); input.focus(); })
       .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
   }
@@ -398,7 +399,6 @@
       .catch(function(e){ alert('Erreur : ' + e.message); });
   });
   document.getElementById('btn-refresh').addEventListener('click', function(){ refresh().then(function(){ input.focus(); }); });
-  document.getElementById('btn-cloture').addEventListener('click', function(){ cloture(); });
   var zbtns = document.querySelectorAll('.zone-btn');
   for(var zi=0; zi&lt;zbtns.length; zi++){
     zbtns[zi].addEventListener('click', function(){ setZone(this.getAttribute('data-zone')); });
