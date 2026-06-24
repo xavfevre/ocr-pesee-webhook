@@ -12,7 +12,9 @@ JS = r"""
   var input  = document.getElementById('scan-input');
   var resEl  = document.getElementById('scan-res');
   var colisEl= document.getElementById('colis-name');
+  var zoneEl = document.getElementById('colis-zone');
   var colisActif = false;
+  var colisLocked = false;
   var pending = null;     // {id,name,total,remaining,hasLines}
   var qteStr  = '';
 
@@ -29,7 +31,7 @@ JS = r"""
   function classFor(txt){
     if(!txt) return 'idle';
     if(txt.indexOf('✅')===0 || txt.indexOf('📦')===0 || txt.indexOf('✂')===0) return 'ok';
-    if(txt.indexOf('ℹ')===0 || txt.indexOf('↩')===0 || txt.indexOf('🗑')===0) return 'info';
+    if(txt.indexOf('ℹ')===0 || txt.indexOf('↩')===0 || txt.indexOf('🗑')===0 || txt.indexOf('📍')===0) return 'info';
     if(txt.indexOf('⚠')===0) return 'warn';
     if(txt.indexOf('❌')===0) return 'err';
     return 'idle';
@@ -107,6 +109,19 @@ JS = r"""
       colisEl.className = colis ? 'scan-colis-name' : 'scan-colis-none';
       resEl.textContent = rec.x_studio_rsultat || "En attente d'un scan…";
       resEl.className = 'scan-res ' + classFor(rec.x_studio_rsultat);
+      colisLocked = false;
+      if(zoneEl){
+        if(colisActif){
+          rpc('stock.package','read',[[colisActif],['x_studio_zone','x_studio_cloturee']]).then(function(pr){
+            var rec2 = pr && pr[0] ? pr[0] : {};
+            colisLocked = !!rec2.x_studio_cloturee;
+            var bits = [];
+            if(rec2.x_studio_zone){ bits.push('📍 Emplacement : ' + rec2.x_studio_zone); }
+            if(colisLocked){ bits.push('🔒 Clôturée'); }
+            zoneEl.textContent = bits.join('   ');
+          }).catch(function(){ zoneEl.textContent=''; });
+        } else { zoneEl.textContent=''; }
+      }
       return colisActif;
     }).then(loadOfs);
   }
@@ -181,6 +196,26 @@ JS = r"""
     placeOf(p, qty);
   }
 
+  // ----- cloture palette : imprime le colisage + libere la palette -----
+  function cloture(){
+    if(!colisActif){ setRes('⚠️ Aucune palette active à clôturer'); beep(false); return; }
+    var cid = colisActif;
+    window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
+    rpc('stock.package','write',[[cid],{x_studio_cloturee:true}])
+      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Palette clôturée, verrouillée et imprimée'}]); })
+      .then(refresh).then(function(){ beep(true); input.focus(); })
+      .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+  // ----- emplacement : scanner un code ZONE-xxx -----
+  function setZone(val){
+    if(!colisActif){ setRes('⚠️ Scanner une palette d\'abord'); beep(false); return; }
+    var label = (val.replace(/^ZONE[-_ ]?/i, '').trim()) || val;
+    rpc('stock.package','write',[[colisActif],{x_studio_zone: label}])
+      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_scanner:false, x_studio_rsultat:'📍 Emplacement : ' + label}]); })
+      .then(refresh).then(function(){ beep(true); input.focus(); })
+      .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+
   // ----- entree principale (scan) -----
   function doScan(val){
     input.value='';
@@ -195,7 +230,10 @@ JS = r"""
       return;
     }
     var up = (val||'').toUpperCase();
+    if(up.indexOf('CLOTURE')===0 || up==='FIN' || up==='FIN-PALETTE'){ cloture(); return; }
+    if(up.indexOf('ZONE')===0){ setZone(val); return; }
     if(up.indexOf('PACK')===0){ doScanRaw(val); return; }
+    if(colisLocked){ setRes('🔒 Palette clôturée — scannez une autre palette'); beep(false); return; }
     rpc('mrp.production','search_read',[[['name','in',[val, up]]],['id','name','x_studio_nbr','state','x_studio_colis']],{limit:1}).then(function(rows){
       if(!rows.length){ return doScanRaw(val); }
       var o = rows[0];
@@ -236,6 +274,7 @@ JS = r"""
       .catch(function(e){ alert('Erreur : ' + e.message); });
   });
   document.getElementById('btn-refresh').addEventListener('click', function(){ refresh().then(function(){ input.focus(); }); });
+  document.getElementById('btn-cloture').addEventListener('click', function(){ cloture(); });
 
   refresh();
   input.focus();
@@ -259,6 +298,7 @@ ARCH = '''<t t-name="website.poste_scan">
       .scan-colis-lbl{color:#94a3b8;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
       .scan-colis-name{color:#fff;font-size:34px;font-weight:900;line-height:1.1;margin-top:4px;}
       .scan-colis-none{color:#fbbf24;font-size:22px;font-weight:800;margin-top:4px;}
+      .scan-colis-zone{color:#34d399;font-size:16px;font-weight:800;margin-top:4px;min-height:18px;}
       #scan-input{width:100%;font-size:30px;font-weight:800;text-align:center;padding:18px;border:4px solid #38bdf8;border-radius:14px;background:#fff;color:#0f172a;letter-spacing:2px;}
       #scan-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 4px rgba(34,211,238,.35);}
       .scan-hint{color:#64748b;text-align:center;font-size:13px;margin:6px 0 14px;}
@@ -284,6 +324,8 @@ ARCH = '''<t t-name="website.poste_scan">
       .scan-btn-undo{background:#b45309;color:#fff;}
       .scan-btn-undo:active{background:#92400e;}
       .scan-btn-refresh{background:#334155;color:#e2e8f0;}
+      .scan-btn-cloture{background:#16a34a;color:#fff;}
+      .scan-btn-cloture:active{background:#15803d;}
       .qte-pop{position:fixed;inset:0;background:rgba(2,6,23,.88);display:none;align-items:center;justify-content:center;z-index:99999;}
       .qte-card{background:#0b1220;border:2px solid #7c3aed;border-radius:18px;padding:18px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.6);}
       .qte-card h4{color:#ede9fe;text-align:center;font-weight:800;margin:0 0 6px;font-size:20px;}
@@ -307,10 +349,11 @@ ARCH = '''<t t-name="website.poste_scan">
       <div class="scan-colis">
         <div class="scan-colis-lbl">Colis actif</div>
         <div id="colis-name" class="scan-colis-name">—</div>
+        <div id="colis-zone" class="scan-colis-zone"></div>
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
-      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Pour un OF à plusieurs pièces, une fenêtre demande combien en mettre sur cette palette.</div>
+      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Code <b>ZONE</b> = emplacement, code <b>CLÔTURE</b> = imprimer le colisage &amp; fermer la palette.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
@@ -320,6 +363,7 @@ ARCH = '''<t t-name="website.poste_scan">
       </div>
 
       <div class="scan-btns">
+        <button class="scan-btn scan-btn-cloture" id="btn-cloture">✅ Clôturer &amp; imprimer</button>
         <button class="scan-btn scan-btn-undo" id="btn-undo">↩️ Retirer dernier OF</button>
         <button class="scan-btn scan-btn-refresh" id="btn-refresh">↻ Rafraîchir</button>
       </div>
@@ -366,7 +410,16 @@ print("VIEW 7890 updated. arch len", len(ARCH))
 
 # verify by reading back
 v=x('ir.ui.view','read',[7890],fields=['arch_db'])[0]
-print("readback len", len(v['arch_db']), "has qte-pop:", 'qte-pop' in v['arch_db'], "has split panel:", 'scan-split' in v['arch_db'])
+a=v['arch_db']
+print("readback len", len(a), "| qte-pop:", 'qte-pop' in a, "| btn-cloture:", 'btn-cloture' in a,
+      "| colis-zone:", 'colis-zone' in a, "| setZone:", 'setZone' in a, "| cloture():", 'function cloture' in a)
+import urllib.request
+try:
+    req=urllib.request.Request("https://maquignon.odoo.com/scan", headers={'User-Agent':'Mozilla/5.0'})
+    html=urllib.request.urlopen(req, context=ctx, timeout=30).read().decode('utf-8','replace')
+    print("GET /scan ->", len(html), "| btn-cloture:", 'btn-cloture' in html, "| ZONE:", 'ZONE' in html, "| CLOTURE:", 'CLOTURE' in html)
+except Exception as e:
+    print("GET /scan err:", e)
 
 # fetch the public page to ensure it renders (no server error)
 try:

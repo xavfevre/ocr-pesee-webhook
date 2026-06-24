@@ -119,6 +119,7 @@
   var colisEl= document.getElementById('colis-name');
   var zoneEl = document.getElementById('colis-zone');
   var colisActif = false;
+  var colisLocked = false;
   var pending = null;     // {id,name,total,remaining,hasLines}
   var qteStr  = '';
 
@@ -213,11 +214,16 @@
       colisEl.className = colis ? 'scan-colis-name' : 'scan-colis-none';
       resEl.textContent = rec.x_studio_rsultat || "En attente d'un scan…";
       resEl.className = 'scan-res ' + classFor(rec.x_studio_rsultat);
+      colisLocked = false;
       if(zoneEl){
         if(colisActif){
-          rpc('stock.package','read',[[colisActif],['x_studio_zone']]).then(function(pr){
-            var z = pr &amp;&amp; pr[0] ? pr[0].x_studio_zone : '';
-            zoneEl.textContent = z ? ('📍 Emplacement : ' + z) : '';
+          rpc('stock.package','read',[[colisActif],['x_studio_zone','x_studio_cloturee']]).then(function(pr){
+            var rec2 = pr &amp;&amp; pr[0] ? pr[0] : {};
+            colisLocked = !!rec2.x_studio_cloturee;
+            var bits = [];
+            if(rec2.x_studio_zone){ bits.push('📍 Emplacement : ' + rec2.x_studio_zone); }
+            if(colisLocked){ bits.push('🔒 Clôturée'); }
+            zoneEl.textContent = bits.join('   ');
           }).catch(function(){ zoneEl.textContent=''; });
         } else { zoneEl.textContent=''; }
       }
@@ -300,7 +306,8 @@
     if(!colisActif){ setRes('⚠️ Aucune palette active à clôturer'); beep(false); return; }
     var cid = colisActif;
     window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
-    rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Palette clôturée et imprimée'}])
+    rpc('stock.package','write',[[cid],{x_studio_cloturee:true}])
+      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Palette clôturée, verrouillée et imprimée'}]); })
       .then(refresh).then(function(){ beep(true); input.focus(); })
       .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
   }
@@ -331,6 +338,7 @@
     if(up.indexOf('CLOTURE')===0 || up==='FIN' || up==='FIN-PALETTE'){ cloture(); return; }
     if(up.indexOf('ZONE')===0){ setZone(val); return; }
     if(up.indexOf('PACK')===0){ doScanRaw(val); return; }
+    if(colisLocked){ setRes('🔒 Palette clôturée — scannez une autre palette'); beep(false); return; }
     rpc('mrp.production','search_read',[[['name','in',[val, up]]],['id','name','x_studio_nbr','state','x_studio_colis']],{limit:1}).then(function(rows){
       if(!rows.length){ return doScanRaw(val); }
       var o = rows[0];

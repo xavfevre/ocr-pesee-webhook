@@ -59,6 +59,22 @@ action `ir.actions.report` id 1916, bind sur **project.task**). Bouton *Imprimer
 État du colisage* sur une « Tâche commande pierre ». Liste, par OF de la commande,
 les palettes (entières + réparties) avec pièces et emplacement, + totaux.
 
-## Champ ajouté
+## Clôture = verrouillage
 
-`stock.package.x_studio_zone` (char, manuel) — emplacement/zone de la palette.
+`stock.package.x_studio_cloturee` (booléen). Au scan de `CLOTURE`, la palette est
+imprimée **et verrouillée** : les actions serveur **1585** (scan) et **1914**
+(répartition) refusent d'ajouter un OF à une palette clôturée (« 🔒 … est clôturée »).
+
+## Sujet 1 — Palettes sur les lignes de commande
+
+- `sale.order.line.x_studio_palettes` (char, **calculé non stocké**) : liste les
+  palettes des OF de la ligne (`PACK001 (4 pcs - A) · PACK002 (3 pcs - B)`).
+  Code dans `computed_field_x_studio_palettes.py`.
+- `sale_order_line_palettes.xml` (vue héritée `maquignon.sale_order_line_palettes`,
+  parent 2614) ajoute la colonne **Palettes** sur les lignes de commande.
+- En complément, le rapport PDF `report_colisage_commande.xml` (bind project.task).
+
+## Champs ajoutés (stock.package)
+
+- `x_studio_zone` (char) — emplacement/zone de la palette.
+- `x_studio_cloturee` (booléen) — palette clôturée/verrouillée.
