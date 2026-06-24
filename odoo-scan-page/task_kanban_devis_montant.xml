@@ -1,0 +1,8 @@
+<!-- Vue héritée kanban project.task (parent 4217 'project.task.in.project.kanban') :
+     ajoute N° devis/commande + Montant HT sur la carte. -->
+<data>
+  <xpath expr="//field[@name='project_id']" position="after">
+    <field name="x_studio_num_devis" display="full" invisible="not x_studio_num_devis"/>
+    <field name="x_studio_montant" widget="monetary" display="full" invisible="not x_studio_montant"/>
+  </xpath>
+</data>
