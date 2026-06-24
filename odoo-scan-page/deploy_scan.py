@@ -286,7 +286,7 @@ JS = r"""
     zbtns[zi].addEventListener('click', function(){ setZone(this.getAttribute('data-zone')); });
   }
 
-  refresh();
+  rpc('x_poste_de_scan','write',[[POSTE],{x_studio_rsultat:false}]).then(refresh).catch(refresh);
   input.focus();
 })();
 """
@@ -312,7 +312,7 @@ ARCH = '''<t t-name="website.poste_scan">
       #scan-input{width:100%;font-size:30px;font-weight:800;text-align:center;padding:18px;border:4px solid #38bdf8;border-radius:14px;background:#fff;color:#0f172a;letter-spacing:2px;}
       #scan-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 4px rgba(34,211,238,.35);}
       .scan-hint{color:#64748b;text-align:center;font-size:13px;margin:6px 0 14px;}
-      .scan-res{border-radius:14px;padding:18px;text-align:center;font-size:24px;font-weight:900;min-height:66px;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+      .scan-res{border-radius:10px;padding:10px 14px;text-align:center;font-size:16px;font-weight:700;min-height:0;display:flex;align-items:center;justify-content:center;opacity:.92;transition:background .15s;}
       .scan-res.ok{background:#065f46;color:#d1fae5;}
       .scan-res.info{background:#1e3a8a;color:#dbeafe;}
       .scan-res.warn{background:#92400e;color:#fef3c7;}
