@@ -10,6 +10,7 @@
       .scan-colis-lbl{color:#94a3b8;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
       .scan-colis-name{color:#fff;font-size:34px;font-weight:900;line-height:1.1;margin-top:4px;}
       .scan-colis-none{color:#fbbf24;font-size:22px;font-weight:800;margin-top:4px;}
+      .scan-colis-mesure{color:#93c5fd;font-size:21px;font-weight:900;margin-top:4px;min-height:24px;}
       .scan-colis-zone{color:#34d399;font-size:16px;font-weight:800;margin-top:4px;min-height:18px;}
       #scan-input{width:100%;font-size:30px;font-weight:800;text-align:center;padding:18px;border:4px solid #38bdf8;border-radius:14px;background:#fff;color:#0f172a;letter-spacing:2px;}
       #scan-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 4px rgba(34,211,238,.35);}
@@ -67,6 +68,7 @@
       <div class="scan-colis">
         <div class="scan-colis-lbl">Colis actif</div>
         <div id="colis-name" class="scan-colis-name">—</div>
+        <div id="colis-mesure" class="scan-colis-mesure"/>
         <div id="colis-zone" class="scan-colis-zone"/>
       </div>
 
@@ -136,6 +138,7 @@
   var resEl  = document.getElementById('scan-res');
   var colisEl= document.getElementById('colis-name');
   var zoneEl = document.getElementById('colis-zone');
+  var mesureEl = document.getElementById('colis-mesure');
   var colisActif = false;
   var colisLocked = false;
   var RELOC = null;
@@ -236,15 +239,19 @@
       colisLocked = false;
       if(zoneEl){
         if(colisActif){
-          rpc('stock.package','read',[[colisActif],['x_studio_zone','x_studio_cloturee']]).then(function(pr){
+          rpc('stock.package','read',[[colisActif],['x_studio_zone','x_studio_cloturee','x_studio_cubage','x_studio_tonnage']]).then(function(pr){
             var rec2 = pr &amp;&amp; pr[0] ? pr[0] : {};
             colisLocked = !!rec2.x_studio_cloturee;
             var bits = [];
             if(rec2.x_studio_zone){ bits.push('📍 Emplacement : ' + rec2.x_studio_zone); }
             if(colisLocked){ bits.push('🔒 Clôturée'); }
             zoneEl.textContent = bits.join('   ');
-          }).catch(function(){ zoneEl.textContent=''; });
-        } else { zoneEl.textContent=''; }
+            if(mesureEl){
+              var cub = rec2.x_studio_cubage || 0, ton = rec2.x_studio_tonnage || 0;
+              mesureEl.textContent = '📦 ' + fmtN(cub) + ' m³  ·  ' + fmtN(Math.round(ton*10)/10/1000) + ' t  (' + Math.round(ton) + ' kg)';
+            }
+          }).catch(function(){ zoneEl.textContent=''; if(mesureEl){ mesureEl.textContent=''; } });
+        } else { zoneEl.textContent=''; if(mesureEl){ mesureEl.textContent=''; } }
       }
       return colisActif;
     }).then(loadOfs);
