@@ -35,7 +35,30 @@ la vue 7890. Le panneau manuel « Répartir » a été retiré (remplacé par le
 
 Réécrire `arch` de la vue 7890 avec le contenu de `scan_view_7890.BEFORE.xml`.
 
-## Reste à faire (Phase 2)
+## Étiquette palette — pièces par palette
 
-Adapter l'**étiquette** et le **rapport OF** pour afficher la **quantité de la
-palette** (lire `x_repartition_palette` pour les OF répartis).
+`label_palette_pieces.xml` (vue héritée `maquignon.label_palette_pieces`, parent
+`stock.report_package_barcode` 1827, action 372 *Package Barcode with Contents*).
+Affiche les OF de la palette avec le **nombre de pièces** (`4 pcs` ou `3 / 4 pcs`
+si réparti) + désignation + dimensions, et l'**emplacement** (`x_studio_zone`).
+
+## Clôture de palette + emplacement (page /scan)
+
+Ajouts dans `scan_view_7890.AFTER.xml` :
+- Scan d'un code **`CLOTURE`** (ou bouton « Clôturer & imprimer ») → ouvre le PDF
+  du colisage (`/report/pdf/stock.report_package_barcode/<id>`) et libère la palette.
+- Scan d'un code **`ZONE-x`** → enregistre l'emplacement dans `stock.package.x_studio_zone`
+  (champ manuel créé pour ça).
+- `codes_palette.xml` (page **/codes-palette**) : feuille imprimable des codes-barres
+  CLÔTURE + Zones A–F (modifiables).
+
+## Rapport « État du colisage » par commande
+
+`report_colisage_commande.xml` (`studio_customization.report_colisage_commande`,
+action `ir.actions.report` id 1916, bind sur **project.task**). Bouton *Imprimer →
+État du colisage* sur une « Tâche commande pierre ». Liste, par OF de la commande,
+les palettes (entières + réparties) avec pièces et emplacement, + totaux.
+
+## Champ ajouté
+
+`stock.package.x_studio_zone` (char, manuel) — emplacement/zone de la palette.

@@ -1,0 +1,73 @@
+<t t-name="studio_customization.report_colisage_commande">
+  <t t-call="web.html_container">
+    <t t-foreach="docs" t-as="task">
+      <t t-call="web.external_layout">
+        <div class="page">
+          <h2 class="mb-0">État du colisage</h2>
+          <h4 class="text-muted mt-0" t-out="task.name">Commande</h4>
+          <div class="row mb-3">
+            <div class="col-6"><strong>Client : </strong><span t-out="task.partner_id.display_name or ''"/></div>
+            <div class="col-6 text-end"><strong>Date : </strong><span t-out="task.date_deadline or task.create_date" t-options="{'widget':'date'}"/></div>
+          </div>
+          <t t-set="ofs" t-value="task.env['mrp.production'].search([('x_studio_tche_commande_pierre','=',task.id)], order='name')"/>
+          <t t-set="tot_pcs" t-value="0"/>
+          <t t-set="pals" t-value="task.env['stock.package']"/>
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th style="width:16%;">OF</th>
+                <th style="width:34%;">Désignation</th>
+                <th class="text-end" style="width:10%;">Total</th>
+                <th style="width:22%;">Palette</th>
+                <th class="text-end" style="width:8%;">Pièces</th>
+                <th style="width:10%;">Emplacement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <t t-foreach="ofs" t-as="of">
+                <t t-set="whole" t-value="of.x_studio_colis"/>
+                <t t-set="lines" t-value="of.env['x_repartition_palette'].search([('x_studio_of_id','=',of.id)])"/>
+                <t t-set="nrows" t-value="(1 if whole else 0) + len(lines)"/>
+                <t t-set="nrows" t-value="nrows or 1"/>
+                <t t-set="tot_pcs" t-value="tot_pcs + int(of.x_studio_nbr or 0)"/>
+                <!-- premiere ligne (avec les infos OF en rowspan) -->
+                <tr>
+                  <td t-att-rowspan="nrows"><span t-out="of.name"/></td>
+                  <td t-att-rowspan="nrows"><span t-out="of.product_id.display_name"/></td>
+                  <td t-att-rowspan="nrows" class="text-end"><span t-out="int(of.x_studio_nbr or 0)"/> pcs</td>
+                  <t t-if="whole">
+                    <td><span t-out="whole.name"/></td>
+                    <td class="text-end"><strong t-out="int(of.x_studio_nbr or 0)"/></td>
+                    <td><span t-out="whole.x_studio_zone or '—'"/></td>
+                  </t>
+                  <t t-elif="lines">
+                    <td><span t-out="lines[0].x_studio_colis_id.name"/></td>
+                    <td class="text-end"><strong t-out="lines[0].x_studio_qte"/></td>
+                    <td><span t-out="lines[0].x_studio_colis_id.x_studio_zone or '—'"/></td>
+                  </t>
+                  <t t-else="">
+                    <td colspan="3" class="text-muted fst-italic">Pas encore mis en palette</td>
+                  </t>
+                </tr>
+                <!-- lignes suivantes pour les repartitions -->
+                <t t-if="lines" t-foreach="lines" t-as="ln">
+                  <tr t-if="ln_index &gt; 0">
+                    <td><span t-out="ln.x_studio_colis_id.name"/></td>
+                    <td class="text-end"><strong t-out="ln.x_studio_qte"/></td>
+                    <td><span t-out="ln.x_studio_colis_id.x_studio_zone or '—'"/></td>
+                  </tr>
+                </t>
+              </t>
+            </tbody>
+          </table>
+          <div class="row mt-2">
+            <div class="col-12 text-end">
+              <strong>Total OF : </strong><span t-out="len(ofs)"/>   |
+              <strong>Total pièces : </strong><span t-out="tot_pcs"/>
+            </div>
+          </div>
+        </div>
+      </t>
+    </t>
+  </t>
+</t>
