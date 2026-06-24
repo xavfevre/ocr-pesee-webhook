@@ -1,8 +1,7 @@
 <data>
-  <!-- La liste des lignes de commande (sous-vue <list> du widget order_line),
-       personnalisée par Studio (vue 4889). On ajoute la colonne après l'UdM,
-       comme les colonnes Studio (Vente m2, UdF...). -->
+  <!-- Colonne Palettes PERMANENTE (toujours affichée, pas optionnelle) dans la
+       sous-vue <list> des lignes de commande (personnalisée par Studio 4889). -->
   <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_id']" position="after">
-    <field name="x_studio_palettes" optional="show" readonly="1"/>
+    <field name="x_studio_palettes" readonly="1"/>
   </xpath>
 </data>
