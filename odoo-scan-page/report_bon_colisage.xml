@@ -37,17 +37,19 @@
           <t t-set="rep_lines" t-value="o.env['x_repartition_palette'].search([('x_studio_colis_id','=',o.id)])"/>
           <table class="table table-sm o_main_table" t-if="whole_ofs or rep_lines">
             <thead><tr>
-              <th>OF</th><th>Désignation</th><th class="text-end">Pièces</th><th>Dimensions</th>
+              <th style="width:16%;">OF</th><th style="width:18%;">Réf. Pierre</th><th style="width:36%;">Désignation</th><th class="text-end" style="width:14%;">Pièces</th><th style="width:16%;">Dimensions</th>
             </tr></thead>
             <tbody>
               <tr t-foreach="whole_ofs" t-as="ofw">
                 <td t-out="ofw.name"/>
+                <td><strong t-out="ofw.x_studio_ref_pierre or ''"/></td>
                 <td t-out="ofw.product_id.display_name"/>
                 <td class="text-end"><strong t-out="int(ofw.x_studio_nbr or 0)"/> pcs</td>
                 <td><t t-if="ofw.x_studio_long_m_1"><span t-out="'%.2f' % ofw.x_studio_long_m_1"/></t><t t-if="ofw.x_studio_larg_m_1"> × <span t-out="'%.2f' % ofw.x_studio_larg_m_1"/></t><t t-if="ofw.x_studio_haut_m_1"> × <span t-out="'%.2f' % ofw.x_studio_haut_m_1"/></t><t t-if="ofw.x_studio_long_m_1"> m</t></td>
               </tr>
               <tr t-foreach="rep_lines" t-as="ln">
                 <td t-out="ln.x_studio_of_id.name"/>
+                <td><strong t-out="ln.x_studio_of_id.x_studio_ref_pierre or ''"/></td>
                 <td t-out="ln.x_studio_of_id.product_id.display_name"/>
                 <td class="text-end"><strong t-out="ln.x_studio_qte"/> / <span t-out="int(ln.x_studio_of_id.x_studio_nbr or 0)"/> pcs</td>
                 <td><t t-if="ln.x_studio_of_id.x_studio_long_m_1"><span t-out="'%.2f' % ln.x_studio_of_id.x_studio_long_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_larg_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_larg_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_haut_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_haut_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_long_m_1"> m</t></td>
