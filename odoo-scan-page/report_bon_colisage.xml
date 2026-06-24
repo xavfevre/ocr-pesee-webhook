@@ -1,0 +1,61 @@
+<t t-name="maquignon.report_bon_colisage">
+  <t t-call="web.html_container">
+    <t t-foreach="docs" t-as="o">
+      <t t-call="web.external_layout">
+        <div class="page">
+          <div class="row mb-3">
+            <div class="col-7">
+              <h2 class="mt-0" style="margin-bottom:4px;">Bon de colisage</h2>
+              <div style="font-size:22px;font-weight:bold;" t-out="o.name"/>
+            </div>
+            <div class="col-5 text-end">
+              <div t-field="o.name" t-options="{'widget':'barcode','width':600,'height':100,'img_style':'width:240px;height:48px;'}"/>
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-6">
+              <strong>Client</strong>
+              <div t-out="o.x_studio_client or '-'"/>
+            </div>
+            <div class="col-6" t-if="o.x_studio_partner_livraison">
+              <strong>Adresse de livraison</strong>
+              <div t-field="o.x_studio_partner_livraison" t-options="{'widget':'contact','no_marker':True}"/>
+            </div>
+          </div>
+          <div class="row mb-3" style="font-size:14px;">
+            <div class="col-3" t-if="o.pack_date"><strong>Date :</strong> <span t-field="o.pack_date"/></div>
+            <div class="col-3" t-if="o.package_type_id"><strong>Type :</strong> <span t-out="o.package_type_id.name"/></div>
+            <div class="col-4" t-if="o.x_studio_zone"><strong>Emplacement :</strong> <span t-out="o.x_studio_zone"/></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-12" style="border-top:1px solid #000;border-bottom:1px solid #000;padding:6px 0;font-size:15px;">
+              <strong>Cubage :</strong> <span t-out="'%.3f' % (o.x_studio_cubage or 0)"/> m³   —  
+              <strong>Tonnage :</strong> <span t-out="'%.0f' % (o.x_studio_tonnage or 0)"/> kg (<span t-out="'%.2f' % ((o.x_studio_tonnage or 0)/1000.0)"/> t)
+            </div>
+          </div>
+          <t t-set="whole_ofs" t-value="o.env['mrp.production'].search([('x_studio_colis','=',o.id)])"/>
+          <t t-set="rep_lines" t-value="o.env['x_repartition_palette'].search([('x_studio_colis_id','=',o.id)])"/>
+          <table class="table table-sm o_main_table" t-if="whole_ofs or rep_lines">
+            <thead><tr>
+              <th>OF</th><th>Désignation</th><th class="text-end">Pièces</th><th>Dimensions</th>
+            </tr></thead>
+            <tbody>
+              <tr t-foreach="whole_ofs" t-as="ofw">
+                <td t-out="ofw.name"/>
+                <td t-out="ofw.product_id.display_name"/>
+                <td class="text-end"><strong t-out="int(ofw.x_studio_nbr or 0)"/> pcs</td>
+                <td><t t-if="ofw.x_studio_long_m_1"><span t-out="'%.2f' % ofw.x_studio_long_m_1"/></t><t t-if="ofw.x_studio_larg_m_1"> × <span t-out="'%.2f' % ofw.x_studio_larg_m_1"/></t><t t-if="ofw.x_studio_haut_m_1"> × <span t-out="'%.2f' % ofw.x_studio_haut_m_1"/></t><t t-if="ofw.x_studio_long_m_1"> m</t></td>
+              </tr>
+              <tr t-foreach="rep_lines" t-as="ln">
+                <td t-out="ln.x_studio_of_id.name"/>
+                <td t-out="ln.x_studio_of_id.product_id.display_name"/>
+                <td class="text-end"><strong t-out="ln.x_studio_qte"/> / <span t-out="int(ln.x_studio_of_id.x_studio_nbr or 0)"/> pcs</td>
+                <td><t t-if="ln.x_studio_of_id.x_studio_long_m_1"><span t-out="'%.2f' % ln.x_studio_of_id.x_studio_long_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_larg_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_larg_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_haut_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_haut_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_long_m_1"> m</t></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </t>
+    </t>
+  </t>
+</t>

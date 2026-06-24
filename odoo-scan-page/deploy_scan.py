@@ -207,7 +207,7 @@ JS = r"""
   function cloture(){
     if(!colisActif){ setRes('⚠️ Aucune palette active à clôturer'); beep(false); return; }
     var cid = colisActif;
-    window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
+    window.open('/report/pdf/maquignon.report_bon_colisage/' + cid, '_blank');
     rpc('stock.package','write',[[cid],{x_studio_cloturee:true}])
       .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Palette clôturée, verrouillée et imprimée'}]); })
       .then(refresh).then(function(){ beep(true); input.focus(); })
@@ -223,7 +223,7 @@ JS = r"""
       rpc('x_repartition_palette','search_count',[[['x_studio_colis_id','=',cid]]],{})
     ]).then(function(c){
       if((c[0] + c[1]) === 0){ setRes('⚠️ Palette vide — scannez au moins un OF avant de clôturer'); beep(false); input.focus(); return; }
-      window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
+      window.open('/report/pdf/maquignon.report_bon_colisage/' + cid, '_blank');
       var warn = '';
       return rpc('stock.package','write',[[cid],{x_studio_zone: label, x_studio_cloturee:true}])
         .then(function(){
