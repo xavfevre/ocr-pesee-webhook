@@ -211,11 +211,16 @@ JS = r"""
     if(!colisActif){ setRes('⚠️ Scanner une palette d\'abord'); beep(false); return; }
     var label = (val.replace(/^ZONE[-_ ]?/i, '').trim()) || val;
     var cid = colisActif;
-    window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
-    rpc('stock.package','write',[[cid],{x_studio_zone: label, x_studio_cloturee:true}])
-      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Clôturé → ' + label + ' (imprimé + verrouillé)'}]); })
-      .then(refresh).then(function(){ beep(true); input.focus(); })
-      .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+    Promise.all([
+      rpc('mrp.production','search_count',[[['x_studio_colis','=',cid]]],{}),
+      rpc('x_repartition_palette','search_count',[[['x_studio_colis_id','=',cid]]],{})
+    ]).then(function(c){
+      if((c[0] + c[1]) === 0){ setRes('⚠️ Palette vide — scannez au moins un OF avant de clôturer'); beep(false); input.focus(); return; }
+      window.open('/report/pdf/stock.report_package_barcode/' + cid, '_blank');
+      return rpc('stock.package','write',[[cid],{x_studio_zone: label, x_studio_cloturee:true}])
+        .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Clôturé → ' + label + ' (imprimé + verrouillé)'}]); })
+        .then(refresh).then(function(){ beep(true); input.focus(); });
+    }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
   }
 
   // ----- entree principale (scan) -----
