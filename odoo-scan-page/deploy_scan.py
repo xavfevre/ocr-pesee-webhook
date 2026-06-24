@@ -319,6 +319,10 @@ ARCH = '''<t t-name="website.poste_scan">
       .of-qty.whole{background:#065f46;color:#d1fae5;}
       .of-qty.part{background:#5b21b6;color:#ede9fe;}
       .of-meta{font-size:12.5px;color:#93c5a8;font-weight:600;}
+      .scan-zones{display:flex;gap:12px;margin-top:14px;}
+      .zone-card{flex:1;background:#fff;border-radius:12px;padding:10px 8px 8px;text-align:center;}
+      .zone-name{color:#0f172a;font-weight:800;font-size:16px;margin-bottom:6px;}
+      .zone-bc{width:100%;height:auto;display:block;}
       .scan-btns{display:flex;gap:10px;margin-top:14px;}
       .scan-btn{flex:1;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;}
       .scan-btn-undo{background:#b45309;color:#fff;}
@@ -353,13 +357,24 @@ ARCH = '''<t t-name="website.poste_scan">
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
-      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Code <b>ZONE</b> = emplacement, code <b>CLÔTURE</b> = imprimer le colisage &amp; fermer la palette.</div>
+      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>, puis le <b>code-barre de l'emplacement</b> ci-dessous. <b>CLÔTURE</b> = imprimer &amp; verrouiller.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
       <div id="of-list" class="scan-of-list" style="display:none;">
         <h6>Contenu du colis (<span id="of-count">0</span>)</h6>
         <div id="of-items"/>
+      </div>
+
+      <div class="scan-zones">
+        <div class="zone-card">
+          <div class="zone-name">📍 Stock Atelier</div>
+          <img class="zone-bc" alt="Stock Atelier" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Atelier&amp;width=600&amp;height=120"/>
+        </div>
+        <div class="zone-card">
+          <div class="zone-name">📍 Stock Usine</div>
+          <img class="zone-bc" alt="Stock Usine" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Usine&amp;width=600&amp;height=120"/>
+        </div>
       </div>
 
       <div class="scan-btns">
