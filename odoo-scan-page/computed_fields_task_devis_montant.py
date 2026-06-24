@@ -12,3 +12,7 @@ for record in self:
     for so in record.x_studio_devis_commandes_1:
         tot += so.amount_untaxed
     record['x_studio_montant'] = tot
+
+# x_studio_etat_devis_code (char) : état le plus avancé parmi les devis liés ('draft'/'sent'/'sale')
+# x_studio_etat_devis (char) : libellé FR (Brouillon / Devis envoyé / Confirmé) -> badge coloré sur la carte
+#   (decoration-info=draft bleu, decoration-warning=sent orange, decoration-success=sale vert)

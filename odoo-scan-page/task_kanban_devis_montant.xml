@@ -1,8 +1,14 @@
-<!-- Vue héritée kanban project.task (parent 4217 'project.task.in.project.kanban') :
-     ajoute N° devis/commande + Montant HT sur la carte. -->
+<!-- Vue héritée kanban project.task (parent 4217) : sur la carte
+     N° devis/commande, État du devis (badge coloré), Montant HT.
+     + masque l'ancien x_studio_montant_ht quand il est à 0. -->
 <data>
   <xpath expr="//field[@name='project_id']" position="after">
     <field name="x_studio_num_devis" display="full" invisible="not x_studio_num_devis"/>
+    <field name="x_studio_etat_devis_code" invisible="1"/>
+    <field name="x_studio_etat_devis" widget="badge" display="full" decoration-info="x_studio_etat_devis_code == 'draft'" decoration-warning="x_studio_etat_devis_code == 'sent'" decoration-success="x_studio_etat_devis_code == 'sale'" invisible="not x_studio_etat_devis"/>
     <field name="x_studio_montant" widget="monetary" display="full" invisible="not x_studio_montant"/>
+  </xpath>
+  <xpath expr="//field[@name='x_studio_montant_ht']" position="attributes">
+    <attribute name="invisible">project_id in [2] or not x_studio_montant_ht</attribute>
   </xpath>
 </data>
