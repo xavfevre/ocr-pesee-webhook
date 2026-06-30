@@ -1,0 +1,800 @@
+<t t-name="website_studio.tache-responsive">
+  <t t-call="website.layout">
+    <!-- Sécurité : définir week_offset par défaut -->
+    <t t-set="current_week_offset" t-value="request.params.get('week_offset') and int(request.params.get('week_offset')) or 0"/>
+    
+    <!-- Récupérer les tâches du projet Demande de transport -->
+    <t t-set="all_records" t-value="request.env['project.task'].sudo().search([('project_id.name', '=', 'Demande de transport')])"/>
+    <t t-set="bon_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo_bon','!=',False)])"/>
+    <t t-set="bon_map" t-value="{a.x_project_task_id.id: a.id for a in bon_atts}"/>
+    <t t-set="pc_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo','!=',False)])"/>
+    <t t-set="pc_map" t-value="{a.x_project_task_id.id: a.id for a in pc_atts}"/>
+    <t t-set="liv_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo_1','!=',False)])"/>
+    <t t-set="liv_map" t-value="{a.x_project_task_id.id: a.id for a in liv_atts}"/>
+    <t t-set="palette" t-value="['#1f6f78','#b45309','#7c3aed','#be123c','#0f766e','#4d7c0f','#9d174d','#1d4ed8','#c2410c','#4338ca','#0e7490','#a16207','#7e22ce','#15803d','#9f1239']"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      /* Désactiver l'ancien en-tête sticky JS buggé */
+      #stickyHeader {display:none !important;}
+      /* En-tête de colonnes collant */
+      .tt-scroll {overflow:auto;}
+      .tt-scroll thead th {position: sticky; top: 0; z-index: 9; background:#212529 !important;}
+    </style>
+    <div class="container-fluid px-2 px-md-2">
+      <h2 class="mb-3 text-center d-none d-md-block" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 300; color: #2c3e50; letter-spacing: 1px;">
+        📅 Planning Hebdomadaire – Transport
+      </h2>
+      <h5 class="mb-2 text-center d-md-none" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 300; color: #2c3e50;">
+        📅 Planning Transport
+      </h5>
+      
+      <!-- Bandeau infos semaine + filtres côte à côte -->
+      <div class="text-center small mb-2 p-2 bg-light rounded">
+        <t t-set="today" t-value="datetime.datetime.now()"/>
+        <t t-set="week_start" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(weeks=current_week_offset)"/>
+        <t t-set="week_end" t-value="week_start + datetime.timedelta(days=6)"/>
+
+        <strong><t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
+        <span class="text-muted">
+          <t t-if="current_week_offset == 0">Semaine courante</t>
+          <t t-elif="current_week_offset == -1">Semaine dernière</t>
+          <t t-elif="current_week_offset == 1">Semaine prochaine</t>
+          <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
+          <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
+        </span>
+
+        <!-- Filtres côte à côte -->
+        <div class="mt-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
+          <t t-set="selected_chauffeur" t-value="request.params.get('chauffeur', '')"/>
+          <t t-set="chauffeurs_list" t-value="sorted(set([t.x_studio_chauffeur.display_name for t in all_records if t.x_studio_chauffeur and t.planned_date_begin]))"/>
+          <select class="form-select form-select-sm w-auto" onchange="filterByChauffeur(this.value)">
+            <option value="">👥 Tous chauffeurs</option>
+            <t t-foreach="chauffeurs_list" t-as="chauffeur">
+              <option t-att-value="chauffeur" t-att-selected="'selected' if chauffeur == selected_chauffeur else None">
+                <t t-esc="chauffeur"/>
+              </option>
+            </t>
+          </select>
+
+          <t t-set="selected_client" t-value="request.params.get('client', '')"/>
+          <t t-set="clients_list" t-value="sorted(set([t.partner_id.display_name for t in all_records if t.partner_id and t.planned_date_begin]))"/>
+          <select id="statusFilter" class="form-select form-select-sm w-auto" onchange="filterByStatus(this.value)">
+            <option value="">🏷️ Tous statuts</option>
+            <option value="facture">✅ Facturé</option>
+            <option value="paye">💰 Payé</option>
+            <option value="brouillon">🧾 Facture brouillon</option>
+            <option value="afacturer">🧾 À facturer</option>
+            <option value="annule">❌ Annulé</option>
+            <option value="autre">⬜ Sans statut</option>
+          </select>
+          <select class="form-select form-select-sm w-auto" onchange="filterByClient(this.value)">
+            <option value="">🏢 Tous clients</option>
+            <t t-foreach="clients_list" t-as="client">
+              <option t-att-value="client" t-att-selected="'selected' if client == selected_client else None">
+                <t t-esc="client"/>
+              </option>
+            </t>
+          </select>
+        </div>
+      </div>
+
+      <!-- Navigation semaine : Préc / Semaine en cours / Suiv -->
+      <div class="text-center mb-2 d-none d-md-flex justify-content-center align-items-center gap-2">
+        <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
+          <i class="fa fa-chevron-left"/> <span class="d-none d-md-inline">Préc.</span>
+        </a>
+        <a t-attf-href="?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-success btn-sm">
+          <i class="fa fa-calendar-check d-none d-md-inline"/> Semaine en cours
+        </a>
+        <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
+          <span class="d-none d-md-inline">Suiv.</span> <i class="fa fa-chevron-right"/>
+        </a>
+        <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
+        <a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
+      </div>
+
+      <!-- Demandes à traiter - Version responsive -->
+      <div class="alert alert-info mb-2 py-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <h6 class="mb-0 d-none d-md-block">📋 Demandes à traiter (<t t-esc="len([t for t in all_records if t.stage_id and t.stage_id.name == 'Nouvelle demande'])"/>)</h6>
+          <small class="mb-0 d-md-none">📋 Demandes (<t t-esc="len([t for t in all_records if t.stage_id and t.stage_id.name == 'Nouvelle demande'])"/>)</small>
+          <button class="btn btn-sm btn-outline-info" onclick="toggleDemandes()" id="toggleBtn">
+            <span class="d-none d-md-inline">Afficher</span><span class="d-md-none">Voir</span>
+          </button>
+        </div>
+        <div id="demandesContent" style="display: none;" class="mt-2">
+          <t t-set="demandes_a_traiter" t-value="[t for t in all_records if t.stage_id and t.stage_id.name == 'Nouvelle demande']"/>
+          <t t-if="demandes_a_traiter">
+            <!-- Version desktop -->
+            <div class="d-none d-md-flex flex-wrap gap-2">
+              <t t-foreach="demandes_a_traiter[:12]" t-as="demande">
+                <a t-attf-href="/web#id={{demande.id}}&amp;view_type=form&amp;model=project.task" target="_blank" class="btn btn-sm btn-outline-secondary text-start hover-shadow" style="text-decoration: none; max-width: 200px;">
+                  <div style="font-size: 10px;">
+                    <strong class="d-block text-truncate"><t t-esc="demande.name"/></strong>
+                    <small class="text-muted">
+                      <t t-esc="demande.stage_id.name if demande.stage_id else 'Non défini'"/>
+                      <t t-if="demande.planned_date_begin"> • <t t-esc="demande.planned_date_begin.strftime('%d/%m %H:%M')"/></t>
+                    </small>
+                  </div>
+                </a>
+              </t>
+              <t t-if="len(demandes_a_traiter) &gt; 12">
+                <small class="text-muted align-self-center">... +<t t-esc="len(demandes_a_traiter) - 12"/></small>
+              </t>
+            </div>
+            <!-- Version mobile -->
+            <div class="d-md-none d-flex flex-column gap-1">
+              <t t-foreach="demandes_a_traiter[:5]" t-as="demande">
+                <a t-attf-href="/web#id={{demande.id}}&amp;view_type=form&amp;model=project.task" target="_blank" class="btn btn-sm btn-outline-secondary text-start p-1" style="text-decoration: none; font-size: 10px;">
+                  <div class="d-flex justify-content-between">
+                    <strong class="text-truncate flex-grow-1 me-1"><t t-esc="demande.name"/></strong>
+                    <small><t t-if="demande.planned_date_begin"><t t-esc="demande.planned_date_begin.strftime('%d/%m %H:%M')"/></t><t t-else="">Pas de date</t></small>
+                  </div>
+                </a>
+              </t>
+            </div>
+          </t>
+          <t t-else="">
+            <small class="text-success">✅ Aucune demande en attente</small>
+          </t>
+        </div>
+      </div>
+
+      <!-- Variables de filtrage -->
+      <t t-set="filtered_records" t-value="all_records"/>
+      <t t-if="selected_chauffeur">
+        <t t-set="filtered_records" t-value="[t for t in filtered_records if t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur]"/>
+      </t>
+      <t t-if="selected_client">
+        <t t-set="filtered_records" t-value="[t for t in filtered_records if t.partner_id and t.partner_id.display_name == selected_client]"/>
+      </t>
+      <t t-set="filtered_records" t-value="[t for t in filtered_records if t.planned_date_begin]"/>
+
+      <!-- VERSION DESKTOP : Table avec bandeau fixe -->
+      <div class="d-none d-md-block">
+        <!-- Bandeau fixe des transports -->
+        <t t-set="immats" t-value="sorted(set([t.x_studio_transport.display_name for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]))"/>
+        <t t-set="immats" t-value="list(immats) + ['SANS TRANSPORT']"/>
+        <t t-set="carriers" t-value="sorted(set([t.x_studio_transport for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]), key=lambda c: c.display_name)"/>
+        
+        <div id="stickyHeader" class="d-none d-md-block sticky-header" style="display: none;">
+          <div class="d-flex bg-dark text-white py-2" style="min-width: 1400px;">
+            <div class="header-cell" style="width: 100px; min-width: 100px;">Jour</div>
+            <t t-foreach="immats" t-as="immat">
+              <div class="header-cell" style="min-width: 180px; flex: 1;">
+                <t t-if="immat == 'SANS TRANSPORT'">
+                  VÉHICULE NON ASSIGNÉ
+                </t>
+                <t t-else="">
+                  <t t-set="clean_immat" t-value="immat.replace('Transport ', '') if immat.startswith('Transport ') else immat"/>
+                  <t t-esc="clean_immat"/>
+                </t>
+              </div>
+            </t>
+          </div>
+        </div>
+
+        <div class="table-responsive d-none d-md-block tt-scroll">
+          <table id="mainTable" class="table table-sm table-bordered text-center align-middle" style="min-width: 1400px;">
+            <thead class="table-dark small">
+              <tr>
+                <th style="width: 100px;">Jour</th>
+                <t t-foreach="immats" t-as="immat">
+                  <th style="min-width: 180px;">
+                    <t t-if="immat == 'SANS TRANSPORT'">
+                      VÉHICULE NON ASSIGNÉ
+                    </t>
+                    <t t-else="">
+                      <t t-set="clean_immat" t-value="immat.replace('Transport ', '') if immat.startswith('Transport ') else immat"/>
+                      <t t-esc="clean_immat"/>
+                    </t>
+                  </th>
+                </t>
+              </tr>
+            </thead>
+            <tbody>
+              <t t-set="monday_date" t-value="week_start"/>
+              <t t-foreach="range(7)" t-as="day_offset">
+                <t t-set="current_date" t-value="monday_date + datetime.timedelta(days=day_offset)"/>
+                <t t-set="day_name_en" t-value="current_date.strftime('%A')"/>
+                <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
+                
+                <tr t-attf-class="{{is_today and 'table-warning' or ''}}" style="height: 120px;">
+                  <td class="fw-bold small align-top pt-2" style="width: 100px;">
+                    <t t-if="day_name_en == 'Monday'">Lun</t>
+                    <t t-if="day_name_en == 'Tuesday'">Mar</t>
+                    <t t-if="day_name_en == 'Wednesday'">Mer</t>
+                    <t t-if="day_name_en == 'Thursday'">Jeu</t>
+                    <t t-if="day_name_en == 'Friday'">Ven</t>
+                    <t t-if="day_name_en == 'Saturday'">Sam</t>
+                    <t t-if="day_name_en == 'Sunday'">Dim</t>
+                    <t t-if="is_today"><i class="fa fa-star text-warning ms-1"/></t>
+                    <br/><small class="text-muted"><t t-esc="current_date.strftime('%d/%m')"/></small>
+                  </td>
+                  
+                  <!-- Colonnes véhicules -->
+                  <t t-foreach="carriers + [False]" t-as="carrier">
+                    <t t-set="immat" t-value="carrier and carrier.display_name or 'SANS TRANSPORT'"/>
+                    <td class="tp-cell p-1 align-top" style="vertical-align: top !important; min-width: 180px;" t-att-data-day="current_date.strftime('%Y-%m-%d')" t-att-data-engin="carrier and carrier.id or '0'">
+                      <t t-foreach="filtered_records" t-as="tache">
+                        <t t-if="tache.planned_date_begin and carrier and tache.x_studio_transport and tache.x_studio_transport.id == carrier.id">
+                          <t t-set="tache_date_str" t-value="tache.planned_date_begin.strftime('%Y-%m-%d')"/>
+                          <t t-set="current_date_str" t-value="current_date.strftime('%Y-%m-%d')"/>
+                          <t t-if="tache_date_str == current_date_str">
+                            <t t-set="chnm" t-value="tache.x_studio_chauffeur.display_name if tache.x_studio_chauffeur else 'Non assigné'"/>
+                            <t t-set="chcol" t-value="'#9ca3af' if not tache.x_studio_chauffeur else palette[sum([ord(ch) for ch in chnm]) % len(palette)]"/>
+                            <t t-set="st_key" t-value="''"/>
+                            <t t-if="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>
+                            <t t-if="not st_key">
+                              <t t-set="_so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                              <t t-if="_so">
+                                <t t-set="_inv" t-value="_so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_inv">
+                                  <t t-set="_ps" t-value="set(_inv.mapped('payment_state'))"/>
+                                  <t t-if="_ps and all(s in ('paid', 'in_payment', 'reversed') for s in _ps)"><t t-set="st_key" t-value="'paye'"/></t>
+                                  <t t-else=""><t t-set="st_key" t-value="'facture'"/></t>
+                                </t>
+                                <t t-elif="_so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_key" t-value="'brouillon'"/></t>
+                                <t t-elif="_so.invoice_status == 'to invoice'"><t t-set="st_key" t-value="'afacturer'"/></t>
+                              </t>
+                            </t>
+                            <div class="tp-card ttx border rounded mb-1 small text-start hover-shadow" t-attf-style="font-size: 11px; cursor: grab; position: relative; transition: all 0.2s ease;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" t-att-data-status="st_key or 'autre'" t-att-data-id="tache.id" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''"><div t-attf-style="position:absolute;left:0;top:0;bottom:0;width:6px;background:{{chcol}};border-radius:5px 0 0 5px;z-index:3;"/>
+                              <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:10px;text-decoration:none;z-index:2;" title="Ouvrir la tâche">🔗</a>
+                                <!-- ===== ÉTAT (badge dans le bandeau) ===== -->
+                                <t t-set="st_label" t-value="''"/>
+                                <t t-set="st_color" t-value="''"/>
+                                <t t-set="is_cancelled" t-value="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"/>
+                                <t t-if="is_cancelled"><t t-set="st_label" t-value="'❌ ANNULÉ'"/><t t-set="st_color" t-value="'#dc3545'"/></t>
+                                <t t-if="not is_cancelled">
+                                  <t t-set="so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                                  <t t-if="so">
+                                    <t t-set="inv" t-value="so.invoice_status"/>
+                                    <t t-set="_binv" t-value="so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_binv">
+                                      <t t-set="payment_states" t-value="set(_binv.mapped('payment_state'))"/>
+                                      <t t-set="is_paid" t-value="payment_states and all(s in ('paid', 'in_payment', 'reversed') for s in payment_states)"/>
+                                      <t t-if="is_paid"><t t-set="st_label" t-value="'💰 PAYÉ'"/><t t-set="st_color" t-value="'#0d6efd'"/></t>
+                                      <t t-else=""><t t-set="st_label" t-value="'✅ FACTURÉ'"/><t t-set="st_color" t-value="'#198754'"/></t>
+                                    </t>
+                                    <t t-elif="so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_label" t-value="'🧾 FACTURE BROUILLON'"/><t t-set="st_color" t-value="'#eab308'"/></t>
+                                    <t t-elif="inv == 'to invoice'"><t t-set="st_label" t-value="'🧾 À FACTURER'"/><t t-set="st_color" t-value="'#fd7e14'"/></t>
+                                  </t>
+                                </t>
+                                <t t-if="st_label"><div class="ttx-status" t-attf-style="background:{{st_color}};"><t t-esc="st_label"/></div></t>
+                                <div class="ttx-head"><t t-esc="tache.name"/></div>
+                                <div class="ttx-body">
+                                  <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
+                                  <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+                                  <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t><t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/><t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc"><div style="margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;"><t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t><t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t><t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t></div></t>
+                                </div>
+                            </div>
+                          </t>
+                        </t>
+                      </t>
+                      
+                      <!-- Tâches sans transport assigné -->
+                      <t t-if="immat == 'SANS TRANSPORT'">
+                        <t t-foreach="filtered_records" t-as="tache">
+                          <t t-if="tache.planned_date_begin and not tache.x_studio_transport">
+                            <t t-set="tache_date_str" t-value="tache.planned_date_begin.strftime('%Y-%m-%d')"/>
+                            <t t-set="current_date_str" t-value="current_date.strftime('%Y-%m-%d')"/>
+                            <t t-if="tache_date_str == current_date_str">
+                              <div class="tp-card border rounded bg-warning px-2 py-1 mb-1 small text-start hover-shadow" style="font-size: 11px; cursor: grab; position: relative; transition: all 0.2s ease;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" t-att-data-status="st_key or 'autre'" t-att-data-id="tache.id" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''">
+                                <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:10px;text-decoration:none;z-index:2;" title="Ouvrir la tâche">🔗</a>
+                                  <strong class="d-block text-truncate"><t t-esc="tache.name"/></strong>
+                                  <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-truncate" style="max-width: 100px;">
+                                      👤 
+                                      <t t-if="tache.x_studio_chauffeur">
+                                        <t t-set="chauffeur_name" t-value="tache.x_studio_chauffeur.display_name"/>
+                                        <t t-set="name_parts" t-value="chauffeur_name.split(' ')"/>
+                                        <t t-if="len(name_parts) &gt;= 2">
+                                          <t t-esc="name_parts[-1]"/> <t t-esc="' '.join(name_parts[:-1])"/>
+                                        </t>
+                                        <t t-else="">
+                                          <t t-esc="chauffeur_name"/>
+                                        </t>
+                                      </t>
+                                      <t t-else="">Non assigné</t>
+                                    </span>
+                                    <span class="text-info">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/></span>
+                                  </div>
+                              </div>
+                            </t>
+                          </t>
+                        </t>
+                      </t>
+                    </td>
+                  </t>
+                </tr>
+              </t>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VERSION MOBILE : Cards par jour -->
+      <div class="d-md-none">
+        <t t-set="m_off" t-value="int(request.params.get('day_offset') or 0)"/>
+        <t t-set="current_date" t-value="datetime.datetime.now() + datetime.timedelta(days=m_off)"/>
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+          <a t-attf-href="?day_offset={{m_off - 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">◀ Préc.</a>
+          <div class="text-center" style="line-height:1.2;">
+            <strong>
+              <t t-if="current_date.strftime('%A') == 'Monday'">Lundi</t>
+              <t t-if="current_date.strftime('%A') == 'Tuesday'">Mardi</t>
+              <t t-if="current_date.strftime('%A') == 'Wednesday'">Mercredi</t>
+              <t t-if="current_date.strftime('%A') == 'Thursday'">Jeudi</t>
+              <t t-if="current_date.strftime('%A') == 'Friday'">Vendredi</t>
+              <t t-if="current_date.strftime('%A') == 'Saturday'">Samedi</t>
+              <t t-if="current_date.strftime('%A') == 'Sunday'">Dimanche</t>
+            </strong><br/>
+            <span class="small text-muted"><t t-esc="current_date.strftime('%d/%m/%Y')"/></span>
+          </div>
+          <a t-attf-href="?day_offset={{m_off + 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
+        </div>
+        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
+          <t t-set="day_name_en" t-value="current_date.strftime('%A')"/>
+          <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
+          
+          <div t-attf-class="card mb-2 {{is_today and 'border-warning bg-warning bg-opacity-10' or ''}}">
+            <div t-attf-class="card-header py-1 {{is_today and 'bg-warning text-dark' or 'bg-light'}}">
+              <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                <span>
+                  <t t-if="day_name_en == 'Monday'">Lun</t>
+                  <t t-if="day_name_en == 'Tuesday'">Mar</t>
+                  <t t-if="day_name_en == 'Wednesday'">Mer</t>
+                  <t t-if="day_name_en == 'Thursday'">Jeu</t>
+                  <t t-if="day_name_en == 'Friday'">Ven</t>
+                  <t t-if="day_name_en == 'Saturday'">Sam</t>
+                  <t t-if="day_name_en == 'Sunday'">Dim</t>
+                  <t t-esc="current_date.strftime(' %d/%m')"/>
+                </span>
+                <t t-if="is_today"><span class="badge bg-warning text-dark">Aujourd'hui</span></t>
+              </h6>
+            </div>
+            
+            <div class="card-body p-2">
+              <t t-set="day_tasks" t-value="[t for t in filtered_records if t.planned_date_begin.strftime('%Y-%m-%d') == current_date.strftime('%Y-%m-%d')]"/>
+              
+              <t t-if="day_tasks">
+                <t t-set="vehicles" t-value="sorted(set([t.x_studio_transport.display_name for t in day_tasks if t.x_studio_transport]))"/>
+                <t t-set="no_vehicle_tasks" t-value="[t for t in day_tasks if not t.x_studio_transport]"/>
+                
+                <!-- Tâches avec véhicule -->
+                <t t-foreach="vehicles" t-as="vehicle">
+                  <t t-set="vehicle_tasks" t-value="[t for t in day_tasks if t.x_studio_transport and t.x_studio_transport.display_name == vehicle]"/>
+                  <div class="mb-2">
+                    <div class="fw-bold text-primary mb-1" style="font-size: 11px;">
+                      🚛 <t t-esc="vehicle.replace('Transport ', '') if vehicle.startswith('Transport ') else vehicle"/>
+                    </div>
+                    <t t-foreach="vehicle_tasks" t-as="tache">
+                      <t t-set="chnm" t-value="tache.x_studio_chauffeur.display_name if tache.x_studio_chauffeur else 'Non assigné'"/>
+                            <t t-set="chcol" t-value="'#9ca3af' if not tache.x_studio_chauffeur else palette[sum([ord(ch) for ch in chnm]) % len(palette)]"/>
+                            <t t-set="st_key" t-value="''"/>
+                            <t t-if="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>
+                            <t t-if="not st_key">
+                              <t t-set="_so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                              <t t-if="_so">
+                                <t t-set="_inv" t-value="_so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_inv">
+                                  <t t-set="_ps" t-value="set(_inv.mapped('payment_state'))"/>
+                                  <t t-if="_ps and all(s in ('paid', 'in_payment', 'reversed') for s in _ps)"><t t-set="st_key" t-value="'paye'"/></t>
+                                  <t t-else=""><t t-set="st_key" t-value="'facture'"/></t>
+                                </t>
+                                <t t-elif="_so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_key" t-value="'brouillon'"/></t>
+                                <t t-elif="_so.invoice_status == 'to invoice'"><t t-set="st_key" t-value="'afacturer'"/></t>
+                              </t>
+                            </t>
+                            <div class="tp-card ttx border rounded mb-1 small text-start hover-shadow" t-attf-style="font-size: 11px; cursor: grab; position: relative; transition: all 0.2s ease;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" t-att-data-status="st_key or 'autre'" t-att-data-id="tache.id" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''"><div t-attf-style="position:absolute;left:0;top:0;bottom:0;width:6px;background:{{chcol}};border-radius:5px 0 0 5px;z-index:3;"/>
+                              <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:10px;text-decoration:none;z-index:2;" title="Ouvrir la tâche">🔗</a>
+                                <!-- ===== ÉTAT (badge dans le bandeau) ===== -->
+                                <t t-set="st_label" t-value="''"/>
+                                <t t-set="st_color" t-value="''"/>
+                                <t t-set="is_cancelled" t-value="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"/>
+                                <t t-if="is_cancelled"><t t-set="st_label" t-value="'❌ ANNULÉ'"/><t t-set="st_color" t-value="'#dc3545'"/></t>
+                                <t t-if="not is_cancelled">
+                                  <t t-set="so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                                  <t t-if="so">
+                                    <t t-set="inv" t-value="so.invoice_status"/>
+                                    <t t-set="_binv" t-value="so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_binv">
+                                      <t t-set="payment_states" t-value="set(_binv.mapped('payment_state'))"/>
+                                      <t t-set="is_paid" t-value="payment_states and all(s in ('paid', 'in_payment', 'reversed') for s in payment_states)"/>
+                                      <t t-if="is_paid"><t t-set="st_label" t-value="'💰 PAYÉ'"/><t t-set="st_color" t-value="'#0d6efd'"/></t>
+                                      <t t-else=""><t t-set="st_label" t-value="'✅ FACTURÉ'"/><t t-set="st_color" t-value="'#198754'"/></t>
+                                    </t>
+                                    <t t-elif="so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_label" t-value="'🧾 FACTURE BROUILLON'"/><t t-set="st_color" t-value="'#eab308'"/></t>
+                                    <t t-elif="inv == 'to invoice'"><t t-set="st_label" t-value="'🧾 À FACTURER'"/><t t-set="st_color" t-value="'#fd7e14'"/></t>
+                                  </t>
+                                </t>
+                                <t t-if="st_label"><div class="ttx-status" t-attf-style="background:{{st_color}};"><t t-esc="st_label"/></div></t>
+                                <div class="ttx-head"><t t-esc="tache.name"/></div>
+                                <div class="ttx-body">
+                                  <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
+                                  <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+                                  <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t><t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/><t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc"><div style="margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;"><t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t><t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t><t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t></div></t>
+                                </div>
+                            </div>
+                    </t>
+                  </div>
+                </t>
+                
+                <!-- Tâches sans véhicule -->
+                <t t-if="no_vehicle_tasks">
+                  <div class="mb-2">
+                    <div class="fw-bold text-warning mb-1" style="font-size: 11px;">
+                      ⚠️ Véhicule non assigné
+                    </div>
+                    <t t-foreach="no_vehicle_tasks" t-as="tache">
+                      <t t-set="chnm" t-value="tache.x_studio_chauffeur.display_name if tache.x_studio_chauffeur else 'Non assigné'"/>
+                            <t t-set="chcol" t-value="'#9ca3af' if not tache.x_studio_chauffeur else palette[sum([ord(ch) for ch in chnm]) % len(palette)]"/>
+                            <t t-set="st_key" t-value="''"/>
+                            <t t-if="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>
+                            <t t-if="not st_key">
+                              <t t-set="_so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                              <t t-if="_so">
+                                <t t-set="_inv" t-value="_so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_inv">
+                                  <t t-set="_ps" t-value="set(_inv.mapped('payment_state'))"/>
+                                  <t t-if="_ps and all(s in ('paid', 'in_payment', 'reversed') for s in _ps)"><t t-set="st_key" t-value="'paye'"/></t>
+                                  <t t-else=""><t t-set="st_key" t-value="'facture'"/></t>
+                                </t>
+                                <t t-elif="_so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_key" t-value="'brouillon'"/></t>
+                                <t t-elif="_so.invoice_status == 'to invoice'"><t t-set="st_key" t-value="'afacturer'"/></t>
+                              </t>
+                            </t>
+                            <div class="tp-card ttx border rounded mb-1 small text-start hover-shadow" t-attf-style="font-size: 11px; cursor: grab; position: relative; transition: all 0.2s ease;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" t-att-data-status="st_key or 'autre'" t-att-data-id="tache.id" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''"><div t-attf-style="position:absolute;left:0;top:0;bottom:0;width:6px;background:{{chcol}};border-radius:5px 0 0 5px;z-index:3;"/>
+                              <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:10px;text-decoration:none;z-index:2;" title="Ouvrir la tâche">🔗</a>
+                                <!-- ===== ÉTAT (badge dans le bandeau) ===== -->
+                                <t t-set="st_label" t-value="''"/>
+                                <t t-set="st_color" t-value="''"/>
+                                <t t-set="is_cancelled" t-value="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"/>
+                                <t t-if="is_cancelled"><t t-set="st_label" t-value="'❌ ANNULÉ'"/><t t-set="st_color" t-value="'#dc3545'"/></t>
+                                <t t-if="not is_cancelled">
+                                  <t t-set="so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                                  <t t-if="so">
+                                    <t t-set="inv" t-value="so.invoice_status"/>
+                                    <t t-set="_binv" t-value="so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_binv">
+                                      <t t-set="payment_states" t-value="set(_binv.mapped('payment_state'))"/>
+                                      <t t-set="is_paid" t-value="payment_states and all(s in ('paid', 'in_payment', 'reversed') for s in payment_states)"/>
+                                      <t t-if="is_paid"><t t-set="st_label" t-value="'💰 PAYÉ'"/><t t-set="st_color" t-value="'#0d6efd'"/></t>
+                                      <t t-else=""><t t-set="st_label" t-value="'✅ FACTURÉ'"/><t t-set="st_color" t-value="'#198754'"/></t>
+                                    </t>
+                                    <t t-elif="so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_label" t-value="'🧾 FACTURE BROUILLON'"/><t t-set="st_color" t-value="'#eab308'"/></t>
+                                    <t t-elif="inv == 'to invoice'"><t t-set="st_label" t-value="'🧾 À FACTURER'"/><t t-set="st_color" t-value="'#fd7e14'"/></t>
+                                  </t>
+                                </t>
+                                <t t-if="st_label"><div class="ttx-status" t-attf-style="background:{{st_color}};"><t t-esc="st_label"/></div></t>
+                                <div class="ttx-head"><t t-esc="tache.name"/></div>
+                                <div class="ttx-body">
+                                  <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
+                                  <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+                                  <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t><t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/><t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc"><div style="margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;"><t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t><t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t><t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t></div></t>
+                                </div>
+                            </div>
+                    </t>
+                  </div>
+                </t>
+              </t>
+              <t t-else="">
+                <div class="text-center text-muted py-2">
+                  <small>Aucune tâche planifiée</small>
+                </div>
+              </t>
+            </div>
+          </div>
+      </div>
+    </div>
+
+    <!-- JS et CSS responsive + Sticky header -->
+    <script>
+      function filterByChauffeur(chauffeur) {
+        const url = new URL(window.location);
+        if (chauffeur) { url.searchParams.set('chauffeur', chauffeur); }
+        else { url.searchParams.delete('chauffeur'); }
+        url.searchParams.set('limit', '1000');
+        window.location.href = url.toString();
+      }
+
+      function filterByClient(client) {
+        const url = new URL(window.location);
+        if (client) { url.searchParams.set('client', client); }
+        else { url.searchParams.delete('client'); }
+        url.searchParams.set('limit', '1000');
+        window.location.href = url.toString();
+      }
+      
+      function toggleDemandes() {
+        const content = document.getElementById('demandesContent');
+        const btn = document.getElementById('toggleBtn');
+        
+        if (content.style.display === 'none') {
+          content.style.display = 'block';
+          btn.innerHTML = '&lt;span class="d-none d-md-inline"&gt;Masquer&lt;/span&gt;&lt;span class="d-md-none"&gt;Masquer&lt;/span&gt;';
+        } else {
+          content.style.display = 'none';
+          btn.innerHTML = '&lt;span class="d-none d-md-inline"&gt;Afficher&lt;/span&gt;&lt;span class="d-md-none"&gt;Voir&lt;/span&gt;';
+        }
+        if(window.fitGrid){ setTimeout(window.fitGrid, 30); }
+      }
+
+      function applyFilters(){
+        var hideTP = localStorage.getItem('tpHidden') === '1';
+        var st = localStorage.getItem('tpStatus') || '';
+        document.querySelectorAll('.tp-card').forEach(function(c){
+          var show = true;
+          if(hideTP &amp;&amp; c.getAttribute('data-tp') === '1'){ show = false; }
+          if(st &amp;&amp; c.getAttribute('data-status') !== st){ show = false; }
+          c.style.display = show ? '' : 'none';
+        });
+        var btn = document.getElementById('tpToggleBtn');
+        if(btn){ btn.innerHTML = hideTP ? '🏗️ Afficher TP' : '🏗️ Masquer TP'; }
+        var sel = document.getElementById('statusFilter');
+        if(sel){ sel.value = st; }
+      }
+      function toggleTP(){ localStorage.setItem('tpHidden', localStorage.getItem('tpHidden') === '1' ? '0' : '1'); applyFilters(); }
+      function filterByStatus(v){ localStorage.setItem('tpStatus', v); applyFilters(); }
+      window.addEventListener('DOMContentLoaded', applyFilters);
+
+      // Gestion du bandeau fixe
+      window.addEventListener('DOMContentLoaded', function() {
+        const mainTable = document.getElementById('mainTable');
+        const stickyHeader = document.getElementById('stickyHeader');
+        
+        if (!mainTable || !stickyHeader) return;
+        
+        const thead = mainTable.querySelector('thead');
+        const tableContainer = mainTable.closest('.table-responsive');
+        
+        if (!thead || !tableContainer) return;
+        
+        const theadRect = thead.getBoundingClientRect();
+        const theadTop = theadRect.top + window.scrollY;
+        
+        function syncColumnWidths() {
+          const tableHeaders = thead.querySelectorAll('th');
+          const stickyHeaders = stickyHeader.querySelectorAll('.header-cell');
+          
+          tableHeaders.forEach((th, index) =&gt; {
+            if (stickyHeaders[index]) {
+              const width = th.offsetWidth;
+              stickyHeaders[index].style.width = width + 'px';
+              stickyHeaders[index].style.minWidth = width + 'px';
+              stickyHeaders[index].style.maxWidth = width + 'px';
+            }
+          });
+          
+          const stickyContent = stickyHeader.querySelector('.d-flex');
+          if (stickyContent) {
+            stickyContent.style.width = mainTable.offsetWidth + 'px';
+          }
+          
+          const tableRect = tableContainer.getBoundingClientRect();
+          stickyHeader.style.left = tableRect.left + 'px';
+          stickyHeader.style.right = (window.innerWidth - tableRect.right) + 'px';
+        }
+        
+        syncColumnWidths();
+        setTimeout(syncColumnWidths, 100);
+        setTimeout(syncColumnWidths, 500);
+        
+        window.addEventListener('resize', syncColumnWidths);
+        
+        window.addEventListener('scroll', function() {
+          if (window.scrollY &gt; theadTop) {
+            stickyHeader.style.display = 'block';
+            syncColumnWidths();
+          } else {
+            stickyHeader.style.display = 'none';
+          }
+        });
+        
+        tableContainer.addEventListener('scroll', function() {
+          stickyHeader.scrollLeft = tableContainer.scrollLeft;
+        });
+        
+        stickyHeader.addEventListener('scroll', function() {
+          tableContainer.scrollLeft = stickyHeader.scrollLeft;
+        });
+      });
+    
+      // 
+      (function () {
+        function pms(s) { var a = s.split(/[- :]/); return Date.UTC(+a[0], +a[1] - 1, +a[2], +a[3] || 0, +a[4] || 0, +a[5] || 0); }
+        function fmtUTC(ms) {
+          var d = new Date(ms);
+          function z(n) { return (n &lt; 10 ? '0' : '') + n; }
+          return d.getUTCFullYear() + '-' + z(d.getUTCMonth() + 1) + '-' + z(d.getUTCDate()) + ' ' + z(d.getUTCHours()) + ':' + z(d.getUTCMinutes()) + ':' + z(d.getUTCSeconds());
+        }
+        function rpcWrite(taskId, vals, cb) {
+          fetch('/web/dataset/call_kw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {
+              model: 'project.task', method: 'write', args: [[taskId], vals], kwargs: {}
+            }})
+          }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.error) { cb(false, data.error.data &amp;&amp; data.error.data.message || data.error.message); }
+            else { cb(true); }
+          }).catch(function (e) { cb(false, String(e)); });
+        }
+        var dragged = null;
+        function applyDrop(card, cell) {
+          var taskId = parseInt(card.getAttribute('data-id'));
+          var day = cell.getAttribute('data-day');
+          var engin = parseInt(cell.getAttribute('data-engin'));
+          var begin = card.getAttribute('data-begin');
+          var time = begin.split(' ')[1];
+          var newBegin = day + ' ' + time;
+          var vals = { planned_date_begin: newBegin, x_studio_transport: engin &gt; 0 ? engin : false };
+          var end = card.getAttribute('data-end');
+          if (end) { vals.date_deadline = fmtUTC(pms(newBegin) + (pms(end) - pms(begin))); }
+          var origin = card.parentNode;
+          cell.appendChild(card);
+          card.setAttribute('data-begin', newBegin);
+          if (end) { card.setAttribute('data-end', vals.date_deadline); }
+          rpcWrite(taskId, vals, function (ok, msg) {
+            if (!ok) { origin.appendChild(card); alert('Échec : ' + msg); }
+          });
+        }
+        var cards = document.querySelectorAll('.tp-card');
+        for (var ci = 0; ci &lt; cards.length; ci++) {
+          (function (card) {
+            card.addEventListener('click', function (ev) {
+              if (ev.target.closest('a')) { return; }
+              window.open('/web#id=' + card.getAttribute('data-id') + '&amp;view_type=form&amp;model=project.task', '_blank');
+            });
+            card.setAttribute('draggable', 'true');
+            card.addEventListener('dragstart', function () { dragged = card; card.style.opacity = '0.4'; });
+            card.addEventListener('dragend', function () { card.style.opacity = '1'; });
+          })(cards[ci]);
+        }
+        var cells = document.querySelectorAll('.tp-cell');
+        for (var co = 0; co &lt; cells.length; co++) {
+          (function (cell) {
+            cell.addEventListener('dragover', function (ev) { ev.preventDefault(); cell.style.background = '#DBEAFE'; });
+            cell.addEventListener('dragleave', function () { cell.style.background = ''; });
+            cell.addEventListener('drop', function (ev) {
+              ev.preventDefault(); cell.style.background = '';
+              if (dragged) { applyDrop(dragged, cell); dragged = null; }
+            });
+          })(cells[co]);
+        }
+        setInterval(function () {
+          var modals = document.querySelectorAll('.modal, .o_dialog');
+          for (var i = 0; i &lt; modals.length; i++) {
+            if ((modals[i].textContent || '').indexOf('Could not start interaction') !== -1) {
+              var btns = modals[i].querySelectorAll('button');
+              for (var j = 0; j &lt; btns.length; j++) {
+                if (/fermer|close/i.test(btns[j].textContent || '')) { btns[j].click(); }
+              }
+            }
+          }
+        }, 1200);
+      })();
+      // 
+    
+      window.fitGrid = function(){
+        var el = document.querySelector('.tt-scroll');
+        if(!el){ return; }
+        var h = window.innerHeight - el.getBoundingClientRect().top - 8;
+        el.style.maxHeight = Math.max(220, h) + 'px';
+      };
+      window.addEventListener('load', window.fitGrid);
+      window.addEventListener('resize', window.fitGrid);
+      setTimeout(window.fitGrid, 400);
+</script>
+    
+    <style>
+      .ttx{background:#fff !important;border-color:#d4dde4 !important;box-shadow:0 1px 3px rgba(0,0,0,.10);overflow:hidden;border-radius:9px;}
+      .ttx-head{background:var(--light, #327279);color:#fff;font-weight:800;font-size:12.5px;line-height:1.25;padding:5px 9px 5px 12px;margin:0 0 6px 0;white-space:normal;}
+      .ttx-status{margin:0;padding:3px 4px;text-align:center;color:#fff;font-size:9px;font-weight:800;letter-spacing:.5px;line-height:1.4;}
+      .ttx-body{font-size:12.5px;margin-top:2px;padding:0 9px 7px 12px;}
+      .ttx-driver{font-weight:800;color:#111827;margin-bottom:1px;}
+      .ttx-time{font-weight:800;color:#0369a1;}
+      .ttx-tags{margin-top:3px;line-height:1.6;}
+      .ttx-tag{display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;padding:0 6px;font-size:10px;font-weight:700;margin:1px 3px 0 0;}
+      
+      .hover-shadow:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        background-color: #f8f9fa !important;
+      }
+      
+      .bg-warning.hover-shadow:hover {
+        background-color: #fff3cd !important;
+      }
+      
+      .bg-info.hover-shadow:hover {
+        background-color: #d1ecf1 !important;
+        color: #0c5460 !important;
+      }
+      
+      .hover-shadow::after {
+        content: "🔗";
+        position: absolute;
+        top: 2px;
+        right: 4px;
+        font-size: 8px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      
+      .hover-shadow:hover::after {
+        opacity: 0.6;
+      }
+      
+      td {
+        position: relative;
+      }
+      
+      .sticky-header {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background-color: #343a40;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        overflow-x: auto;
+        overflow-y: hidden;
+        width: 100%;
+      }
+      
+      .sticky-header .header-cell {
+        padding: 0.5rem;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-right: 1px solid rgba(255,255,255,0.1);
+        flex-shrink: 0;
+      }
+      
+      .sticky-header .header-cell:last-child {
+        border-right: none;
+      }
+      
+      .sticky-header .d-flex {
+        width: max-content;
+      }
+      
+      .table-responsive {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+      }
+      
+      .sticky-header::-webkit-scrollbar {
+        display: none;
+      }
+      
+      .sticky-header {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      
+      @media (max-width: 768px) {
+        .container-fluid {
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+
+        .sticky-header {
+          display: none !important;
+        }
+
+        /* ===== A. Lisibilité mobile ===== */
+        .d-md-none .card-body .border.rounded { font-size: 12.5px !important; line-height: 1.35; }
+        .d-md-none .card-body .border.rounded &gt; div[style*="background"] { font-size: 11px !important; }
+        .d-md-none .card-body .fw-bold.text-primary,
+        .d-md-none .card-body .fw-bold.text-warning { font-size: 13.5px !important; }
+        .d-md-none .card-header h6 { font-size: 14px; }
+        #demandesContent .d-md-none .btn { font-size: 12px !important; }
+
+        /* ===== B. En-tête + filtres compacts ===== */
+        h5.d-md-none { font-size: 1rem; margin-bottom: 0.25rem !important; }
+        .container-fluid &gt; .bg-light.rounded { margin-bottom: 0.35rem !important; padding: 0.45rem !important; }
+        .container-fluid &gt; .text-center.mb-2.d-flex { margin-bottom: 0.35rem !important; }
+        .container-fluid &gt; .alert { margin-bottom: 0.35rem !important; padding: 0.4rem 0.6rem !important; }
+        .form-select-sm { font-size: 0.85rem; padding-top: 0.15rem; padding-bottom: 0.15rem; }
+      }
+    </style>
+  </t>
+</t>
