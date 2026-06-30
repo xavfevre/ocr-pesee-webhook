@@ -5,7 +5,7 @@
     <t t-set="dom" t-value="[('project_id','=',13)]"/>
     <t t-if="q"><t t-set="dom" t-value="dom + ['|','|',('name','ilike',q),('partner_id.name','ilike',q),('x_studio_devis_commandes_1.name','ilike',q)]"/></t>
     <t t-set="all_records" t-value="request.env['project.task'].sudo().search(dom, order='id desc')"/>
-    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé / en cours','#0d6efd','paye')]"/>
+    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(0,'🧾 Facture brouillon','#eab308','fact_brouillon'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé / en cours','#0d6efd','paye')]"/>
 
     <style>
       header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
@@ -48,13 +48,16 @@
             <t t-if="stg[3] == 'devis'">
               <t t-set="col_tasks" t-value="all_records.filtered(lambda t: t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft', 'sent')))"/>
             </t>
+            <t t-if="stg[3] == 'fact_brouillon'">
+              <t t-set="col_tasks" t-value="all_records.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'draft' and x.move_type == 'out_invoice'))"/>
+            </t>
             <t t-if="stg[3] == 'nonpaye'">
               <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
             </t>
             <t t-if="stg[3] == 'paye'">
               <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice') and not t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
             </t>
-          <t t-set="_colsos" t-value="lambda t: (t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft','sent')) if stg[3] == 'devis' else (t.x_studio_devis_commandes_1.filtered(lambda s: s.state not in ('draft','sent')) if stg[3] in ('cmd','nonpaye','paye') else t.x_studio_devis_commandes_1))"/>
+          <t t-set="_colsos" t-value="lambda t: (t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft','sent')) if stg[3] == 'devis' else (t.x_studio_devis_commandes_1.filtered(lambda s: s.state not in ('draft','sent')) if stg[3] in ('cmd','nonpaye','paye','fact_brouillon') else t.x_studio_devis_commandes_1))"/>
           <t t-set="col_total" t-value="sum([so.amount_total for t in col_tasks for so in _colsos(t)])"/>
           <div class="sdc-col">
             <div class="sdc-colh" t-attf-style="background:{{stg[2]}};">
@@ -73,7 +76,9 @@
                     <span><a t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="text-decoration:none;color:#334155;font-weight:700;"><t t-esc="so.name"/></a> <span class="sdc-badge" t-attf-style="background:{{so_col}};"><t t-esc="so_label"/></span></span>
                     <span class="sdc-amt"><t t-esc="'%.0f' % so.amount_total"/>€</span>
                   </div>
-                  <t t-if="so.invoice_status == 'invoiced'"><div class="sdc-meta">💰 Facturé</div></t>
+                  <t t-set="draft_inv" t-value="so.invoice_ids.filtered(lambda x: x.state == 'draft' and x.move_type == 'out_invoice')"/>
+                  <t t-if="draft_inv"><div class="sdc-meta" style="color:#ca8a04;font-weight:700;">🧾 Facture brouillon (<t t-esc="len(draft_inv)"/>)</div></t>
+                  <t t-elif="so.invoice_status == 'invoiced'"><div class="sdc-meta">💰 Facturé</div></t>
                   <t t-elif="so.invoice_status == 'to invoice'"><div class="sdc-meta">🧾 À facturer</div></t>
                 </t>
                 <t t-set="nof" t-value="len(task.x_studio_of)"/>
