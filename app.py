@@ -425,10 +425,20 @@ _MOIS = ["", "janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.",
          "août", "sept.", "oct.", "nov.", "déc."]
 
 
+def _tournee_secret():
+    return (WEBHOOK_SECRET or "maquignon-tournee-fallback").encode()
+
+
 def _tournee_sign(task_id, kind):
     """Jeton HMAC autorisant l'upload (tâche, type) — non falsifiable sans le secret."""
-    secret = (WEBHOOK_SECRET or "maquignon-tournee-fallback").encode()
-    return hmac.new(secret, f"{task_id}:{kind}".encode(), hashlib.sha256).hexdigest()[:20]
+    return hmac.new(_tournee_secret(), f"{task_id}:{kind}".encode(),
+                    hashlib.sha256).hexdigest()[:20]
+
+
+def _driver_sign(cid):
+    """Signature HMAC d'un chauffeur — garantit qu'un chauffeur ne voit que SA tournée."""
+    return hmac.new(_tournee_secret(), f"driver:{cid}".encode(),
+                    hashlib.sha256).hexdigest()[:20]
 
 
 def _esc(s):
@@ -457,6 +467,8 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .ph.done{background:#dcfce7;border-color:#16a34a;color:#166534;}
 .ph.busy{opacity:.6;}
 .ph input{position:absolute;inset:0;opacity:0;}
+.ph.scan{display:block;margin-top:11px;font-size:16px;padding:15px;background:#01666B;color:#fff;border-color:#01666B;}
+.ph.scan.done{background:#dcfce7;color:#166534;border-color:#16a34a;}
 .maps{display:block;text-align:center;text-decoration:none;background:#fff;color:#01666B;border:2px solid #01666B;border-radius:10px;padding:10px;font-weight:800;font-size:14px;margin-top:8px;}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .pick{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 12px;text-align:center;text-decoration:none;color:#0f172a;font-weight:800;font-size:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
@@ -491,34 +503,21 @@ def _tournee_page(inner):
 
 @app.route("/ma-tournee", methods=["GET"])
 def ma_tournee():
+    # Réservé aux chauffeurs PONCTUELS : lien personnel signé, un chauffeur ne
+    # voit QUE sa tournée. Action unique : scanner le bon de pesée (→ OCR).
     try:
+        c = request.args.get("c")
+        s = request.args.get("s")
+        if not c or not s or not hmac.compare_digest(s, _driver_sign(c)):
+            return _tournee_page(
+                '<h3>🚚 Ma tournée</h3>'
+                '<div class="empty">⛔ Lien invalide ou incomplet.<br/>'
+                'Demandez votre lien personnel au bureau.</div>'), 403
+
+        cid = int(c)
         uid, models = odoo_connect()
         today = date.today()
         df = today.strftime("%Y-%m-%d 00:00:00")
-        c = request.args.get("c")
-
-        if not c:
-            tasks = x(models, uid, "project.task", "search_read",
-                      [("project_id.name", "=", TOURNEE_PROJECT),
-                       ("planned_date_begin", ">=", df),
-                       ("x_studio_chauffeur", "!=", False)],
-                      fields=["x_studio_chauffeur"], limit=5000)
-            drivers = {}
-            for t in tasks:
-                ch = t.get("x_studio_chauffeur")
-                if ch:
-                    drivers[ch[0]] = ch[1]
-            html = "<h3>🚚 Ma tournée</h3>"
-            if drivers:
-                html += '<p class="meta" style="margin-bottom:12px;">Sélectionnez votre nom :</p><div class="grid">'
-                for cid, nm in sorted(drivers.items(), key=lambda a: (a[1] or "").upper()):
-                    html += f'<a class="pick" href="/ma-tournee?c={cid}">👤 {_esc(nm)}</a>'
-                html += "</div>"
-            else:
-                html += '<div class="empty">Aucune tournée planifiée pour le moment.</div>'
-            return _tournee_page(html)
-
-        cid = int(c)
         emp = x(models, uid, "hr.employee", "read", [cid], fields=["name"])
         dname = emp[0]["name"] if emp else "Chauffeur"
         tasks = x(models, uid, "project.task", "search_read",
@@ -528,24 +527,20 @@ def ma_tournee():
                   fields=["id", "name", "partner_id", "planned_date_begin", "x_studio_transport"],
                   order="planned_date_begin")
 
-        # feuilles + statut photos
         tids = [t["id"] for t in tasks]
         wsmap = {}
         if tids:
             for w in x(models, uid, TOURNEE_WS_MODEL, "search_read",
                        [("x_project_task_id", "in", tids)],
-                       fields=["x_project_task_id", "x_studio_photo",
-                               "x_studio_photo_1", "x_studio_photo_bon"]):
+                       fields=["x_project_task_id", "x_studio_photo_bon"]):
                 wsmap[w["x_project_task_id"][0]] = w
-        # adresses clients
         pids = list({t["partner_id"][0] for t in tasks if t.get("partner_id")})
         pmap = {}
         if pids:
             for p in x(models, uid, "res.partner", "read", pids, fields=["street", "zip", "city"]):
                 pmap[p["id"]] = p
 
-        html = (f'<div class="drv"><span>👤 {_esc(dname)}</span>'
-                f'<a href="/ma-tournee">↺ changer</a></div>')
+        html = f'<div class="drv"><span>👤 {_esc(dname)}</span></div>'
         if not tasks:
             html += '<div class="empty">✅ Aucune mission à venir.<br/>Bonne journée !</div>'
             return _tournee_page(html)
@@ -568,12 +563,13 @@ def ma_tournee():
             addr = ""
             if p:
                 parts = [p.get("street"), ((p.get("zip") or "") + " " + (p.get("city") or "")).strip()]
-                addr = ", ".join([s for s in parts if s and s.strip()])
+                addr = ", ".join([z for z in parts if z and z.strip()])
             cli = t["partner_id"][1] if t.get("partner_id") else t["name"]
             veh = ""
             if t.get("x_studio_transport"):
                 veh = t["x_studio_transport"][1].replace("Transport ", "")
-            ws = wsmap.get(t["id"], {})
+            done = bool(wsmap.get(t["id"], {}).get("x_studio_photo_bon"))
+            tok = _tournee_sign(t["id"], "bon")
 
             html += '<div class="card">'
             html += f'<span class="time">🕐 {dt.strftime("%H:%M")}</span>'
@@ -583,14 +579,11 @@ def ma_tournee():
             html += f'<div class="meta">{_esc(t["name"])}</div>'
             if veh:
                 html += f'<span class="veh">🚛 {_esc(veh)}</span>'
-            html += '<div class="acts">'
-            for kind, (field, label) in TOURNEE_PHOTO.items():
-                done = "done" if ws.get(field) else ""
-                tok = _tournee_sign(t["id"], kind)
-                html += (f'<label class="ph {done}">{label}'
-                         f'<input type="file" accept="image/*" capture="environment" '
-                         f'onchange="up(this,{t["id"]},\'{kind}\',\'{tok}\')"/></label>')
-            html += '</div>'
+            lblbtn = "✓ Bon envoyé — reprendre une photo" if done else "📷 Scanner le bon de pesée"
+            donec = "done" if done else ""
+            html += (f'<label class="ph scan {donec}">{lblbtn}'
+                     f'<input type="file" accept="image/*" capture="environment" '
+                     f'onchange="up(this,{t["id"]},\'bon\',\'{tok}\')"/></label>')
             if addr:
                 q = _esc(addr).replace(" ", "+")
                 html += f'<a class="maps" target="_blank" href="https://www.google.com/maps/search/?api=1&amp;query={q}">🗺️ Itinéraire</a>'
@@ -630,6 +623,33 @@ def tournee_upload():
     except Exception as e:
         app.logger.error(f"Erreur tournee-upload: {e}")
         return jsonify({"ok": False, "error": str(e)[:150]}), 500
+
+
+@app.route("/tournee/liens", methods=["GET"])
+@require_secret
+def tournee_liens():
+    """Page ADMIN (bureau) : liste les liens personnels signés de chaque chauffeur.
+    Protégée par le secret : /tournee/liens?token=<WEBHOOK_SECRET>."""
+    uid, models = odoo_connect()
+    tasks = x(models, uid, "project.task", "search_read",
+              [("project_id.name", "=", TOURNEE_PROJECT),
+               ("x_studio_chauffeur", "!=", False)],
+              fields=["x_studio_chauffeur"], limit=5000)
+    drivers = {}
+    for t in tasks:
+        ch = t.get("x_studio_chauffeur")
+        if ch:
+            drivers[ch[0]] = ch[1]
+    base = request.host_url.rstrip("/")
+    html = (_TOURNEE_HEAD + "<h3>🔗 Liens chauffeurs</h3>"
+            "<p class=\"meta\" style=\"margin-bottom:12px;\">Un lien personnel par chauffeur "
+            "— ne pas partager entre chauffeurs.</p>")
+    for cid, nm in sorted(drivers.items(), key=lambda a: (a[1] or "").upper()):
+        link = f"{base}/ma-tournee?c={cid}&s={_driver_sign(cid)}"
+        html += (f'<div class="card"><div class="cli">{_esc(nm)}</div>'
+                 f'<div class="meta" style="word-break:break-all;margin-top:4px;">{_esc(link)}</div></div>')
+    html += "</div></body></html>"
+    return html
 
 
 @app.route("/health", methods=["GET"])
