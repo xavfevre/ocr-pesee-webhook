@@ -1,0 +1,118 @@
+<t t-name="website.ma_tournee">
+  <t t-call="website.layout">
+    <t t-set="c" t-value="request.params.get('c')"/>
+    <t t-set="today" t-value="datetime.date.today()"/>
+    <t t-set="df" t-value="today.strftime('%Y-%m-%d 00:00:00')"/>
+    <t t-set="jours" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']"/>
+    <t t-set="mois" t-value="['','janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.']"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f1f5f9;}
+      .mt-wrap{max-width:640px;margin:0 auto;padding:10px 12px 40px;}
+      .mt-h{display:flex;align-items:center;gap:10px;margin:6px 0 12px;}
+      .mt-h h3{margin:0;font-family:'Segoe UI',sans-serif;font-weight:800;color:#0f172a;font-size:20px;}
+      .mt-drv{background:#01666B;color:#fff;border-radius:12px;padding:10px 14px;font-weight:800;font-size:17px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+      .mt-drv a{color:#cffafe;font-size:13px;text-decoration:none;font-weight:600;}
+      .mt-day{font-weight:800;color:#334155;font-size:15px;margin:16px 2px 8px;border-bottom:2px solid #cbd5e1;padding-bottom:3px;}
+      .mt-day.tod{color:#01666B;border-color:#01666B;}
+      .mt-card{background:#fff;border:1px solid #e2e8f0;border-left:6px solid #01666B;border-radius:12px;padding:12px 13px;margin-bottom:11px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+      .mt-time{display:inline-block;background:#EAF4F4;color:#01666B;font-weight:800;font-size:15px;border-radius:8px;padding:2px 10px;margin-bottom:6px;}
+      .mt-cli{font-weight:800;color:#0f172a;font-size:16px;line-height:1.25;margin-bottom:2px;}
+      .mt-addr{color:#475569;font-size:13.5px;margin:3px 0;}
+      .mt-meta{color:#64748b;font-size:12.5px;margin:2px 0;}
+      .mt-veh{display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:1px 8px;font-size:12px;font-weight:700;color:#334155;margin-top:3px;}
+      .mt-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+      .mt-btn{flex:1;min-width:130px;text-align:center;text-decoration:none;border-radius:10px;padding:11px 10px;font-weight:800;font-size:15px;}
+      .mt-btn-p{background:#01666B;color:#fff;}
+      .mt-btn-s{background:#fff;color:#01666B;border:2px solid #01666B;}
+      .mt-pho{display:flex;gap:7px;margin-top:8px;font-size:12px;}
+      .mt-pho span{border-radius:7px;padding:2px 7px;font-weight:700;}
+      .mt-ok{background:#dcfce7;color:#166534;}
+      .mt-no{background:#fef3c7;color:#92400e;}
+      .mt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+      .mt-pick{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 12px;text-align:center;text-decoration:none;color:#0f172a;font-weight:800;font-size:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+      .mt-pick:hover{border-color:#01666B;color:#01666B;}
+      .mt-empty{background:#fff;border-radius:12px;padding:26px 16px;text-align:center;color:#64748b;font-weight:600;}
+    </style>
+
+    <div class="mt-wrap">
+      <div class="mt-h">
+        <h3>🚚 Ma tournée</h3>
+      </div>
+
+      <t t-if="not c">
+        <!-- Choix du chauffeur -->
+        <p class="mt-meta" style="margin-bottom:12px;">Sélectionnez votre nom pour voir votre tournée :</p>
+        <t t-set="upc" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('x_studio_chauffeur','!=',False)])"/>
+        <t t-set="drivers" t-value="upc.mapped('x_studio_chauffeur').sorted(lambda e: e.name or '')"/>
+        <t t-if="drivers">
+          <div class="mt-grid">
+            <t t-foreach="drivers" t-as="drv">
+              <a t-attf-href="/ma-tournee?c={{drv.id}}" class="mt-pick">👤 <t t-esc="drv.name"/></a>
+            </t>
+          </div>
+        </t>
+        <t t-else="">
+          <div class="mt-empty">Aucune tournée planifiée pour le moment.</div>
+        </t>
+      </t>
+
+      <t t-else="">
+        <!-- Tournée d'un chauffeur -->
+        <t t-set="driver" t-value="request.env['hr.employee'].sudo().browse(int(c))"/>
+        <div class="mt-drv">
+          <span>👤 <t t-esc="driver.name or 'Chauffeur'"/></span>
+          <a href="/ma-tournee">↺ changer</a>
+        </div>
+
+        <t t-set="tasks" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('x_studio_chauffeur','=',driver.id),('planned_date_begin','&gt;=',df)], order='planned_date_begin')"/>
+        <t t-if="not tasks">
+          <div class="mt-empty">✅ Aucune mission à venir.<br/>Bonne journée !</div>
+        </t>
+        <t t-else="">
+          <t t-set="days" t-value="sorted(set(t.planned_date_begin.date() for t in tasks))"/>
+          <t t-foreach="days" t-as="day">
+            <div t-attf-class="mt-day {{'tod' if day == today else ''}}">
+              <t t-esc="jours[day.weekday()]"/> <t t-esc="day.day"/> <t t-esc="mois[day.month]"/>
+              <t t-if="day == today"> — Aujourd'hui</t>
+            </div>
+            <t t-foreach="tasks.filtered(lambda t: t.planned_date_begin.date() == day)" t-as="task">
+              <t t-set="p" t-value="task.partner_id"/>
+              <t t-set="ws" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','=',task.id)], limit=1)"/>
+              <t t-set="addr" t-value="', '.join([s for s in [p.street, (p.zip or '') + ' ' + (p.city or '')] if s and s.strip()])"/>
+              <div class="mt-card">
+                <span class="mt-time">🕐 <t t-esc="task.planned_date_begin.strftime('%H:%M')"/></span>
+                <div class="mt-cli"><t t-esc="p.display_name or task.name"/></div>
+                <t t-if="addr"><div class="mt-addr">📍 <t t-esc="addr"/></div></t>
+                <div class="mt-meta"><t t-esc="task.name"/></div>
+                <t t-if="task.x_studio_transport"><span class="mt-veh">🚛 <t t-esc="task.x_studio_transport.display_name.replace('Transport ','')"/></span></t>
+
+                <t t-if="ws">
+                  <div class="mt-pho">
+                    <span t-attf-class="mt-{{'ok' if ws.x_studio_photo else 'no'}}">📥 Chargement</span>
+                    <span t-attf-class="mt-{{'ok' if ws.x_studio_photo_1 else 'no'}}">🏁 Livraison</span>
+                    <span t-attf-class="mt-{{'ok' if ws.x_studio_photo_bon else 'no'}}">📎 Bon</span>
+                  </div>
+                </t>
+
+                <div class="mt-acts">
+                  <t t-if="ws">
+                    <a t-attf-href="/web#id={{ws.id}}&amp;model=x_project_task_worksheet_template_1&amp;view_type=form" class="mt-btn mt-btn-p">📋 Feuille de travail</a>
+                  </t>
+                  <t t-else="">
+                    <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" class="mt-btn mt-btn-p">📋 Ouvrir la mission</a>
+                  </t>
+                  <t t-if="addr">
+                    <a t-attf-href="https://www.google.com/maps/search/?api=1&amp;query={{addr}}" target="_blank" class="mt-btn mt-btn-s">🗺️ Itinéraire</a>
+                  </t>
+                </div>
+              </div>
+            </t>
+          </t>
+        </t>
+      </t>
+    </div>
+  </t>
+</t>
