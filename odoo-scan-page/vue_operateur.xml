@@ -21,6 +21,9 @@
         .vo-h{font-size:23px;font-weight:900;border-radius:9px;padding:2px 14px;line-height:1.15;box-shadow:0 1px 2px rgba(0,0,0,.15);}
         .vo-nbr{font-size:23px;font-weight:900;color:#fff;background:#C0392B;border-radius:9px;padding:2px 14px;line-height:1.15;box-shadow:0 1px 2px rgba(0,0,0,.15);}
         .vo-plan{font-size:12.5px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;text-decoration:none;color:#0f172a;font-weight:700;display:inline-block;}
+        .vo-bc{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .vo-bc img{height:50px;width:auto;max-width:100%;}
+        .vo-bc-txt{font-family:monospace;font-size:12px;font-weight:700;color:#475569;}
         .vo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
         .vo-actions .btn{font-weight:800;font-size:15px;padding:9px 14px;}
       </style>
@@ -109,6 +112,10 @@
               <span class="vo-lxl"><t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
               <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
               <span t-if="of.x_studio_nbr" class="vo-nbr">× <t t-esc="of.x_studio_nbr"/></span>
+            </div>
+            <div class="vo-bc">
+              <img t-attf-src="/report/barcode/?barcode_type=Code128&amp;value={{of.name.replace('/', '%2F')}}&amp;width=360&amp;height=64" loading="lazy" t-att-alt="of.name"/>
+              <span class="vo-bc-txt"><t t-esc="of.name"/></span>
             </div>
             <div class="vo-badge" style="font-size:11px;margin-top:3px;"></div>
             <div class="vo-actions"></div>
