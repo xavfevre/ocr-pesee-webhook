@@ -461,7 +461,12 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .cli{font-weight:800;font-size:16px;line-height:1.25;}
 .addr{color:#475569;font-size:13.5px;margin:4px 0;}
 .meta{color:#64748b;font-size:12.5px;margin:2px 0;}
-.veh{display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:1px 8px;font-size:12px;font-weight:700;color:#334155;margin-top:3px;}
+.veh{display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:1px 8px;font-size:12px;font-weight:700;color:#334155;margin-top:6px;}
+.cardhead{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;}
+.tag{display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;padding:0 7px;font-size:11px;font-weight:800;}
+.addr b{color:#334155;}
+.mini{text-decoration:none;font-size:15px;}
+.ocr{background:#dcfce7;color:#166534;border-radius:8px;padding:4px 9px;font-size:12.5px;font-weight:700;margin-top:7px;display:inline-block;}
 .acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:11px;}
 .ph{position:relative;text-align:center;border-radius:10px;padding:10px 4px;font-weight:800;font-size:13px;cursor:pointer;border:2px solid #01666B;color:#01666B;background:#fff;overflow:hidden;}
 .ph.done{background:#dcfce7;border-color:#16a34a;color:#166534;}
@@ -524,26 +529,35 @@ def ma_tournee():
                   [("project_id.name", "=", TOURNEE_PROJECT),
                    ("x_studio_chauffeur", "=", cid),
                    ("planned_date_begin", ">=", df)],
-                  fields=["id", "name", "partner_id", "planned_date_begin", "x_studio_transport"],
+                  fields=["id", "name", "partner_id", "planned_date_begin", "date_deadline",
+                          "x_studio_transport", "x_studio_adresse_de_chargement",
+                          "x_studio_adresse_de_livraison_3", "x_studio_statut_de_locr",
+                          "x_studio_bon_scanne", "tag_ids"],
                   order="planned_date_begin")
 
-        tids = [t["id"] for t in tasks]
-        wsmap = {}
-        if tids:
-            for w in x(models, uid, TOURNEE_WS_MODEL, "search_read",
-                       [("x_project_task_id", "in", tids)],
-                       fields=["x_project_task_id", "x_studio_photo_bon"]):
-                wsmap[w["x_project_task_id"][0]] = w
-        pids = list({t["partner_id"][0] for t in tasks if t.get("partner_id")})
-        pmap = {}
-        if pids:
-            for p in x(models, uid, "res.partner", "read", pids, fields=["street", "zip", "city"]):
-                pmap[p["id"]] = p
+        # noms des étiquettes (type de mission)
+        tagmap = {}
+        tagids = sorted({i for t in tasks for i in (t.get("tag_ids") or [])})
+        if tagids:
+            try:
+                for tg in x(models, uid, "project.tags", "read", tagids, fields=["name"]):
+                    tagmap[tg["id"]] = tg["name"]
+            except Exception:
+                tagmap = {}
 
         html = f'<div class="drv"><span>👤 {_esc(dname)}</span></div>'
         if not tasks:
             html += '<div class="empty">✅ Aucune mission à venir.<br/>Bonne journée !</div>'
             return _tournee_page(html)
+
+        def _addr(icon, label, raw):
+            if not raw:
+                return ""
+            a = " ".join(str(raw).split())
+            q = _esc(a).replace(" ", "+")
+            return (f'<div class="addr"><b>{icon} {label} :</b> {_esc(a)} '
+                    f'<a class="mini" target="_blank" '
+                    f'href="https://www.google.com/maps/search/?api=1&amp;query={q}">🗺️</a></div>')
 
         cur_day = None
         for t in tasks:
@@ -559,34 +573,36 @@ def ma_tournee():
                 cls = "day tod" if d == today else "day"
                 html += f'<div class="{cls}">{lbl}{extra}</div>'
 
-            p = pmap.get(t["partner_id"][0]) if t.get("partner_id") else None
-            addr = ""
-            if p:
-                parts = [p.get("street"), ((p.get("zip") or "") + " " + (p.get("city") or "")).strip()]
-                addr = ", ".join([z for z in parts if z and z.strip()])
+            tr = dt.strftime("%H:%M")
+            if t.get("date_deadline"):
+                try:
+                    tr += " → " + datetime.strptime(
+                        t["date_deadline"], "%Y-%m-%d %H:%M:%S").strftime("%H:%M")
+                except Exception:
+                    pass
             cli = t["partner_id"][1] if t.get("partner_id") else t["name"]
-            veh = ""
-            if t.get("x_studio_transport"):
-                veh = t["x_studio_transport"][1].replace("Transport ", "")
-            done = bool(wsmap.get(t["id"], {}).get("x_studio_photo_bon"))
+            veh = t["x_studio_transport"][1].replace("Transport ", "") if t.get("x_studio_transport") else ""
+            tags = " ".join(f'<span class="tag">{_esc(tagmap[i])}</span>'
+                            for i in (t.get("tag_ids") or []) if tagmap.get(i))
+            done = bool(t.get("x_studio_bon_scanne"))
+            ocr = t.get("x_studio_statut_de_locr") or ""
             tok = _tournee_sign(t["id"], "bon")
 
             html += '<div class="card">'
-            html += f'<span class="time">🕐 {dt.strftime("%H:%M")}</span>'
+            html += f'<div class="cardhead"><span class="time">🕐 {tr}</span> {tags}</div>'
             html += f'<div class="cli">{_esc(cli)}</div>'
-            if addr:
-                html += f'<div class="addr">📍 {_esc(addr)}</div>'
             html += f'<div class="meta">{_esc(t["name"])}</div>'
+            html += _addr("📦", "Chargement", t.get("x_studio_adresse_de_chargement"))
+            html += _addr("🏁", "Livraison", t.get("x_studio_adresse_de_livraison_3"))
             if veh:
                 html += f'<span class="veh">🚛 {_esc(veh)}</span>'
-            lblbtn = "✓ Bon envoyé — reprendre une photo" if done else "📷 Scanner le bon de pesée"
+            if ocr:
+                html += f'<div class="ocr">{_esc(ocr)}</div>'
+            lblbtn = "✓ Bon scanné — reprendre une photo" if done else "📷 Scanner le bon de pesée"
             donec = "done" if done else ""
             html += (f'<label class="ph scan {donec}">{lblbtn}'
                      f'<input type="file" accept="image/*" capture="environment" '
                      f'onchange="up(this,{t["id"]},\'bon\',\'{tok}\')"/></label>')
-            if addr:
-                q = _esc(addr).replace(" ", "+")
-                html += f'<a class="maps" target="_blank" href="https://www.google.com/maps/search/?api=1&amp;query={q}">🗺️ Itinéraire</a>'
             html += '</div>'
         return _tournee_page(html)
     except Exception as e:
