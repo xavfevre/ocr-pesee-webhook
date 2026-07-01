@@ -1,0 +1,184 @@
+<t t-name="website.planning_transport_mois">
+  <t t-call="website.layout">
+    <t t-set="month_param" t-value="request.httprequest.args.get('month')"/>
+    <t t-set="selected_client" t-value="request.params.get('client', '')"/>
+    <t t-set="today" t-value="datetime.date.today()"/>
+    <t t-set="first" t-value="month_param and datetime.datetime.strptime(month_param, '%Y-%m').date() or today.replace(day=1)"/>
+    <t t-set="prev_m" t-value="(first - datetime.timedelta(days=1)).replace(day=1).strftime('%Y-%m')"/>
+    <t t-set="next_m" t-value="(first + datetime.timedelta(days=32)).replace(day=1).strftime('%Y-%m')"/>
+    <t t-set="start_monday" t-value="first - datetime.timedelta(days=first.weekday())"/>
+    <t t-set="grid_end" t-value="start_monday + datetime.timedelta(days=42)"/>
+    <t t-set="df" t-value="start_monday.strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="dt" t-value="grid_end.strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="all_records" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('planned_date_begin','&lt;',dt)], order='planned_date_begin')"/>
+    <t t-set="bon_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo_bon','!=',False)])"/>
+    <t t-set="bon_map" t-value="{a.x_project_task_id.id: a.id for a in bon_atts}"/>
+    <t t-set="pc_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo','!=',False)])"/>
+    <t t-set="pc_map" t-value="{a.x_project_task_id.id: a.id for a in pc_atts}"/>
+    <t t-set="liv_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo_1','!=',False)])"/>
+    <t t-set="liv_map" t-value="{a.x_project_task_id.id: a.id for a in liv_atts}"/>
+    <t t-if="selected_client"><t t-set="all_records" t-value="all_records.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/></t>
+    <t t-set="mois_noms" t-value="['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']"/>
+    <t t-set="palette" t-value="['#1f6f78','#b45309','#7c3aed','#be123c','#0f766e','#4d7c0f','#9d174d','#1d4ed8','#c2410c','#4338ca','#0e7490','#a16207','#7e22ce','#15803d','#9f1239']"/>
+    <t t-set="st_colors" t-value="{'annule':'#dc3545','paye':'#0d6efd','facture':'#198754','afacturer':'#fd7e14','brouillon':'#eab308','autre':'#94a3b8'}"/>
+    <t t-set="st_icons" t-value="{'annule':'❌','paye':'💰','facture':'✅','afacturer':'🧾','brouillon':'🧾','autre':'•'}"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &amp;gt; main {padding-top:0 !important;}
+      .trm-table{table-layout:fixed;width:100%;border-collapse:collapse;}
+      .trm-table th{background:#1f2937;color:#fff;font-size:12px;padding:5px;text-align:center;border:1px solid #374151;}
+      .trm-cell{border:1px solid #e2e8f0;vertical-align:top;height:120px;padding:3px;overflow:hidden;}
+      .trm-out{background:#f8fafc;}
+      .trm-today{background:#fef9c3;}
+      .trm-daynum{font-size:12px;font-weight:800;color:#334155;}
+      .trm-out .trm-daynum{color:#cbd5e1;}
+      .trm-task{display:flex;align-items:center;gap:3px;color:#fff;border-radius:4px;padding:1px 4px;margin-top:2px;font-size:10.5px;font-weight:700;border-left:6px solid #fff;}
+      .trm-txt{color:#fff;text-decoration:none;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .trm-txt:hover{color:#fff;text-decoration:underline;}
+      .trm-bon{color:#fff;text-decoration:none;flex:none;font-size:11px;}
+      .trm-bon:hover{opacity:.75;}
+      .trm-st-lbl{display:inline-flex;align-items:center;gap:5px;border:2px solid #cbd5e1;border-radius:14px;padding:2px 11px;font-size:12.5px;font-weight:700;cursor:pointer;margin:2px;background:#fff;user-select:none;}
+      .trm-st-lbl input{cursor:pointer;margin:0;}
+      .trm-cl-wrap{max-height:95px;overflow-y:auto;margin-top:5px;padding:4px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa;}
+      .trm-cl-lbl{display:inline-flex;align-items:center;gap:5px;border:1px solid #cbd5e1;border-radius:12px;padding:1px 9px 1px 6px;font-size:11.5px;font-weight:600;cursor:pointer;margin:2px;background:#fff;user-select:none;}
+      .trm-cl-lbl input{cursor:pointer;margin:0;}
+    </style>
+
+    <div class="container-fluid px-2 px-md-3 my-2">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#2c3e50;letter-spacing:1px;">📅 Planning Transport — Vue mois</h3>
+
+      <div class="text-center mb-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
+        <a t-attf-href="?month={{prev_m}}&amp;client={{selected_client}}" class="btn btn-outline-primary btn-sm"><i class="fa fa-chevron-left"/> Préc.</a>
+        <span class="fw-bold" style="font-size:17px;color:#15324f;min-width:170px;"><t t-esc="mois_noms[first.month - 1]"/> <t t-esc="first.year"/></span>
+        <a t-attf-href="?month={{next_m}}&amp;client={{selected_client}}" class="btn btn-outline-primary btn-sm">Suiv. <i class="fa fa-chevron-right"/></a>
+        <a t-attf-href="?client={{selected_client}}" class="btn btn-success btn-sm">Mois en cours</a>
+        <a t-attf-href="/model/tache" class="btn btn-outline-secondary btn-sm">🗓️ Vue semaine</a>
+        <button id="trmRefresh" type="button" class="btn btn-primary btn-sm">🔄 Actualiser</button>
+        <t t-set="clients_f" t-value="sorted(set(t.partner_id.display_name for t in all_records if t.partner_id))"/>
+        
+      </div>
+
+      <div class="text-center mb-2">
+        <span class="text-muted small me-2">Statuts (coche pour afficher) :</span>
+        <label class="trm-st-lbl" style="border-color:#198754;"><input type="checkbox" class="trm-st" value="facture" checked="checked"/> ✅ Facturé</label>
+        <label class="trm-st-lbl" style="border-color:#0d6efd;"><input type="checkbox" class="trm-st" value="paye" checked="checked"/> 💰 Payé</label>
+        <label class="trm-st-lbl" style="border-color:#eab308;"><input type="checkbox" class="trm-st" value="brouillon" checked="checked"/> 🧾 Facture brouillon</label>
+        <label class="trm-st-lbl" style="border-color:#fd7e14;"><input type="checkbox" class="trm-st" value="afacturer" checked="checked"/> 🧾 À facturer</label>
+        <label class="trm-st-lbl" style="border-color:#dc3545;"><input type="checkbox" class="trm-st" value="annule" checked="checked"/> ❌ Annulé</label>
+        <label class="trm-st-lbl" style="border-color:#94a3b8;"><input type="checkbox" class="trm-st" value="autre" checked="checked"/> • Sans statut</label>
+        <div class="text-muted small mt-1">Fond de pastille = statut · Bordure gauche = couleur du client</div>
+      </div>
+
+      <div class="text-center mb-2">
+        <span class="text-muted small me-2">Clients :</span>
+        <button id="clAll" type="button" class="btn btn-outline-secondary btn-sm py-0 px-2">Tout</button>
+        <button id="clNone" type="button" class="btn btn-outline-secondary btn-sm py-0 px-2">Aucun</button>
+        <div class="trm-cl-wrap">
+          <t t-foreach="clients_f" t-as="cl">
+            <t t-set="clcol" t-value="palette[sum([ord(ch) for ch in cl]) % len(palette)]"/>
+            <label class="trm-cl-lbl" t-attf-style="border-left:7px solid {{clcol}};"><input type="checkbox" class="trm-cl" t-att-value="cl" checked="checked"/> <t t-esc="cl"/></label>
+          </t>
+        </div>
+      </div>
+
+      <table class="trm-table">
+        <thead>
+          <tr><th>Lundi</th><th>Mardi</th><th>Mercredi</th><th>Jeudi</th><th>Vendredi</th><th>Samedi</th><th>Dimanche</th></tr>
+        </thead>
+        <tbody>
+          <t t-foreach="range(6)" t-as="w">
+            <t t-if="any((start_monday + datetime.timedelta(days=w*7+dd)).month == first.month for dd in range(7))">
+            <tr>
+              <t t-foreach="range(7)" t-as="d">
+                <t t-set="cd" t-value="start_monday + datetime.timedelta(days=w*7+d)"/>
+                <t t-set="is_today" t-value="cd == today"/>
+                <t t-set="in_month" t-value="cd.month == first.month"/>
+                <t t-if="not in_month"><td class="trm-cell trm-out"/></t>
+                <t t-else="">
+                <t t-set="day_tasks" t-value="all_records.filtered(lambda t: t.planned_date_begin.date() == cd)"/>
+                <td t-attf-class="trm-cell {{'trm-today' if is_today else ''}}">
+                  <div class="trm-daynum"><t t-esc="cd.day"/><t t-if="is_today"> ⭐</t></div>
+                  <t t-foreach="day_tasks" t-as="task">
+                    <t t-set="st_key" t-value="'autre'"/>
+                    <t t-if="task.stage_id and ('annul' in task.stage_id.name.lower() or 'cancel' in task.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>
+                    <t t-if="st_key == 'autre'">
+                      <t t-set="_so" t-value="task.sale_line_id.order_id if task.sale_line_id else task.sale_order_id"/>
+                      <t t-if="_so">
+                        <t t-set="_inv" t-value="_so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_inv">
+                          <t t-set="_ps" t-value="set(_inv.mapped('payment_state'))"/>
+                          <t t-if="_ps and all(s in ('paid', 'in_payment', 'reversed') for s in _ps)"><t t-set="st_key" t-value="'paye'"/></t>
+                          <t t-else=""><t t-set="st_key" t-value="'facture'"/></t>
+                        </t>
+                        <t t-elif="_so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_key" t-value="'brouillon'"/></t>
+                        <t t-elif="_so.invoice_status == 'to invoice'"><t t-set="st_key" t-value="'afacturer'"/></t>
+                      </t>
+                    </t>
+                    <t t-set="cname" t-value="task.partner_id.display_name or task.name or 'Sans client'"/>
+                    <t t-set="ccol" t-value="palette[sum([ord(ch) for ch in cname]) % len(palette)]"/>
+                    <div class="trm-task" t-att-data-status="st_key" t-att-data-client="cname" t-attf-style="background:{{st_colors[st_key]}};border-left-color:{{ccol}};" t-att-title="cname + ' — ' + st_key">
+                      <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank" class="trm-txt"><t t-esc="st_icons[st_key]"/> <t t-if="task.planned_date_begin"><t t-esc="task.planned_date_begin.strftime('%H:%M')"/> </t><t t-esc="cname"/></a>
+                      <t t-if="bon_map.get(task.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[task.id]}}/x_studio_photo_bon" target="_blank" class="trm-bon" title="Voir le bon scanné">📎</a></t><t t-if="pc_map.get(task.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[task.id]}}/x_studio_photo" target="_blank" class="trm-bon" title="Photo prise en charge">📥</a></t><t t-if="liv_map.get(task.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[task.id]}}/x_studio_photo_1" target="_blank" class="trm-bon" title="Photo livraison">🏁</a></t><t t-set="_bc" t-value="task.sale_line_id.order_id if task.sale_line_id else task.sale_order_id"/><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" class="trm-bon" t-att-title="'BC: ' + _bc.name">🧾</a></t>
+                    </div>
+                  </t>
+                </td>
+                </t>
+              </t>
+            </tr>
+            </t>
+          </t>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      (function(){
+        function saveState(){
+          var sw=[]; document.querySelectorAll('.trm-st').forEach(function(cb){ if(cb.checked){ sw.push(cb.value); } });
+          var allCl=true, cw=[];
+          document.querySelectorAll('.trm-cl').forEach(function(cb){ if(cb.checked){ cw.push(cb.value); } else { allCl=false; } });
+          try{ localStorage.setItem('trmFilters', JSON.stringify({sw:sw, clAll:allCl, cw:cw})); }catch(e){}
+        }
+        function restoreState(){
+          var raw=null; try{ raw=localStorage.getItem('trmFilters'); }catch(e){}
+          if(!raw){ return; }
+          var f; try{ f=JSON.parse(raw); }catch(e){ return; }
+          if(f.sw){
+            var sset={}; f.sw.forEach(function(x){ sset[x]=true; });
+            document.querySelectorAll('.trm-st').forEach(function(cb){ cb.checked = !!sset[cb.value]; });
+          }
+          if(f.clAll === false){
+            var cset={}; (f.cw||[]).forEach(function(x){ cset[x]=true; });
+            document.querySelectorAll('.trm-cl').forEach(function(cb){ cb.checked = !!cset[cb.value]; });
+          }
+        }
+        function applyFilter(){
+          var st = {}; document.querySelectorAll('.trm-st').forEach(function(cb){ st[cb.value] = cb.checked; });
+          var inStatus = {};
+          document.querySelectorAll('.trm-task').forEach(function(c){
+            if(st[c.getAttribute('data-status')]){ inStatus[c.getAttribute('data-client')] = true; }
+          });
+          document.querySelectorAll('.trm-cl-lbl').forEach(function(lbl){
+            var cb = lbl.querySelector('.trm-cl');
+            lbl.style.display = (cb &amp;&amp; inStatus[cb.value]) ? '' : 'none';
+          });
+          var cl = {}; document.querySelectorAll('.trm-cl').forEach(function(cb){ cl[cb.value] = cb.checked; });
+          document.querySelectorAll('.trm-task').forEach(function(c){
+            var show = true;
+            if(!st[c.getAttribute('data-status')]){ show = false; }
+            if(!cl[c.getAttribute('data-client')]){ show = false; }
+            c.style.display = show ? '' : 'none';
+          });
+          saveState();
+        }
+        document.querySelectorAll('.trm-st').forEach(function(cb){ cb.addEventListener('change', applyFilter); });
+        document.querySelectorAll('.trm-cl').forEach(function(cb){ cb.addEventListener('change', applyFilter); });
+        var a=document.getElementById('clAll'); if(a){ a.addEventListener('click', function(){ document.querySelectorAll('.trm-cl').forEach(function(cb){cb.checked=true;}); applyFilter(); }); }
+        var n=document.getElementById('clNone'); if(n){ n.addEventListener('click', function(){ document.querySelectorAll('.trm-cl').forEach(function(cb){cb.checked=false;}); applyFilter(); }); }
+        var rf=document.getElementById('trmRefresh'); if(rf){ rf.addEventListener('click', function(){ location.reload(); }); }
+        restoreState();
+        applyFilter();
+      })();
+    </script>
+  </t>
+</t>

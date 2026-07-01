@@ -1,0 +1,7 @@
+<data>
+  <!-- Colonne Palettes PERMANENTE (toujours affichée, pas optionnelle) dans la
+       sous-vue <list> des lignes de commande (personnalisée par Studio 4889). -->
+  <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_id']" position="after">
+    <field name="x_studio_palettes" readonly="1"/>
+  </xpath>
+</data>

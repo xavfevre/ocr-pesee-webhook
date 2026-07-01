@@ -1,0 +1,53 @@
+{
+ "fields": [
+  {
+   "id": 21501,
+   "name": "x_studio_adresse_de_livraison_1",
+   "model": "project.task",
+   "ttype": "many2one",
+   "field_description": "Dechargement",
+   "related": false
+  },
+  {
+   "id": 21499,
+   "name": "x_studio_many2one_field_209_1inrgoag4",
+   "model": "project.task",
+   "ttype": "many2one",
+   "field_description": "Chargement",
+   "related": false
+  },
+  {
+   "id": 21726,
+   "name": "x_studio_vhi",
+   "model": "x_project_task_worksheet_template_1",
+   "ttype": "many2one",
+   "field_description": "Véhi",
+   "related": "x_studio_vhicule"
+  },
+  {
+   "id": 12606,
+   "name": "x_studio_vhicules",
+   "model": "hr.expense",
+   "ttype": "many2one",
+   "field_description": "Véhicules",
+   "related": false
+  },
+  {
+   "id": 24616,
+   "name": "x_studio_worksheet_id",
+   "model": "sale.order.line",
+   "ttype": "many2one",
+   "field_description": "Feuille de travail",
+   "related": false
+  }
+ ],
+ "view": [
+  {
+   "id": 6678,
+   "name": "report_saleorder_raw copy(3)",
+   "key": "sale.report_saleorder_raw_copy_3",
+   "model": false,
+   "arch_db": "<t t-name=\"sale.report_saleorder_raw_copy_3\">\n    <t t-call=\"web.html_container\">\n        <t t-foreach=\"docs\" t-as=\"doc\">\n            <t t-call=\"sale.report_saleorder_document_copy_3\" t-lang=\"doc.partner_id.lang\"/>\n        </t>\n    </t>\n</t>"
+  }
+ ]
+}

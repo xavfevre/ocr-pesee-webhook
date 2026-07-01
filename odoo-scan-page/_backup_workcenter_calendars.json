@@ -1,0 +1,82 @@
+{
+ "5": {
+  "name": "TC625",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "18": {
+  "name": "Gracia 1",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "19": {
+  "name": "Taille finition",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "6": {
+  "name": "Gracia 2",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "7": {
+  "name": "Escande 1",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "8": {
+  "name": "Escande 2",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "10": {
+  "name": "Thibaut TC625",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "1": {
+  "name": "Benetti",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "3": {
+  "name": "Fantini",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "4": {
+  "name": "Chauvet",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "9": {
+  "name": "Thibault TC1350",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "12": {
+  "name": "Taille manuelle",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "13": {
+  "name": "Rosler",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "14": {
+  "name": "Thibaut T05",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "15": {
+  "name": "Omag",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ },
+ "16": {
+  "name": "Qualité",
+  "cal": 1,
+  "cal_name": "Standard 35 heures"
+ }
+}

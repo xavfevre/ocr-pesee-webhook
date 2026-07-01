@@ -15,7 +15,10 @@ import time
 import base64
 import socket
 import re
+import hmac
+import hashlib
 import xmlrpc.client
+from datetime import datetime, date
 from functools import wraps
 from flask import Flask, request, jsonify
 
@@ -404,6 +407,249 @@ def add_section():
     except Exception as e:
         app.logger.error(f"Erreur add-section: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ─── MA TOURNÉE (chauffeurs, sans connexion Odoo) ────────────────────────────
+# Le chauffeur ouvre une URL sur son téléphone perso, voit uniquement sa
+# tournée et prend ses photos. L'app écrit dans la feuille de travail avec le
+# compte technique (identifiants stockés côté serveur, jamais exposés).
+TOURNEE_PROJECT = "Demande de transport"
+TOURNEE_WS_MODEL = "x_project_task_worksheet_template_1"
+TOURNEE_PHOTO = {
+    "charge": ("x_studio_photo",     "📥 Chargement"),
+    "livr":   ("x_studio_photo_1",   "🏁 Livraison"),
+    "bon":    ("x_studio_photo_bon", "📎 Bon de pesée"),
+}
+_JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+_MOIS = ["", "janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.",
+         "août", "sept.", "oct.", "nov.", "déc."]
+
+
+def _tournee_secret():
+    return (WEBHOOK_SECRET or "maquignon-tournee-fallback").encode()
+
+
+def _tournee_sign(task_id, kind):
+    """Jeton HMAC autorisant l'upload (tâche, type) — non falsifiable sans le secret."""
+    return hmac.new(_tournee_secret(), f"{task_id}:{kind}".encode(),
+                    hashlib.sha256).hexdigest()[:20]
+
+
+def _driver_sign(cid):
+    """Signature HMAC d'un chauffeur — garantit qu'un chauffeur ne voit que SA tournée."""
+    return hmac.new(_tournee_secret(), f"driver:{cid}".encode(),
+                    hashlib.sha256).hexdigest()[:20]
+
+
+def _esc(s):
+    return (str(s if s is not None else "")).replace("&", "&amp;").replace(
+        "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+_TOURNEE_HEAD = """<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>Ma tournée</title><style>
+*{box-sizing:border-box;} body{margin:0;background:#f1f5f9;font-family:'Segoe UI',system-ui,sans-serif;color:#0f172a;}
+.wrap{max-width:640px;margin:0 auto;padding:12px 12px 48px;}
+h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
+.drv{background:#01666B;color:#fff;border-radius:12px;padding:11px 15px;font-weight:800;font-size:17px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.drv a{color:#cffafe;font-size:13px;text-decoration:none;font-weight:600;}
+.day{font-weight:800;color:#334155;font-size:15px;margin:18px 2px 9px;border-bottom:2px solid #cbd5e1;padding-bottom:3px;}
+.day.tod{color:#01666B;border-color:#01666B;}
+.card{background:#fff;border:1px solid #e2e8f0;border-left:6px solid #01666B;border-radius:12px;padding:13px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.time{display:inline-block;background:#EAF4F4;color:#01666B;font-weight:800;font-size:15px;border-radius:8px;padding:2px 10px;margin-bottom:6px;}
+.cli{font-weight:800;font-size:16px;line-height:1.25;}
+.addr{color:#475569;font-size:13.5px;margin:4px 0;}
+.meta{color:#64748b;font-size:12.5px;margin:2px 0;}
+.veh{display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:1px 8px;font-size:12px;font-weight:700;color:#334155;margin-top:3px;}
+.acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:11px;}
+.ph{position:relative;text-align:center;border-radius:10px;padding:10px 4px;font-weight:800;font-size:13px;cursor:pointer;border:2px solid #01666B;color:#01666B;background:#fff;overflow:hidden;}
+.ph.done{background:#dcfce7;border-color:#16a34a;color:#166534;}
+.ph.busy{opacity:.6;}
+.ph input{position:absolute;inset:0;opacity:0;}
+.ph.scan{display:block;margin-top:11px;font-size:16px;padding:15px;background:#01666B;color:#fff;border-color:#01666B;}
+.ph.scan.done{background:#dcfce7;color:#166534;border-color:#16a34a;}
+.maps{display:block;text-align:center;text-decoration:none;background:#fff;color:#01666B;border:2px solid #01666B;border-radius:10px;padding:10px;font-weight:800;font-size:14px;margin-top:8px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.pick{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 12px;text-align:center;text-decoration:none;color:#0f172a;font-weight:800;font-size:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.empty{background:#fff;border-radius:12px;padding:26px 16px;text-align:center;color:#64748b;font-weight:600;}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;opacity:0;transition:.2s;z-index:9;}
+.toast.show{opacity:1;}
+</style></head><body><div class="wrap">"""
+
+_TOURNEE_JS = """<div id="toast" class="toast"></div><script>
+function toast(m,ok){var t=document.getElementById('toast');t.textContent=m;t.style.background=ok?'#166534':'#b91c1c';t.className='toast show';setTimeout(function(){t.className='toast';},2600);}
+function up(inp,tid,kind,tok){
+  var f=inp.files&&inp.files[0]; if(!f){return;}
+  var lbl=inp.parentNode; lbl.classList.add('busy'); var old=lbl.getAttribute('data-t')||lbl.firstChild.textContent;
+  var r=new FileReader();
+  r.onload=function(){
+    fetch('/tournee/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({task_id:tid,kind:kind,token:tok,image:r.result})})
+    .then(function(x){return x.json();}).then(function(d){
+      lbl.classList.remove('busy');
+      if(d.ok){lbl.classList.add('done'); toast('Photo enregistrée ✓',true);}
+      else{toast('Erreur: '+(d.error||'?'),false);}
+    }).catch(function(e){lbl.classList.remove('busy'); toast('Erreur réseau',false);});
+  };
+  r.readAsDataURL(f); inp.value='';
+}
+</script></body></html>"""
+
+
+def _tournee_page(inner):
+    return _TOURNEE_HEAD + inner + _TOURNEE_JS
+
+
+@app.route("/ma-tournee", methods=["GET"])
+def ma_tournee():
+    # Réservé aux chauffeurs PONCTUELS : lien personnel signé, un chauffeur ne
+    # voit QUE sa tournée. Action unique : scanner le bon de pesée (→ OCR).
+    try:
+        c = request.args.get("c")
+        s = request.args.get("s")
+        if not c or not s or not hmac.compare_digest(s, _driver_sign(c)):
+            return _tournee_page(
+                '<h3>🚚 Ma tournée</h3>'
+                '<div class="empty">⛔ Lien invalide ou incomplet.<br/>'
+                'Demandez votre lien personnel au bureau.</div>'), 403
+
+        cid = int(c)
+        uid, models = odoo_connect()
+        today = date.today()
+        df = today.strftime("%Y-%m-%d 00:00:00")
+        emp = x(models, uid, "hr.employee", "read", [cid], fields=["name"])
+        dname = emp[0]["name"] if emp else "Chauffeur"
+        tasks = x(models, uid, "project.task", "search_read",
+                  [("project_id.name", "=", TOURNEE_PROJECT),
+                   ("x_studio_chauffeur", "=", cid),
+                   ("planned_date_begin", ">=", df)],
+                  fields=["id", "name", "partner_id", "planned_date_begin", "x_studio_transport"],
+                  order="planned_date_begin")
+
+        tids = [t["id"] for t in tasks]
+        wsmap = {}
+        if tids:
+            for w in x(models, uid, TOURNEE_WS_MODEL, "search_read",
+                       [("x_project_task_id", "in", tids)],
+                       fields=["x_project_task_id", "x_studio_photo_bon"]):
+                wsmap[w["x_project_task_id"][0]] = w
+        pids = list({t["partner_id"][0] for t in tasks if t.get("partner_id")})
+        pmap = {}
+        if pids:
+            for p in x(models, uid, "res.partner", "read", pids, fields=["street", "zip", "city"]):
+                pmap[p["id"]] = p
+
+        html = f'<div class="drv"><span>👤 {_esc(dname)}</span></div>'
+        if not tasks:
+            html += '<div class="empty">✅ Aucune mission à venir.<br/>Bonne journée !</div>'
+            return _tournee_page(html)
+
+        cur_day = None
+        for t in tasks:
+            try:
+                dt = datetime.strptime(t["planned_date_begin"], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                continue
+            d = dt.date()
+            if d != cur_day:
+                cur_day = d
+                lbl = f"{_JOURS[d.weekday()]} {d.day} {_MOIS[d.month]}"
+                extra = " — Aujourd'hui" if d == today else ""
+                cls = "day tod" if d == today else "day"
+                html += f'<div class="{cls}">{lbl}{extra}</div>'
+
+            p = pmap.get(t["partner_id"][0]) if t.get("partner_id") else None
+            addr = ""
+            if p:
+                parts = [p.get("street"), ((p.get("zip") or "") + " " + (p.get("city") or "")).strip()]
+                addr = ", ".join([z for z in parts if z and z.strip()])
+            cli = t["partner_id"][1] if t.get("partner_id") else t["name"]
+            veh = ""
+            if t.get("x_studio_transport"):
+                veh = t["x_studio_transport"][1].replace("Transport ", "")
+            done = bool(wsmap.get(t["id"], {}).get("x_studio_photo_bon"))
+            tok = _tournee_sign(t["id"], "bon")
+
+            html += '<div class="card">'
+            html += f'<span class="time">🕐 {dt.strftime("%H:%M")}</span>'
+            html += f'<div class="cli">{_esc(cli)}</div>'
+            if addr:
+                html += f'<div class="addr">📍 {_esc(addr)}</div>'
+            html += f'<div class="meta">{_esc(t["name"])}</div>'
+            if veh:
+                html += f'<span class="veh">🚛 {_esc(veh)}</span>'
+            lblbtn = "✓ Bon envoyé — reprendre une photo" if done else "📷 Scanner le bon de pesée"
+            donec = "done" if done else ""
+            html += (f'<label class="ph scan {donec}">{lblbtn}'
+                     f'<input type="file" accept="image/*" capture="environment" '
+                     f'onchange="up(this,{t["id"]},\'bon\',\'{tok}\')"/></label>')
+            if addr:
+                q = _esc(addr).replace(" ", "+")
+                html += f'<a class="maps" target="_blank" href="https://www.google.com/maps/search/?api=1&amp;query={q}">🗺️ Itinéraire</a>'
+            html += '</div>'
+        return _tournee_page(html)
+    except Exception as e:
+        app.logger.error(f"Erreur ma-tournee: {e}")
+        return _tournee_page(f'<div class="empty">Erreur : {_esc(str(e)[:120])}</div>'), 500
+
+
+@app.route("/tournee/upload", methods=["POST"])
+def tournee_upload():
+    try:
+        data = request.get_json(force=True)
+        task_id = int(data.get("task_id"))
+        kind = data.get("kind")
+        token = data.get("token")
+        image = data.get("image") or ""
+        if kind not in TOURNEE_PHOTO:
+            return jsonify({"ok": False, "error": "type invalide"}), 400
+        if not token or not hmac.compare_digest(token, _tournee_sign(task_id, kind)):
+            return jsonify({"ok": False, "error": "jeton invalide"}), 403
+        if image.startswith("data:") and "," in image:
+            image = image.split(",", 1)[1]
+        if not image:
+            return jsonify({"ok": False, "error": "image vide"}), 400
+        image = resize_image(image)  # redimensionne + normalise en JPEG
+
+        field = TOURNEE_PHOTO[kind][0]
+        uid, models = odoo_connect()
+        ws = x(models, uid, TOURNEE_WS_MODEL, "search",
+               [("x_project_task_id", "=", task_id)], limit=1)
+        ws_id = ws[0] if ws else x(models, uid, TOURNEE_WS_MODEL, "create",
+                                   {"x_project_task_id": task_id})
+        x(models, uid, TOURNEE_WS_MODEL, "write", [ws_id], {field: image})
+        return jsonify({"ok": True, "worksheet_id": ws_id})
+    except Exception as e:
+        app.logger.error(f"Erreur tournee-upload: {e}")
+        return jsonify({"ok": False, "error": str(e)[:150]}), 500
+
+
+@app.route("/tournee/liens", methods=["GET"])
+@require_secret
+def tournee_liens():
+    """Page ADMIN (bureau) : liste les liens personnels signés de chaque chauffeur.
+    Protégée par le secret : /tournee/liens?token=<WEBHOOK_SECRET>."""
+    uid, models = odoo_connect()
+    tasks = x(models, uid, "project.task", "search_read",
+              [("project_id.name", "=", TOURNEE_PROJECT),
+               ("x_studio_chauffeur", "!=", False)],
+              fields=["x_studio_chauffeur"], limit=5000)
+    drivers = {}
+    for t in tasks:
+        ch = t.get("x_studio_chauffeur")
+        if ch:
+            drivers[ch[0]] = ch[1]
+    base = request.host_url.rstrip("/")
+    html = (_TOURNEE_HEAD + "<h3>🔗 Liens chauffeurs</h3>"
+            "<p class=\"meta\" style=\"margin-bottom:12px;\">Un lien personnel par chauffeur "
+            "— ne pas partager entre chauffeurs.</p>")
+    for cid, nm in sorted(drivers.items(), key=lambda a: (a[1] or "").upper()):
+        link = f"{base}/ma-tournee?c={cid}&s={_driver_sign(cid)}"
+        html += (f'<div class="card"><div class="cli">{_esc(nm)}</div>'
+                 f'<div class="meta" style="word-break:break-all;margin-top:4px;">{_esc(link)}</div></div>')
+    html += "</div></body></html>"
+    return html
 
 
 @app.route("/health", methods=["GET"])

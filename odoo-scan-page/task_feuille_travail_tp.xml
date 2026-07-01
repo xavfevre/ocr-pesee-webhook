@@ -1,0 +1,22 @@
+<data>
+  <xpath expr="//notebook[1]" position="inside">
+    <page string="📷 Feuille de travail" name="x_feuille_travail_tp" invisible="project_id != 2">
+      <div class="alert alert-info" role="alert">Ajoutez jusqu'à 10 photos (appareil photo du téléphone).</div>
+      <group string="Photos">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+          <field name="x_studio_photo_1" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_2" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_3" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_4" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_5" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_6" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_7" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_8" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_9" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+<field name="x_studio_photo_10" widget="image" class="oe_avatar" options="{'size': [180, 180]}"/>
+
+        </div>
+      </group>
+    </page>
+  </xpath>
+</data>

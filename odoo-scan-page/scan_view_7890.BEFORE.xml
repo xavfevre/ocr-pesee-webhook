@@ -1,0 +1,258 @@
+<t t-name="website.poste_scan">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#0f172a;}
+      .scan-wrap{max-width:760px;margin:0 auto;padding:14px;}
+      .scan-h{color:#e2e8f0;text-align:center;font-weight:300;letter-spacing:1px;margin:6px 0 12px;}
+      .scan-colis{background:#1e293b;border:2px solid #334155;border-radius:14px;padding:14px;text-align:center;margin-bottom:12px;}
+      .scan-colis-lbl{color:#94a3b8;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+      .scan-colis-name{color:#fff;font-size:34px;font-weight:900;line-height:1.1;margin-top:4px;}
+      .scan-colis-none{color:#fbbf24;font-size:22px;font-weight:800;margin-top:4px;}
+      #scan-input{width:100%;font-size:30px;font-weight:800;text-align:center;padding:18px;border:4px solid #38bdf8;border-radius:14px;background:#fff;color:#0f172a;letter-spacing:2px;}
+      #scan-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 4px rgba(34,211,238,.35);}
+      .scan-hint{color:#64748b;text-align:center;font-size:13px;margin:6px 0 14px;}
+      .scan-res{border-radius:14px;padding:18px;text-align:center;font-size:24px;font-weight:900;min-height:66px;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+      .scan-res.ok{background:#065f46;color:#d1fae5;}
+      .scan-res.info{background:#1e3a8a;color:#dbeafe;}
+      .scan-res.warn{background:#92400e;color:#fef3c7;}
+      .scan-res.err{background:#991b1b;color:#fee2e2;}
+      .scan-res.idle{background:#1e293b;color:#64748b;}
+      .scan-split{background:#172033;border:1px dashed #475569;border-radius:12px;padding:10px 14px;margin-top:12px;}
+      .scan-split h6{color:#cbd5e1;font-size:14px;margin-bottom:8px;font-weight:800;}
+      .split-row{display:flex;gap:8px;}
+      #split-of{flex:2;font-size:17px;padding:10px;border-radius:8px;border:2px solid #475569;background:#fff;color:#0f172a;font-weight:700;}
+      #split-qte{flex:1;width:90px;font-size:17px;padding:10px;border-radius:8px;border:2px solid #475569;background:#fff;color:#0f172a;font-weight:700;text-align:center;}
+      #split-go{flex:0 0 auto;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:16px;font-weight:800;cursor:pointer;}
+      #split-go:active{background:#6d28d9;}
+      .split-hint{color:#64748b;font-size:12px;margin-top:6px;}
+      .scan-of-list{background:#1e293b;border-radius:12px;padding:10px 14px;margin-top:12px;color:#cbd5e1;}
+      .scan-of-list h6{color:#94a3b8;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+      .scan-of-item{font-size:15px;padding:6px 0;border-bottom:1px solid #334155;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+      .of-del{background:#7f1d1d;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:16px;cursor:pointer;line-height:1;}
+      .of-del:active{background:#991b1b;}
+      .of-main{display:flex;flex-direction:column;gap:1px;text-align:left;flex:1;min-width:0;}
+      .of-name{font-size:15px;font-weight:800;color:#e2e8f0;}
+      .of-qty{display:inline-block;font-size:12px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;}
+      .of-qty.whole{background:#065f46;color:#d1fae5;}
+      .of-qty.part{background:#5b21b6;color:#ede9fe;}
+      .of-meta{font-size:12.5px;color:#93c5a8;font-weight:600;}
+      .scan-btns{display:flex;gap:10px;margin-top:14px;}
+      .scan-btn{flex:1;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;}
+      .scan-btn-undo{background:#b45309;color:#fff;}
+      .scan-btn-undo:active{background:#92400e;}
+      .scan-btn-refresh{background:#334155;color:#e2e8f0;}
+    </style>
+
+    <div class="scan-wrap">
+      <h3 class="scan-h">📦 Poste de scan — Colis / OF</h3>
+
+      <div class="scan-colis">
+        <div class="scan-colis-lbl">Colis actif</div>
+        <div id="colis-name" class="scan-colis-name">—</div>
+      </div>
+
+      <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
+      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b> à y mettre. Validation automatique à chaque scan.</div>
+
+      <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
+
+      <div class="scan-split">
+        <h6>✂️ Répartir un OF sur cette palette (mettre une partie seulement)</h6>
+        <div class="split-row">
+          <input id="split-of" type="text" autocomplete="off" placeholder="Code OF (WH/OF/…)"/>
+          <input id="split-qte" type="number" min="1" placeholder="Nb"/>
+          <button id="split-go">Répartir</button>
+        </div>
+        <div class="split-hint">Quantité vide = tout le reste de l'OF. Un OF réparti ne peut plus être scanné « en entier ».</div>
+      </div>
+
+      <div id="of-list" class="scan-of-list" style="display:none;">
+        <h6>Contenu du colis (<span id="of-count">0</span>)</h6>
+        <div id="of-items"/>
+      </div>
+
+      <div class="scan-btns">
+        <button class="scan-btn scan-btn-undo" id="btn-undo">↩️ Retirer dernier OF</button>
+        <button class="scan-btn scan-btn-refresh" id="btn-refresh">↻ Rafraîchir</button>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        var POSTE = 1;
+        var input = document.getElementById('scan-input');
+        var resEl = document.getElementById('scan-res');
+        var colisEl = document.getElementById('colis-name');
+
+        function rpc(model, method, args, kwargs){
+          return fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:kwargs||{}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ throw new Error((d.error.data &amp;&amp; d.error.data.message) || d.error.message); }
+            return d.result;
+          });
+        }
+        function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
+        function fmtN(n){ return (Math.round(n*1000)/1000).toString().replace('.', ','); }
+
+        function classFor(txt){
+          if(!txt) return 'idle';
+          if(txt.indexOf('✅')===0 || txt.indexOf('📦')===0 || txt.indexOf('✂️')===0) return 'ok';
+          if(txt.indexOf('ℹ️')===0 || txt.indexOf('↩️')===0 || txt.indexOf('🗑️')===0) return 'info';
+          if(txt.indexOf('⚠️')===0) return 'warn';
+          if(txt.indexOf('❌')===0) return 'err';
+          return 'idle';
+        }
+        function beep(good){
+          try{
+            var ctx = new (window.AudioContext||window.webkitAudioContext)();
+            var o = ctx.createOscillator(); var g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.frequency.value = good ? 880 : 220; g.gain.value = 0.12;
+            o.start(); setTimeout(function(){ o.stop(); ctx.close(); }, good ? 110 : 260);
+          }catch(e){}
+        }
+
+        function metaOf(o){
+          var dims = [];
+          if(o.x_studio_long_m_1){ dims.push(fmtN(o.x_studio_long_m_1)); }
+          if(o.x_studio_larg_m_1){ dims.push(fmtN(o.x_studio_larg_m_1)); }
+          if(o.x_studio_haut_m_1){ dims.push(fmtN(o.x_studio_haut_m_1)); }
+          var meta = [];
+          if(o.x_studio_nom_du_client){ meta.push(esc(o.x_studio_nom_du_client)); }
+          if(dims.length){ meta.push(dims.join(' × ') + ' m'); }
+          return meta.join(' · ');
+        }
+        function renderItem(o, kind, refId, qtyLabel, qtyClass){
+          return '<div class="scan-of-item">'
+            +   '<div class="of-main"><div class="of-name">🪨 ' + esc(o.name) + '<span class="of-qty ' + qtyClass + '">' + qtyLabel + '</span></div>'
+            +     '<div class="of-meta">' + metaOf(o) + '</div></div>'
+            +   '<button class="of-del" data-kind="' + kind + '" data-id="' + refId + '" data-name="' + esc(o.name) + '">🗑️</button>'
+            + '</div>';
+        }
+
+        var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1'];
+
+        function loadOfs(colisId){
+          var box = document.getElementById('of-list');
+          if(!colisId){ box.style.display='none'; return Promise.resolve(); }
+          var pWhole = rpc('mrp.production','search_read',[[['x_studio_colis','=',colisId]],FIELDS],{order:'write_date desc'});
+          var pLines = rpc('x_repartition_palette','search_read',[[['x_studio_colis_id','=',colisId]],['x_studio_of_id','x_studio_qte']],{});
+          return Promise.all([pWhole, pLines]).then(function(r){
+            var wholes = r[0], lines = r[1];
+            var ofIds = lines.map(function(l){ return l.x_studio_of_id[0]; });
+            var pOfs = ofIds.length ? rpc('mrp.production','read',[ofIds, FIELDS],{}) : Promise.resolve([]);
+            return pOfs.then(function(ofrows){
+              var omap = {}; ofrows.forEach(function(o){ omap[o.id]=o; });
+              document.getElementById('of-count').textContent = (wholes.length + lines.length);
+              var html = '';
+              wholes.forEach(function(o){
+                html += renderItem(o, 'whole', o.id, (o.x_studio_nbr || 1) + ' pcs', 'whole');
+              });
+              lines.forEach(function(l){
+                var o = omap[l.x_studio_of_id[0]] || {name: l.x_studio_of_id[1]};
+                var tot = o.x_studio_nbr || '?';
+                html += renderItem(o, 'line', l.id, '✂️ ' + l.x_studio_qte + '/' + tot + ' pcs', 'part');
+              });
+              var itemsBox = document.getElementById('of-items');
+              itemsBox.innerHTML = html || '<div style="color:#64748b;font-size:14px;">Aucun OF pour le moment</div>';
+              itemsBox.querySelectorAll('.of-del').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                  var kind = btn.getAttribute('data-kind'), id = parseInt(btn.getAttribute('data-id'));
+                  if(kind === 'line'){ removeLine(id); } else { removeOf(id, btn.getAttribute('data-name')); }
+                });
+              });
+              box.style.display='';
+            });
+          }).catch(function(){ box.style.display='none'; });
+        }
+
+        function refresh(){
+          return rpc('x_poste_de_scan','read',[[POSTE],['x_studio_rsultat','x_studio_colis_actifs']]).then(function(rows){
+            var rec = rows[0];
+            var colis = rec.x_studio_colis_actifs;
+            colisEl.textContent = colis ? colis[1] : '—';
+            colisEl.className = colis ? 'scan-colis-name' : 'scan-colis-none';
+            resEl.textContent = rec.x_studio_rsultat || "En attente d'un scan…";
+            resEl.className = 'scan-res ' + classFor(rec.x_studio_rsultat);
+            return colis ? colis[0] : false;
+          }).then(loadOfs);
+        }
+
+        function removeOf(ofId, ofName){
+          if(!confirm('Retirer ' + ofName + ' de ce colis ?')){ return; }
+          rpc('ir.actions.server','run',[[1913]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE, of_remove_id:ofId}})
+            .then(refresh).then(function(){ beep(true); input.focus(); })
+            .catch(function(e){ alert('Erreur : ' + e.message); });
+        }
+        function removeLine(lineId){
+          if(!confirm('Retirer cette répartition de la palette ?')){ return; }
+          rpc('ir.actions.server','run',[[1915]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE, line_remove_id:lineId}})
+            .then(refresh).then(function(){ beep(true); input.focus(); })
+            .catch(function(e){ alert('Erreur : ' + e.message); });
+        }
+
+        function doScan(val){
+          input.value='';
+          rpc('x_poste_de_scan','write',[[POSTE],{x_studio_scanner: val}]).then(function(){
+            return refresh();
+          }).then(function(){
+            var c = classFor(resEl.textContent);
+            beep(c !== 'err' &amp;&amp; c !== 'warn');
+          }).catch(function(e){
+            resEl.textContent = '⚠️ Erreur : ' + e.message + ' (connecté à Odoo ?)';
+            resEl.className = 'scan-res err';
+          });
+        }
+
+        function doSplit(){
+          var ofcode = (document.getElementById('split-of').value||'').trim();
+          var qte = parseInt(document.getElementById('split-qte').value||'0');
+          if(!ofcode){ alert('Indiquez le code OF.'); return; }
+          rpc('mrp.production','search_read',[[['name','=',ofcode]],['id']],{limit:1}).then(function(rows){
+            if(rows.length){ return rows; }
+            return rpc('mrp.production','search_read',[[['name','=',ofcode.toUpperCase()]],['id']],{limit:1});
+          }).then(function(rows){
+            if(!rows.length){ resEl.textContent='❌ OF inconnu : '+ofcode; resEl.className='scan-res err'; beep(false); return; }
+            var ctx = {active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE, of_place_id: rows[0].id};
+            if(qte &gt; 0){ ctx.qte_place = qte; }
+            return rpc('ir.actions.server','run',[[1914]],{context:ctx}).then(function(){
+              document.getElementById('split-of').value=''; document.getElementById('split-qte').value='';
+              return refresh();
+            }).then(function(){ beep(classFor(resEl.textContent) !== 'warn'); input.focus(); });
+          }).catch(function(e){ alert('Erreur : '+e.message); });
+        }
+
+        input.addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){ e.preventDefault(); var v=(input.value||'').trim(); if(v){ doScan(v); } }
+        });
+        document.getElementById('split-of').addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('split-qte').focus(); }
+        });
+        document.getElementById('split-qte').addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){ e.preventDefault(); doSplit(); }
+        });
+        document.getElementById('split-go').addEventListener('click', doSplit);
+
+        // Garde le focus scan, sauf si on tape dans les champs de répartition
+        document.addEventListener('keydown', function(e){
+          var a = document.activeElement;
+          if(a === input || a.id === 'split-of' || a.id === 'split-qte'){ return; }
+          if(e.key &amp;&amp; e.key.length === 1){ input.focus(); }
+        });
+
+        document.getElementById('btn-undo').addEventListener('click', function(){
+          rpc('ir.actions.server','run',[[1587]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE}})
+            .then(refresh).then(function(){ input.focus(); })
+            .catch(function(e){ alert('Erreur : ' + e.message); });
+        });
+        document.getElementById('btn-refresh').addEventListener('click', function(){ refresh().then(function(){ input.focus(); }); });
+
+        refresh();
+        input.focus();
+      })();
+    </script>
+  </t>
+</t>
