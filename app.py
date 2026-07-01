@@ -456,6 +456,12 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .drv a{color:#cffafe;font-size:13px;text-decoration:none;font-weight:600;}
 .day{font-weight:800;color:#334155;font-size:15px;margin:18px 2px 9px;border-bottom:2px solid #cbd5e1;padding-bottom:3px;}
 .day.tod{color:#01666B;border-color:#01666B;}
+.daynav{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.10);}
+.daynav button{border:none;background:#01666B;color:#fff;font-size:20px;font-weight:800;border-radius:10px;min-width:52px;height:46px;cursor:pointer;}
+.daynav button:disabled{background:#cbd5e1;}
+.daylbl{font-weight:800;font-size:16px;color:#0f172a;text-align:center;flex:1;line-height:1.2;}
+.daybanner{background:#01666B;color:#fff;font-weight:800;font-size:17px;border-radius:10px;padding:11px 12px;margin:0 0 12px;text-align:center;letter-spacing:.3px;}
+.daybanner.tod{background:#E07020;}
 .card{background:#fff;border:1px solid #e2e8f0;border-left:6px solid #01666B;border-radius:12px;padding:13px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 .time{display:inline-block;background:#EAF4F4;color:#01666B;font-weight:800;font-size:15px;border-radius:8px;padding:2px 10px;margin-bottom:6px;}
 .cli{font-weight:800;font-size:16px;line-height:1.25;}
@@ -500,7 +506,24 @@ function up(inp,tid,kind,tok){
   };
   r.readAsDataURL(f); inp.value='';
 }
-</script></body></html>"""
+(function(){
+  var blocks = Array.prototype.slice.call(document.querySelectorAll('.dayblock'));
+  if(!blocks.length){ return; }
+  var idx = 0;
+  for(var i=0;i<blocks.length;i++){ if(blocks[i].getAttribute('data-today')==='1'){ idx=i; break; } }
+  var lbl=document.getElementById('daylbl'), prev=document.getElementById('prevday'), next=document.getElementById('nextday');
+  function show(){
+    for(var i=0;i<blocks.length;i++){ blocks[i].style.display = (i===idx)?'':'none'; }
+    if(lbl){ lbl.textContent = blocks[idx].getAttribute('data-label'); }
+    if(prev){ prev.disabled = (idx===0); }
+    if(next){ next.disabled = (idx===blocks.length-1); }
+    window.scrollTo(0,0);
+  }
+  if(prev){ prev.onclick=function(){ if(idx>0){ idx--; show(); } }; }
+  if(next){ next.onclick=function(){ if(idx<blocks.length-1){ idx++; show(); } }; }
+  show();
+})();
+</script></div></body></html>"""
 
 
 def _tournee_page(inner):
@@ -570,6 +593,10 @@ def ma_tournee():
                     f'<a class="mini" target="_blank" '
                     f'href="https://www.google.com/maps/search/?api=1&amp;query={q}">🗺️</a></div>')
 
+        html += ('<div class="daynav">'
+                 '<button id="prevday">◀</button>'
+                 '<div id="daylbl" class="daylbl"></div>'
+                 '<button id="nextday">▶</button></div>')
         cur_day = None
         for t in tasks:
             try:
@@ -578,11 +605,16 @@ def ma_tournee():
                 continue
             d = dt.date()
             if d != cur_day:
+                if cur_day is not None:
+                    html += '</div>'  # ferme le bloc-jour précédent
                 cur_day = d
+                istoday = (d == today)
                 lbl = f"{_JOURS[d.weekday()]} {d.day} {_MOIS[d.month]}"
-                extra = " — Aujourd'hui" if d == today else ""
-                cls = "day tod" if d == today else "day"
-                html += f'<div class="{cls}">{lbl}{extra}</div>'
+                if istoday:
+                    lbl += " — Aujourd'hui"
+                html += (f'<div class="dayblock" data-label="{_esc(lbl)}" '
+                         f'data-today="{"1" if istoday else "0"}">'
+                         f'<div class="daybanner {"tod" if istoday else ""}">{_esc(lbl)}</div>')
 
             tr = dt.strftime("%H:%M")
             if t.get("date_deadline"):
@@ -626,6 +658,8 @@ def ma_tournee():
                      f'onchange="up(this,{t["id"]},\'livr\',\'{_tournee_sign(t["id"], "livr")}\')"/></label>')
             html += '</div>'
             html += '</div>'
+        if cur_day is not None:
+            html += '</div>'  # ferme le dernier bloc-jour
         return _tournee_page(html)
     except Exception as e:
         app.logger.error(f"Erreur ma-tournee: {e}")
