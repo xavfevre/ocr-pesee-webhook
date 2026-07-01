@@ -1,0 +1,117 @@
+<t t-name="website.vue_operateur">
+  <t t-call="website.layout">
+    <section class="container-fluid px-2 px-md-3 py-3">
+      <style>
+        header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+        #wrapwrap &gt; main {padding-top:0 !important;}
+        .vo-card{background:#fff;border:1px solid #e2e8f0;border-left:6px solid #01666B;border-radius:10px;padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);}
+        .vo-op{font-weight:800;font-size:15px;color:#0f172a;}
+        .vo-cli{font-weight:700;color:#15324f;font-size:14px;margin:3px 0;}
+        .vo-ref{font-size:12.5px;background:#FEF9C3;border:1px solid #FDE68A;border-radius:5px;padding:1px 7px;margin:3px 0;display:inline-block;}
+        .vo-pierre{font-size:13px;font-weight:700;background:#F1EDE3;border-radius:4px;padding:1px 6px;margin:3px 0;display:inline-block;letter-spacing:.3px;}
+        .vo-dim{font-size:14px;font-weight:700;color:#222;margin:2px 0;}
+        .vo-done{margin-left:auto;}
+      </style>
+
+      <t t-set="op" t-value="(request.params.get('op') or '').strip()"/>
+      <t t-set="client" t-value="(request.params.get('client') or '').strip()"/>
+      <t t-set="ref" t-value="(request.params.get('ref') or '').strip()"/>
+      <t t-set="employees" t-value="request.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
+      <t t-set="clients" t-value="sorted(set(request.env['mrp.production'].sudo().search([('state','in',['confirmed','progress','to_close']),('company_id','=',1),('x_studio_nom_du_client','!=',False)]).mapped('x_studio_nom_du_client')))"/>
+
+      <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=complet">🏭 Board complet</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-operateurs">👷 Board opérateurs</a></li>
+        <li class="nav-item"><a class="nav-link active fw-bold" href="#">✅ Vue opérateur</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
+      </ul>
+
+      <h3 class="mb-2">✅ Vue opérateur</h3>
+
+      <form method="get" action="/vue-operateur" class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <select name="op" class="form-select form-select-sm" style="max-width:230px;" onchange="this.form.submit()">
+          <option value="">— Choisir un opérateur —</option>
+          <t t-foreach="employees" t-as="e">
+            <option t-att-value="e.id" t-att-selected="'selected' if op == str(e.id) else None"><t t-esc="e.name"/></option>
+          </t>
+        </select>
+        <select name="client" class="form-select form-select-sm" style="max-width:230px;" onchange="this.form.submit()">
+          <option value="">— Tous les clients —</option>
+          <t t-foreach="clients" t-as="cl">
+            <option t-att-value="cl" t-att-selected="'selected' if client == cl else None"><t t-esc="cl"/></option>
+          </t>
+        </select>
+        <input name="ref" t-att-value="ref" placeholder="Réf commande…" class="form-control form-control-sm" style="max-width:200px;"/>
+        <button type="submit" class="btn btn-sm btn-primary">🔍 Filtrer</button>
+        <t t-if="op or client or ref"><a href="/vue-operateur" class="btn btn-sm btn-outline-danger">✕ Effacer</a></t>
+        <button type="button" onclick="window.location.reload()" class="btn btn-sm btn-outline-dark">↻</button>
+      </form>
+
+      <t t-if="not op">
+        <div class="alert alert-info">Sélectionnez un opérateur pour voir ses opérations à réaliser.</div>
+      </t>
+      <t t-else="">
+        <t t-set="dom" t-value="[('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1),('state','not in',['done','cancel']),('employee_assigned_ids','in',[int(op)])]"/>
+        <t t-if="client"><t t-set="dom" t-value="dom + [('production_id.x_studio_nom_du_client','ilike',client)]"/></t>
+        <t t-if="ref"><t t-set="dom" t-value="dom + [('production_id.x_studio_ref_commande_client','ilike',ref)]"/></t>
+        <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, order='date_start')"/>
+
+        <p class="text-muted mb-2"><strong><t t-esc="len(ots)"/></strong> opération(s) à réaliser<t t-if="client"> · client <strong t-esc="client"/></t><t t-if="ref"> · réf « <strong t-esc="ref"/> »</t></p>
+
+        <t t-if="not ots"><div class="alert alert-success">✅ Aucune opération en attente pour ce filtre.</div></t>
+
+        <t t-foreach="ots" t-as="w">
+          <t t-set="of" t-value="w.production_id"/>
+          <t t-set="is_taille" t-value="'taille' in (w.name or '').lower() or 'taille' in (w.workcenter_id.name or '').lower()"/>
+          <div class="vo-card" t-attf-style="{{'border-left-color:#C0392B;' if is_taille else ''}}">
+            <div class="d-flex align-items-start">
+              <div class="vo-op"><t t-if="is_taille">✂ </t><t t-esc="w.name"/></div>
+              <span class="badge text-bg-secondary ms-auto"><t t-esc="w.workcenter_id.name"/></span>
+            </div>
+            <div t-if="of.x_studio_nom_du_client" class="vo-cli">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>
+            <div style="font-size:12px;">
+              <a t-attf-href="/web#id={{of.id}}&amp;model=mrp.production&amp;view_type=form" target="_blank"><strong t-esc="of.name"/></a>
+              <t t-if="of.origin"> · BC <t t-esc="of.origin"/></t>
+            </div>
+            <div t-if="of.x_studio_ref_commande_client" class="vo-ref">📄 Réf cde : <t t-esc="of.x_studio_ref_commande_client"/></div>
+            <div>
+              <span t-if="of.x_studio_ref_pierre" class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span>
+            </div>
+            <div class="vo-dim">
+              <t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/><span style="font-weight:400;font-size:11px;"> m</span>
+              <span t-if="of.x_studio_nbr" class="badge" style="background:#2d6a6f;color:#fff;margin-left:6px;"><t t-esc="of.x_studio_nbr"/> pc</span>
+            </div>
+            <div class="d-flex gap-1 align-items-center flex-wrap mt-1" style="font-size:11px;">
+              <span t-if="of.state == 'draft'" class="badge text-bg-warning">📝 Brouillon</span>
+              <span t-elif="w.state == 'progress'" class="badge text-bg-success">▶ En cours</span>
+              <span t-elif="w.state == 'blocked' and w.blocked_by_workorder_ids.filtered(lambda s: s.state != 'done')" class="badge" style="background:#fd7e14;color:#fff;">⏳ En attente</span>
+              <span t-elif="w.state == 'blocked'" class="badge text-bg-danger">⛔ Bloquée</span>
+              <span t-else="" class="badge text-bg-light">○ À faire</span>
+              <span t-if="w.date_start" class="badge text-bg-info">🕐 <t t-esc="w.date_start.strftime('%d/%m %H:%M')"/></span>
+              <button t-if="w.state != 'cancel' and of.state != 'draft'" type="button" class="vo-done btn btn-sm btn-success" t-att-data-id="w.id">✓ Terminé</button>
+            </div>
+          </div>
+        </t>
+      </t>
+
+      <script>
+      (function(){
+        document.querySelectorAll('.vo-done').forEach(function(b){
+          b.addEventListener('click', function(){
+            if(!confirm('Marquer cette opération comme terminée ?')){ return; }
+            var id = parseInt(b.getAttribute('data-id'));
+            b.disabled = true; b.textContent = '…';
+            fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'mrp.workorder', method:'button_finish', args:[[id]], kwargs:{}}})
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d.error){ alert('Échec : ' + (d.error.data &amp;&amp; d.error.data.message || d.error.message)); b.disabled=false; b.textContent='✓ Terminé'; }
+              else { window.location.reload(); }
+            }).catch(function(e){ alert('Échec : ' + e); b.disabled=false; b.textContent='✓ Terminé'; });
+          });
+        });
+      })();
+      </script>
+    </section>
+  </t>
+</t>
