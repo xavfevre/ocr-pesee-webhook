@@ -468,6 +468,7 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .mini{text-decoration:none;font-size:15px;}
 .ocr{background:#dcfce7;color:#166534;border-radius:8px;padding:4px 9px;font-size:12.5px;font-weight:700;margin-top:7px;display:inline-block;}
 .acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:11px;}
+.acts2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px;}
 .ph{position:relative;text-align:center;border-radius:10px;padding:10px 4px;font-weight:800;font-size:13px;cursor:pointer;border:2px solid #01666B;color:#01666B;background:#fff;overflow:hidden;}
 .ph.done{background:#dcfce7;border-color:#16a34a;color:#166534;}
 .ph.busy{opacity:.6;}
@@ -545,6 +546,16 @@ def ma_tournee():
             except Exception:
                 tagmap = {}
 
+        # statut des 3 photos par mission (feuille de travail)
+        wsmap = {}
+        tids = [t["id"] for t in tasks]
+        if tids:
+            for w in x(models, uid, TOURNEE_WS_MODEL, "search_read",
+                       [("x_project_task_id", "in", tids)],
+                       fields=["x_project_task_id", "x_studio_photo",
+                               "x_studio_photo_1", "x_studio_photo_bon"]):
+                wsmap[w["x_project_task_id"][0]] = w
+
         html = f'<div class="drv"><span>👤 {_esc(dname)}</span></div>'
         if not tasks:
             html += '<div class="empty">✅ Aucune mission à venir.<br/>Bonne journée !</div>'
@@ -584,9 +595,11 @@ def ma_tournee():
             veh = t["x_studio_transport"][1].replace("Transport ", "") if t.get("x_studio_transport") else ""
             tags = " ".join(f'<span class="tag">{_esc(tagmap[i])}</span>'
                             for i in (t.get("tag_ids") or []) if tagmap.get(i))
-            done = bool(t.get("x_studio_bon_scanne"))
+            ws = wsmap.get(t["id"], {})
+            done_bon = bool(t.get("x_studio_bon_scanne")) or bool(ws.get("x_studio_photo_bon"))
+            done_charge = bool(ws.get("x_studio_photo"))
+            done_livr = bool(ws.get("x_studio_photo_1"))
             ocr = t.get("x_studio_statut_de_locr") or ""
-            tok = _tournee_sign(t["id"], "bon")
 
             html += '<div class="card">'
             html += f'<div class="cardhead"><span class="time">🕐 {tr}</span> {tags}</div>'
@@ -598,11 +611,20 @@ def ma_tournee():
                 html += f'<span class="veh">🚛 {_esc(veh)}</span>'
             if ocr:
                 html += f'<div class="ocr">{_esc(ocr)}</div>'
-            lblbtn = "✓ Bon scanné — reprendre une photo" if done else "📷 Scanner le bon de pesée"
-            donec = "done" if done else ""
-            html += (f'<label class="ph scan {donec}">{lblbtn}'
+            lblbon = "✓ Bon scanné — reprendre" if done_bon else "📷 Scanner le bon de pesée"
+            html += (f'<label class="ph scan {"done" if done_bon else ""}">{lblbon}'
                      f'<input type="file" accept="image/*" capture="environment" '
-                     f'onchange="up(this,{t["id"]},\'bon\',\'{tok}\')"/></label>')
+                     f'onchange="up(this,{t["id"]},\'bon\',\'{_tournee_sign(t["id"], "bon")}\')"/></label>')
+            html += '<div class="acts2">'
+            html += (f'<label class="ph {"done" if done_charge else ""}">'
+                     f'{"✓ Photo chargt" if done_charge else "📥 Photo chargt"}'
+                     f'<input type="file" accept="image/*" capture="environment" '
+                     f'onchange="up(this,{t["id"]},\'charge\',\'{_tournee_sign(t["id"], "charge")}\')"/></label>')
+            html += (f'<label class="ph {"done" if done_livr else ""}">'
+                     f'{"✓ Photo livr." if done_livr else "📸 Photo livr."}'
+                     f'<input type="file" accept="image/*" capture="environment" '
+                     f'onchange="up(this,{t["id"]},\'livr\',\'{_tournee_sign(t["id"], "livr")}\')"/></label>')
+            html += '</div>'
             html += '</div>'
         return _tournee_page(html)
     except Exception as e:
