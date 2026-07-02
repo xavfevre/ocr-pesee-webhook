@@ -110,8 +110,8 @@
                     <div t-if="of.x_studio_palette" class="vo-pal">🟪 <t t-esc="of.x_studio_palette"/></div>
                     <div t-if="of.x_studio_ref_pierre" style="margin:4px 0;"><span class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span></div>
                     <div class="vo-dimrow">
-                      <span class="vo-lxl"><t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
-                      <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
+                      <span class="vo-lxl"><t t-esc="'%.3f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.3f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
+                      <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.3f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
                       <span t-if="of.x_studio_nbr" class="vo-nbr">× <t t-esc="of.x_studio_nbr"/></span>
                     </div>
                   </div>
@@ -172,7 +172,7 @@
                t-attf-style="border-left-color:{{col}};"
                t-att-data-id="w.id" t-att-data-state="w.state"
                t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0"
-               t-attf-data-dims="{{'%.2f' % (of.x_studio_long_m_1 or 0)}} {{'%.2f' % (of.x_studio_larg_m_1 or 0)}} {{'%.2f' % (of.x_studio_haut_m_1 or 0)}}"
+               t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}"
                t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
@@ -194,8 +194,8 @@
                 </div>
                 <div t-if="of.x_studio_ref_pierre" style="margin:4px 0;"><span class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span></div>
                 <div class="vo-dimrow">
-                  <span class="vo-lxl"><t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
-                  <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
+                  <span class="vo-lxl"><t t-esc="'%.3f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.3f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
+                  <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.3f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
                   <span t-if="of.x_studio_nbr" class="vo-nbr">× <t t-esc="of.x_studio_nbr"/></span>
                 </div>
                 <div class="vo-pieces"></div>
