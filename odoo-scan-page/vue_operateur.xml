@@ -139,8 +139,10 @@
 
         <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
           <span class="vo-lbl">Dimensions</span>
-          <input id="vo-dim" type="text" inputmode="decimal" class="form-control form-control-sm" style="max-width:190px;font-weight:700;font-size:16px;" placeholder="🔍 ex : 0.30"/>
-          <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕</button>
+          <input id="vo-dim-l" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="Long."/>
+          <input id="vo-dim-la" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="Larg."/>
+          <input id="vo-dim-h" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="Haut."/>
+          <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕ Dimensions</button>
         </div>
         <t t-if="clients_op">
           <div class="vo-chips"><span class="vo-lbl">Clients</span>
@@ -248,7 +250,7 @@
           var id=card.getAttribute('data-id');
           var badge=card.querySelector('.vo-badge'), acts=card.querySelector('.vo-actions');
           card.classList.toggle('doned', st==='done');
-          if(st==='done'){ badge.innerHTML='&lt;span class="badge text-bg-secondary"&gt;✓ Terminé&lt;/span&gt;'; acts.innerHTML=''; }
+          if(st==='done'){ badge.innerHTML='&lt;span class="badge text-bg-secondary"&gt;✓ Terminé&lt;/span&gt;'; acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé'); }
           else if(st==='progress'){ badge.innerHTML='&lt;span class="badge text-bg-success"&gt;▶ En cours&lt;/span&gt;'; acts.innerHTML=bd(id,'button_pending','btn-warning','⏸ Pause')+bd(id,'button_finish','btn-success','✓ Terminer'); }
           else if(st==='blocked'){ badge.innerHTML='&lt;span class="badge text-bg-danger"&gt;⛔ Bloquée&lt;/span&gt;'; acts.innerHTML=''; }
           else { badge.innerHTML='&lt;span class="badge text-bg-light"&gt;○ À faire&lt;/span&gt;'; acts.innerHTML=bd(id,'button_start','btn-primary','▶ Démarrer'); }
@@ -258,15 +260,27 @@
           root.querySelectorAll('.vo-act').forEach(function(b){
             b.onclick=function(){
               var m=b.getAttribute('data-m'), id=parseInt(b.getAttribute('data-id'));
-              if(m==='button_finish' &amp;&amp; !confirm('Terminer cette opération ?')){ return; }
-              var card=b.closest('.vo-card'); b.disabled=true; b.textContent='…';
+              var card=b.closest('.vo-card');
+              if(m==='button_finish' &amp;&amp; !b.getAttribute('data-cf')){
+                b.setAttribute('data-cf','1'); b.className='vo-act btn btn-danger'; b.textContent='⚠ Confirmer Terminer ?';
+                setTimeout(function(){ if(b.getAttribute('data-cf')){ b.removeAttribute('data-cf'); b.className='vo-act btn btn-success'; b.textContent='✓ Terminer'; } }, 4000);
+                return;
+              }
+              if(m==='undo_finish' &amp;&amp; !confirm('Annuler le Terminé de cette opération ?')){ return; }
+              b.disabled=true; b.textContent='…';
+              var body;
+              if(m==='undo_finish'){
+                body = {jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1940]],kwargs:{context:{active_model:'mrp.workorder',active_ids:[id]}}}};
+              } else {
+                body = {jsonrpc:'2.0',method:'call',params:{model:'mrp.workorder',method:m,args:[[id]],kwargs:{}}};
+              }
               fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'mrp.workorder',method:m,args:[[id]],kwargs:{}}})
+                body:JSON.stringify(body)
               }).then(function(r){return r.json();}).then(function(d){
-                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); render(card); return; }
-                var ns = m==='button_start' ? 'progress' : (m==='button_pending' ? 'ready' : 'done');
+                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); render(card); renderP(card); return; }
+                var ns = m==='button_start' ? 'progress' : (m==='button_pending' || m==='undo_finish' ? 'ready' : 'done');
                 card.setAttribute('data-state', ns); render(card); renderP(card); updateCount();
-              }).catch(function(e){ alert('Échec : '+e); render(card); });
+              }).catch(function(e){ alert('Échec : '+e); render(card); renderP(card); });
             };
           });
         }
@@ -295,7 +309,7 @@
         }
         document.querySelectorAll('.vo-card').forEach(function(c){ render(c); renderP(c); });
 
-        var selC={}, selR={}, dimQ='';
+        var selC={}, selR={}, dimQ=['','',''];
         function apply(){
           document.querySelectorAll('.vo-card').forEach(function(c){
             var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'';
@@ -303,20 +317,25 @@
             var okC = kc.length===0 || selC[cl];
             var okR = kr.length===0 || selR[rf];
             var okD = true;
-            if(dimQ){ okD = (c.getAttribute('data-dims')||'').indexOf(dimQ) !== -1; }
+            var parts = (c.getAttribute('data-dims')||'').split(' ');
+            if(dimQ[0] &amp;&amp; (parts[0]||'').indexOf(dimQ[0]) === -1){ okD = false; }
+            if(dimQ[1] &amp;&amp; (parts[1]||'').indexOf(dimQ[1]) === -1){ okD = false; }
+            if(dimQ[2] &amp;&amp; (parts[2]||'').indexOf(dimQ[2]) === -1){ okD = false; }
             c.style.display = (okC &amp;&amp; okR &amp;&amp; okD) ? '' : 'none';
           });
           updateCount();
         }
-        var dimIn=document.getElementById('vo-dim'), dimX=document.getElementById('vo-dim-x');
-        if(dimIn){
-          dimIn.addEventListener('input', function(){
-            dimQ = dimIn.value.trim().replace(',', '.');
-            if(dimX){ dimX.style.display = dimQ ? '' : 'none'; }
+        var dimIns=[document.getElementById('vo-dim-l'),document.getElementById('vo-dim-la'),document.getElementById('vo-dim-h')];
+        var dimX=document.getElementById('vo-dim-x');
+        dimIns.forEach(function(inp, i){
+          if(!inp){ return; }
+          inp.addEventListener('input', function(){
+            dimQ[i] = inp.value.trim().replace(',', '.');
+            if(dimX){ dimX.style.display = (dimQ[0]||dimQ[1]||dimQ[2]) ? '' : 'none'; }
             apply();
           });
-        }
-        if(dimX){ dimX.onclick=function(){ dimIn.value=''; dimQ=''; dimX.style.display='none'; apply(); }; }
+        });
+        if(dimX){ dimX.onclick=function(){ dimIns.forEach(function(inp){ if(inp){ inp.value=''; } }); dimQ=['','','']; dimX.style.display='none'; apply(); }; }
         function chip(sel, cls){
           document.querySelectorAll(cls).forEach(function(ch){
             ch.onclick=function(){
