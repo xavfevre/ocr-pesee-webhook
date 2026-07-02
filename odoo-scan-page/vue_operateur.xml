@@ -134,6 +134,7 @@
         <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, order='workcenter_id, date_start', limit=300)"/>
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
         <t t-set="clients_op" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in ots if w.production_id.x_studio_nom_du_client))"/>
+        <t t-set="machines_op" t-value="sorted(set(w.workcenter_id.name for w in ots if w.workcenter_id))"/>
         <t t-set="refs_op" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in ots if w.production_id.x_studio_ref_commande_client))"/>
         <t t-set="todo_n" t-value="len(ots.filtered(lambda w: w.state != 'done'))"/>
 
@@ -145,6 +146,11 @@
           <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕ Dimensions</button>
           <span class="vo-lbl" style="text-transform:none;letter-spacing:0;">pierres qui tiennent dans ce gabarit, peu importe l’orientation</span>
         </div>
+        <t t-if="len(machines_op) &gt; 1">
+          <div class="vo-chips"><span class="vo-lbl">Machines</span>
+            <t t-foreach="machines_op" t-as="mc"><span class="vo-chip chip-mac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t>
+          </div>
+        </t>
         <t t-if="clients_op">
           <div class="vo-chips"><span class="vo-lbl">Clients</span>
             <t t-foreach="clients_op" t-as="cl"><span class="vo-chip chip-cli" t-att-data-val="cl"><t t-esc="cl"/></span></t>
@@ -174,7 +180,8 @@
                t-att-data-id="w.id" t-att-data-state="w.state"
                t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0"
                t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}"
-               t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''">
+               t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''"
+               t-att-data-machine="w.workcenter_id.name or ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
               <span><t t-esc="pierre"/></span>
@@ -310,13 +317,14 @@
         }
         document.querySelectorAll('.vo-card').forEach(function(c){ render(c); renderP(c); });
 
-        var selC={}, selR={}, dimQ=['','',''];
+        var selC={}, selR={}, selM={}, dimQ=['','',''];
         function apply(){
           document.querySelectorAll('.vo-card').forEach(function(c){
-            var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'';
-            var kc=Object.keys(selC), kr=Object.keys(selR);
+            var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'', mc=c.getAttribute('data-machine')||'';
+            var kc=Object.keys(selC), kr=Object.keys(selR), km=Object.keys(selM);
             var okC = kc.length===0 || selC[cl];
             var okR = kr.length===0 || selR[rf];
+            var okM = km.length===0 || selM[mc];
             var okD = true;
             var cons = dimQ.map(function(v){ var f = parseFloat(v); return isNaN(f) ? null : f; })
                            .filter(function(v){ return v !== null; });
@@ -332,7 +340,7 @@
               }
               if(!pd.length){ okD = false; }
             }
-            c.style.display = (okC &amp;&amp; okR &amp;&amp; okD) ? '' : 'none';
+            c.style.display = (okC &amp;&amp; okR &amp;&amp; okM &amp;&amp; okD) ? '' : 'none';
           });
           updateCount();
         }
@@ -356,7 +364,7 @@
             };
           });
         }
-        chip(selC, '.chip-cli'); chip(selR, '.chip-ref');
+        chip(selC, '.chip-cli'); chip(selR, '.chip-ref'); chip(selM, '.chip-mac');
         function updateCount(){
           var n=0; document.querySelectorAll('.vo-card').forEach(function(c){ if(c.style.display!=='none' &amp;&amp; c.getAttribute('data-state')!=='done'){ n++; } });
           var el=document.getElementById('vo-count'); if(el){ el.innerHTML='&lt;strong&gt;'+n+'&lt;/strong&gt; opération(s) à produire'; }
