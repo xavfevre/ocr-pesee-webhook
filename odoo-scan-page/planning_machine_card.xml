@@ -26,7 +26,7 @@
     </div>
     <div style="font-size:13px;font-weight:700;color:#222;margin:1px 0;">
       <t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/><span style="font-weight:400;font-size:11px;"> m</span>
-      <t t-set="_fait" t-value="w.x_studio_nbr_fait or 0"/><span t-if="of.x_studio_nbr" t-attf-style="float:right;background:{{'#16a34a' if _fait &gt;= of.x_studio_nbr else ('#E07020' if _fait else '#2d6a6f')}};color:#fff;border-radius:8px;padding:0 7px;font-size:11px;font-weight:800;"><t t-esc="_fait"/>/<t t-esc="of.x_studio_nbr"/> pc</span>
+      <t t-set="_fait" t-value="(of.x_studio_nbr or 0) if w.state == 'done' else (w.x_studio_nbr_fait or 0)"/><span t-if="of.x_studio_nbr" t-attf-style="float:right;background:{{'#16a34a' if _fait &gt;= of.x_studio_nbr else ('#E07020' if _fait else '#2d6a6f')}};color:#fff;border-radius:8px;padding:0 7px;font-size:11px;font-weight:800;"><t t-esc="_fait"/>/<t t-esc="of.x_studio_nbr"/> pc</span>
     </div>
     <div class="d-flex gap-1 align-items-center flex-wrap" style="margin-top:3px;font-size:10px;">
       <span t-if="of.state == 'draft'" class="badge text-bg-warning">📝 Brouillon — à valider</span>
