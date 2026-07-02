@@ -83,7 +83,31 @@ mois=base_sheet("s_mois","Par mois",
   {"0":{"size":280}},
   {"0":{"size":30}}, grid=True)
 
-doc={"version":"18.5.10","sheets":[synth,articles,mois],
+
+def chart(cid, ctype, mode, groupby, title, x, y, w, h, legend="top", extra=None):
+    d = {"title":{"text":title},"background":"","legendPosition":legend,
+         "metaData":{"groupBy":[groupby],"measure":"price_subtotal","order":None,
+                     "resModel":"account.invoice.report","mode":mode,"cumulatedStart":False},
+         "searchParams":{"comparison":None,"context":{},"domain":DOM,"groupBy":[groupby],"orderBy":[]},
+         "type":ctype,"dataSets":[],"humanize":True,"verticalAxisPosition":"left",
+         "stacked":False,"cumulatedStart":False,"fillArea":(mode=="line"),"chartId":cid,
+         "fieldMatching":{F_PERIOD:{"chain":"invoice_date","type":"date","offset":0},
+                          F_COMPANY:{"chain":"company_id","type":"many2one"},
+                          F_CATEG:{"chain":"product_categ_id","type":"many2one"}}}
+    if extra: d.update(extra)
+    return {"id":cid,"width":w,"height":h,"tag":"chart","data":d,
+            "offset":{"x":x,"y":y},"col":0,"row":0}
+
+figs = [
+  chart("chart-ca-soc","odoo_bar","bar","company_id","CA HT par société",0,10,560,340),
+  chart("chart-ca-cat","odoo_pie","pie","product_categ_id","Répartition du CA par activité",580,10,560,340),
+  chart("chart-ca-mois","odoo_line","line","invoice_date:month","Évolution mensuelle du CA HT",0,370,1140,360),
+]
+graphs=base_sheet("s_graph","Graphiques",{},{},{},[],
+  {"0":{"size":200}},{"0":{"size":26}}, grid=False)
+graphs["figures"]=figs
+
+doc={"version":"18.5.10","sheets":[synth,graphs,articles,mois],
  "styles":styles,"formats":formats,"borders":{},"revisionId":"START_REVISION","uniqueFigureIds":True,
  "settings":{"locale":{"name":"French / Français","code":"fr_FR","thousandsSeparator":" ",
    "decimalSeparator":",","dateFormat":"dd/mm/yyyy","timeFormat":"hh:mm:ss","formulaArgSeparator":";","weekStart":1}},
