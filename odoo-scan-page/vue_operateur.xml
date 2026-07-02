@@ -20,10 +20,10 @@
         .vo-ref{font-size:12.5px;background:#FEF9C3;border:1px solid #FDE68A;border-radius:5px;padding:1px 7px;margin:3px 0;display:inline-block;}
         .vo-pal{font-size:15px;font-weight:900;background:#7c3aed;color:#fff;border-radius:9px;padding:3px 12px;margin:4px 0;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.15);}
         .vo-pierre{font-size:17px;font-weight:800;background:#F1EDE3;border-radius:6px;padding:2px 10px;letter-spacing:.3px;}
-        .vo-dimrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0;}
-        .vo-lxl{font-size:19px;font-weight:800;color:#222;}
-        .vo-h{font-size:23px;font-weight:900;border-radius:9px;padding:2px 14px;line-height:1.15;box-shadow:0 1px 2px rgba(0,0,0,.15);}
-        .vo-nbr{font-size:23px;font-weight:900;color:#fff;background:#C0392B;border-radius:9px;padding:2px 14px;line-height:1.15;box-shadow:0 1px 2px rgba(0,0,0,.15);}
+        .vo-dimrow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;white-space:nowrap;margin:6px 0;overflow-x:auto;}
+        .vo-lxl{font-size:19px;font-weight:800;color:#222;flex:0 0 auto;}
+        .vo-h{font-size:20px;font-weight:900;border-radius:9px;padding:2px 12px;line-height:1.15;box-shadow:0 1px 2px rgba(0,0,0,.15);flex:0 0 auto;}
+        .vo-nbr{font-size:20px;font-weight:900;color:#fff;background:#C0392B;border-radius:9px;padding:2px 12px;line-height:1.15;box-shadow:0 1px 2px rgba(0,0,0,.15);flex:0 0 auto;}
         .vo-plan{font-size:12.5px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;text-decoration:none;color:#0f172a;font-weight:700;display:inline-block;}
         .vo-bc{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;align-self:center;}
         .vo-bc img{height:58px;width:auto;max-width:100%;}
@@ -91,8 +91,8 @@
                 <div t-if="of.x_studio_nom_du_client" class="vo-cli">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>
                 <div style="font-size:12px;"><strong t-esc="of.name"/><t t-if="of.origin"> · BC <t t-esc="of.origin"/></t></div>
                 <div t-if="of.x_studio_palette" class="vo-pal">🟪 <t t-esc="of.x_studio_palette"/></div>
+                <div t-if="of.x_studio_ref_pierre" style="margin:4px 0;"><span class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span></div>
                 <div class="vo-dimrow">
-                  <span t-if="of.x_studio_ref_pierre" class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span>
                   <span class="vo-lxl"><t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
                   <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
                   <span t-if="of.x_studio_nbr" class="vo-nbr">× <t t-esc="of.x_studio_nbr"/></span>
@@ -160,8 +160,8 @@
                     <a t-attf-href="/web/content/{{pl.id}}?download=false" target="_blank" class="vo-plan">📐 <t t-esc="(pl.name or 'Plan')[:36]"/></a>
                   </t>
                 </div>
+                <div t-if="of.x_studio_ref_pierre" style="margin:4px 0;"><span class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span></div>
                 <div class="vo-dimrow">
-                  <span t-if="of.x_studio_ref_pierre" class="vo-pierre">◆ <t t-esc="of.x_studio_ref_pierre"/></span>
                   <span class="vo-lxl"><t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> m</span>
                   <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
                   <span t-if="of.x_studio_nbr" class="vo-nbr">× <t t-esc="of.x_studio_nbr"/></span>
