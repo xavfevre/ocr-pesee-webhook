@@ -28,6 +28,11 @@
         .vo-bc{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;align-self:center;}
         .vo-bc img{height:58px;width:auto;max-width:100%;}
         .vo-bc-txt{font-family:monospace;font-size:12px;font-weight:700;color:#475569;}
+        .vo-pieces{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;}
+        .vo-fait{font-size:16px;font-weight:800;color:#334155;}
+        .vo-reste{font-size:20px;font-weight:900;background:#E07020;color:#fff;border-radius:9px;padding:2px 14px;box-shadow:0 1px 2px rgba(0,0,0,.15);}
+        .vo-reste.zero{background:#16a34a;}
+        .vo-p1{font-weight:900;font-size:17px;padding:10px 18px;}
         .vo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
         .vo-actions .btn{font-weight:800;font-size:15px;padding:9px 14px;}
         .vo-day{background:#01666B;color:#fff;font-weight:800;font-size:15.5px;border-radius:9px;padding:8px 12px;margin:14px 0 10px;}
@@ -141,6 +146,7 @@
           <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}"
                t-attf-style="border-left-color:{{col}};"
                t-att-data-id="w.id" t-att-data-state="w.state"
+               t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0"
                t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
@@ -166,6 +172,7 @@
                   <span class="vo-h" t-attf-style="background:{{col}};color:{{htxt}};">H <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/> m</span>
                   <span t-if="of.x_studio_nbr" class="vo-nbr">× <t t-esc="of.x_studio_nbr"/></span>
                 </div>
+                <div class="vo-pieces"></div>
                 <div class="vo-badge" style="font-size:11px;margin-top:3px;"></div>
                 <div class="vo-actions"></div>
               </div>
@@ -217,12 +224,35 @@
               }).then(function(r){return r.json();}).then(function(d){
                 if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); render(card); return; }
                 var ns = m==='button_start' ? 'progress' : (m==='button_pending' ? 'ready' : 'done');
-                card.setAttribute('data-state', ns); render(card); updateCount();
+                card.setAttribute('data-state', ns); render(card); renderP(card); updateCount();
               }).catch(function(e){ alert('Échec : '+e); render(card); });
             };
           });
         }
-        document.querySelectorAll('.vo-card').forEach(render);
+        function renderP(card){
+          var box=card.querySelector('.vo-pieces'); if(!box){ return; }
+          var nbr=parseInt(card.getAttribute('data-nbr'))||0;
+          var fait=parseInt(card.getAttribute('data-fait'))||0;
+          var st=card.getAttribute('data-state');
+          if(nbr &lt;= 1 || st==='done' || st==='blocked'){ box.innerHTML=''; return; }
+          var reste=Math.max(0, nbr-fait);
+          box.innerHTML = '&lt;span class="vo-fait"&gt;Fait '+fait+' / '+nbr+'&lt;/span&gt;'
+            + '&lt;span class="vo-reste'+(reste===0?' zero':'')+'"&gt;'+(reste===0?'✅ Tout fait':'Reste '+reste)+'&lt;/span&gt;'
+            + '&lt;button type="button" class="vo-p1 btn btn-primary"'+(reste===0?' disabled="disabled"':'')+'&gt;+1 pièce&lt;/button&gt;'
+            + (fait&gt;0 ? '&lt;button type="button" class="vo-m1 btn btn-outline-secondary btn-sm"&gt;−1&lt;/button&gt;' : '');
+          function saveF(nf){
+            fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'mrp.workorder',method:'write',args:[[parseInt(card.getAttribute('data-id'))],{x_studio_nbr_fait:nf}],kwargs:{}}})
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); renderP(card); return; }
+              card.setAttribute('data-fait', nf); renderP(card);
+            }).catch(function(e){ alert('Échec : '+e); renderP(card); });
+          }
+          var p1=box.querySelector('.vo-p1'), m1=box.querySelector('.vo-m1');
+          if(p1){ p1.onclick=function(){ p1.disabled=true; saveF(fait+1); }; }
+          if(m1){ m1.onclick=function(){ saveF(fait-1); }; }
+        }
+        document.querySelectorAll('.vo-card').forEach(function(c){ render(c); renderP(c); });
 
         var selC={}, selR={};
         function apply(){
