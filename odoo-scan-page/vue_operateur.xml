@@ -137,6 +137,11 @@
         <t t-set="refs_op" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in ots if w.production_id.x_studio_ref_commande_client))"/>
         <t t-set="todo_n" t-value="len(ots.filtered(lambda w: w.state != 'done'))"/>
 
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+          <span class="vo-lbl">Dimensions</span>
+          <input id="vo-dim" type="text" inputmode="decimal" class="form-control form-control-sm" style="max-width:190px;font-weight:700;font-size:16px;" placeholder="🔍 ex : 0.30"/>
+          <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕</button>
+        </div>
         <t t-if="clients_op">
           <div class="vo-chips"><span class="vo-lbl">Clients</span>
             <t t-foreach="clients_op" t-as="cl"><span class="vo-chip chip-cli" t-att-data-val="cl"><t t-esc="cl"/></span></t>
@@ -165,6 +170,7 @@
                t-attf-style="border-left-color:{{col}};"
                t-att-data-id="w.id" t-att-data-state="w.state"
                t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0"
+               t-attf-data-dims="{{'%.2f' % (of.x_studio_long_m_1 or 0)}} {{'%.2f' % (of.x_studio_larg_m_1 or 0)}} {{'%.2f' % (of.x_studio_haut_m_1 or 0)}}"
                t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
@@ -289,17 +295,28 @@
         }
         document.querySelectorAll('.vo-card').forEach(function(c){ render(c); renderP(c); });
 
-        var selC={}, selR={};
+        var selC={}, selR={}, dimQ='';
         function apply(){
           document.querySelectorAll('.vo-card').forEach(function(c){
             var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'';
             var kc=Object.keys(selC), kr=Object.keys(selR);
             var okC = kc.length===0 || selC[cl];
             var okR = kr.length===0 || selR[rf];
-            c.style.display = (okC &amp;&amp; okR) ? '' : 'none';
+            var okD = true;
+            if(dimQ){ okD = (c.getAttribute('data-dims')||'').indexOf(dimQ) !== -1; }
+            c.style.display = (okC &amp;&amp; okR &amp;&amp; okD) ? '' : 'none';
           });
           updateCount();
         }
+        var dimIn=document.getElementById('vo-dim'), dimX=document.getElementById('vo-dim-x');
+        if(dimIn){
+          dimIn.addEventListener('input', function(){
+            dimQ = dimIn.value.trim().replace(',', '.');
+            if(dimX){ dimX.style.display = dimQ ? '' : 'none'; }
+            apply();
+          });
+        }
+        if(dimX){ dimX.onclick=function(){ dimIn.value=''; dimQ=''; dimX.style.display='none'; apply(); }; }
         function chip(sel, cls){
           document.querySelectorAll(cls).forEach(function(ch){
             ch.onclick=function(){
