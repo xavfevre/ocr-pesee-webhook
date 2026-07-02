@@ -57,34 +57,24 @@ def base_sheet(sid,name,cells,sstyles,sformats,merges,cols,rows,grid=True):
      "conditionalFormats":[],"dataValidationRules":[],"figures":[],"tables":[],
      "areGridLinesVisible":grid,"isVisible":True,"headerGroups":{},"comments":{}}
 
-synth=base_sheet("s_synth","Synthèse",
-  {"A1":"Chiffre d'affaires — toutes sociétés",
-   "A2":"Factures clients validées · filtres Période / Société / Catégorie en haut · mise à jour instantanée",
-   "A4":"CA HT TOTAL","A5":"=PIVOT.VALUE(2,\"price_subtotal\")",
-   "A7":"DÉTAIL PAR SOCIÉTÉ ET ACTIVITÉ (CA HT + quantités)",
-   "A8":"=PIVOT(2, 120, TRUE, TRUE)"},
-  {"A1":1,"A2":2,"A4:C4":4,"A5:C5":5,"A7:F7":3},
-  {"A5:C5":1},
-  ["A1:H1","A2:H2","A4:C4","A5:C5","A7:F7"],
-  {"0":{"size":280},"1":{"size":130},"2":{"size":130},"3":{"size":130},"4":{"size":130},"5":{"size":130}},
-  {"0":{"size":44},"1":{"size":22},"3":{"size":24},"4":{"size":42},"6":{"size":30}}, grid=False)
+cells={
+ "A1":"Chiffre d'affaires — toutes sociétés",
+ "A2":"Factures clients validées · filtres Période / Société / Catégorie en haut · mise à jour instantanée",
+ "A4":"CA HT TOTAL","A5":"=PIVOT.VALUE(2,\"price_subtotal\")",
+ "A40":"DÉTAIL PAR SOCIÉTÉ ET ACTIVITÉ (CA HT + quantités)",
+ "A41":"=PIVOT(2, 120, TRUE, TRUE)",
+ "A165":"CA PAR ARTICLE — Société › Activité › Article (équivalent rapport Sage)",
+ "A166":"=PIVOT(1, 600, TRUE, TRUE)",
+ "A770":"ÉVOLUTION MENSUELLE — CA HT par société et activité",
+ "A771":"=PIVOT(3, 200, TRUE, TRUE)",
+}
+sheet_styles={"A1":1,"A2":2,"A4:C4":4,"A5:C5":5,"A40:F40":3,"A165:F165":3,"A770:N770":3}
+sheet_formats={"A5:C5":1}
+merges=["A1:H1","A2:H2","A4:C4","A5:C5","A40:F40","A165:F165","A770:N770"]
+cols={"0":{"size":320},"1":{"size":130},"2":{"size":130},"3":{"size":130},"4":{"size":130},"5":{"size":130}}
+rows={"0":{"size":44},"1":{"size":22},"3":{"size":24},"4":{"size":42},"39":{"size":30},"164":{"size":30},"769":{"size":30}}
 
-articles=base_sheet("s_art","CA par article",
-  {"A1":"CA PAR ARTICLE — Société › Activité › Article (équivalent rapport Sage) — utilisez le filtre Société",
-   "A2":"=PIVOT(1, 600, TRUE, TRUE)"},
-  {"A1:F1":3},{},["A1:F1"],
-  {"0":{"size":330},"1":{"size":130},"2":{"size":130}},
-  {"0":{"size":30}}, grid=True)
-
-mois=base_sheet("s_mois","Par mois",
-  {"A1":"ÉVOLUTION MENSUELLE — CA HT par société et activité",
-   "A2":"=PIVOT(3, 200, TRUE, TRUE)"},
-  {"A1:N1":3},{},["A1:N1"],
-  {"0":{"size":280}},
-  {"0":{"size":30}}, grid=True)
-
-
-def chart(cid, ctype, mode, groupby, title, x, y, w, h, legend="top", extra=None):
+def chart(cid, ctype, mode, groupby, title, x, y, w, h, legend="top"):
     d = {"title":{"text":title},"background":"","legendPosition":legend,
          "metaData":{"groupBy":[groupby],"measure":"price_subtotal","order":None,
                      "resModel":"account.invoice.report","mode":mode,"cumulatedStart":False},
@@ -94,20 +84,20 @@ def chart(cid, ctype, mode, groupby, title, x, y, w, h, legend="top", extra=None
          "fieldMatching":{F_PERIOD:{"chain":"invoice_date","type":"date","offset":0},
                           F_COMPANY:{"chain":"company_id","type":"many2one"},
                           F_CATEG:{"chain":"product_categ_id","type":"many2one"}}}
-    if extra: d.update(extra)
     return {"id":cid,"width":w,"height":h,"tag":"chart","data":d,
             "offset":{"x":x,"y":y},"col":0,"row":0}
 
-figs = [
-  chart("chart-ca-soc","odoo_bar","bar","company_id","CA HT par société",0,10,560,340),
-  chart("chart-ca-cat","odoo_pie","pie","product_categ_id","Répartition du CA par activité",580,10,560,340),
-  chart("chart-ca-mois","odoo_line","line","invoice_date:month","Évolution mensuelle du CA HT",0,370,1140,360),
+figs=[
+  chart("chart-ca-soc","odoo_bar","bar","company_id","CA HT par société",0,150,555,330),
+  chart("chart-ca-cat","odoo_pie","pie","product_categ_id","Répartition du CA par activité",575,150,555,330),
+  chart("chart-ca-mois","odoo_line","line","invoice_date:month","Évolution mensuelle du CA HT",0,495,1130,330),
 ]
-graphs=base_sheet("s_graph","Graphiques",{},{},{},[],
-  {"0":{"size":200}},{"0":{"size":26}}, grid=False)
-graphs["figures"]=figs
+dash={"id":"s_dash","name":"Dashboard","colNumber":30,"rowNumber":1000,"rows":rows,"cols":cols,
+ "merges":merges,"cells":cells,"styles":sheet_styles,"formats":sheet_formats,"borders":{},
+ "conditionalFormats":[],"dataValidationRules":[],"figures":figs,"tables":[],
+ "areGridLinesVisible":False,"isVisible":True,"headerGroups":{},"comments":{}}
 
-doc={"version":"18.5.10","sheets":[synth,graphs,articles,mois],
+doc={"version":"18.5.10","sheets":[dash],
  "styles":styles,"formats":formats,"borders":{},"revisionId":"START_REVISION","uniqueFigureIds":True,
  "settings":{"locale":{"name":"French / Français","code":"fr_FR","thousandsSeparator":" ",
    "decimalSeparator":",","dateFormat":"dd/mm/yyyy","timeFormat":"hh:mm:ss","formulaArgSeparator":";","weekStart":1}},
