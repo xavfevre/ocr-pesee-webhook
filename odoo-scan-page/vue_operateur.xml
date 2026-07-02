@@ -138,11 +138,12 @@
         <t t-set="todo_n" t-value="len(ots.filtered(lambda w: w.state != 'done'))"/>
 
         <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-          <span class="vo-lbl">Dimensions</span>
-          <input id="vo-dim-l" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="Long."/>
-          <input id="vo-dim-la" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="Larg."/>
-          <input id="vo-dim-h" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="Haut."/>
+          <span class="vo-lbl">Rentre dans (tous sens)</span>
+          <input id="vo-dim-l" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="≤ dim 1"/>
+          <input id="vo-dim-la" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="≤ dim 2"/>
+          <input id="vo-dim-h" type="text" inputmode="decimal" class="form-control form-control-sm vo-dim" style="max-width:110px;font-weight:700;font-size:16px;" placeholder="≤ dim 3"/>
           <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕ Dimensions</button>
+          <span class="vo-lbl" style="text-transform:none;letter-spacing:0;">pierres qui tiennent dans ce gabarit, peu importe l’orientation</span>
         </div>
         <t t-if="clients_op">
           <div class="vo-chips"><span class="vo-lbl">Clients</span>
@@ -317,10 +318,20 @@
             var okC = kc.length===0 || selC[cl];
             var okR = kr.length===0 || selR[rf];
             var okD = true;
-            var parts = (c.getAttribute('data-dims')||'').split(' ');
-            if(dimQ[0] &amp;&amp; (parts[0]||'').indexOf(dimQ[0]) === -1){ okD = false; }
-            if(dimQ[1] &amp;&amp; (parts[1]||'').indexOf(dimQ[1]) === -1){ okD = false; }
-            if(dimQ[2] &amp;&amp; (parts[2]||'').indexOf(dimQ[2]) === -1){ okD = false; }
+            var cons = dimQ.map(function(v){ var f = parseFloat(v); return isNaN(f) ? null : f; })
+                           .filter(function(v){ return v !== null; });
+            if(cons.length){
+              var pd = (c.getAttribute('data-dims')||'').split(' ').map(parseFloat)
+                        .filter(function(v){ return !isNaN(v); }).sort(function(x,y){ return y-x; });
+              // les axes non renseignés sont libres : on y affecte les plus grandes dimensions
+              var keep = pd.slice(pd.length - Math.min(cons.length, pd.length));
+              var cs = cons.slice().sort(function(x,y){ return y-x; });
+              keep.sort(function(x,y){ return y-x; });
+              for(var di=0; di&lt;keep.length; di++){
+                if(keep[di] &gt; (cs[di]||0) + 0.0005){ okD = false; break; }
+              }
+              if(!pd.length){ okD = false; }
+            }
             c.style.display = (okC &amp;&amp; okR &amp;&amp; okD) ? '' : 'none';
           });
           updateCount();
