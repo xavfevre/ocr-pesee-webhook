@@ -360,7 +360,7 @@ def ma_tournee():
 # ─── FICHE DE FIN DE TRAVAUX ─────────────────────────────────────────────────
 FDT_FIELDS = ["x_fdt_fait", "x_fdt_date", "x_fdt_vehicule", "x_fdt_heure_arrivee",
               "x_fdt_heure_depart", "x_fdt_temps_trajet", "x_fdt_operateurs",
-              "x_fdt_commentaires", "x_fdt_data"]
+              "x_fdt_commentaires", "x_fdt_data", "x_fdt_signataire"]
 
 @bp.route("/fiche/<int:slot_id>", methods=["GET", "POST"])
 def fiche(slot_id):
@@ -400,6 +400,11 @@ def fiche(slot_id):
             if any(row.values()):
                 data["dechets"][code] = row
 
+        def bin_val(field_val):
+            if field_val and field_val.startswith("data:"):
+                return field_val.split(",", 1)[1]
+            return None
+
         vals = {
             "x_fdt_fait": True,
             "x_fdt_date": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
@@ -410,13 +415,26 @@ def fiche(slot_id):
             "x_fdt_operateurs":    f.get("operateurs", "").strip(),
             "x_fdt_commentaires":  f.get("commentaires", "").strip(),
             "x_fdt_data":          json.dumps(data, ensure_ascii=False),
+            "x_fdt_signataire":    f.get("signataire", "").strip(),
         }
+        sig = bin_val(f.get("signature", ""))
+        if sig:
+            vals["x_fdt_signature"] = sig
+        nphotos = 0
+        for i in (1, 2, 3, 4):
+            pv = f.get(f"photo_{i}", "")
+            b = bin_val(pv)
+            if b:
+                vals[f"x_fdt_photo_{i}"] = b
+                nphotos += 1
+            elif pv == "KEEP":
+                nphotos += 1
         x(models, uid, "planning.slot", "write", [slot_id], vals)
 
         # Message chatter pour le bureau (mail.message direct : message_post
         # échappe le HTML passé par XML-RPC en v19)
         try:
-            html = render_fiche_html(card, vals, data)
+            html = render_fiche_html(card, vals, data, nphotos)
             subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
             x(models, uid, "mail.message", "create", [{
                 "model": "planning.slot", "res_id": slot_id,
@@ -428,6 +446,19 @@ def fiche(slot_id):
 
         back = request.args.get("back", "")
         return redirect(url_for(".fiche", slot_id=slot_id, t=token, back=back, ok=1))
+
+    # GET : présence signature/photos sans télécharger les binaires
+    bins = x(models, uid, "planning.slot", "read", [slot_id],
+             fields=["x_fdt_signature", "x_fdt_photo_1", "x_fdt_photo_2",
+                     "x_fdt_photo_3", "x_fdt_photo_4"],
+             context={"bin_size": True})[0]
+    has = {
+        "sig": bool(bins.get("x_fdt_signature")),
+        "p1": bool(bins.get("x_fdt_photo_1")),
+        "p2": bool(bins.get("x_fdt_photo_2")),
+        "p3": bool(bins.get("x_fdt_photo_3")),
+        "p4": bool(bins.get("x_fdt_photo_4")),
+    }
 
     # GET : préremplissage
     saved_data = {}
@@ -460,11 +491,13 @@ def fiche(slot_id):
         adresse=adresse, prefill=prefill,
         travaux=TRAVAUX, dechets=DECHETS,
         saved=saved_data,
+        has=has,
+        signataire=s.get("x_fdt_signataire") or "",
         deja_fait=bool(s.get("x_fdt_fait")),
         ok=request.args.get("ok"),
         back=request.args.get("back", ""))
 
-def render_fiche_html(card, vals, data):
+def render_fiche_html(card, vals, data, nphotos=0):
     """Résumé HTML de la fiche pour le chatter Odoo."""
     rows_t = ""
     labels_t = {c: (l, u) for c, l, u in TRAVAUX}
@@ -482,6 +515,8 @@ def render_fiche_html(card, vals, data):
         f"<p>Véhicule : {vals['x_fdt_vehicule'] or '—'} · "
         f"Arrivée : {vals['x_fdt_heure_arrivee'] or '—'} · Départ : {vals['x_fdt_heure_depart'] or '—'} · "
         f"Trajet A/R : {vals['x_fdt_temps_trajet'] or '—'} · Opérateur(s) : {vals['x_fdt_operateurs'] or '—'}</p>"
+        + (f"<p>✍️ Signé par : <b>{vals.get('x_fdt_signataire')}</b></p>" if vals.get('x_fdt_signataire') else "")
+        + (f"<p>📷 {nphotos} photo(s) jointe(s) — voir l'onglet Fiche de fin de travaux</p>" if nphotos else "")
     )
     if rows_t:
         html += ("<table border='1' cellpadding='3'><tr><th>Nature des travaux</th><th>Quantité</th><th>Temps</th></tr>"

@@ -155,6 +155,51 @@
     </div>
   </div>
 
+  <div class="box">
+    <div class="box-title">Photos (1 à 4)</div>
+    <div class="box-body">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        {% for i in [1, 2, 3, 4] %}
+        <div>
+          <input type="file" accept="image/*" capture="environment" id="pf{{ i }}"
+                 style="display:none;" onchange="loadPhoto({{ i }})"/>
+          <input type="hidden" name="photo_{{ i }}" id="ph{{ i }}"
+                 value="{{ 'KEEP' if has['p' ~ i] else '' }}"/>
+          <label for="pf{{ i }}" id="pl{{ i }}"
+                 style="display:flex; align-items:center; justify-content:center; min-height:90px;
+                        border:2px dashed var(--border); border-radius:10px; cursor:pointer;
+                        font-size:13px; font-weight:700; color:var(--cy-dk); text-align:center;
+                        background:{{ '#e6f7ee' if has['p' ~ i] else '#fff' }}; overflow:hidden;">
+            {{ ('✓ Photo ' ~ i ~ ' enregistrée — remplacer') if has['p' ~ i] else ('📷 Photo ' ~ i) }}
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">Signature du client</div>
+    <div class="box-body">
+      <div class="fld" style="margin-bottom:8px;">
+        <label>Nom du signataire</label>
+        <input type="text" name="signataire" value="{{ signataire }}" placeholder="Nom et prénom"/>
+      </div>
+      {% if has['sig'] %}
+      <div style="font-size:13px; color:var(--green); font-weight:700; margin-bottom:6px;">
+        ✓ Signature déjà enregistrée — signer à nouveau pour remplacer</div>
+      {% endif %}
+      <canvas id="sigpad" width="600" height="180"
+              style="width:100%; height:160px; border:1.5px solid var(--border); border-radius:10px;
+                     background:#fff; touch-action:none;"></canvas>
+      <input type="hidden" name="signature" id="sigdata"/>
+      <button type="button" onclick="clearSig()"
+              style="margin-top:6px; border:1.5px solid var(--border); background:#fff; border-radius:8px;
+                     padding:7px 14px; font-size:13px; font-weight:700; color:var(--text); cursor:pointer;">
+        ✕ Effacer la signature</button>
+    </div>
+  </div>
+
 </div>
 
 <div class="savebar">
@@ -162,6 +207,63 @@
   <button type="submit" class="btn-save">💾 ENREGISTRER LA FICHE</button>
 </div>
 </form>
+
+<script>
+// Photos : recadrage à 1280px max, JPEG 80%
+function loadPhoto(i) {
+  var f = document.getElementById('pf' + i).files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      var mx = 1280, w = img.width, h = img.height;
+      if (w > mx || h > mx) { var k = Math.min(mx / w, mx / h); w = Math.round(w * k); h = Math.round(h * k); }
+      var c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      var d = c.toDataURL('image/jpeg', 0.8);
+      document.getElementById('ph' + i).value = d;
+      var lbl = document.getElementById('pl' + i);
+      lbl.style.background = '#e6f7ee';
+      lbl.innerHTML = '<img src="' + d + '" style="max-width:100%; max-height:86px; border-radius:8px;"/>';
+    };
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+}
+
+// Signature : pavé tactile
+var pad = document.getElementById('sigpad');
+var pctx = pad.getContext('2d');
+pctx.lineWidth = 2.4; pctx.lineCap = 'round'; pctx.strokeStyle = '#1a2e4a';
+var drawing = false, drawn = false;
+function pos(e) {
+  var rct = pad.getBoundingClientRect();
+  var sx = pad.width / rct.width, sy = pad.height / rct.height;
+  return { x: (e.clientX - rct.left) * sx, y: (e.clientY - rct.top) * sy };
+}
+pad.addEventListener('pointerdown', function (e) {
+  e.preventDefault(); drawing = true; drawn = true;
+  var p = pos(e); pctx.beginPath(); pctx.moveTo(p.x, p.y);
+});
+pad.addEventListener('pointermove', function (e) {
+  if (!drawing) return;
+  e.preventDefault();
+  var p = pos(e); pctx.lineTo(p.x, p.y); pctx.stroke();
+});
+['pointerup', 'pointerleave'].forEach(function (ev) {
+  pad.addEventListener(ev, function () { drawing = false; });
+});
+function clearSig() {
+  pctx.clearRect(0, 0, pad.width, pad.height);
+  drawn = false;
+  document.getElementById('sigdata').value = '';
+}
+document.querySelector('form').addEventListener('submit', function () {
+  if (drawn) { document.getElementById('sigdata').value = pad.toDataURL('image/png'); }
+});
+</script>
 
 </body>
 </html>
