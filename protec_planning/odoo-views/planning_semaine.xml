@@ -362,7 +362,21 @@
       <t t-foreach="cols" t-as="emp">
         <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
         <t t-set="empslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
-        <tr>
+        <t t-set="row_conge" t-value="(not empslots) and [l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= days[-1] and (l.date_to + dtoff).date() &gt;= days[0]]"/>
+        <tr t-if="row_conge" style="height: 46px;">
+          <td class="emp-cell" t-att-style="'background: %s; color: #fff;' % color">
+            <div class="emp-name" t-out="emp.name"/>
+            <div class="emp-count">CONGÉS</div>
+          </td>
+          <td class="hour-gut"/>
+          <t t-foreach="days" t-as="day">
+            <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
+            <td t-att-class="'slot-cell' + (' cell-conge' if onleave else '') + (' is-today-col' if day == today else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id" style="min-width:175px; height:46px; padding:4px; border-bottom:1px solid #dce3ef; border-right:1px solid #dce3ef;">
+              <span t-if="onleave" class="conge-chip">CONGÉS</span>
+            </td>
+          </t>
+        </tr>
+        <tr t-if="not row_conge">
           <td class="emp-cell" t-att-style="'background: %s; color: #fff;' % color">
             <div class="emp-name" t-out="emp.name"/>
             <t t-set="emin" t-value="sum([int((s.end_datetime - s.start_datetime).total_seconds() // 60) for s in empslots if s.end_datetime])"/>
