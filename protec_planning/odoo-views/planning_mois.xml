@@ -47,6 +47,22 @@
     .bc-link:hover { background: #3a5a99; color: #fff; }
     footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
     .drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
+    th.emp-col { background: #2c4880; position: sticky; left: 0; z-index: 150; }
+    .th-emp-inner { padding: 8px 10px; min-width: 130px; text-align: left; color: #fff; }
+    th.day-th { background: #3a5a99; color: #fff; }
+    th.day-th.is-today { background: #f59e0b; }
+    .day-dow2 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #fff; }
+    .day-num2 { font-size: 15px; font-weight: 900; line-height: 1.1; color: #fff; }
+    td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
+                  border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
+                  vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
+    .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; }
+    .emp-count { font-size: 11px; color: #6b7c9a; margin-top: 2px; }
+    .emp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+               margin-right: 5px; }
+    tr.row-none td.emp-cell { background: #fef2f2; }
+    tr.row-none .emp-name { color: #7f1d1d; }
+    td.slot-cell.is-today-col { background: #fff8e1 !important; }
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
     .cell-conge { background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 6px, #fff3f3 6px, #fff3f3 12px) !important; }
     .conge-chip { display: inline-block; font-size: 9px; font-weight: 900; color: #b91c1c;
@@ -153,6 +169,8 @@
 <t t-set="dtoff" t-value="datetime.timedelta(hours=off)"/>
 <t t-set="today" t-value="(tnow + dtoff).date()"/>
 <t t-set="soc" t-value="args.get('soc') or 'protec'"/>
+<t t-set="ori" t-value="args.get('o') or 'l'"/>
+<t t-set="qori" t-value="'&amp;o=c' if ori == 'c' else ''"/>
 <t t-set="soc_cid" t-value="2 if soc == 'protec' else (1 if soc == 's3t' else 0)"/>
 <t t-set="omap" t-value="{4: 1, 5: 2, 6: 3, 7: 4, 10: 5, 2: 6, 8: 7, 9: 8, 1: 9}"/>
 <t t-set="cmap" t-value="{4: '#2563eb', 5: '#eab308', 6: '#dc2626', 7: '#111827', 10: '#7c3aed', 2: '#7c3aed', 8: '#0d9488', 1: '#db2777', 9: '#ea580c'}"/>
@@ -185,7 +203,7 @@
 
 <t t-set="qsoc" t-value="('&amp;soc=%s' % soc) if soc != 'protec' else ''"/>
 <t t-set="qcc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
-<t t-set="qc" t-value="qsoc + qcc"/>
+<t t-set="qc" t-value="qsoc + qori + qcc"/>
 <t t-set="prev_m" t-value="'%04d-%02d' % ((y-1, 12) if mo == 1 else (y, mo-1))"/>
 <t t-set="next_m" t-value="'%04d-%02d' % ((y+1, 1) if mo == 12 else (y, mo+1))"/>
 <t t-set="mois_fr" t-value="['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']"/>
@@ -202,17 +220,18 @@
   </div>
   <div class="hdr-nav">
     <span style="display:flex;gap:6px;">
-      <a t-att-href="pageqs + qcc" t-att-class="'soc-chip' + (' active' if soc == 'protec' else '')">PROTEC</a>
-      <a t-att-href="pageqs + '&amp;soc=s3t' + qcc" t-att-class="'soc-chip' + (' active' if soc == 's3t' else '')">S3T</a>
-      <a t-att-href="pageqs + '&amp;soc=tous' + qcc" t-att-class="'soc-chip' + (' active' if soc == 'tous' else '')">TOUS</a>
+      <a t-att-href="pageqs + qori + qcc" t-att-class="'soc-chip' + (' active' if soc == 'protec' else '')">PROTEC</a>
+      <a t-att-href="pageqs + '&amp;soc=s3t' + qori + qcc" t-att-class="'soc-chip' + (' active' if soc == 's3t' else '')">S3T</a>
+      <a t-att-href="pageqs + '&amp;soc=tous' + qori + qcc" t-att-class="'soc-chip' + (' active' if soc == 'tous' else '')">TOUS</a>
     </span>
 
     <a t-att-href="'/planning-jour?d=%s%s' % (today.isoformat(), qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'jour' else '')">Jour</a>
     <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
     <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
 
+    <a t-if="active_tab != 'jour'" t-att-href="pageqs + qsoc + ('&amp;o=c' if ori == 'l' else '') + qcc" class="nav-btn" t-att-title="'Basculer : ' + ('jours en lignes' if ori == 'l' else 'opérateurs en lignes')">⇄</a>
     <input id="clfilter" class="cl-input" type="search" placeholder="🔍 Client…"/>
-    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo, qsoc)">
+    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo, qsoc + qori)">
       <option value="0">Tous les chauffeurs</option>
       <t t-foreach="emps" t-as="e">
         <option t-att-value="e.id" t-att-selected="'selected' if cfil == e.id else None" t-out="e.name"/>
@@ -240,6 +259,7 @@
       </span>
     </div>
     <div class="week-grid-wrap">
+      <t t-if="ori == 'c'">
       <table class="pl">
         <thead>
           <tr>
@@ -310,6 +330,93 @@
           </t>
         </tbody>
       </table>
+      </t>
+      <t t-else="">
+
+      <table class="pl">
+        <thead>
+          <tr>
+            <th class="emp-col"><div class="th-emp-inner">
+              <div class="th-name" style="font-size:10px;">Chauffeur</div></div></th>
+            <t t-foreach="wdays" t-as="day">
+              <th t-att-class="'day-th' + (' is-today' if day == today else '') + ('' if day.month == mo else ' out-month')">
+                <div class="th-inner" style="min-width:110px;">
+                  <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
+                    <div class="day-dow2" t-out="jours_fr[day.weekday()]"/>
+                    <div class="day-num2" t-out="'%s/%s' % (day.day, day.month)"/>
+                  </a>
+                </div>
+              </th>
+            </t>
+          </tr>
+        </thead>
+        <tbody>
+          <t t-foreach="cols" t-as="emp">
+            <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
+            <t t-set="empslots" t-value="[s for s in wslots if emp.id in s.employee_ids.ids]"/>
+            <tr>
+              <td class="emp-cell">
+                <div class="emp-name"><span class="emp-dot" t-att-style="'background: %s;' % color"/><t t-out="emp.name"/></div>
+                <div class="emp-count" t-out="('%s interv.' % len(empslots)) if empslots else '—'"/>
+              </td>
+              <t t-foreach="wdays" t-as="day">
+                <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
+                <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month') + (' is-today-col' if day == today else '') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
+                  <span t-if="onleave" class="conge-chip">CONGÉS</span>
+                  <t t-set="cell" t-value="[s for s in empslots if (s.start_datetime + dtoff).date() &lt;= day and ((s.end_datetime + dtoff).date() if s.end_datetime else (s.start_datetime + dtoff).date()) &gt;= day]"/>
+                  <t t-if="cell"><t t-foreach="cell" t-as="s">
+<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
+<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
+<t t-set="st" t-value="s.start_datetime + dtoff"/>
+<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
+<div class="mcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', s.partner_city or '', ((so.x_studio_interlocuteur_1 or '') if so else '')] if x])" t-att-style="'border-left-color: %s;' % color">
+  <span class="mc-time" t-out="st.strftime('%H:%M')"/>
+  <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
+  <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
+  <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
+  <div t-if="lieu or s.partner_city" style="color:#6b7c9a;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
+</div>
+
+                  </t></t>
+                  <t t-else=""><div class="empty-cell"/></t>
+                </td>
+              </t>
+            </tr>
+          </t>
+          <t t-if="not cfil">
+            <t t-set="color" t-value="'#64748b'"/>
+            <t t-set="naslots" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)]]"/>
+            <tr class="row-none" t-if="naslots">
+              <td class="emp-cell">
+                <div class="emp-name"><span class="emp-dot" style="background: #64748b;"/>Non assigné</div>
+                <div class="emp-count" t-out="'%s interv.' % len(naslots)"/>
+              </td>
+              <t t-foreach="wdays" t-as="day">
+                <td t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
+                  <t t-set="cell" t-value="[s for s in naslots if (s.start_datetime + dtoff).date() &lt;= day and ((s.end_datetime + dtoff).date() if s.end_datetime else (s.start_datetime + dtoff).date()) &gt;= day]"/>
+                  <t t-if="cell"><t t-foreach="cell" t-as="s">
+<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
+<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
+<t t-set="st" t-value="s.start_datetime + dtoff"/>
+<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
+<div class="mcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', s.partner_city or '', ((so.x_studio_interlocuteur_1 or '') if so else '')] if x])" t-att-style="'border-left-color: %s;' % color">
+  <span class="mc-time" t-out="st.strftime('%H:%M')"/>
+  <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
+  <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
+  <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
+  <div t-if="lieu or s.partner_city" style="color:#6b7c9a;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
+</div>
+
+                  </t></t>
+                  <t t-else=""><div class="empty-cell"/></t>
+                </td>
+              </t>
+            </tr>
+          </t>
+        </tbody>
+      </table>
+
+      </t>
     </div>
   </t>
 </div>
