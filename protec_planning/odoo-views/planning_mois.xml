@@ -33,6 +33,8 @@
                 color: #fff; border-radius: 20px; padding: 5px 13px; font-size: 12px;
                 font-weight: 800; text-decoration: none; letter-spacing: .4px; }
     .soc-chip.active { background: #fff; color: #3a5a99; border-style: solid; border-color: #fff; }
+    .card-lieu { font-size: 11.5px; font-weight: 800; color: #9a3412; line-height: 1.3;
+                 margin: 1px 0 2px; }
     .fdt-badge { font-size: 10px; font-weight: 800; color: #fff; background: #16a34a;
                  border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
     .bc-link { font-size: 10px; font-weight: 800; color: #3a5a99; text-decoration: none;
@@ -270,6 +272,8 @@
   <span class="mc-time" t-out="st.strftime('%H:%M')"/>
   <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
   <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
+  <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
+  <div t-if="lieu or s.partner_city" style="color:#9a3412; font-weight:700;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
 </div>
 
                   </t></t>
@@ -288,6 +292,8 @@
   <span class="mc-time" t-out="st.strftime('%H:%M')"/>
   <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
   <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
+  <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
+  <div t-if="lieu or s.partner_city" style="color:#9a3412; font-weight:700;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
 </div>
 
                 </t></t>
@@ -311,10 +317,10 @@
     </div>
     <div class="modal-body">
       <div class="mrow"><span class="mlbl">Horaire : </span><span id="pm-time"/> <span id="pm-fdt" class="fdt-badge" style="display:none;">✓ FDT</span></div>
-      <div class="mrow"><span class="mlbl">Adresse : </span><span id="pm-adresse"/></div>
+      <div class="mrow" id="pm-r-lieu" style="font-size:14px;"><span class="mlbl">📍 Lieu d'intervention : </span><b id="pm-lieu" style="color:#9a3412;"/></div>
+      <div class="mrow"><span class="mlbl">Adresse client : </span><span id="pm-adresse"/></div>
       <div class="mrow" id="pm-r-inter"><span class="mlbl">Interlocuteur : </span><span id="pm-inter"/></div>
       <div class="mrow" id="pm-r-tel"><span class="mlbl">Téléphone : </span><a id="pm-tel" href="#"/></div>
-      <div class="mrow" id="pm-r-lieu"><span class="mlbl">Lieu d'intervention : </span><span id="pm-lieu"/></div>
       <div class="mrow" id="pm-r-objet"><span class="mlbl">Objet : </span><span id="pm-objet"/></div>
       <div class="mrow"><span class="mlbl">Réf : </span><span id="pm-ref"/></div>
     </div>
