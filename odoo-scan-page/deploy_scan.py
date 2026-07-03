@@ -1,0 +1,474 @@
+import xmlrpc.client, ssl, urllib.request, os
+URL=os.environ.get("ODOO_URL","https://maquignon.odoo.com"); DB=os.environ.get("ODOO_DB","maquignon")
+USER=os.environ.get("ODOO_USER","<USER>"); PWD=os.environ.get("ODOO_PWD","<MDP>")
+ctx=ssl.create_default_context()
+uid=xmlrpc.client.ServerProxy(f"{URL}/xmlrpc/2/common",context=ctx).authenticate(DB,USER,PWD,{})
+models=xmlrpc.client.ServerProxy(f"{URL}/xmlrpc/2/object",context=ctx)
+def x(model,method,*a,**k): return models.execute_kw(DB,uid,PWD,model,method,list(a),k)
+
+# ---- JS (written naturally, escaped for XML below) ----
+JS = r"""
+(function(){
+  var POSTE = 1;
+  var input  = document.getElementById('scan-input');
+  var resEl  = document.getElementById('scan-res');
+  var colisEl= document.getElementById('colis-name');
+  var zoneEl = document.getElementById('colis-zone');
+  var mesureEl = document.getElementById('colis-mesure');
+  var colisActif = false;
+  var colisLocked = false;
+  var RELOC = null;
+  var pending = null;     // {id,name,total,remaining,hasLines}
+  var qteStr  = '';
+
+  function rpc(model, method, args, kwargs){
+    return fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:kwargs||{}}})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ throw new Error((d.error.data && d.error.data.message) || d.error.message); }
+      return d.result;
+    });
+  }
+  function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
+  function fmtN(n){ return (Math.round(n*1000)/1000).toString().replace('.', ','); }
+  function classFor(txt){
+    if(!txt) return 'idle';
+    if(txt.indexOf('✅')===0 || txt.indexOf('📦')===0 || txt.indexOf('✂')===0) return 'ok';
+    if(txt.indexOf('ℹ')===0 || txt.indexOf('↩')===0 || txt.indexOf('🗑')===0 || txt.indexOf('📍')===0) return 'info';
+    if(txt.indexOf('⚠')===0) return 'warn';
+    if(txt.indexOf('❌')===0) return 'err';
+    return 'idle';
+  }
+  function beep(good){
+    try{
+      var c = new (window.AudioContext||window.webkitAudioContext)();
+      var o = c.createOscillator(); var g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.frequency.value = good ? 880 : 220; g.gain.value = 0.12;
+      o.start(); setTimeout(function(){ o.stop(); c.close(); }, good ? 110 : 260);
+    }catch(e){}
+  }
+  function setRes(txt){ resEl.textContent = txt; resEl.className = 'scan-res ' + classFor(txt); }
+
+  function metaOf(o){
+    var dims = [];
+    if(o.x_studio_long_m_1){ dims.push(fmtN(o.x_studio_long_m_1)); }
+    if(o.x_studio_larg_m_1){ dims.push(fmtN(o.x_studio_larg_m_1)); }
+    if(o.x_studio_haut_m_1){ dims.push(fmtN(o.x_studio_haut_m_1)); }
+    var meta = [];
+    if(o.x_studio_nom_du_client){ meta.push(esc(o.x_studio_nom_du_client)); }
+    if(dims.length){ meta.push(dims.join(' × ') + ' m'); }
+    return meta.join(' · ');
+  }
+  function renderItem(o, kind, refId, qtyLabel, qtyClass){
+    return '<div class="scan-of-item">'
+      +   '<div class="of-main"><div class="of-name">🪨 ' + esc(o.name) + '<span class="of-qty ' + qtyClass + '">' + qtyLabel + '</span></div>'
+      +     '<div class="of-meta">' + metaOf(o) + '</div></div>'
+      +   '<button class="of-del" data-kind="' + kind + '" data-id="' + refId + '" data-name="' + esc(o.name) + '">🗑️</button>'
+      + '</div>';
+  }
+  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1'];
+
+  function loadOfs(colisId){
+    var box = document.getElementById('of-list');
+    if(!colisId){ box.style.display='none'; return Promise.resolve(); }
+    var pWhole = rpc('mrp.production','search_read',[[['x_studio_colis','=',colisId]],FIELDS],{order:'write_date desc'});
+    var pLines = rpc('x_repartition_palette','search_read',[[['x_studio_colis_id','=',colisId]],['x_studio_of_id','x_studio_qte']],{});
+    return Promise.all([pWhole, pLines]).then(function(r){
+      var wholes = r[0], lines = r[1];
+      var ofIds = lines.map(function(l){ return l.x_studio_of_id[0]; });
+      var pOfs = ofIds.length ? rpc('mrp.production','read',[ofIds, FIELDS],{}) : Promise.resolve([]);
+      return pOfs.then(function(ofrows){
+        var omap = {}; ofrows.forEach(function(o){ omap[o.id]=o; });
+        document.getElementById('of-count').textContent = (wholes.length + lines.length);
+        var html = '';
+        wholes.forEach(function(o){
+          html += renderItem(o, 'whole', o.id, (o.x_studio_nbr || 1) + ' pcs', 'whole');
+        });
+        lines.forEach(function(l){
+          var o = omap[l.x_studio_of_id[0]] || {name: l.x_studio_of_id[1]};
+          var tot = o.x_studio_nbr || '?';
+          html += renderItem(o, 'line', l.id, '✂️ ' + l.x_studio_qte + '/' + tot + ' pcs', 'part');
+        });
+        var itemsBox = document.getElementById('of-items');
+        itemsBox.innerHTML = html || '<div style="color:#64748b;font-size:14px;">Aucun OF pour le moment</div>';
+        itemsBox.querySelectorAll('.of-del').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var kind = btn.getAttribute('data-kind'), id = parseInt(btn.getAttribute('data-id'));
+            if(kind === 'line'){ removeLine(id); } else { removeOf(id, btn.getAttribute('data-name')); }
+          });
+        });
+        box.style.display='';
+      });
+    }).catch(function(){ box.style.display='none'; });
+  }
+
+  function refresh(){
+    return rpc('x_poste_de_scan','read',[[POSTE],['x_studio_rsultat','x_studio_colis_actifs']]).then(function(rows){
+      var rec = rows[0];
+      var colis = rec.x_studio_colis_actifs;
+      colisActif = colis ? colis[0] : false;
+      colisEl.textContent = colis ? colis[1] : '—';
+      colisEl.className = colis ? 'scan-colis-name' : 'scan-colis-none';
+      resEl.textContent = rec.x_studio_rsultat || "En attente d'un scan…";
+      resEl.className = 'scan-res ' + classFor(rec.x_studio_rsultat);
+      colisLocked = false;
+      if(zoneEl){
+        if(colisActif){
+          rpc('stock.package','read',[[colisActif],['x_studio_zone','x_studio_cloturee','x_studio_cubage','x_studio_tonnage']]).then(function(pr){
+            var rec2 = pr && pr[0] ? pr[0] : {};
+            colisLocked = !!rec2.x_studio_cloturee;
+            var bits = [];
+            if(rec2.x_studio_zone){ bits.push('📍 Emplacement : ' + rec2.x_studio_zone); }
+            if(colisLocked){ bits.push('🔒 Clôturée'); }
+            zoneEl.textContent = bits.join('   ');
+            if(mesureEl){
+              var cub = rec2.x_studio_cubage || 0, ton = rec2.x_studio_tonnage || 0;
+              mesureEl.textContent = '📦 ' + fmtN(cub) + ' m³  ·  ' + fmtN(Math.round(ton*10)/10/1000) + ' t  (' + Math.round(ton) + ' kg)';
+            }
+          }).catch(function(){ zoneEl.textContent=''; if(mesureEl){ mesureEl.textContent=''; } });
+        } else { zoneEl.textContent=''; if(mesureEl){ mesureEl.textContent=''; } }
+      }
+      return colisActif;
+    }).then(loadOfs);
+  }
+
+  function removeOf(ofId, ofName){
+    if(!confirm('Retirer ' + ofName + ' de ce colis ?')){ return; }
+    rpc('ir.actions.server','run',[[1913]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE, of_remove_id:ofId}})
+      .then(refresh).then(function(){ beep(true); input.focus(); })
+      .catch(function(e){ alert('Erreur : ' + e.message); });
+  }
+  function removeLine(lineId){
+    if(!confirm('Retirer cette répartition de la palette ?')){ return; }
+    rpc('ir.actions.server','run',[[1915]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE, line_remove_id:lineId}})
+      .then(refresh).then(function(){ beep(true); input.focus(); })
+      .catch(function(e){ alert('Erreur : ' + e.message); });
+  }
+
+  // ----- raw scan : colis / inconnu / OF entier (logique serveur 1585) -----
+  function doScanRaw(val){
+    return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_scanner: val}]).then(function(){
+      return refresh();
+    }).then(function(){
+      var c = classFor(resEl.textContent);
+      beep(c !== 'err' && c !== 'warn');
+    }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+
+  // ----- pop-up quantite -----
+  var pop     = document.getElementById('qte-pop');
+  var popOf   = document.getElementById('qte-of');
+  var popMax  = document.getElementById('qte-max');
+  var popDisp = document.getElementById('qte-disp');
+
+  function updateDisp(){
+    if(!pending){ return; }
+    popDisp.textContent = (qteStr==='' ? pending.remaining : qteStr);
+    popDisp.className = (qteStr==='' ? 'qte-disp def' : 'qte-disp');
+  }
+  function openPop(p){
+    pending = p; qteStr='';
+    popOf.textContent = p.name;
+    popMax.textContent = p.remaining;
+    updateDisp();
+    pop.style.display='flex';
+    input.focus();
+  }
+  function closePop(){ pop.style.display='none'; pending=null; qteStr=''; }
+  function press(d){
+    if(!pending){ return; }
+    if(d==='C'){ qteStr=''; updateDisp(); return; }
+    if(d==='back'){ qteStr=qteStr.slice(0,-1); updateDisp(); return; }
+    var nv = (qteStr + d).replace(/^0+/, '');
+    if(nv===''){ nv='0'; }
+    if(parseInt(nv) > pending.remaining){ nv = String(pending.remaining); }
+    qteStr = nv; updateDisp();
+  }
+  function placeOf(p, qty){
+    if(qty < 1){ qty = 1; }
+    if(qty > p.remaining){ qty = p.remaining; }
+    var whole = (!p.hasLines && qty >= p.total);
+    if(whole){ return doScanRaw(p.name); }   // OF entier : placement reel (stock)
+    var ctx = {active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE, of_place_id:p.id, qte_place:qty};
+    return rpc('ir.actions.server','run',[[1914]],{context:ctx}).then(refresh).then(function(){
+      beep(classFor(resEl.textContent) !== 'warn'); input.focus();
+    }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+  function confirmPop(useMax){
+    if(!pending){ return; }
+    var p = pending;
+    var qty = (useMax || qteStr==='') ? p.remaining : parseInt(qteStr);
+    closePop();
+    placeOf(p, qty);
+  }
+
+  // ----- cloture palette : imprime le colisage + libere la palette -----
+  function cloture(){
+    if(!colisActif){ setRes('⚠️ Aucune palette active à clôturer'); beep(false); return; }
+    var cid = colisActif;
+    window.open('/report/pdf/maquignon.report_bon_colisage/' + cid, '_blank');
+    rpc('stock.package','write',[[cid],{x_studio_cloturee:true}])
+      .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Palette clôturée, verrouillée et imprimée'}]); })
+      .then(refresh).then(function(){ beep(true); input.focus(); })
+      .catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+  // ----- emplacement = CLÔTURE : déplace le stock + imprime + verrouille -----
+  function setZone(val){
+    if(!colisActif){ setRes('⚠️ Scanner une palette d\'abord'); beep(false); return; }
+    var label = (val.replace(/^ZONE[-_ ]?/i, '').trim()) || val;
+    var cid = colisActif;
+    Promise.all([
+      rpc('mrp.production','search_count',[[['x_studio_colis','=',cid]]],{}),
+      rpc('x_repartition_palette','search_count',[[['x_studio_colis_id','=',cid]]],{})
+    ]).then(function(c){
+      if((c[0] + c[1]) === 0){ setRes('⚠️ Palette vide — scannez au moins un OF avant de clôturer'); beep(false); input.focus(); return; }
+      window.open('/report/pdf/maquignon.report_bon_colisage/' + cid, '_blank');
+      var warn = '';
+      return rpc('stock.package','write',[[cid],{x_studio_zone: label, x_studio_cloturee:true}])
+        .then(function(){
+          if(!RELOC){ return null; }
+          return rpc('ir.actions.server','run',[[RELOC]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE}})
+            .catch(function(){ warn = ' (⚠️ déplacement stock à vérifier)'; });
+        })
+        .then(function(){ return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_colis_actifs:false, x_studio_scanner:false, x_studio_rsultat:'✅ Clôturé → ' + label + ' · imprimé · verrouillé' + warn}]); })
+        .then(refresh).then(function(){ beep(true); input.focus(); });
+    }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+
+  // ----- entree principale (scan) -----
+  function doScan(val){
+    input.value='';
+    if(pending){
+      if(/^[0-9]+$/.test(val)){
+        var p = pending; closePop();
+        placeOf(p, parseInt(val));
+        return;
+      }
+      var p2 = pending; closePop();
+      placeOf(p2, p2.remaining).then(function(){ doScan(val); });
+      return;
+    }
+    var up = (val||'').toUpperCase();
+    if(up.indexOf('CLOTURE')===0 || up==='FIN' || up==='FIN-PALETTE'){ cloture(); return; }
+    if(up.indexOf('ZONE')===0){ setZone(val); return; }
+    if(up.indexOf('PACK')===0){ doScanRaw(val); return; }
+    if(colisLocked){ setRes('🔒 Palette clôturée — scannez une autre palette'); beep(false); return; }
+    rpc('mrp.production','search_read',[[['name','in',[val, up]]],['id','name','x_studio_nbr','state','x_studio_colis']],{limit:1}).then(function(rows){
+      if(!rows.length){ return doScanRaw(val); }
+      var o = rows[0];
+      if(!colisActif){ return doScanRaw(val); }
+      if(o.x_studio_colis){ return doScanRaw(val); }
+      if(o.state !== 'done'){ return doScanRaw(val); }
+      var total = o.x_studio_nbr || 1;
+      if(total <= 1){ return doScanRaw(val); }
+      return rpc('x_repartition_palette','search_read',[[['x_studio_of_id','=',o.id]],['x_studio_qte']],{}).then(function(ls){
+        var placed=0; ls.forEach(function(l){ placed += l.x_studio_qte; });
+        var remaining = total - placed;
+        if(remaining <= 0){ setRes('ℹ️ ' + o.name + ' déjà entièrement réparti (' + total + ')'); beep(false); return; }
+        openPop({id:o.id, name:o.name, total:total, remaining:remaining, hasLines: placed>0});
+        beep(true);
+      });
+    }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
+  }
+
+  // ----- events -----
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); var v=(input.value||'').trim(); if(v){ doScan(v); } }
+  });
+  pop.addEventListener('mousedown', function(e){ if(e.target.tagName==='BUTTON'){ e.preventDefault(); } });
+  pop.querySelectorAll('.qte-key').forEach(function(b){
+    b.addEventListener('click', function(){ press(b.getAttribute('data-k')); input.focus(); });
+  });
+  document.getElementById('qte-ok').addEventListener('click', function(){ confirmPop(false); });
+  document.getElementById('qte-all').addEventListener('click', function(){ confirmPop(true); });
+  document.getElementById('qte-cancel').addEventListener('click', function(){ closePop(); input.focus(); });
+
+  document.addEventListener('keydown', function(e){
+    if(document.activeElement === input){ return; }
+    if(e.key && e.key.length === 1){ input.focus(); }
+  });
+  document.getElementById('btn-undo').addEventListener('click', function(){
+    rpc('ir.actions.server','run',[[1587]],{context:{active_model:'x_poste_de_scan', active_ids:[POSTE], active_id:POSTE}})
+      .then(refresh).then(function(){ input.focus(); })
+      .catch(function(e){ alert('Erreur : ' + e.message); });
+  });
+  document.getElementById('btn-refresh').addEventListener('click', function(){ refresh().then(function(){ input.focus(); }); });
+  var zbtns = document.querySelectorAll('.zone-btn');
+  for(var zi=0; zi<zbtns.length; zi++){
+    zbtns[zi].addEventListener('click', function(){ setZone(this.getAttribute('data-zone')); });
+  }
+
+  rpc('ir.actions.server','search',[[['name','=','Relocaliser palette (emplacement)']]]).then(function(r){ RELOC = (r && r[0]) || null; }).catch(function(){});
+  rpc('x_poste_de_scan','write',[[POSTE],{x_studio_rsultat:false}]).then(refresh).catch(refresh);
+  input.focus();
+})();
+"""
+
+def xesc(s):
+    return s.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+
+JS_ESC = xesc(JS)
+
+ARCH = '''<t t-name="website.poste_scan">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#0f172a;}
+      .scan-wrap{max-width:760px;margin:0 auto;padding:14px;}
+      .scan-h{color:#e2e8f0;text-align:center;font-weight:300;letter-spacing:1px;margin:6px 0 12px;}
+      .scan-colis{background:#1e293b;border:2px solid #334155;border-radius:14px;padding:14px;text-align:center;margin-bottom:12px;}
+      .scan-colis-lbl{color:#94a3b8;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+      .scan-colis-name{color:#fff;font-size:34px;font-weight:900;line-height:1.1;margin-top:4px;}
+      .scan-colis-none{color:#fbbf24;font-size:22px;font-weight:800;margin-top:4px;}
+      .scan-colis-mesure{color:#93c5fd;font-size:21px;font-weight:900;margin-top:4px;min-height:24px;}
+      .scan-colis-zone{color:#34d399;font-size:16px;font-weight:800;margin-top:4px;min-height:18px;}
+      #scan-input{width:100%;font-size:30px;font-weight:800;text-align:center;padding:18px;border:4px solid #38bdf8;border-radius:14px;background:#fff;color:#0f172a;letter-spacing:2px;}
+      #scan-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 4px rgba(34,211,238,.35);}
+      .scan-hint{color:#64748b;text-align:center;font-size:13px;margin:6px 0 14px;}
+      .scan-res{border-radius:10px;padding:10px 14px;text-align:center;font-size:16px;font-weight:700;min-height:0;display:flex;align-items:center;justify-content:center;opacity:.92;transition:background .15s;}
+      .scan-res.ok{background:#065f46;color:#d1fae5;}
+      .scan-res.info{background:#1e3a8a;color:#dbeafe;}
+      .scan-res.warn{background:#92400e;color:#fef3c7;}
+      .scan-res.err{background:#991b1b;color:#fee2e2;}
+      .scan-res.idle{background:#1e293b;color:#64748b;}
+      .scan-of-list{background:#1e293b;border-radius:12px;padding:10px 14px;margin-top:12px;color:#cbd5e1;}
+      .scan-of-list h6{color:#94a3b8;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+      .scan-of-item{font-size:15px;padding:6px 0;border-bottom:1px solid #334155;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+      .of-del{background:#7f1d1d;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:16px;cursor:pointer;line-height:1;}
+      .of-del:active{background:#991b1b;}
+      .of-main{display:flex;flex-direction:column;gap:1px;text-align:left;flex:1;min-width:0;}
+      .of-name{font-size:15px;font-weight:800;color:#e2e8f0;}
+      .of-qty{display:inline-block;font-size:12px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;}
+      .of-qty.whole{background:#065f46;color:#d1fae5;}
+      .of-qty.part{background:#5b21b6;color:#ede9fe;}
+      .of-meta{font-size:12.5px;color:#93c5a8;font-weight:600;}
+      .scan-zones{display:flex;gap:12px;margin-top:14px;}
+      .zone-card{flex:1;background:#fff;border-radius:12px;padding:10px 8px 8px;text-align:center;}
+      .zone-name{color:#0f172a;font-weight:800;font-size:16px;margin-bottom:6px;}
+      .zone-bc{width:100%;height:auto;display:block;}
+      .zone-btn{width:100%;margin-top:8px;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;}
+      .zone-btn:active{background:#1e40af;}
+      .scan-btns{display:flex;gap:10px;margin-top:14px;}
+      .scan-btn{flex:1;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;}
+      .scan-btn-undo{background:#b45309;color:#fff;}
+      .scan-btn-undo:active{background:#92400e;}
+      .scan-btn-refresh{background:#334155;color:#e2e8f0;}
+      .scan-btn-cloture{background:#16a34a;color:#fff;}
+      .scan-btn-cloture:active{background:#15803d;}
+      .qte-pop{position:fixed;inset:0;background:rgba(2,6,23,.88);display:none;align-items:center;justify-content:center;z-index:99999;}
+      .qte-card{background:#0b1220;border:2px solid #7c3aed;border-radius:18px;padding:18px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+      .qte-card h4{color:#ede9fe;text-align:center;font-weight:800;margin:0 0 6px;font-size:20px;}
+      .qte-of{color:#a78bfa;text-align:center;font-weight:900;font-size:24px;margin-bottom:2px;}
+      .qte-sub{color:#94a3b8;text-align:center;font-size:13px;margin-bottom:10px;}
+      .qte-disp{background:#fff;color:#0f172a;border-radius:12px;text-align:center;font-size:48px;font-weight:900;padding:6px;line-height:1.1;}
+      .qte-disp.def{color:#94a3b8;}
+      .qte-maxl{color:#64748b;text-align:center;font-size:13px;margin:4px 0 10px;}
+      .qte-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+      .qte-key{background:#1e293b;color:#e2e8f0;border:none;border-radius:12px;padding:16px;font-size:24px;font-weight:800;cursor:pointer;}
+      .qte-key:active{background:#334155;}
+      .qte-actions{display:flex;gap:8px;margin-top:10px;}
+      .qte-ok{flex:2;background:#16a34a;color:#fff;border:none;border-radius:12px;padding:16px;font-size:18px;font-weight:900;cursor:pointer;}
+      .qte-all{flex:1.2;background:#7c3aed;color:#fff;border:none;border-radius:12px;padding:16px;font-size:15px;font-weight:800;cursor:pointer;}
+      .qte-cancel{flex:0 0 auto;background:#7f1d1d;color:#fff;border:none;border-radius:12px;padding:16px 18px;font-size:16px;font-weight:800;cursor:pointer;}
+    </style>
+
+    <div class="scan-wrap">
+      <h3 class="scan-h">\U0001F4E6 Poste de scan — Colis / OF</h3>
+
+      <div class="scan-colis">
+        <div class="scan-colis-lbl">Colis actif</div>
+        <div id="colis-name" class="scan-colis-name">—</div>
+        <div id="colis-mesure" class="scan-colis-mesure"></div>
+        <div id="colis-zone" class="scan-colis-zone"></div>
+      </div>
+
+      <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
+      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Pour finir, scannez le <b>code-barre de l'emplacement</b> (ou touchez le bouton) : la palette est <b>imprimée + verrouillée</b>.</div>
+
+      <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
+
+      <div id="of-list" class="scan-of-list" style="display:none;">
+        <h6>Contenu du colis (<span id="of-count">0</span>)</h6>
+        <div id="of-items"/>
+      </div>
+
+      <div class="scan-zones">
+        <div class="zone-card">
+          <div class="zone-name">📍 Stock Atelier</div>
+          <img class="zone-bc" alt="Stock Atelier" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Atelier&amp;width=600&amp;height=120"/>
+          <button class="zone-btn" data-zone="Stock Atelier">Clôturer → Stock Atelier</button>
+        </div>
+        <div class="zone-card">
+          <div class="zone-name">📍 Stock Usine</div>
+          <img class="zone-bc" alt="Stock Usine" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-Stock%20Usine&amp;width=600&amp;height=120"/>
+          <button class="zone-btn" data-zone="Stock Usine">Clôturer → Stock Usine</button>
+        </div>
+      </div>
+
+      <div class="scan-btns">
+        <button class="scan-btn scan-btn-undo" id="btn-undo">↩️ Retirer dernier OF</button>
+        <button class="scan-btn scan-btn-refresh" id="btn-refresh">↻ Rafraîchir</button>
+      </div>
+    </div>
+
+    <div id="qte-pop" class="qte-pop">
+      <div class="qte-card">
+        <h4>✂️ Combien sur cette palette ?</h4>
+        <div id="qte-of" class="qte-of">—</div>
+        <div class="qte-sub">Tapez le nombre, ou scannez la suite pour tout mettre</div>
+        <div id="qte-disp" class="qte-disp def">0</div>
+        <div class="qte-maxl">max <span id="qte-max">0</span> pièces</div>
+        <div class="qte-grid">
+          <button class="qte-key" data-k="1">1</button>
+          <button class="qte-key" data-k="2">2</button>
+          <button class="qte-key" data-k="3">3</button>
+          <button class="qte-key" data-k="4">4</button>
+          <button class="qte-key" data-k="5">5</button>
+          <button class="qte-key" data-k="6">6</button>
+          <button class="qte-key" data-k="7">7</button>
+          <button class="qte-key" data-k="8">8</button>
+          <button class="qte-key" data-k="9">9</button>
+          <button class="qte-key" data-k="C">C</button>
+          <button class="qte-key" data-k="0">0</button>
+          <button class="qte-key" data-k="back">⌫</button>
+        </div>
+        <div class="qte-actions">
+          <button id="qte-ok" class="qte-ok">✅ Valider</button>
+          <button id="qte-all" class="qte-all">Tout</button>
+          <button id="qte-cancel" class="qte-cancel">✖</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+''' + JS_ESC + '''
+    </script>
+  </t>
+</t>'''
+
+# write
+x('ir.ui.view','write',[7890],{'arch': ARCH})
+print("VIEW 7890 updated. arch len", len(ARCH))
+
+# verify by reading back
+v=x('ir.ui.view','read',[7890],fields=['arch_db'])[0]
+a=v['arch_db']
+print("readback len", len(a), "| qte-pop:", 'qte-pop' in a, "| btn-cloture:", 'btn-cloture' in a,
+      "| colis-zone:", 'colis-zone' in a, "| setZone:", 'setZone' in a, "| cloture():", 'function cloture' in a)
+import urllib.request
+try:
+    req=urllib.request.Request(URL+"/scan", headers={'User-Agent':'Mozilla/5.0'})
+    html=urllib.request.urlopen(req, context=ctx, timeout=30).read().decode('utf-8','replace')
+    print("GET", URL, "/scan ->", len(html), "| RELOC lookup:", 'Relocaliser palette' in html, "| zone-btn:", 'zone-btn' in html)
+except Exception as e:
+    print("GET /scan err:", e)
+
+# fetch the public page to ensure it renders (no server error)
+try:
+    req=urllib.request.Request(URL+"/scan", headers={'User-Agent':'Mozilla/5.0'})
+    html=urllib.request.urlopen(req, context=ctx, timeout=30).read().decode('utf-8','replace')
+    print("GET /scan ->", len(html), "bytes; has scan-input:", 'scan-input' in html, "; has qte-pop:", 'qte-pop' in html, "; has numpad:", 'qte-key' in html)
+except Exception as e:
+    print("GET /scan err:", e)

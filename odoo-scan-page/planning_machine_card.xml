@@ -1,0 +1,58 @@
+<t t-name="website.planning_machine_card">
+  <t t-set="of" t-value="w.production_id"/>
+  <t t-set="pierre" t-value="of.x_studio_catgorie and of.x_studio_catgorie.display_name or ''"/>
+  <t t-set="pierre" t-value="len(pierre.split('/')) &gt; 1 and pierre.split('/')[1].strip().upper() or (pierre or 'AUTRE')"/>
+  <t t-set="rawcol" t-value="(of.x_studio_catgorie and of.x_studio_catgorie.x_studio_couleur_hex) or colors.get(pierre, '')"/>
+  <t t-set="col" t-value="rawcol or '#9AA0A6'"/>
+  <t t-set="useimg" t-value="(not rawcol) and of.product_id.id"/>
+  <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
+  <t t-set="txtcol" t-value="'#ffffff' if useimg else ('#1a1a1a' if lum &gt; 150 else '#ffffff')"/>
+  <t t-set="is_taille" t-value="'taille' in (w.name or '').lower() or 'taille' in (w.workcenter_id.name or '').lower()"/>
+  <t t-set="lock" t-value="'1' if w.state == 'done' else '0'"/>
+  <t t-set="so_rec" t-value="so_map.get(of.origin)"/>
+  <div class="pf-card ofc bg-white rounded shadow-sm p-2 mb-2" t-att-data-id="w.id" t-att-data-lock="lock" t-att-data-dur="w.duration_expected or 60" t-att-data-endmin="(w.date_finished.hour * 60 + w.date_finished.minute) if w.date_finished else ''" t-att-data-prod="of.id" t-att-data-draft="'1' if of.state == 'draft' else '0'" t-attf-style="border-left:5px solid {{col}};font-size:12px;{{'opacity:.55;' if w.state == 'done' else 'cursor:grab;'}}{{'box-shadow:0 0 0 2px #f0ad4e;' if of.state == 'draft' else ''}}">
+    <div t-attf-style="{{ ('background-image:url(/web/image/product.product/' + str(useimg) + '/image_128);background-size:cover;background-position:center;') if useimg else ('background:' + col + ';') }}color:{{txtcol}};text-shadow:{{'none' if (lum &gt; 150 and not useimg) else '0 1px 2px rgba(0,0,0,.35)'}};font-size:13.5px;font-weight:700;line-height:1.25;padding:4px 8px;border-radius:5px 5px 0 0;margin:-8px -8px 4px -8px;{{'opacity:.55;text-decoration:line-through;' if w.state == 'done' else ''}}{{'box-shadow:inset 0 0 0 2px #C0392B;' if is_taille and w.state != 'done' else ''}}">
+      <span style="float:right;font-size:10px;font-weight:600;opacity:.95;margin-left:6px;"><t t-if="of.origin"><t t-set="so_id" t-value="so_rec and so_rec['id'] or 0"/><a t-if="so_id" t-attf-href="/web#id={{so_id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:inherit;text-decoration:underline;" title="Ouvrir le bon de commande"><t t-esc="of.origin"/></a><t t-else=""><t t-esc="of.origin"/></t> · </t><t t-esc="pierre"/></span>
+      <t t-if="is_taille">✂ </t><t t-esc="w.name"/>
+    </div>
+    <t t-set="od" t-value="(so_rec and so_rec.get('create_date')) or (of.sale_line_id and of.sale_line_id.order_id.create_date) or False"/>
+    <div t-if="od" style="font-size:10px;color:#555;margin:1px 0;">📅 Commande du <t t-esc="od.strftime('%d/%m/%Y')"/></div>
+    <div t-if="of.x_studio_nom_du_client" class="text-truncate" style="font-size:13.5px;font-weight:700;color:#15324f;margin:2px 0;">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>
+    <div style="margin:1px 0;">
+      <a t-attf-href="/web#id={{of.id}}&amp;model=mrp.production&amp;view_type=form" target="_blank" style="color:inherit;font-size:11px;"><strong t-esc="of.name"/></a>
+    </div>
+    <div t-if="of.x_studio_ref_pierre" style="font-size:13px;font-weight:700;background:#F1EDE3;border-radius:4px;padding:1px 6px;margin:2px 0;letter-spacing:.3px;">
+      ◆ <t t-esc="of.x_studio_ref_pierre"/>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:#222;margin:1px 0;">
+      <t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/><span style="font-weight:400;font-size:11px;"> m</span>
+      <span t-if="of.x_studio_nbr" style="float:right;background:#2d6a6f;color:#fff;border-radius:8px;padding:0 7px;font-size:11px;"><t t-esc="of.x_studio_nbr"/> pc</span>
+    </div>
+    <div class="d-flex gap-1 align-items-center flex-wrap" style="margin-top:3px;font-size:10px;">
+      <span t-if="of.state == 'draft'" class="badge text-bg-warning">📝 Brouillon — à valider</span>
+      <span t-elif="w.state == 'done'" class="badge text-bg-secondary">✓ Terminée</span>
+      <span t-elif="w.state == 'progress'" class="badge text-bg-success">▶ En cours</span>
+      <span t-elif="w.state == 'blocked' and w.blocked_by_workorder_ids.filtered(lambda s: s.state != 'done')" class="badge" style="background:#fd7e14;color:#fff;">⏳ En attente d'une autre opération</span>
+      <span t-elif="w.state == 'blocked'" class="badge text-bg-danger">⛔ Bloquée</span>
+      <span t-else="" class="badge text-bg-light">○ À faire</span>
+      <span t-if="w.date_start" class="badge text-bg-info" style="font-size:10px;">🕐 <t t-esc="w.date_start.strftime('%H:%M')"/><t t-if="w.date_start.date() != datetime.date.today()"> · <t t-esc="w.date_start.strftime('%d/%m')"/></t></span>
+      <span class="text-muted" t-esc="w.workcenter_id.name"/>
+    </div>
+    <div t-if="w.state != 'done'" class="d-flex align-items-center gap-1 mt-1">
+      <select class="pf-op form-select form-select-sm" t-att-data-op="w.employee_assigned_ids[:1].id or ''" style="font-size:11px;padding:1px 4px;flex:1;min-width:0;"/>
+      <button t-if="w.state != 'cancel' and of.state != 'draft'" type="button" class="pf-done" title="Marquer l'opération comme terminée" style="width:22px;height:22px;min-width:22px;border-radius:50%;border:2px solid #2E9E5B;background:#fff;color:#2E9E5B;font-size:12px;font-weight:bold;line-height:1;padding:0;cursor:pointer;">✓</button>
+    </div>
+    <div t-if="w.employee_assigned_ids and w.state == 'done'" class="text-muted" style="font-size:10px;"><t t-esc="', '.join(w.employee_assigned_ids.mapped('name'))"/></div>
+    <t t-set="sibs" t-value="of.workorder_ids"/>
+    <div t-if="len(sibs) &gt; 1" class="of-pop">
+      <div style="font-weight:700;margin-bottom:3px;">Opérations de <t t-esc="of.name"/></div>
+      <t t-foreach="sibs" t-as="s">
+        <t t-set="s_t" t-value="'taille' in (s.name or '').lower() or 'taille' in (s.workcenter_id.name or '').lower()"/>
+        <div t-attf-style="display:flex;gap:6px;align-items:baseline;{{'opacity:.5;text-decoration:line-through;' if s.state == 'done' else ''}}{{'color:#C0392B;font-weight:700;' if s_t and s.state != 'done' else ''}}{{'background:#FFF7DF;' if s.id == w.id else ''}}">
+          <span t-esc="'✓' if s.state == 'done' else ('▶' if s.state == 'progress' else '○')"/>
+          <span><t t-esc="s.name"/> <span t-if="s.workcenter_id" style="color:#888;font-weight:400;">(<t t-esc="s.workcenter_id.name"/>)</span></span>
+        </div>
+      </t>
+    </div>
+  </div>
+</t>

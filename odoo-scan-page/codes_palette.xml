@@ -1,0 +1,28 @@
+<t t-name="website.codes_palette">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      .codes-wrap{max-width:900px;margin:0 auto;padding:18px;font-family:sans-serif;}
+      .codes-wrap h2{text-align:center;margin:8px 0 4px;}
+      .codes-intro{text-align:center;color:#555;margin-bottom:18px;font-size:14px;}
+      .codes-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+      .code-card{border:2px solid #111;border-radius:12px;padding:14px;text-align:center;page-break-inside:avoid;}
+      .code-title{font-size:18px;font-weight:800;margin-bottom:8px;}
+      .code-img{width:100%;max-width:340px;height:auto;}
+      .code-val{font-family:monospace;font-size:15px;font-weight:700;margin-top:4px;letter-spacing:1px;}
+      .code-sub{font-size:12px;color:#666;margin-top:2px;}
+      @media print{ .codes-noprint{display:none;} .code-card{border-color:#000;} }
+      .codes-noprint{text-align:center;margin:16px 0;}
+      .codes-noprint button{font-size:16px;padding:10px 22px;border-radius:10px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;}
+    </style>
+    <div class="codes-wrap">
+      <h2>Codes-barres — Poste de scan palettes</h2>
+      <div class="codes-intro">À scanner sur la page <b>/scan</b>. « CLÔTURE » imprime le colisage et ferme la palette. « Zone X » enregistre l'emplacement de la palette active.</div>
+      <div class="codes-noprint"><button onclick="window.print()">🖨️ Imprimer cette feuille</button></div>
+      <div class="codes-grid">
+<div class="code-card"><div class="code-title">✅ CLÔTURER &amp; IMPRIMER</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=CLOTURE&amp;width=620&amp;height=170"/><div class="code-val">CLOTURE</div><div class="code-sub">Imprime le colisage et ferme la palette</div></div><div class="code-card"><div class="code-title">📍 EMPLACEMENT — Zone A</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-A&amp;width=620&amp;height=170"/><div class="code-val">ZONE-A</div><div class="code-sub">Range la palette active dans la zone A</div></div><div class="code-card"><div class="code-title">📍 EMPLACEMENT — Zone B</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-B&amp;width=620&amp;height=170"/><div class="code-val">ZONE-B</div><div class="code-sub">Range la palette active dans la zone B</div></div><div class="code-card"><div class="code-title">📍 EMPLACEMENT — Zone C</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-C&amp;width=620&amp;height=170"/><div class="code-val">ZONE-C</div><div class="code-sub">Range la palette active dans la zone C</div></div><div class="code-card"><div class="code-title">📍 EMPLACEMENT — Zone D</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-D&amp;width=620&amp;height=170"/><div class="code-val">ZONE-D</div><div class="code-sub">Range la palette active dans la zone D</div></div><div class="code-card"><div class="code-title">📍 EMPLACEMENT — Zone E</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-E&amp;width=620&amp;height=170"/><div class="code-val">ZONE-E</div><div class="code-sub">Range la palette active dans la zone E</div></div><div class="code-card"><div class="code-title">📍 EMPLACEMENT — Zone F</div><img class="code-img" src="/report/barcode/?barcode_type=Code128&amp;value=ZONE-F&amp;width=620&amp;height=170"/><div class="code-val">ZONE-F</div><div class="code-sub">Range la palette active dans la zone F</div></div>
+      </div>
+    </div>
+  </t>
+</t>

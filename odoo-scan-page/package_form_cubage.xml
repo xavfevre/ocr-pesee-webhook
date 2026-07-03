@@ -1,0 +1,7 @@
+<!-- Vue héritée stock.package (form 1903) : ajoute Cubage + Tonnage après pack_date -->
+<data>
+  <xpath expr="//field[@name='pack_date']" position="after">
+    <field name="x_studio_cubage" widget="float" digits="[16,3]"/>
+    <field name="x_studio_tonnage" widget="float" digits="[16,1]"/>
+  </xpath>
+</data>

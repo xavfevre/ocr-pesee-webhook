@@ -1,0 +1,21 @@
+<form create="false" duplicate="false">
+                    <sheet>
+                        <h1 invisible="context.get('studio') or context.get('default_x_project_task_id')">
+                            <field name="x_project_task_id"/>
+                        </h1>
+                        <group>
+                            <field name="x_comments" placeholder="Add details about your intervention..."/>
+                        </group>
+                    <group string="📷 Photos (jusqu'à 10)"><div style="display:flex;flex-wrap:wrap;gap:12px;"><field name="x_studio_photo_1" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_2" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_3" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_4" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_5" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_6" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_7" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_8" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_9" widget="image" options="{'size': [200, 200]}"/>
+<field name="x_studio_photo_10" widget="image" options="{'size': [200, 200]}"/>
+</div></group>
+</sheet>
+                </form>

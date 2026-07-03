@@ -1,0 +1,10 @@
+<!-- Vue héritée qweb stock.report_package_barcode (1827) : bandeau Cubage / Tonnage sous l'en-tête -->
+<data>
+  <xpath expr="//div[@class='row mb-5']" position="after">
+    <div class="row mb-3">
+      <div class="col-12" style="font-size:15px;border-top:1px solid #ddd;border-bottom:1px solid #ddd;padding:6px 0;">
+        <strong>Cubage :</strong> <span t-out="'%.3f' % (o.x_studio_cubage or 0)"/> m&#179; &#160;&#160;&#8212;&#160;&#160; <strong>Tonnage :</strong> <span t-out="'%.0f' % (o.x_studio_tonnage or 0)"/> kg (<span t-out="'%.2f' % ((o.x_studio_tonnage or 0)/1000.0)"/> t)
+      </div>
+    </div>
+  </xpath>
+</data>

@@ -1,0 +1,93 @@
+<t t-name="website.planning_suivi_commande">
+  <t t-call="website.layout">
+    <t t-set="q" t-value="(request.params.get('q') or '').strip()"/>
+    <t t-set="hidefact" t-value="request.params.get('hidefact')"/>
+    <t t-set="dom" t-value="[('project_id','=',13)]"/>
+    <t t-if="q"><t t-set="dom" t-value="dom + ['|','|',('name','ilike',q),('partner_id.name','ilike',q),('x_studio_devis_commandes_1.name','ilike',q)]"/></t>
+    <t t-set="all_records" t-value="request.env['project.task'].sudo().search(dom, order='id desc')"/>
+    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé / en cours','#0d6efd','paye')]"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      .sdc-board{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;}
+      .sdc-col{flex:0 0 270px;background:#f1f5f9;border-radius:10px;padding:6px;}
+      .sdc-colh{color:#fff;border-radius:8px;padding:6px 9px;font-weight:800;font-size:13px;display:flex;justify-content:space-between;align-items:center;}
+      .sdc-colh small{font-weight:600;opacity:.9;}
+      .sdc-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #cbd5e1;border-radius:7px;padding:7px 8px;margin-top:7px;box-shadow:0 1px 2px rgba(0,0,0,.06);font-size:12px;}
+      .sdc-title{font-weight:700;color:#0f172a;text-decoration:none;display:block;margin-bottom:3px;line-height:1.2;}
+      .sdc-title:hover{color:#2563eb;}
+      .sdc-so{display:flex;justify-content:space-between;gap:6px;font-size:11.5px;margin-top:2px;padding:1px 0;}
+      .sdc-amt{font-weight:800;color:#15324f;white-space:nowrap;}
+      .sdc-badge{display:inline-block;border-radius:8px;padding:0 6px;font-size:10px;font-weight:800;color:#fff;}
+      .sdc-meta{font-size:10.5px;color:#64748b;margin-top:3px;}
+    </style>
+
+    <div class="container-fluid px-2 px-md-3 my-2">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#2c3e50;letter-spacing:1px;">📋 Suivi Devis / Commande</h3>
+
+      <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=complet">🏭 Board complet</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=secondaire">🪚 Sciage secondaire</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=primaire">🪨 Sciage primaire</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-operateurs">👷 Vue opérateurs</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-mois">📆 Vue mois</a></li>
+        <li class="nav-item"><a class="nav-link active fw-bold" href="#">📋 Suivi devis/commande</a></li>
+      </ul>
+
+      <form method="get" class="d-flex justify-content-center gap-2 mb-2">
+        <input type="text" name="q" t-att-value="q" class="form-control form-control-sm w-auto" placeholder="Rechercher client / N° devis / commande..." style="min-width:280px;"/>
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Rechercher</button>
+        <t t-if="q"><a href="/planning-suivi-commande" class="btn btn-outline-secondary btn-sm">✕ Effacer</a></t>
+      </form>
+
+      <div class="sdc-board">
+        <t t-foreach="stages" t-as="stg">
+          <t t-set="col_tasks" t-value="all_records.filtered(lambda t: t.stage_id.id == stg[0])"/>
+            <t t-if="stg[3] == 'devis'">
+              <t t-set="col_tasks" t-value="all_records.filtered(lambda t: t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft', 'sent')))"/>
+            </t>
+            <t t-if="stg[3] == 'nonpaye'">
+              <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
+            </t>
+            <t t-if="stg[3] == 'paye'">
+              <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice') and not t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
+            </t>
+          <t t-set="_colsos" t-value="lambda t: (t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft','sent')) if stg[3] == 'devis' else (t.x_studio_devis_commandes_1.filtered(lambda s: s.state not in ('draft','sent')) if stg[3] in ('cmd','nonpaye','paye') else t.x_studio_devis_commandes_1))"/>
+          <t t-set="col_total" t-value="sum([so.amount_total for t in col_tasks for so in _colsos(t)])"/>
+          <div class="sdc-col">
+            <div class="sdc-colh" t-attf-style="background:{{stg[2]}};">
+              <span><t t-esc="stg[1]"/></span>
+              <small><t t-esc="len(col_tasks)"/> · <t t-esc="'%.0f' % col_total"/>€</small>
+            </div>
+            <t t-foreach="col_tasks" t-as="task">
+              <t t-set="sos" t-value="_colsos(task)"/>
+              <t t-set="tamt" t-value="sum([s.amount_total for s in sos])"/>
+              <div class="sdc-card" t-attf-style="border-left-color:{{stg[2]}};">
+                <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank" class="sdc-title"><t t-esc="task.name"/></a>
+                <t t-foreach="sos" t-as="so">
+                  <t t-set="so_label" t-value="'Commande' if so.state == 'sale' else ('Annulé' if so.state == 'cancel' else 'Devis')"/>
+                  <t t-set="so_col" t-value="'#16a34a' if so.state == 'sale' else ('#dc3545' if so.state == 'cancel' else '#f59e0b')"/>
+                  <div class="sdc-so">
+                    <span><a t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="text-decoration:none;color:#334155;font-weight:700;"><t t-esc="so.name"/></a> <span class="sdc-badge" t-attf-style="background:{{so_col}};"><t t-esc="so_label"/></span></span>
+                    <span class="sdc-amt"><t t-esc="'%.0f' % so.amount_total"/>€</span>
+                  </div>
+                  <t t-if="so.invoice_status == 'invoiced'"><div class="sdc-meta">💰 Facturé</div></t>
+                  <t t-elif="so.invoice_status == 'to invoice'"><div class="sdc-meta">🧾 À facturer</div></t>
+                </t>
+                <t t-set="nof" t-value="len(task.x_studio_of)"/>
+                <t t-if="nof"><div class="sdc-meta">🏭 <t t-esc="nof"/> OF</div></t>
+                <t t-set="pal_whole" t-value="task.x_studio_of.mapped('x_studio_colis')"/>
+                <t t-set="pal_rep" t-value="request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',task.x_studio_of.ids)]).mapped('x_studio_colis_id')"/>
+                <t t-set="palettes" t-value="pal_whole | pal_rep"/>
+                <t t-if="palettes"><div class="sdc-meta">📦 <t t-esc="', '.join(palettes.mapped('name'))"/></div></t>
+              </div>
+            </t>
+            <t t-if="not col_tasks"><div class="text-muted text-center small py-2">—</div></t>
+          </div>
+        </t>
+      </div>
+    </div>
+  </t>
+</t>

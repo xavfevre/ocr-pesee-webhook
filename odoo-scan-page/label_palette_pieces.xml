@@ -1,0 +1,37 @@
+<data>
+  <xpath expr="//t[@t-if='o.quant_ids']" position="replace">
+    <t t-set="whole_ofs" t-value="o.env['mrp.production'].search([('x_studio_colis','=',o.id)])"/>
+    <t t-set="rep_lines" t-value="o.env['x_repartition_palette'].search([('x_studio_colis_id','=',o.id)])"/>
+    <div class="mt-2" t-if="whole_ofs or rep_lines or o.x_studio_zone">
+      <div t-if="o.x_studio_zone" class="mb-1" style="font-size:16px;"><strong>📍 Emplacement : </strong><span t-out="o.x_studio_zone"/></div>
+      <table class="w-100 table table-sm table-borderless border border-dark" t-if="whole_ofs or rep_lines">
+        <thead>
+          <tr>
+            <th class="text-start" style="width:20%;">OF</th>
+            <th class="text-start" style="width:48%;">Désignation</th>
+            <th class="text-end" style="width:14%;">Pièces</th>
+            <th class="text-start" style="width:18%;">Dimensions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr t-foreach="whole_ofs" t-as="ofw">
+            <td class="text-start"><span t-out="ofw.name"/></td>
+            <td class="text-start"><span t-out="ofw.product_id.display_name"/></td>
+            <td class="text-end"><strong><span t-out="int(ofw.x_studio_nbr or 0)"/></strong> pcs</td>
+            <td class="text-start">
+              <t t-if="ofw.x_studio_long_m_1"><span t-out="'%.2f' % ofw.x_studio_long_m_1"/></t><t t-if="ofw.x_studio_larg_m_1"> × <span t-out="'%.2f' % ofw.x_studio_larg_m_1"/></t><t t-if="ofw.x_studio_haut_m_1"> × <span t-out="'%.2f' % ofw.x_studio_haut_m_1"/></t><t t-if="ofw.x_studio_long_m_1"> m</t>
+            </td>
+          </tr>
+          <tr t-foreach="rep_lines" t-as="ln">
+            <td class="text-start"><span t-out="ln.x_studio_of_id.name"/></td>
+            <td class="text-start"><span t-out="ln.x_studio_of_id.product_id.display_name"/></td>
+            <td class="text-end"><strong><span t-out="ln.x_studio_qte"/></strong> / <span t-out="int(ln.x_studio_of_id.x_studio_nbr or 0)"/> pcs</td>
+            <td class="text-start">
+              <t t-if="ln.x_studio_of_id.x_studio_long_m_1"><span t-out="'%.2f' % ln.x_studio_of_id.x_studio_long_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_larg_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_larg_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_haut_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_haut_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_long_m_1"> m</t>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </xpath>
+</data>

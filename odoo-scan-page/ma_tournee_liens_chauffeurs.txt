@@ -1,0 +1,25 @@
+LIENS "MA TOURNEE" — CHAUFFEURS PONCTUELS
+=========================================
+
+Réservé aux chauffeurs PONCTUELS (les réguliers utilisent le service sur
+site avec l'identifiant chauffeur).
+
+Chaque lien est PERSONNEL et SIGNÉ : un chauffeur ne voit QUE sa tournée
+(impossible de voir celle d'un autre). La signature dépend de la variable
+WEBHOOK_SECRET (Render), donc les liens sont générés par l'application.
+
+POUR OBTENIR TOUS LES LIENS (bureau, une seule fois) :
+  Ouvrir dans un navigateur :
+     <VOTRE-APP-RENDER>/tournee/liens?token=<WEBHOOK_SECRET>
+  (WEBHOOK_SECRET = variable d'environnement définie dans Render ;
+   <VOTRE-APP-RENDER> = l'URL de l'app, ex. https://ocr-pesee-webhook.onrender.com)
+
+  -> la page affiche le lien personnel complet de chaque chauffeur,
+     à envoyer par SMS / WhatsApp.
+
+Ce que voit le chauffeur : ses missions (jour + à venir) avec client,
+adresse, heure, véhicule, un bouton "Itinéraire", et surtout le bouton
+"Scanner le bon de pesée" (déclenche l'OCR automatiquement).
+
+Format d'un lien : <BASE>/ma-tournee?c=<id>&s=<signature>
+Ne pas diffuser un lien à un autre chauffeur.
