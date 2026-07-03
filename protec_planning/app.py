@@ -305,9 +305,26 @@ def ma_tournee():
         today = date.today()
         slots = fetch_slots(uid, models, today - timedelta(days=1), today + timedelta(days=15), emp_id)
         by_day = {}
+        cards = []
         for s in slots:
             card = slot_to_card(s)
             by_day.setdefault(card["day"], []).append(card)
+            cards.append(card)
+
+        # Lieu d'intervention / interlocuteur / objet depuis la commande liée
+        refs = list({c["ref"].split()[0] for c in cards if c["ref"]})
+        somap = {}
+        if refs:
+            sos = x(models, uid, "sale.order", "search_read",
+                [["name", "in", refs]],
+                fields=["name", "x_studio_lieu_dintervention_2",
+                        "x_studio_interlocuteur_1", "x_studio_lieu_dintervention_1"])
+            somap = {o["name"]: o for o in sos}
+        for c in cards:
+            so = somap.get(c["ref"].split()[0]) if c["ref"] else None
+            c["lieu"] = (so or {}).get("x_studio_lieu_dintervention_2") or ""
+            c["inter"] = (so or {}).get("x_studio_interlocuteur_1") or ""
+            c["objet"] = (so or {}).get("x_studio_lieu_dintervention_1") or ""
 
         # Toujours afficher aujourd'hui même vide
         all_days = sorted(set(by_day.keys()) | {today.isoformat()})
@@ -416,6 +433,12 @@ def fiche(slot_id):
     }
     d = date.fromisoformat(card["day"])
     adresse = ", ".join(p for p in [card["street"], f"{card['zip']} {card['ville']}".strip()] if p)
+    ref0 = card["ref"].split()[0] if card["ref"] else ""
+    if ref0:
+        so_l = x(models, uid, "sale.order", "search_read",
+                 [["name", "=", ref0]], fields=["x_studio_lieu_dintervention_2"], limit=1)
+        if so_l and so_l[0].get("x_studio_lieu_dintervention_2"):
+            adresse = so_l[0]["x_studio_lieu_dintervention_2"]
 
     return render_template("fiche.html",
         card=card, slot_id=slot_id, token=token,

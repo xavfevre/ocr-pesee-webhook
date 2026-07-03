@@ -87,12 +87,21 @@
       </div>
       <div class="m-body">
         <div class="m-client">{{ c.client }}</div>
-        {% set addr = (c.street ~ ' ' ~ c.zip ~ ' ' ~ c.ville).strip() %}
-        {% if addr %}
-        <div class="m-row"><span class="ico">📍</span>
-          <a href="https://www.google.com/maps/search/?api=1&query={{ addr | urlencode }}" target="_blank">
-            {{ c.street }}{% if c.street %}, {% endif %}{{ c.zip }} {{ c.ville }}</a>
+        {% set addr_cli = (c.street ~ ' ' ~ c.zip ~ ' ' ~ c.ville).strip() %}
+        {% set addr_int = c.lieu or addr_cli %}
+        {% if addr_int %}
+        <div class="m-row" style="font-size:15px; font-weight:800;"><span class="ico">📍</span>
+          <a style="color:#9a3412;" href="https://www.google.com/maps/search/?api=1&query={{ addr_int | urlencode }}" target="_blank">{{ addr_int }}</a>
         </div>
+        {% endif %}
+        {% if c.lieu and addr_cli %}
+        <div class="m-row" style="font-size:12px; color:#6b7c9a;"><span class="ico">🏢</span>Client : {{ addr_cli }}</div>
+        {% endif %}
+        {% if c.inter %}
+        <div class="m-row"><span class="ico">👤</span>{{ c.inter }}</div>
+        {% endif %}
+        {% if c.objet %}
+        <div class="m-row"><span class="ico">🛠</span>{{ c.objet }}</div>
         {% endif %}
         {% if c.tel %}
         <div class="m-row"><span class="ico">📞</span><a href="tel:{{ c.tel | replace(' ', '') }}">{{ c.tel }}</a></div>
