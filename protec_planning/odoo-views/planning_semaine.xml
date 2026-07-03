@@ -75,6 +75,7 @@
     .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 800;
                  color: #64748b; transform: translateY(-50%); background: #f6f8fb; padding: 0 2px; }
     .tgcard { position: absolute; left: 3px; right: 3px; margin: 0; overflow: hidden; z-index: 2; }
+    .tgcard .card-extra { font-size: 10.5px; color: #44557a; line-height: 1.35; margin-top: 1px; }
     .tg-chip { position: absolute; top: 3px; left: 3px; z-index: 3; }
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
     .cell-conge { background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 6px, #fff3f3 6px, #fff3f3 12px) !important; }
@@ -416,6 +417,14 @@
     <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
     <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
     <div class="card-lieu" t-out="'📍 ' + (lieu[:60] if lieu else ((((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')) or '—'))"/>
+    <t t-if="(m1 - m0) &gt;= 180">
+      <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
+      <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
+    </t>
+    <t t-if="(m1 - m0) &gt;= 300">
+      <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:80]"/>
+      <div t-if="lieu and s.partner_city" class="card-extra" t-out="'🏢 Client : ' + ((s.partner_street + ', ') if s.partner_street else '') + s.partner_city"/>
+    </t>
     <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:24]"/>
   </div>
 </div>
@@ -466,6 +475,14 @@
     <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
     <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
     <div class="card-lieu" t-out="'📍 ' + (lieu[:60] if lieu else ((((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')) or '—'))"/>
+    <t t-if="(m1 - m0) &gt;= 180">
+      <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
+      <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
+    </t>
+    <t t-if="(m1 - m0) &gt;= 300">
+      <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:80]"/>
+      <div t-if="lieu and s.partner_city" class="card-extra" t-out="'🏢 Client : ' + ((s.partner_street + ', ') if s.partner_street else '') + s.partner_city"/>
+    </t>
     <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:24]"/>
   </div>
 </div>
