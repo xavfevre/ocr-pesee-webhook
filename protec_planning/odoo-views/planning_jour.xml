@@ -161,7 +161,7 @@
     <div class="logo">P</div>
     <div style="flex:1">
       <div class="hdr-title">Planning PROTEC</div>
-      <div class="hdr-sub">Vue jour — agenda horaire par chauffeur</div>
+      <div class="hdr-sub">Vue jour — double-clic sur une colonne : nouvelle tâche</div>
     </div>
     <div class="badge" t-out="'%s interventions' % len(slots)"/>
   </div>
@@ -236,7 +236,7 @@
     </span>
   </div>
   <div class="card-body">
-    <div class="card-client" t-out="s.partner_id.name or '—'"/>
+    <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
     <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
     <t t-set="adr_cli" t-value="((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')"/>
     <div class="card-lieu" t-out="'📍 ' + (lieu if lieu else (adr_cli or '—'))"/>
@@ -286,7 +286,7 @@
     </span>
   </div>
   <div class="card-body">
-    <div class="card-client" t-out="s.partner_id.name or '—'"/>
+    <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
     <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
     <t t-set="adr_cli" t-value="((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')"/>
     <div class="card-lieu" t-out="'📍 ' + (lieu if lieu else (adr_cli or '—'))"/>
@@ -308,6 +308,28 @@
 <footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
 
 <div id="ro-banner">🔒 Lecture seule — connectez-vous à Odoo dans ce navigateur pour déplacer les interventions</div>
+<span id="pctx" style="display:none;" t-att-data-off="off" t-att-data-cid="soc_cid or 2"/>
+<div class="modal-bg" id="amodal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="am-title">Nouvelle tâche</span>
+      <button class="modal-close" onclick="document.getElementById('amodal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="am-day"/><input type="hidden" id="am-res"/>
+      <div class="mrow"><span class="mlbl">Note : </span>
+        <textarea id="am-note" style="width:100%;min-height:70px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;font-family:inherit;font-size:14px;" placeholder="Ex : entretien camion, formation, rangement dépôt…"/>
+      </div>
+      <div class="mrow" style="display:flex;gap:12px;">
+        <span style="flex:1;"><span class="mlbl">Début : </span><input type="time" id="am-h1" value="08:00" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/></span>
+        <span style="flex:1;"><span class="mlbl">Fin : </span><input type="time" id="am-h2" value="09:00" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/></span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <a href="#" id="am-save" style="cursor:pointer;">💾 Créer la tâche</a>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="pmodal">
   <div class="modal">
     <div class="modal-head">
@@ -440,6 +462,57 @@ document.addEventListener('drop', function (e) {
     } else { location.reload(); }
   }).catch(function () { alert('Erreur réseau'); });
   pdrag = null;
+});
+function fmtUTC(d) {
+  return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate())
+    + ' ' + pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds());
+}
+function mkUTC(dayIso, hhmm, off) {
+  var dp = dayIso.split('-');
+  var tp = hhmm.split(':');
+  var ms = Date.UTC(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]),
+                    parseInt(tp[0]), parseInt(tp[1])) - off * 3600000;
+  return fmtUTC(new Date(ms));
+}
+document.addEventListener('dblclick', function (e) {
+  if (e.target.closest) { if (e.target.closest('.card, .dcard, .mcard, a, button, input, select')) { return; } }
+  var td = dropTarget(e);
+  if (!td) { return; }
+  document.getElementById('am-day').value = td.dataset.day;
+  document.getElementById('am-res').value = td.dataset.res || '0';
+  var dp = td.dataset.day.split('-');
+  document.getElementById('am-title').textContent = 'Nouvelle tâche — ' + dp[2] + '/' + dp[1] + '/' + dp[0];
+  document.getElementById('am-note').value = '';
+  document.getElementById('amodal').classList.add('open');
+});
+document.getElementById('amodal').addEventListener('click', function (e) {
+  if (e.target.id === 'amodal') { e.target.classList.remove('open'); }
+});
+document.getElementById('am-save').addEventListener('click', function (ev) {
+  ev.preventDefault();
+  var note = document.getElementById('am-note').value.trim();
+  if (!note) { alert('La note est obligatoire'); return; }
+  var ctx = document.getElementById('pctx');
+  var off = parseInt(ctx.dataset.off);
+  var cid = parseInt(ctx.dataset.cid);
+  var day = document.getElementById('am-day').value;
+  var res = parseInt(document.getElementById('am-res').value);
+  var h1 = document.getElementById('am-h1').value || '08:00';
+  var h2 = document.getElementById('am-h2').value || '09:00';
+  var vals = { name: note, start_datetime: mkUTC(day, h1, off),
+               end_datetime: mkUTC(day, h2, off), company_id: cid };
+  if (res) { vals.resource_ids = [[6, 0, [res]]]; }
+  fetch('/web/dataset/call_kw/planning.slot/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'call',
+      params: { model: 'planning.slot', method: 'create', args: [vals], kwargs: {} } })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.error) {
+      alert('Création refusée — connectez-vous à Odoo dans cet onglet.');
+    } else { location.reload(); }
+  }).catch(function () { alert('Erreur réseau'); });
 });
 var clf = document.getElementById('clfilter');
 if (clf) {
