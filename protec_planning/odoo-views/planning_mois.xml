@@ -29,6 +29,44 @@
     .drv-select { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
                   color: #fff; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 600; }
     .drv-select option { color: #1a2e4a; }
+    table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
+    table.pl thead th { color: #fff; padding: 0; }
+    th.emp-col { background: #2c4880; position: sticky; left: 0; z-index: 150; }
+    th.day-th { background: #3a5a99; }
+    th.day-th.is-today { background: #f59e0b; }
+    .th-inner { padding: 6px 8px; min-width: 160px; max-width: 190px; text-align: center; }
+    .th-emp-inner { padding: 6px 8px; min-width: 120px; max-width: 140px; text-align: left; }
+    .th-day-dow { font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    .th-day-num { font-size: 15px; font-weight: 900; line-height: 1.1; }
+    td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
+                  border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
+                  vertical-align: top; padding: 8px; min-width: 120px; max-width: 140px; }
+    .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; }
+    .emp-count { font-size: 11px; color: #6b7c9a; margin-top: 2px; }
+    .emp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+               margin-right: 5px; vertical-align: baseline; }
+    tr.row-none td.emp-cell { background: #fef2f2; }
+    tr.row-none .emp-name { color: #b91c1c; }
+    td.slot-cell { vertical-align: top; padding: 6px 5px; border-right: 1px solid #dce3ef;
+                   border-bottom: 1px solid #dce3ef; min-width: 160px; max-width: 190px; }
+    td.slot-cell.is-today { background: #fff8e1; }
+    tr.row-none td.slot-cell { background: #fef7f7; }
+    .card { background: #fff; border-radius: 8px; border-left: 4px solid #3a5a99;
+            box-shadow: 0 1px 4px rgba(58,90,153,.12); margin-bottom: 6px; overflow: hidden; }
+    .card:last-child { margin-bottom: 0; }
+    .card-head { background: #e8f0fe; padding: 3px 8px; display: flex;
+                 align-items: center; justify-content: space-between; gap: 4px; }
+    .card-time { font-size: 12px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
+    .fdt-badge { font-size: 10px; font-weight: 800; color: #fff; background: #16a34a;
+                 border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+    .card-body { padding: 4px 8px 5px; }
+    .card-client { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 2px; }
+    .card-ville { font-size: 11px; color: #6b7c9a; }
+    .card-ref { font-size: 10px; color: #6b7c9a; font-weight: 600; display: block; margin-top: 2px;
+                text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+    .empty-cell { min-height: 34px; }
+    footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
+
     .content { padding: 12px; }
     .week-band { background: linear-gradient(90deg, #3a5a99, #5878b8); color: #fff;
       border-radius: 10px 10px 0 0; padding: 8px 16px; margin-top: 18px;
@@ -41,41 +79,8 @@
                    background: rgba(255,255,255,.18); border-radius: 6px; padding: 3px 10px; }
     .week-grid-wrap { overflow-x: auto; background: #fff; border: 1px solid #dce3ef;
                       border-top: none; border-radius: 0 0 10px 10px; }
-    table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
-    table.pl thead th { color: #fff; padding: 0; }
-    .th-inner { padding: 5px 8px; min-width: 130px; max-width: 165px; text-align: center; }
-    th.day-col { background: #2c4880; width: 62px; min-width: 62px; position: sticky; left: 0; z-index: 40; }
-    .th-name { font-size: 12px; font-weight: 700; white-space: nowrap;
-               overflow: hidden; text-overflow: ellipsis; }
-    table.pl tr:nth-child(even) td { background: #f7f9fc; }
-    table.pl tr:nth-child(odd)  td { background: #fff; }
-    table.pl tr.is-today td { background: #fff8e1 !important; }
-    td.day-cell { position: sticky; left: 0; z-index: 30; background: inherit;
-                  border-right: 2px solid #dce3ef; vertical-align: top;
-                  padding: 6px 4px; text-align: center; min-width: 62px; width: 62px; }
-    .day-dow { font-size: 11px; font-weight: 800; color: #3a5a99; text-transform: uppercase; }
-    .day-num { font-size: 15px; font-weight: 900; line-height: 1.1; }
-    td.out-month, th.out-month { opacity: .45; }
-    tr.is-today .day-dow, tr.is-today .day-num { color: #f59e0b; }
-    td.slot-cell { vertical-align: top; padding: 4px 4px; border-right: 1px solid #dce3ef;
-                   border-bottom: 1px solid #dce3ef; min-width: 130px; max-width: 165px; }
-    td.slot-cell.col-none { background-color: #fef2f2 !important; }
-    .card { background: #fff; border-radius: 6px; border-left: 4px solid #3a5a99;
-            box-shadow: 0 1px 3px rgba(58,90,153,.14); margin-bottom: 4px; overflow: hidden; }
-    .card:last-child { margin-bottom: 0; }
-    .card-head { background: #e8f0fe; padding: 2px 6px; display: flex;
-                 align-items: center; justify-content: space-between; gap: 4px; }
-    .card-time { font-size: 11px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
-    .fdt-badge { font-size: 9px; font-weight: 800; color: #fff; background: #16a34a;
-                 border-radius: 4px; padding: 0 4px; white-space: nowrap; }
-    .card-body { padding: 3px 6px 4px; }
-    .card-client { font-size: 11px; font-weight: 700; line-height: 1.25; }
-    .card-ville { font-size: 10px; color: #6b7c9a; }
-    .card-ref { font-size: 9px; color: #6b7c9a; font-weight: 600; display: block; margin-top: 2px;
-                text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-    .empty-cell { min-height: 26px; }
-    footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
-</style>
+    th.day-th.out-month, td.slot-cell.out-month { opacity: .5; }
+  </style>
 </head>
 <body>
 <t t-set="args" t-value="request.httprequest.args"/>
@@ -106,7 +111,7 @@
 <t t-set="su" t-value="datetime.datetime(w0.year, w0.month, w0.day) - dtoff"/>
 <t t-set="eu" t-value="su + datetime.timedelta(days=7*nweeks)"/>
 <t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',eu)] + ([('employee_ids','in',[cfil])] if cfil else [])"/>
-<t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
+<t t-set="allslots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="qc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
 <t t-set="prev_m" t-value="'%04d-%02d' % ((y-1, 12) if mo == 1 else (y, mo-1))"/>
 <t t-set="next_m" t-value="'%04d-%02d' % ((y+1, 1) if mo == 12 else (y, mo+1))"/>
@@ -118,7 +123,7 @@
       <div class="hdr-title">Planning PROTEC</div>
       <div class="hdr-sub">Vue mois — bandeaux par semaine</div>
     </div>
-    <div class="badge" t-out="'%s interventions' % len([s for s in slots if first &lt;= (s.start_datetime + dtoff).date() &lt;= last])"/>
+    <div class="badge" t-out="'%s interventions' % len([s for s in allslots if first &lt;= (s.start_datetime + dtoff).date() &lt;= last])"/>
   </div>
   <div class="hdr-nav">
     <a t-att-href="'/planning-semaine?w=0%s' % qc" class="nav-btn">Semaine</a>
@@ -138,81 +143,99 @@
 <div class="content">
   <t t-foreach="weeks" t-as="wstart">
     <t t-set="wend" t-value="wstart + datetime.timedelta(days=5)"/>
-    <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(6)]"/>
-    <t t-set="wslots" t-value="[s for s in slots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
+    <t t-set="days" t-value="[wstart + datetime.timedelta(days=i) for i in range(6)]"/>
+    <t t-set="slots" t-value="[s for s in allslots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
     <t t-set="wlabel" t-value="('S%s — %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, wend.day, mois_abr[wend.month-1], wend.year)) if wstart.month == wend.month else ('S%s — %s %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, mois_abr[wstart.month-1], wend.day, mois_abr[wend.month-1], wend.year))"/>
     <div class="week-band">
       <span class="wb-label" t-out="wlabel"/>
       <span class="wb-right">
-        <span class="wb-count" t-out="'%s interv.' % len(wslots)"/>
+        <span class="wb-count" t-out="'%s interv.' % len(slots)"/>
         <a t-att-href="'/planning-semaine?w=%s%s' % ((wstart - cur_monday).days // 7, qc)">Ouvrir la semaine</a>
       </span>
     </div>
     <div class="week-grid-wrap">
-      <table class="pl">
-        <thead>
-          <tr>
-            <th class="day-col"><div class="th-inner" style="min-width:62px;padding:4px;">
-              <div class="th-name" style="font-size:10px;">Jour</div></div></th>
-            <t t-foreach="cols" t-as="emp">
-              <th t-att-style="'background: %s;' % palette[emp.id % 10]">
-                <div class="th-inner"><div class="th-name" t-out="emp.name"/></div>
-              </th>
-            </t>
-            <th t-if="not cfil" style="background: #7f1d1d;">
-              <div class="th-inner"><div class="th-name">Non assigné</div></div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <t t-foreach="wdays" t-as="day">
-            <tr t-att-class="'is-today' if day == today else ''">
-              <td t-att-class="'day-cell' + ('' if day.month == mo else ' out-month')">
-                <div class="day-dow" t-out="jours_fr[day.weekday()]"/>
-                <div class="day-num" t-out="'%s/%s' % (day.day, day.month)"/>
-              </td>
-              <t t-foreach="cols" t-as="emp">
-                <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month')">
-                  <t t-set="cell" t-value="[s for s in wslots if emp.id in s.employee_ids.ids and (s.start_datetime + dtoff).date() == day]"/>
-                  <t t-if="cell">
-                    <t t-foreach="cell" t-as="s">
-                      <div class="card" t-att-style="'border-left-color: %s;' % palette[emp.id % 10]">
-                        <div class="card-head">
-                          <span class="card-time" t-out="(s.start_datetime + dtoff).strftime('%H:%M') + ((' → ' + (s.end_datetime + dtoff).strftime('%H:%M')) if s.end_datetime else '')"/>
-                          <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
-                        </div>
-                        <div class="card-body">
-                          <div class="card-client" t-out="s.partner_id.name or '—'"/>
-                          <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-                          <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:24]"/>
-                        </div>
-                      </div>
-                    </t>
-                  </t>
-                  <t t-else=""><div class="empty-cell"/></t>
-                </td>
+
+<table class="pl">
+  <thead>
+    <tr>
+      <th class="emp-col"><div class="th-emp-inner">
+        <div class="th-day-dow" style="font-size:11px;">Chauffeur</div></div></th>
+      <t t-foreach="days" t-as="day">
+        <th t-att-class="'day-th' + (' is-today' if day == today else '')">
+          <div class="th-inner">
+            <div class="th-day-dow" t-out="jours_fr[day.weekday()]"/>
+            <div class="th-day-num" t-out="'%s/%s' % (day.day, day.month)"/>
+          </div>
+        </th>
+      </t>
+    </tr>
+  </thead>
+  <tbody>
+    <t t-foreach="cols" t-as="emp">
+      <t t-set="color" t-value="palette[emp.id % 10]"/>
+      <t t-set="empslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
+      <tr>
+        <td class="emp-cell">
+          <div class="emp-name"><span class="emp-dot" t-att-style="'background: %s;' % color"/><t t-out="emp.name"/></div>
+          <div class="emp-count" t-out="('%s interv.' % len(empslots)) if empslots else '—'"/>
+        </td>
+        <t t-foreach="days" t-as="day">
+          <td t-att-class="'slot-cell' + (' is-today' if day == today else '')">
+            <t t-set="cell" t-value="[s for s in empslots if (s.start_datetime + dtoff).date() == day]"/>
+            <t t-if="cell">
+              <t t-foreach="cell" t-as="s">
+<div class="card" t-att-style="'border-left-color: %s;' % color">
+  <div class="card-head">
+    <span class="card-time" t-out="(s.start_datetime + dtoff).strftime('%H:%M') + ((' → ' + (s.end_datetime + dtoff).strftime('%H:%M')) if s.end_datetime else '')"/>
+    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+  </div>
+  <div class="card-body">
+    <div class="card-client" t-out="s.partner_id.name or '—'"/>
+    <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
+    <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:26]"/>
+  </div>
+</div>
               </t>
-              <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')">
-                <t t-set="cellna" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
-                <t t-if="cellna">
-                  <t t-foreach="cellna" t-as="s">
-                    <div class="card" style="border-left-color: #ef4444;">
-                      <div class="card-head" style="background:#fee2e2;">
-                        <span class="card-time" style="color:#ef4444;" t-out="(s.start_datetime + dtoff).strftime('%H:%M')"/>
-                      </div>
-                      <div class="card-body">
-                        <div class="card-client" t-out="s.partner_id.name or '—'"/>
-                        <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-                      </div>
-                    </div>
-                  </t>
-                </t>
-                <t t-else=""><div class="empty-cell"/></t>
-              </td>
-            </tr>
-          </t>
-        </tbody>
-      </table>
+            </t>
+            <t t-else=""><div class="empty-cell"/></t>
+          </td>
+        </t>
+      </tr>
+    </t>
+    <t t-if="not cfil">
+      <t t-set="color" t-value="'#ef4444'"/>
+      <t t-set="naslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3]]"/>
+      <tr class="row-none" t-if="naslots">
+        <td class="emp-cell">
+          <div class="emp-name"><span class="emp-dot" style="background: #ef4444;"/>Non assigné</div>
+          <div class="emp-count" t-out="'%s interv.' % len(naslots)"/>
+        </td>
+        <t t-foreach="days" t-as="day">
+          <td t-att-class="'slot-cell' + (' is-today' if day == today else '')">
+            <t t-set="cell" t-value="[s for s in naslots if (s.start_datetime + dtoff).date() == day]"/>
+            <t t-if="cell">
+              <t t-foreach="cell" t-as="s">
+<div class="card" t-att-style="'border-left-color: %s;' % color">
+  <div class="card-head">
+    <span class="card-time" t-out="(s.start_datetime + dtoff).strftime('%H:%M') + ((' → ' + (s.end_datetime + dtoff).strftime('%H:%M')) if s.end_datetime else '')"/>
+    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+  </div>
+  <div class="card-body">
+    <div class="card-client" t-out="s.partner_id.name or '—'"/>
+    <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
+    <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:26]"/>
+  </div>
+</div>
+              </t>
+            </t>
+            <t t-else=""><div class="empty-cell"/></t>
+          </td>
+        </t>
+      </tr>
+    </t>
+  </tbody>
+</table>
+
     </div>
   </t>
 </div>
