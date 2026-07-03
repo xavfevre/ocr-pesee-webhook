@@ -125,7 +125,7 @@
 <t t-set="soc_cid" t-value="2 if soc == 'protec' else (1 if soc == 's3t' else 0)"/>
 <t t-set="omap" t-value="{4: 1, 5: 2, 6: 3, 7: 4, 10: 5, 2: 6, 8: 7, 9: 8, 1: 9}"/>
 <t t-set="cmap" t-value="{4: '#2563eb', 5: '#eab308', 6: '#dc2626', 7: '#111827', 10: '#7c3aed', 2: '#7c3aed', 8: '#0d9488', 1: '#db2777', 9: '#ea580c'}"/>
-<t t-set="emps0" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id != 3 and (not soc_cid or e.company_id.id == soc_cid)]"/>
+<t t-set="emps0" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id not in (3, 8, 9) and (not soc_cid or e.company_id.id == soc_cid)]"/>
 <t t-set="emps" t-value="[e for k in sorted([(omap.get(x.id, 99), x.name, x.id) for x in emps0]) for e in emps0 if e.id == k[2]]"/>
 <t t-set="cols" t-value="[e for e in emps if e.id == cfil] if cfil else emps"/>
 <t t-set="palette" t-value="['#2563eb','#16a34a','#ea580c','#9333ea','#0d9488','#db2777','#ca8a04','#4f46e5','#dc2626','#0891b2']"/>
@@ -200,7 +200,7 @@
         </t>
         <th t-if="not cfil" style="background: #475569;">
           <div class="th-inner"><div class="th-name">Non assigné</div>
-          <t t-set="nbna" t-value="len([s for s in slots if not [i for i in s.employee_ids.ids if i != 3]])"/>
+          <t t-set="nbna" t-value="len([s for s in slots if not [i for i in s.employee_ids.ids if i not in (3, 8, 9)]])"/>
           <div class="th-count" t-out="('%s interv.' % nbna) if nbna else '—'"/></div>
         </th>
       </tr>
@@ -252,7 +252,7 @@
           </t>
           <td t-if="not cfil" class="slot-cell col-none" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
             <t t-set="color" t-value="'#64748b'"/>
-            <t t-set="cell" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() &lt;= day and ((s.end_datetime + dtoff).date() if s.end_datetime else (s.start_datetime + dtoff).date()) &gt;= day]"/>
+            <t t-set="cell" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (3, 8, 9)] and (s.start_datetime + dtoff).date() &lt;= day and ((s.end_datetime + dtoff).date() if s.end_datetime else (s.start_datetime + dtoff).date()) &gt;= day]"/>
             <t t-if="cell"><t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>

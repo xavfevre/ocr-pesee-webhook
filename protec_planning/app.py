@@ -31,7 +31,7 @@ TZ  = ZoneInfo("Europe/Paris")
 UTC = ZoneInfo("UTC")
 
 # Employés à exclure (comptes techniques)
-EXCLUDED_EMPLOYEE_IDS = {3}  # "Validation notes de frais"
+EXCLUDED_EMPLOYEE_IDS = {3, 8, 9}  # compte technique + Manon + Natacha (hors terrain)
 
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
