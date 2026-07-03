@@ -297,7 +297,7 @@
                 <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
                 <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
                   <span t-if="onleave" class="conge-chip">CONGÉS</span>
-                  <t t-set="cell" t-value="[s for s in wslots if emp.id in s.employee_ids.ids and ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)))]"/>
+                  <t t-set="cell" t-value="[s for s in wslots if emp.id in s.employee_ids.ids and ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
                   <t t-if="cell"><t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
@@ -318,7 +318,7 @@
               </t>
               <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
                 <t t-set="color" t-value="'#64748b'"/>
-                <t t-set="cell" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)))]"/>
+                <t t-set="cell" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
                 <t t-if="cell"><t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
@@ -373,7 +373,7 @@
                 <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
                 <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month') + (' is-today-col' if day == today else '') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
                   <span t-if="onleave" class="conge-chip">CONGÉS</span>
-                  <t t-set="cell" t-value="[s for s in empslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)))]"/>
+                  <t t-set="cell" t-value="[s for s in empslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
                   <t t-if="cell"><t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
@@ -404,7 +404,7 @@
               </td>
               <t t-foreach="wdays" t-as="day">
                 <td t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
-                  <t t-set="cell" t-value="[s for s in naslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)))]"/>
+                  <t t-set="cell" t-value="[s for s in naslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
                   <t t-if="cell"><t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>

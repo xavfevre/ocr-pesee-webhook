@@ -214,7 +214,7 @@
       <t t-set="col_name" t-value="emp.name"/>
       <t t-set="col_emp" t-value="emp.id"/>
       <t t-set="col_res" t-value="emp.resource_id.id"/>
-      <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)]"/>
+      <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime and (s.end_datetime + dtoff).date() &gt; d))]"/>
 
 <t t-set="onleave" t-value="[l for l in leaves if col_emp and l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= d and (l.date_to + dtoff).date() &gt;= d]"/>
 <div class="day-col">
@@ -267,7 +267,7 @@
       <t t-set="col_name" t-value="'Non assigné'"/>
       <t t-set="col_emp" t-value="0"/>
       <t t-set="col_res" t-value="0"/>
-      <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)]"/>
+      <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime and (s.end_datetime + dtoff).date() &gt; d))]"/>
       <t t-if="colslots">
         <div class="day-col">
           <div class="day-col-head col-none-head">
