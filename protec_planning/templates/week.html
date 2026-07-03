@@ -78,7 +78,7 @@
   </style>
 </head>
 <body>
-{% from "_base_planning.html" import slot_card, driver_filter %}
+{% from "_base_planning.html" import slot_card, driver_filter with context %}
 
 <header>
   <div class="hdr-top">
@@ -90,12 +90,12 @@
     <div class="badge">{{ total_slots }} intervention{{ 's' if total_slots != 1 else '' }}</div>
   </div>
   <div class="hdr-nav">
-    <a href="/?week={{ this_week }}{{ qs_c }}" class="nav-btn active">Semaine</a>
-    <a href="/mois?m={{ month_str }}{{ qs_c }}" class="nav-btn">Mois</a>
+    <a href="{{ BASE }}/?week={{ this_week }}{{ qs_c }}" class="nav-btn active">Semaine</a>
+    <a href="{{ BASE }}/mois?m={{ month_str }}{{ qs_c }}" class="nav-btn">Mois</a>
     {{ driver_filter(drivers, emp_filter, "/", "week=" + cur_week) }}
-    <a href="/?week={{ prev_week }}{{ qs_c }}" class="nav-btn">&#8249;</a>
+    <a href="{{ BASE }}/?week={{ prev_week }}{{ qs_c }}" class="nav-btn">&#8249;</a>
     <span class="week-label">{{ week_label }}</span>
-    <a href="/?week={{ next_week }}{{ qs_c }}" class="nav-btn">&#8250;</a>
+    <a href="{{ BASE }}/?week={{ next_week }}{{ qs_c }}" class="nav-btn">&#8250;</a>
   </div>
 </header>
 

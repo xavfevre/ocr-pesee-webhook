@@ -95,7 +95,7 @@
   </style>
 </head>
 <body>
-{% from "_base_planning.html" import slot_card, driver_filter %}
+{% from "_base_planning.html" import slot_card, driver_filter with context %}
 
 <header>
   <div class="hdr-top">
@@ -107,12 +107,12 @@
     <div class="badge">{{ total_slots }} intervention{{ 's' if total_slots != 1 else '' }}</div>
   </div>
   <div class="hdr-nav">
-    <a href="/?week={{ this_week }}{{ qs_c }}" class="nav-btn">Semaine</a>
-    <a href="/mois?m={{ this_month }}{{ qs_c }}" class="nav-btn active">Mois</a>
+    <a href="{{ BASE }}/?week={{ this_week }}{{ qs_c }}" class="nav-btn">Semaine</a>
+    <a href="{{ BASE }}/mois?m={{ this_month }}{{ qs_c }}" class="nav-btn active">Mois</a>
     {{ driver_filter(drivers, emp_filter, "/mois", "m=" + month_str) }}
-    <a href="/mois?m={{ prev_month }}{{ qs_c }}" class="nav-btn">&#8249;</a>
+    <a href="{{ BASE }}/mois?m={{ prev_month }}{{ qs_c }}" class="nav-btn">&#8249;</a>
     <span class="month-label">{{ month_label }}</span>
-    <a href="/mois?m={{ next_month }}{{ qs_c }}" class="nav-btn">&#8250;</a>
+    <a href="{{ BASE }}/mois?m={{ next_month }}{{ qs_c }}" class="nav-btn">&#8250;</a>
   </div>
 </header>
 
@@ -124,7 +124,7 @@
     <span class="wb-label">{{ wk.label }}</span>
     <span class="wb-right">
       <span class="wb-count">{{ wk.total }} interv.</span>
-      <a href="/?week={{ wk.week_iso }}{{ qs_c }}">Ouvrir la semaine</a>
+      <a href="{{ BASE }}/?week={{ wk.week_iso }}{{ qs_c }}">Ouvrir la semaine</a>
     </span>
   </div>
   <div class="week-grid-wrap">

@@ -17,3 +17,10 @@ services:
         sync: false
       - key: WEBHOOK_SECRET
         sync: false
+      # PROTEC (module /protec — planning chauffeur + Ma tournée + fiche)
+      - key: PROTEC_ODOO_USER
+        sync: false
+      - key: PROTEC_ODOO_PASSWORD
+        sync: false
+      - key: PROTEC_PLANNING_SECRET
+        sync: false

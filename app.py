@@ -729,6 +729,16 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# ─── PROTEC : planning chauffeur + Ma tournée + fiche de fin de travaux ──────
+# Monté sous /protec — voir protec_planning/README.md
+# (env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET)
+try:
+    from protec_planning.app import bp as protec_bp
+    app.register_blueprint(protec_bp, url_prefix="/protec")
+except Exception as _e:
+    app.logger.warning(f"Module protec_planning non chargé: {_e}")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

@@ -1,26 +1,31 @@
 """
 Planning chauffeur PROTEC + app mobile « Ma tournée » + Fiche de fin de travaux
-- /                 : planning semaine (grille jours x chauffeurs)
-- /mois             : planning mois (bandeaux par semaine)
-- /ma-tournee       : page mobile chauffeur (lien signé HMAC)
-- /fiche/<slot_id>  : fiche de fin de travaux (formulaire mobile)
-- /liens            : page admin des liens chauffeurs
-Hébergement : Render.com — données : Odoo v19 SaaS via XML-RPC (planning.slot)
+Monté comme Blueprint sous /protec dans l'app principale (même service Render
+que le webhook Maquignon) — ou exécutable seul pour les tests.
+
+- /protec/                 : planning semaine (grille jours x chauffeurs)
+- /protec/mois             : planning mois (bandeaux par semaine)
+- /protec/ma-tournee       : page mobile chauffeur (lien signé HMAC)
+- /protec/fiche/<slot_id>  : fiche de fin de travaux (formulaire mobile)
+- /protec/liens            : page admin des liens chauffeurs
+
+Données : Odoo v19 SaaS PROTEC via XML-RPC (planning.slot).
+Env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET
 """
 import os, json, hmac, hashlib, socket
 import xmlrpc.client
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
-from flask import Flask, render_template, request, redirect, url_for, abort
+from flask import Blueprint, Flask, render_template, request, redirect, url_for, abort
 
-app = Flask(__name__)
+bp = Blueprint("protec", __name__, template_folder="templates")
 socket.setdefaulttimeout(25)
 
-ODOO_URL      = os.environ.get("ODOO_URL",      "https://protec-s3t.odoo.com")
-ODOO_DB       = os.environ.get("ODOO_DB",       "protec-s3t")
-ODOO_USER     = os.environ.get("ODOO_USER",     "")
-ODOO_PASSWORD = os.environ.get("ODOO_PASSWORD", "")
-SECRET        = os.environ.get("PLANNING_SECRET") or os.environ.get("WEBHOOK_SECRET", "")
+ODOO_URL      = os.environ.get("PROTEC_ODOO_URL",      "https://protec-s3t.odoo.com")
+ODOO_DB       = os.environ.get("PROTEC_ODOO_DB",       "protec-s3t")
+ODOO_USER     = os.environ.get("PROTEC_ODOO_USER",     "")
+ODOO_PASSWORD = os.environ.get("PROTEC_ODOO_PASSWORD", "")
+SECRET        = os.environ.get("PROTEC_PLANNING_SECRET", "")
 
 TZ  = ZoneInfo("Europe/Paris")
 UTC = ZoneInfo("UTC")
@@ -52,6 +57,11 @@ DECHETS = [
     ("vidange", "Matières de vidanges"),
     ("autre",   "Autre"),
 ]
+
+@bp.app_context_processor
+def inject_base():
+    # "/protec" quand monté sous prefix, "" en exécution seule
+    return {"BASE": url_for("protec.week_view").rstrip("/")}
 
 # ─── Helpers Odoo ─────────────────────────────────────────────────────────────
 def odoo_connect():
@@ -178,7 +188,7 @@ def common_nav(emp_filter, all_emps):
     }
 
 # ─── VUE SEMAINE ──────────────────────────────────────────────────────────────
-@app.route("/")
+@bp.route("/")
 def week_view():
     week_str = request.args.get("week")
     emp_filter = request.args.get("c", type=int)
@@ -219,7 +229,7 @@ def week_view():
         **common_nav(emp_filter, all_emps))
 
 # ─── VUE MOIS (bandeaux par semaine) ─────────────────────────────────────────
-@app.route("/mois")
+@bp.route("/mois")
 def month_view():
     m_str = request.args.get("m")
     emp_filter = request.args.get("c", type=int)
@@ -279,7 +289,7 @@ def month_view():
         **common_nav(emp_filter, all_emps))
 
 # ─── MA TOURNÉE (mobile chauffeur) ───────────────────────────────────────────
-@app.route("/ma-tournee")
+@bp.route("/ma-tournee")
 def ma_tournee():
     emp_id = request.args.get("c", type=int)
     sig = request.args.get("s", "")
@@ -321,7 +331,7 @@ FDT_FIELDS = ["x_fdt_fait", "x_fdt_date", "x_fdt_vehicule", "x_fdt_heure_arrivee
               "x_fdt_heure_depart", "x_fdt_temps_trajet", "x_fdt_operateurs",
               "x_fdt_commentaires", "x_fdt_data"]
 
-@app.route("/fiche/<int:slot_id>", methods=["GET", "POST"])
+@bp.route("/fiche/<int:slot_id>", methods=["GET", "POST"])
 def fiche(slot_id):
     token = request.args.get("t", "")
     if not check_sig(f"fdt:{slot_id}", token):
@@ -386,7 +396,7 @@ def fiche(slot_id):
             pass
 
         back = request.args.get("back", "")
-        return redirect(url_for("fiche", slot_id=slot_id, t=token, back=back, ok=1))
+        return redirect(url_for(".fiche", slot_id=slot_id, t=token, back=back, ok=1))
 
     # GET : préremplissage
     saved_data = {}
@@ -447,25 +457,31 @@ def render_fiche_html(card, vals, data):
     return html
 
 # ─── LIENS CHAUFFEURS (admin) ────────────────────────────────────────────────
-@app.route("/liens")
+@bp.route("/liens")
 def liens():
     if not SECRET or request.args.get("token") != SECRET:
         abort(403)
-    base = request.url_root.rstrip("/")
     error, rows = None, []
     try:
         uid, models = odoo_connect()
         for e in get_all_employees(uid, models):
+            url = url_for(".ma_tournee", c=e["id"], s=driver_sig(e["id"]), _external=True)
             rows.append({"id": e["id"], "name": e["name"], "color": emp_color(e["id"]),
-                         "url": f"{base}/ma-tournee?c={e['id']}&s={driver_sig(e['id'])}"})
+                         "url": url})
     except Exception as ex:
         error = str(ex)
     return render_template("liens.html", rows=rows, error=error)
 
-@app.route("/health")
+@bp.route("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "app": "protec-planning"}
+
+# ─── Exécution seule (tests locaux) ──────────────────────────────────────────
+def create_app():
+    app = Flask(__name__)
+    app.register_blueprint(bp)
+    return app
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    create_app().run(host="0.0.0.0", port=port, debug=False)
