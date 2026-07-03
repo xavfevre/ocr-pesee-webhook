@@ -9,7 +9,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
            background: #f0f4f8; color: #1a2e4a; min-height: 100vh; }
-    header { background: #3a5a99; color: #fff; position: sticky; top: 0; z-index: 200;
+    header { background: #3a5a99; color: #fff; position: sticky; top: 0; z-index: 300;
              box-shadow: 0 2px 10px rgba(0,0,0,.3); }
     .hdr-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px 6px; }
     .logo { width: 34px; height: 34px; background: #fff; border-radius: 50%;
@@ -29,54 +29,62 @@
     .drv-select { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
                   color: #fff; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 600; }
     .drv-select option { color: #1a2e4a; }
+    .fdt-badge { font-size: 10px; font-weight: 800; color: #fff; background: #16a34a;
+                 border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+    .bc-link { font-size: 10px; font-weight: 800; color: #3a5a99; text-decoration: none;
+               border: 1px solid #c6d3ea; border-radius: 4px; padding: 0 5px; white-space: nowrap;
+               background: #f2f6ff; }
+    .bc-link:hover { background: #3a5a99; color: #fff; }
+    footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
+    .drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
+    .card.dragging, .dcard.dragging { opacity: .4; }
+
+    .grid-wrap { overflow-x: auto; padding: 12px; }
     table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
-    table.pl thead th { color: #fff; padding: 0; }
-    th.emp-col { background: #2c4880; position: sticky; left: 0; z-index: 150; }
-    th.day-th { background: #3a5a99; }
-    th.day-th.is-today { background: #f59e0b; }
-    .th-inner { padding: 6px 8px; min-width: 170px; max-width: 200px; text-align: center; }
-    .th-emp-inner { padding: 6px 8px; min-width: 120px; max-width: 140px; text-align: left; }
-    .th-day-dow { font-size: 12px; font-weight: 800; text-transform: uppercase; }
-    .th-day-num { font-size: 15px; font-weight: 900; line-height: 1.1; }
-    td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
-                  border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
-                  vertical-align: top; padding: 8px; min-width: 120px; max-width: 140px; }
-    .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; }
-    .emp-count { font-size: 11px; color: #6b7c9a; margin-top: 2px; }
-    .emp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-               margin-right: 5px; vertical-align: baseline; }
-    tr.row-none td.emp-cell { background: #fef2f2; }
-    tr.row-none .emp-name { color: #b91c1c; }
+    table.pl thead th { color: #fff; padding: 0; position: sticky; top: 0; z-index: 100; }
+    .th-inner { padding: 8px 10px; min-width: 165px; max-width: 195px; text-align: center; }
+    th.day-col { background: #2c4880; width: 72px; min-width: 72px;
+                 position: sticky; left: 0; z-index: 150; }
+    .th-name { font-size: 13px; font-weight: 700; white-space: nowrap;
+               overflow: hidden; text-overflow: ellipsis; }
+    .th-count { font-size: 11px; opacity: .85; margin-top: 2px; }
+    table.pl tr:nth-child(even) td { background: #f7f9fc; }
+    table.pl tr:nth-child(odd)  td { background: #fff; }
+    table.pl tr.is-today td { background: #fff8e1 !important; }
+    table.pl tr.is-today td.day-cell { border-left: 3px solid #f59e0b; }
+    td.day-cell { position: sticky; left: 0; z-index: 50; background: inherit;
+                  border-right: 2px solid #dce3ef; vertical-align: top;
+                  padding: 8px 6px; text-align: center; min-width: 72px; width: 72px; }
+    .day-dow { font-size: 12px; font-weight: 800; color: #3a5a99; text-transform: uppercase; }
+    .day-num { font-size: 18px; font-weight: 900; line-height: 1.1; }
+    tr.is-today .day-dow, tr.is-today .day-num { color: #f59e0b; }
     td.slot-cell { vertical-align: top; padding: 6px 5px; border-right: 1px solid #dce3ef;
-                   border-bottom: 1px solid #dce3ef; min-width: 170px; max-width: 200px; }
-    td.slot-cell.is-today { background: #fff8e1; }
-    td.slot-cell.drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
-    tr.row-none td.slot-cell { background: #fef7f7; }
+                   border-bottom: 1px solid #dce3ef; min-width: 165px; max-width: 195px; }
+    td.slot-cell.col-none { background-color: #fef2f2 !important; }
     .card { background: #fff; border-radius: 8px; border-left: 4px solid #3a5a99;
             box-shadow: 0 1px 4px rgba(58,90,153,.12); margin-bottom: 6px; overflow: hidden;
             cursor: grab; }
-    .card:active { cursor: grabbing; }
-    .card.dragging { opacity: .4; }
     .card:last-child { margin-bottom: 0; }
     .card-head { background: #e8f0fe; padding: 3px 8px; display: flex;
                  align-items: center; justify-content: space-between; gap: 4px; }
     .card-time { font-size: 12px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
-    .fdt-badge { font-size: 10px; font-weight: 800; color: #fff; background: #16a34a;
-                 border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
     .card-body { padding: 4px 8px 5px; }
     .card-client { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 2px; }
     .card-ville { font-size: 11px; color: #6b7c9a; }
-    .card-extra { font-size: 10.5px; color: #44557a; line-height: 1.35; margin-top: 1px; }
-    .card-ref { font-size: 10px; color: #6b7c9a; font-weight: 600; display: block; margin-top: 2px;
+    .card-foot { display: flex; justify-content: space-between; align-items: center;
+                 gap: 4px; margin-top: 3px; }
+    .card-ref { font-size: 10px; color: #6b7c9a; font-weight: 600;
                 text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-    .empty-cell { min-height: 34px; }
-    footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
+    .timebar { position: relative; height: 5px; background: #eef2f9; border-radius: 3px; margin: 3px 0 1px; }
+    .timebar-seg { position: absolute; top: 0; height: 5px; border-radius: 3px; }
+    .empty-cell { min-height: 36px; }
 
     .content { padding: 12px; }
     .week-band { background: linear-gradient(90deg, #3a5a99, #5878b8); color: #fff;
       border-radius: 10px 10px 0 0; padding: 8px 16px; margin-top: 18px;
       display: flex; align-items: center; justify-content: space-between;
       box-shadow: 0 2px 6px rgba(58,90,153,.25); }
+    .week-band:first-child { margin-top: 0; }
     .week-band .wb-label { font-size: 15px; font-weight: 800; }
     .week-band .wb-right { display: flex; align-items: center; gap: 10px; }
     .week-band .wb-count { font-size: 12px; opacity: .85; font-weight: 600; }
@@ -84,6 +92,37 @@
                    background: rgba(255,255,255,.18); border-radius: 6px; padding: 3px 10px; }
     .week-grid-wrap { overflow-x: auto; background: #fff; border: 1px solid #dce3ef;
                       border-top: none; border-radius: 0 0 10px 10px; }
+    table.pl thead th { position: static; }
+    .th-inner { padding: 5px 8px; min-width: 120px; max-width: 150px; }
+    td.slot-cell { min-width: 120px; max-width: 150px; padding: 3px 3px; }
+    td.day-cell { min-width: 62px; width: 62px; padding: 5px 4px; }
+    .day-num { font-size: 14px; }
+    td.out-month, .out-month { opacity: .5; }
+    .mcard { background: #fff; border-radius: 5px; border-left: 3px solid #3a5a99;
+             box-shadow: 0 1px 2px rgba(58,90,153,.18); margin-bottom: 3px;
+             padding: 2px 5px; font-size: 10px; line-height: 1.25; cursor: pointer; }
+    .mcard:hover { background: #e8f0fe; }
+    .mcard .mc-time { font-weight: 800; color: #3a5a99; }
+    .mcard .mc-fdt { color: #16a34a; font-weight: 900; }
+    .empty-cell { min-height: 18px; }
+    /* popup */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,25,50,.55);
+                z-index: 500; align-items: center; justify-content: center; padding: 16px; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 14px; max-width: 420px; width: 100%;
+             box-shadow: 0 10px 40px rgba(0,0,0,.35); overflow: hidden; }
+    .modal-head { background: #3a5a99; color: #fff; padding: 12px 16px; display: flex;
+                  justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 15px; font-weight: 800; }
+    .modal-close { background: none; border: none; color: #fff; font-size: 22px;
+                   cursor: pointer; line-height: 1; }
+    .modal-body { padding: 14px 16px; font-size: 13px; }
+    .modal-body .mrow { margin-bottom: 7px; line-height: 1.4; }
+    .modal-body .mlbl { font-weight: 800; color: #3a5a99; }
+    .modal-actions { padding: 0 16px 16px; display: flex; gap: 8px; }
+    .modal-actions a { flex: 1; text-align: center; background: #3a5a99; color: #fff;
+                       font-weight: 800; font-size: 13px; border-radius: 9px; padding: 10px;
+                       text-decoration: none; }
 </style>
 </head>
 <body>
@@ -102,7 +141,9 @@
 <t t-set="palette" t-value="['#2563eb','#16a34a','#ea580c','#9333ea','#0d9488','#db2777','#ca8a04','#4f46e5','#dc2626','#0891b2']"/>
 <t t-set="mois_abr" t-value="['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc']"/>
 <t t-set="jours_fr" t-value="['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"/>
+<t t-set="jours_long" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']"/>
 
+<t t-set="active_tab" t-value="'mois'"/>
 <t t-set="cur_monday" t-value="today - datetime.timedelta(days=today.weekday())"/>
 <t t-set="mstr" t-value="args.get('m') or ''"/>
 <t t-set="y" t-value="int(mstr[:4]) if len(mstr) == 7 else today.year"/>
@@ -127,13 +168,16 @@
     <div class="logo">P</div>
     <div style="flex:1">
       <div class="hdr-title">Planning PROTEC</div>
-      <div class="hdr-sub">Vue mois — bandeaux par semaine — glisser une vignette pour déplacer</div>
+      <div class="hdr-sub">Vue mois — cliquer une vignette pour le détail</div>
     </div>
     <div class="badge" t-out="'%s interventions' % len([s for s in allslots if first &lt;= (s.start_datetime + dtoff).date() &lt;= last])"/>
   </div>
   <div class="hdr-nav">
-    <a t-att-href="'/planning-semaine?w=0%s' % qc" class="nav-btn">Semaine</a>
-    <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" class="nav-btn active">Mois</a>
+
+    <a t-att-href="'/planning-jour?d=%s%s' % (today.isoformat(), qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'jour' else '')">Jour</a>
+    <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
+    <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
+
     <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo)">
       <option value="0">Tous les chauffeurs</option>
       <t t-foreach="emps" t-as="e">
@@ -149,114 +193,138 @@
 <div class="content">
   <t t-foreach="weeks" t-as="wstart">
     <t t-set="wend" t-value="wstart + datetime.timedelta(days=5)"/>
-    <t t-set="days" t-value="[wstart + datetime.timedelta(days=i) for i in range(6)]"/>
-    <t t-set="slots" t-value="[s for s in allslots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
+    <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(6)]"/>
+    <t t-set="wslots" t-value="[s for s in allslots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
     <t t-set="wlabel" t-value="('S%s — %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, wend.day, mois_abr[wend.month-1], wend.year)) if wstart.month == wend.month else ('S%s — %s %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, mois_abr[wstart.month-1], wend.day, mois_abr[wend.month-1], wend.year))"/>
     <div class="week-band">
       <span class="wb-label" t-out="wlabel"/>
       <span class="wb-right">
-        <span class="wb-count" t-out="'%s interv.' % len(slots)"/>
+        <span class="wb-count" t-out="'%s interv.' % len(wslots)"/>
         <a t-att-href="'/planning-semaine?w=%s%s' % ((wstart - cur_monday).days // 7, qc)">Ouvrir la semaine</a>
       </span>
     </div>
     <div class="week-grid-wrap">
-
-<table class="pl">
-  <thead>
-    <tr>
-      <th class="emp-col"><div class="th-emp-inner">
-        <div class="th-day-dow" style="font-size:11px;">Chauffeur</div></div></th>
-      <t t-foreach="days" t-as="day">
-        <th t-att-class="'day-th' + (' is-today' if day == today else '')">
-          <div class="th-inner">
-            <div class="th-day-dow" t-out="jours_fr[day.weekday()]"/>
-            <div class="th-day-num" t-out="'%s/%s' % (day.day, day.month)"/>
-          </div>
-        </th>
-      </t>
-    </tr>
-  </thead>
-  <tbody>
-    <t t-foreach="cols" t-as="emp">
-      <t t-set="color" t-value="palette[emp.id % 10]"/>
-      <t t-set="empslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
-      <tr>
-        <td class="emp-cell">
-          <div class="emp-name"><span class="emp-dot" t-att-style="'background: %s;' % color"/><t t-out="emp.name"/></div>
-          <div class="emp-count" t-out="('%s interv.' % len(empslots)) if empslots else '—'"/>
-        </td>
-        <t t-foreach="days" t-as="day">
-          <td t-att-class="'slot-cell' + (' is-today' if day == today else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id">
-            <t t-set="cell" t-value="[s for s in empslots if (s.start_datetime + dtoff).date() == day]"/>
-            <t t-if="cell">
-              <t t-foreach="cell" t-as="s">
-<div class="card" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'border-left-color: %s;' % color">
-  <div class="card-head">
-    <span class="card-time" t-out="(s.start_datetime + dtoff).strftime('%H:%M') + ((' → ' + (s.end_datetime + dtoff).strftime('%H:%M')) if s.end_datetime else '')"/>
-    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
-  </div>
-  <div class="card-body">
-    <div class="card-client" t-out="s.partner_id.name or '—'"/>
-    <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-    <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
-    <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
-    <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
-    <div t-if="so and so.x_studio_lieu_dintervention_2" class="card-extra" t-out="'🏠 ' + so.x_studio_lieu_dintervention_2[:70]"/>
-    <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:70]"/>
-    <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:26]"/>
-  </div>
-</div>
-              </t>
+      <table class="pl">
+        <thead>
+          <tr>
+            <th class="day-col"><div class="th-inner" style="min-width:62px;padding:4px;">
+              <div class="th-name" style="font-size:10px;">Jour</div></div></th>
+            <t t-foreach="cols" t-as="emp">
+              <th t-att-style="'background: %s;' % palette[emp.id % 10]">
+                <div class="th-inner"><div class="th-name" t-out="emp.name"/></div>
+              </th>
             </t>
-            <t t-else=""><div class="empty-cell"/></t>
-          </td>
-        </t>
-      </tr>
-    </t>
-    <t t-if="not cfil">
-      <t t-set="color" t-value="'#ef4444'"/>
-      <t t-set="naslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3]]"/>
-      <tr class="row-none">
-        <td class="emp-cell">
-          <div class="emp-name"><span class="emp-dot" style="background: #ef4444;"/>Non assigné</div>
-          <div class="emp-count" t-out="('%s interv.' % len(naslots)) if naslots else '—'"/>
-        </td>
-        <t t-foreach="days" t-as="day">
-          <td t-att-class="'slot-cell' + (' is-today' if day == today else '')" t-att-data-day="day.isoformat()" data-emp="0">
-            <t t-set="cell" t-value="[s for s in naslots if (s.start_datetime + dtoff).date() == day]"/>
-            <t t-if="cell">
-              <t t-foreach="cell" t-as="s">
-<div class="card" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'border-left-color: %s;' % color">
-  <div class="card-head">
-    <span class="card-time" t-out="(s.start_datetime + dtoff).strftime('%H:%M') + ((' → ' + (s.end_datetime + dtoff).strftime('%H:%M')) if s.end_datetime else '')"/>
-    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
-  </div>
-  <div class="card-body">
-    <div class="card-client" t-out="s.partner_id.name or '—'"/>
-    <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-    <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
-    <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
-    <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
-    <div t-if="so and so.x_studio_lieu_dintervention_2" class="card-extra" t-out="'🏠 ' + so.x_studio_lieu_dintervention_2[:70]"/>
-    <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:70]"/>
-    <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:26]"/>
-  </div>
+            <th t-if="not cfil" style="background: #7f1d1d;">
+              <div class="th-inner"><div class="th-name">Non assigné</div></div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <t t-foreach="wdays" t-as="day">
+            <tr t-att-class="'is-today' if day == today else ''">
+              <td t-att-class="'day-cell' + ('' if day.month == mo else ' out-month')">
+                <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
+                  <div class="day-dow" t-out="jours_fr[day.weekday()]"/>
+                  <div class="day-num" t-out="'%s/%s' % (day.day, day.month)"/>
+                </a>
+              </td>
+              <t t-foreach="cols" t-as="emp">
+                <t t-set="color" t-value="palette[emp.id % 10]"/>
+                <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id">
+                  <t t-set="cell" t-value="[s for s in wslots if emp.id in s.employee_ids.ids and (s.start_datetime + dtoff).date() == day]"/>
+                  <t t-if="cell"><t t-foreach="cell" t-as="s">
+<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
+<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
+<t t-set="st" t-value="s.start_datetime + dtoff"/>
+<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
+<div class="mcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-time="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'border-left-color: %s;' % color">
+  <span class="mc-time" t-out="st.strftime('%H:%M')"/>
+  <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
+  <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
 </div>
-              </t>
-            </t>
-            <t t-else=""><div class="empty-cell"/></t>
-          </td>
-        </t>
-      </tr>
-    </t>
-  </tbody>
-</table>
 
+                  </t></t>
+                  <t t-else=""><div class="empty-cell"/></t>
+                </td>
+              </t>
+              <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0">
+                <t t-set="color" t-value="'#ef4444'"/>
+                <t t-set="cell" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
+                <t t-if="cell"><t t-foreach="cell" t-as="s">
+<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
+<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
+<t t-set="st" t-value="s.start_datetime + dtoff"/>
+<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
+<div class="mcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-time="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'border-left-color: %s;' % color">
+  <span class="mc-time" t-out="st.strftime('%H:%M')"/>
+  <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
+  <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
+</div>
+
+                </t></t>
+                <t t-else=""><div class="empty-cell"/></t>
+              </td>
+            </tr>
+          </t>
+        </tbody>
+      </table>
     </div>
   </t>
 </div>
-
 <footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
+
+<div class="modal-bg" id="pmodal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="pm-client"/>
+      <button class="modal-close" onclick="document.getElementById('pmodal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="mrow"><span class="mlbl">Horaire : </span><span id="pm-time"/> <span id="pm-fdt" class="fdt-badge" style="display:none;">✓ FDT</span></div>
+      <div class="mrow"><span class="mlbl">Adresse : </span><span id="pm-adresse"/></div>
+      <div class="mrow" id="pm-r-inter"><span class="mlbl">Interlocuteur : </span><span id="pm-inter"/></div>
+      <div class="mrow" id="pm-r-tel"><span class="mlbl">Téléphone : </span><a id="pm-tel" href="#"/></div>
+      <div class="mrow" id="pm-r-lieu"><span class="mlbl">Lieu d'intervention : </span><span id="pm-lieu"/></div>
+      <div class="mrow" id="pm-r-objet"><span class="mlbl">Objet : </span><span id="pm-objet"/></div>
+      <div class="mrow"><span class="mlbl">Réf : </span><span id="pm-ref"/></div>
+    </div>
+    <div class="modal-actions">
+      <a id="pm-so" href="#" target="_blank">Ouvrir le bon de commande</a>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('click', function (e) {
+  var c = e.target.closest ? e.target.closest('.mcard') : null;
+  if (!c) { return; }
+  var ds = c.dataset;
+  function setrow(rowId, spanId, val) {
+    var row = document.getElementById(rowId);
+    if (val) { row.style.display = ''; document.getElementById(spanId).textContent = val; }
+    else { row.style.display = 'none'; }
+  }
+  document.getElementById('pm-client').textContent = ds.client;
+  document.getElementById('pm-time').textContent = ds.time;
+  document.getElementById('pm-adresse').textContent = ds.adresse || '—';
+  setrow('pm-r-inter', 'pm-inter', ds.inter);
+  setrow('pm-r-lieu', 'pm-lieu', ds.lieu);
+  setrow('pm-r-objet', 'pm-objet', ds.objet);
+  var telRow = document.getElementById('pm-r-tel');
+  if (ds.tel) {
+    telRow.style.display = '';
+    var a = document.getElementById('pm-tel');
+    a.textContent = ds.tel; a.href = 'tel:' + ds.tel.replace(/ /g, '');
+  } else { telRow.style.display = 'none'; }
+  document.getElementById('pm-ref').textContent = ds.ref || '—';
+  document.getElementById('pm-fdt').style.display = ds.fdt ? '' : 'none';
+  var so = document.getElementById('pm-so');
+  if (ds.so) { so.style.display = ''; so.href = ds.so; } else { so.style.display = 'none'; }
+  document.getElementById('pmodal').classList.add('open');
+});
+document.getElementById('pmodal').addEventListener('click', function (e) {
+  if (e.target.id === 'pmodal') { e.target.classList.remove('open'); }
+});
+</script>
 
 <script>
 var pdrag = null;
@@ -267,29 +335,37 @@ function shiftUTC(str, days) {
   return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate())
     + ' ' + pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds());
 }
+function dropTarget(e) {
+  var el = e.target;
+  while (el) {
+    if (el.dataset) { if (el.dataset.day !== undefined) { if (el.dataset.emp !== undefined) { return el; } } }
+    el = el.parentElement;
+  }
+  return null;
+}
 document.addEventListener('dragstart', function (e) {
-  var c = e.target.closest ? e.target.closest('.card') : null;
+  var c = e.target.closest ? e.target.closest('[draggable]') : null;
   if (!c) { return; }
-  var td = c.closest('td.slot-cell');
+  var td = dropTarget(e);
   if (!td) { return; }
   pdrag = { id: parseInt(c.dataset.id), start: c.dataset.start, end: c.dataset.end,
             day: td.dataset.day, emp: parseInt(td.dataset.emp) };
   c.classList.add('dragging');
 });
-document.addEventListener('dragend', function (e) {
-  document.querySelectorAll('.card.dragging').forEach(function (el) { el.classList.remove('dragging'); });
+document.addEventListener('dragend', function () {
+  document.querySelectorAll('.dragging').forEach(function (el) { el.classList.remove('dragging'); });
   document.querySelectorAll('.drop-ok').forEach(function (el) { el.classList.remove('drop-ok'); });
 });
 document.addEventListener('dragover', function (e) {
-  var td = e.target.closest ? e.target.closest('td.slot-cell') : null;
+  var td = dropTarget(e);
   if (td) { if (pdrag) { e.preventDefault(); td.classList.add('drop-ok'); } }
 });
 document.addEventListener('dragleave', function (e) {
-  var td = e.target.closest ? e.target.closest('td.slot-cell') : null;
+  var td = dropTarget(e);
   if (td) { td.classList.remove('drop-ok'); }
 });
 document.addEventListener('drop', function (e) {
-  var td = e.target.closest ? e.target.closest('td.slot-cell') : null;
+  var td = dropTarget(e);
   if (!td) { return; }
   if (!pdrag) { return; }
   e.preventDefault();
@@ -315,9 +391,7 @@ document.addEventListener('drop', function (e) {
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.error) {
       alert('Modification refusée — connectez-vous à Odoo dans cet onglet pour déplacer les interventions.');
-    } else {
-      location.reload();
-    }
+    } else { location.reload(); }
   }).catch(function () { alert('Erreur réseau'); });
   pdrag = null;
 });

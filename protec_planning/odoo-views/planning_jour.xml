@@ -1,10 +1,10 @@
-<!-- ir.ui.view id=4162 key=website.planning_protec_semaine - page website protec-s3t.odoo.com -->
-<t t-name="website.planning_protec_semaine">
+<!-- ir.ui.view id=4166 key=website.planning_protec_jour - page website protec-s3t.odoo.com -->
+<t t-name="website.planning_protec_jour">
 <html>
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Planning PROTEC — Semaine</title>
+  <title>Planning PROTEC — Jour</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -39,45 +39,30 @@
     .drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
     .card.dragging, .dcard.dragging { opacity: .4; }
 
-    .grid-wrap { overflow-x: auto; padding: 12px; }
-    table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
-    table.pl thead th { color: #fff; padding: 0; position: sticky; top: 0; z-index: 100; }
-    .th-inner { padding: 8px 10px; min-width: 165px; max-width: 195px; text-align: center; }
-    th.day-col { background: #2c4880; width: 72px; min-width: 72px;
-                 position: sticky; left: 0; z-index: 150; }
-    .th-name { font-size: 13px; font-weight: 700; white-space: nowrap;
-               overflow: hidden; text-overflow: ellipsis; }
-    .th-count { font-size: 11px; opacity: .85; margin-top: 2px; }
-    table.pl tr:nth-child(even) td { background: #f7f9fc; }
-    table.pl tr:nth-child(odd)  td { background: #fff; }
-    table.pl tr.is-today td { background: #fff8e1 !important; }
-    table.pl tr.is-today td.day-cell { border-left: 3px solid #f59e0b; }
-    td.day-cell { position: sticky; left: 0; z-index: 50; background: inherit;
-                  border-right: 2px solid #dce3ef; vertical-align: top;
-                  padding: 8px 6px; text-align: center; min-width: 72px; width: 72px; }
-    .day-dow { font-size: 12px; font-weight: 800; color: #3a5a99; text-transform: uppercase; }
-    .day-num { font-size: 18px; font-weight: 900; line-height: 1.1; }
-    tr.is-today .day-dow, tr.is-today .day-num { color: #f59e0b; }
-    td.slot-cell { vertical-align: top; padding: 6px 5px; border-right: 1px solid #dce3ef;
-                   border-bottom: 1px solid #dce3ef; min-width: 165px; max-width: 195px; }
-    td.slot-cell.col-none { background-color: #fef2f2 !important; }
-    .card { background: #fff; border-radius: 8px; border-left: 4px solid #3a5a99;
-            box-shadow: 0 1px 4px rgba(58,90,153,.12); margin-bottom: 6px; overflow: hidden;
-            cursor: grab; }
-    .card:last-child { margin-bottom: 0; }
-    .card-head { background: #e8f0fe; padding: 3px 8px; display: flex;
-                 align-items: center; justify-content: space-between; gap: 4px; }
-    .card-time { font-size: 12px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
-    .card-body { padding: 4px 8px 5px; }
-    .card-client { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 2px; }
-    .card-ville { font-size: 11px; color: #6b7c9a; }
-    .card-foot { display: flex; justify-content: space-between; align-items: center;
-                 gap: 4px; margin-top: 3px; }
-    .card-ref { font-size: 10px; color: #6b7c9a; font-weight: 600;
-                text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-    .timebar { position: relative; height: 5px; background: #eef2f9; border-radius: 3px; margin: 3px 0 1px; }
-    .timebar-seg { position: absolute; top: 0; height: 5px; border-radius: 3px; }
-    .empty-cell { min-height: 36px; }
+    .day-wrap { overflow-x: auto; padding: 12px; }
+    .day-board { display: flex; min-width: max-content; }
+    .hour-gutter { width: 52px; flex-shrink: 0; position: sticky; left: 0; z-index: 80;
+                   background: #f0f4f8; }
+    .hour-gutter .hg-head { height: 46px; }
+    .hour-gutter .hg-body { position: relative; }
+    .hg-label { position: absolute; right: 8px; font-size: 11px; font-weight: 700;
+                color: #6b7c9a; transform: translateY(-50%); }
+    .day-col { width: 230px; flex-shrink: 0; border-left: 1px solid #dce3ef; }
+    .day-col-head { height: 46px; color: #fff; display: flex; flex-direction: column;
+                    align-items: center; justify-content: center; border-radius: 8px 8px 0 0;
+                    position: sticky; top: 0; }
+    .dc-name { font-size: 13px; font-weight: 800; }
+    .dc-count { font-size: 11px; opacity: .85; }
+    .day-col-body { position: relative; background: #fff; border: 1px solid #dce3ef; border-top: none; }
+    .hline { position: absolute; left: 0; right: 0; border-top: 1px solid #eef2f9; }
+    .hline.full { border-top: 1px solid #dce3ef; }
+    .dcard { position: absolute; left: 4px; right: 4px; background: #fff; border-radius: 8px;
+             border-left: 4px solid #3a5a99; box-shadow: 0 1px 5px rgba(58,90,153,.22);
+             overflow: hidden; cursor: grab; font-size: 11px; }
+    .dcard .card-head { padding: 2px 7px; }
+    .dcard .card-body { padding: 3px 7px 4px; overflow: hidden; }
+    .dcard .card-extra { font-size: 10.5px; color: #44557a; line-height: 1.3; }
+    .col-none-head { background: #7f1d1d !important; }
 </style>
 </head>
 <body>
@@ -98,24 +83,22 @@
 <t t-set="jours_fr" t-value="['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"/>
 <t t-set="jours_long" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']"/>
 
-<t t-set="active_tab" t-value="'semaine'"/>
-<t t-set="woff" t-value="int(args.get('w') or 0)"/>
-<t t-set="monday" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(days=7*woff)"/>
-<t t-set="days" t-value="[monday + datetime.timedelta(days=i) for i in range(6)]"/>
-<t t-set="su" t-value="datetime.datetime(monday.year, monday.month, monday.day) - dtoff"/>
-<t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',su + datetime.timedelta(days=7))] + ([('employee_ids','in',[cfil])] if cfil else [])"/>
+<t t-set="active_tab" t-value="'jour'"/>
+<t t-set="dstr" t-value="args.get('d') or ''"/>
+<t t-set="d" t-value="datetime.date(int(dstr[:4]), int(dstr[5:7]), int(dstr[8:10])) if len(dstr) == 10 else today"/>
+<t t-set="su" t-value="datetime.datetime(d.year, d.month, d.day) - dtoff"/>
+<t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',su + datetime.timedelta(days=1))] + ([('employee_ids','in',[cfil])] if cfil else [])"/>
 <t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="somap" t-value="dict([(o.name, o) for o in request.env['sale.order'].sudo().search([('name','in',[((s.name or '').strip().split() or [''])[0] for s in slots])])])"/>
 <t t-set="qc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
-<t t-set="wend" t-value="monday + datetime.timedelta(days=5)"/>
-<t t-set="wlabel" t-value="('S%s — %s au %s %s %s' % (monday.isocalendar()[1], monday.day, wend.day, mois_abr[wend.month-1], wend.year)) if monday.month == wend.month else ('S%s — %s %s au %s %s %s' % (monday.isocalendar()[1], monday.day, mois_abr[monday.month-1], wend.day, mois_abr[wend.month-1], wend.year))"/>
+<t t-set="dlabel" t-value="'%s %s %s %s' % (jours_long[d.weekday()], d.day, mois_abr[d.month-1], d.year)"/>
 
 <header>
   <div class="hdr-top">
     <div class="logo">P</div>
     <div style="flex:1">
       <div class="hdr-title">Planning PROTEC</div>
-      <div class="hdr-sub">Vue semaine — cliquer un jour pour ouvrir la vue horaire</div>
+      <div class="hdr-sub">Vue jour — agenda horaire par chauffeur</div>
     </div>
     <div class="badge" t-out="'%s interventions' % len(slots)"/>
   </div>
@@ -125,119 +108,124 @@
     <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
     <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
 
-    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-semaine?w=%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % woff">
+    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-jour?d=%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % d.isoformat()">
       <option value="0">Tous les chauffeurs</option>
       <t t-foreach="emps" t-as="e">
         <option t-att-value="e.id" t-att-selected="'selected' if cfil == e.id else None" t-out="e.name"/>
       </t>
     </select>
-    <a t-att-href="'/planning-semaine?w=%s%s' % (woff-1, qc)" class="nav-btn">‹</a>
-    <span class="period-label" t-out="wlabel"/>
-    <a t-att-href="'/planning-semaine?w=%s%s' % (woff+1, qc)" class="nav-btn">›</a>
+    <a t-att-href="'/planning-jour?d=%s%s' % ((d - datetime.timedelta(days=1)).isoformat(), qc)" class="nav-btn">‹</a>
+    <span class="period-label" t-out="dlabel"/>
+    <a t-att-href="'/planning-jour?d=%s%s' % ((d + datetime.timedelta(days=1)).isoformat(), qc)" class="nav-btn">›</a>
   </div>
 </header>
 
-<div class="grid-wrap">
-  <table class="pl">
-    <thead>
-      <tr>
-        <th class="day-col"><div class="th-inner" style="min-width:72px;padding:6px;">
-          <div class="th-name" style="font-size:11px;">Jour</div></div></th>
-        <t t-foreach="cols" t-as="emp">
-          <th t-att-style="'background: %s;' % palette[emp.id % 10]">
-            <div class="th-inner">
-              <div class="th-name" t-out="emp.name"/>
-              <t t-set="nb" t-value="len([s for s in slots if emp.id in s.employee_ids.ids])"/>
-              <div class="th-count" t-out="('%s interv.' % nb) if nb else '—'"/>
-            </div>
-          </th>
+<div class="day-wrap">
+  <div class="day-board">
+    <div class="hour-gutter">
+      <div class="hg-head"/>
+      <div class="hg-body" style="height: 672px;">
+        <t t-foreach="range(5, 20)" t-as="h">
+          <div class="hg-label" t-att-style="'top: %spx;' % ((h-5)*48)" t-out="'%02d:00' % h"/>
         </t>
-        <th t-if="not cfil" style="background: #7f1d1d;">
-          <div class="th-inner"><div class="th-name">Non assigné</div>
-          <t t-set="nbna" t-value="len([s for s in slots if not [i for i in s.employee_ids.ids if i != 3]])"/>
-          <div class="th-count" t-out="('%s interv.' % nbna) if nbna else '—'"/></div>
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      <t t-foreach="days" t-as="day">
-        <tr t-att-class="'is-today' if day == today else ''">
-          <td class="day-cell">
-            <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
-              <div class="day-dow" t-out="jours_fr[day.weekday()]"/>
-              <div class="day-num" t-out="'%s/%s' % (day.day, day.month)"/>
-            </a>
-          </td>
-          <t t-foreach="cols" t-as="emp">
-            <t t-set="color" t-value="palette[emp.id % 10]"/>
-            <td class="slot-cell" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id">
-              <t t-set="cell" t-value="[s for s in slots if emp.id in s.employee_ids.ids and (s.start_datetime + dtoff).date() == day]"/>
-              <t t-if="cell"><t t-foreach="cell" t-as="s">
+      </div>
+    </div>
+    <t t-foreach="cols" t-as="emp">
+      <t t-set="color" t-value="palette[emp.id % 10]"/>
+      <t t-set="col_name" t-value="emp.name"/>
+      <t t-set="col_emp" t-value="emp.id"/>
+      <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
+
+<div class="day-col">
+  <div class="day-col-head" t-att-style="'background: %s;' % color">
+    <div class="dc-name" t-out="col_name"/>
+    <div class="dc-count" t-out="('%s interv.' % len(colslots)) if colslots else '—'"/>
+  </div>
+  <div class="day-col-body" style="height: 672px;" t-att-data-day="d.isoformat()" t-att-data-emp="col_emp">
+    <t t-foreach="range(5, 20)" t-as="h">
+      <div t-att-class="'hline full'" t-att-style="'top: %spx;' % ((h-5)*48)"/>
+    </t>
+    <t t-foreach="colslots" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
 <t t-set="st" t-value="s.start_datetime + dtoff"/>
 <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
 <t t-set="m0" t-value="max(0, st.hour*60 + st.minute - 300)"/>
-<t t-set="m1" t-value="min(840, (en.hour*60 + en.minute - 300) if en.date() == st.date() else 840)"/>
-<div class="card" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'border-left-color: %s;' % color">
+<t t-set="m1" t-value="min(840, (en.hour*60 + en.minute) if en.date() == st.date() else 840)"/>
+<t t-set="durm" t-value="max(30, m1 - m0)"/>
+<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')"/>
-    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+    <span style="display:flex; gap:3px;">
+      <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
+    </span>
   </div>
   <div class="card-body">
-    <div class="timebar">
-      <div class="timebar-seg" t-att-style="'left: %s%%; width: %s%%; background: %s;' % (m0*100//840, max(3, (m1-m0)*100//840), color)"/>
-    </div>
     <div class="card-client" t-out="s.partner_id.name or '—'"/>
-    <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-    <div class="card-foot">
-      <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:22]"/>
-      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
-    </div>
+    <div t-if="s.partner_city" class="card-extra" t-out="'📍 ' + ((s.partner_street + ', ') if s.partner_street else '') + s.partner_city"/>
+    <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
+    <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
+    <div t-if="so and so.x_studio_lieu_dintervention_2" class="card-extra" t-out="'🏠 ' + so.x_studio_lieu_dintervention_2[:70]"/>
+    <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:70]"/>
+    <div t-if="s.name" class="card-extra" style="color:#8fa0bd;" t-out="(s.name or '')[:28]"/>
   </div>
 </div>
 
-              </t></t>
-              <t t-else=""><div class="empty-cell"/></t>
-            </td>
-          </t>
-          <td t-if="not cfil" class="slot-cell col-none" t-att-data-day="day.isoformat()" data-emp="0">
-            <t t-set="color" t-value="'#ef4444'"/>
-            <t t-set="cell" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
-            <t t-if="cell"><t t-foreach="cell" t-as="s">
+    </t>
+  </div>
+</div>
+
+    </t>
+    <t t-if="not cfil">
+      <t t-set="color" t-value="'#ef4444'"/>
+      <t t-set="col_name" t-value="'Non assigné'"/>
+      <t t-set="col_emp" t-value="0"/>
+      <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3]]"/>
+      <t t-if="colslots">
+        <div class="day-col">
+          <div class="day-col-head col-none-head">
+            <div class="dc-name">Non assigné</div>
+            <div class="dc-count" t-out="'%s interv.' % len(colslots)"/>
+          </div>
+          <div class="day-col-body" style="height: 672px;" t-att-data-day="d.isoformat()" data-emp="0">
+            <t t-foreach="range(5, 20)" t-as="h">
+              <div class="hline full" t-att-style="'top: %spx;' % ((h-5)*48)"/>
+            </t>
+            <t t-foreach="colslots" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
 <t t-set="st" t-value="s.start_datetime + dtoff"/>
 <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
 <t t-set="m0" t-value="max(0, st.hour*60 + st.minute - 300)"/>
-<t t-set="m1" t-value="min(840, (en.hour*60 + en.minute - 300) if en.date() == st.date() else 840)"/>
-<div class="card" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'border-left-color: %s;' % color">
+<t t-set="m1" t-value="min(840, (en.hour*60 + en.minute) if en.date() == st.date() else 840)"/>
+<t t-set="durm" t-value="max(30, m1 - m0)"/>
+<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')"/>
-    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+    <span style="display:flex; gap:3px;">
+      <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
+    </span>
   </div>
   <div class="card-body">
-    <div class="timebar">
-      <div class="timebar-seg" t-att-style="'left: %s%%; width: %s%%; background: %s;' % (m0*100//840, max(3, (m1-m0)*100//840), color)"/>
-    </div>
     <div class="card-client" t-out="s.partner_id.name or '—'"/>
-    <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-    <div class="card-foot">
-      <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:22]"/>
-      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
-    </div>
+    <div t-if="s.partner_city" class="card-extra" t-out="'📍 ' + ((s.partner_street + ', ') if s.partner_street else '') + s.partner_city"/>
+    <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
+    <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
+    <div t-if="so and so.x_studio_lieu_dintervention_2" class="card-extra" t-out="'🏠 ' + so.x_studio_lieu_dintervention_2[:70]"/>
+    <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:70]"/>
+    <div t-if="s.name" class="card-extra" style="color:#8fa0bd;" t-out="(s.name or '')[:28]"/>
   </div>
 </div>
 
-            </t></t>
-            <t t-else=""><div class="empty-cell"/></t>
-          </td>
-        </tr>
+            </t>
+          </div>
+        </div>
       </t>
-    </tbody>
-  </table>
+    </t>
+  </div>
 </div>
-
 <footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
 
 <script>
