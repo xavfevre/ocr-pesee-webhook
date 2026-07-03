@@ -56,8 +56,8 @@
     td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
                   border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
                   vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
-    .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; }
-    .emp-count { font-size: 11px; color: #6b7c9a; margin-top: 2px; }
+    .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; color: inherit; }
+    .emp-count { font-size: 11px; margin-top: 2px; color: inherit; opacity: .85; }
     .emp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
                margin-right: 5px; }
     tr.row-none td.emp-cell { background: #fef2f2; }
@@ -194,6 +194,7 @@
     <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
 
     <a t-if="active_tab != 'jour'" t-att-href="pageqs + qsoc + ('&amp;o=c' if ori == 'l' else '') + qcc" class="nav-btn" t-att-title="'Basculer : ' + ('jours en lignes' if ori == 'l' else 'opérateurs en lignes')">⇄</a>
+    <a href="#" id="btn-addtask" class="nav-btn" style="background:#16a34a; border-color:#16a34a;">➕ Tâche</a>
     <input id="clfilter" class="cl-input" type="search" placeholder="🔍 Client…"/>
     <select class="drv-select" t-att-onchange="&quot;location.href='/planning-semaine?w=%s%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (woff, qsoc + qori)">
       <option value="0">Tous les chauffeurs</option>
@@ -337,8 +338,8 @@
         <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
         <t t-set="empslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
         <tr>
-          <td class="emp-cell">
-            <div class="emp-name"><span class="emp-dot" t-att-style="'background: %s;' % color"/><t t-out="emp.name"/></div>
+          <td class="emp-cell" t-att-style="'background: %s; color: %s;' % (color, '#1a2e4a' if color == '#eab308' else '#fff')">
+            <div class="emp-name" t-out="emp.name"/>
             <div class="emp-count" t-out="('%s interv.' % len(empslots)) if empslots else '—'"/>
           </td>
           <t t-foreach="days" t-as="day">
@@ -382,8 +383,8 @@
         <t t-set="color" t-value="'#64748b'"/>
         <t t-set="naslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)]]"/>
         <tr class="row-none" t-if="naslots">
-          <td class="emp-cell">
-            <div class="emp-name"><span class="emp-dot" style="background: #64748b;"/>Non assigné</div>
+          <td class="emp-cell" style="background: #64748b; color: #fff;">
+            <div class="emp-name">Non assigné</div>
             <div class="emp-count" t-out="'%s interv.' % len(naslots)"/>
           </td>
           <t t-foreach="days" t-as="day">
@@ -428,7 +429,7 @@
 <footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
 
 <div id="ro-banner">🔒 Lecture seule — connectez-vous à Odoo dans ce navigateur pour déplacer les interventions</div>
-<span id="pctx" style="display:none;" t-att-data-off="off" t-att-data-cid="soc_cid or 2"/>
+<span id="pctx" style="display:none;" t-att-data-off="off" t-att-data-cid="soc_cid or 2" t-att-data-today="today.isoformat()"/>
 <div class="modal-bg" id="amodal">
   <div class="modal">
     <div class="modal-head">
@@ -436,7 +437,17 @@
       <button class="modal-close" onclick="document.getElementById('amodal').classList.remove('open')">×</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="am-day"/><input type="hidden" id="am-res"/>
+      <div class="mrow" style="display:flex;gap:12px;">
+        <span style="flex:1;"><span class="mlbl">Jour : </span><input type="date" id="am-date" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/></span>
+        <span style="flex:1;"><span class="mlbl">Opérateur : </span>
+          <select id="am-op" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;max-width:140px;">
+            <option value="0">Non assigné</option>
+            <t t-foreach="emps" t-as="e">
+              <option t-att-value="e.resource_id.id" t-out="e.name"/>
+            </t>
+          </select>
+        </span>
+      </div>
       <div class="mrow"><span class="mlbl">Note : </span>
         <textarea id="am-note" style="width:100%;min-height:70px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;font-family:inherit;font-size:14px;" placeholder="Ex : entretien camion, formation, rangement dépôt…"/>
       </div>
@@ -598,13 +609,22 @@ document.addEventListener('dblclick', function (e) {
   if (e.target.closest) { if (e.target.closest('.card, .dcard, .mcard, a, button, input, select')) { return; } }
   var td = dropTarget(e);
   if (!td) { return; }
-  document.getElementById('am-day').value = td.dataset.day;
-  document.getElementById('am-res').value = td.dataset.res || '0';
-  var dp = td.dataset.day.split('-');
-  document.getElementById('am-title').textContent = 'Nouvelle tâche — ' + dp[2] + '/' + dp[1] + '/' + dp[0];
+  document.getElementById('am-date').value = td.dataset.day;
+  document.getElementById('am-op').value = td.dataset.res || '0';
   document.getElementById('am-note').value = '';
   document.getElementById('amodal').classList.add('open');
 });
+var bat = document.getElementById('btn-addtask');
+if (bat) {
+  bat.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var ctx = document.getElementById('pctx');
+    document.getElementById('am-date').value = ctx.dataset.today;
+    document.getElementById('am-op').value = '0';
+    document.getElementById('am-note').value = '';
+    document.getElementById('amodal').classList.add('open');
+  });
+}
 document.getElementById('amodal').addEventListener('click', function (e) {
   if (e.target.id === 'amodal') { e.target.classList.remove('open'); }
 });
@@ -615,8 +635,9 @@ document.getElementById('am-save').addEventListener('click', function (ev) {
   var ctx = document.getElementById('pctx');
   var off = parseInt(ctx.dataset.off);
   var cid = parseInt(ctx.dataset.cid);
-  var day = document.getElementById('am-day').value;
-  var res = parseInt(document.getElementById('am-res').value);
+  var day = document.getElementById('am-date').value;
+  if (!day) { alert('Choisissez un jour'); return; }
+  var res = parseInt(document.getElementById('am-op').value);
   var h1 = document.getElementById('am-h1').value || '08:00';
   var h2 = document.getElementById('am-h2').value || '09:00';
   var vals = { name: note, start_datetime: mkUTC(day, h1, off),
