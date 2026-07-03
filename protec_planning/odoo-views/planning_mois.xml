@@ -219,8 +219,8 @@
 
 <div class="content">
   <t t-foreach="weeks" t-as="wstart">
-    <t t-set="wend" t-value="wstart + datetime.timedelta(days=5)"/>
-    <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(6)]"/>
+    <t t-set="wend" t-value="wstart + datetime.timedelta(days=6)"/>
+    <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(7)]"/>
     <t t-set="wslots" t-value="[s for s in allslots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
     <t t-set="wlabel" t-value="('S%s — %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, wend.day, mois_abr[wend.month-1], wend.year)) if wstart.month == wend.month else ('S%s — %s %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, mois_abr[wstart.month-1], wend.day, mois_abr[wend.month-1], wend.year))"/>
     <div class="week-band">
@@ -258,7 +258,7 @@
               <t t-foreach="cols" t-as="emp">
                 <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
                 <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
-                <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id">
+                <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
                   <span t-if="onleave" class="conge-chip">CONGÉS</span>
                   <t t-set="cell" t-value="[s for s in wslots if emp.id in s.employee_ids.ids and (s.start_datetime + dtoff).date() == day]"/>
                   <t t-if="cell"><t t-foreach="cell" t-as="s">
@@ -276,7 +276,7 @@
                   <t t-else=""><div class="empty-cell"/></t>
                 </td>
               </t>
-              <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0">
+              <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
                 <t t-set="color" t-value="'#64748b'"/>
                 <t t-set="cell" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
                 <t t-if="cell"><t t-foreach="cell" t-as="s">
@@ -385,7 +385,7 @@ document.addEventListener('dragstart', function (e) {
     e.dataTransfer.effectAllowed = 'move';
   }
   pdrag = { id: parseInt(c.dataset.id), start: c.dataset.start, end: c.dataset.end,
-            day: td.dataset.day, emp: parseInt(td.dataset.emp) };
+            day: td.dataset.day, emp: parseInt(td.dataset.emp), res: parseInt(td.dataset.res || 0) };
   c.classList.add('dragging');
 });
 document.addEventListener('dragend', function () {
@@ -412,13 +412,14 @@ document.addEventListener('drop', function (e) {
   td.classList.remove('drop-ok');
   var dayDelta = Math.round((new Date(td.dataset.day) - new Date(pdrag.day)) / 86400000);
   var newEmp = parseInt(td.dataset.emp);
+  var newRes = parseInt(td.dataset.res || 0);
   var vals = {};
   if (dayDelta !== 0) {
     vals.start_datetime = shiftUTC(pdrag.start, dayDelta);
     if (pdrag.end) { vals.end_datetime = shiftUTC(pdrag.end, dayDelta); }
   }
   if (newEmp !== pdrag.emp) {
-    if (newEmp) { vals.employee_ids = [[6, 0, [newEmp]]]; } else { vals.employee_ids = [[5]]; }
+    if (newRes) { vals.resource_ids = [[6, 0, [newRes]]]; } else { vals.resource_ids = [[5]]; }
   }
   if (Object.keys(vals).length === 0) { pdrag = null; return; }
   fetch('/web/dataset/call_kw/planning.slot/write', {

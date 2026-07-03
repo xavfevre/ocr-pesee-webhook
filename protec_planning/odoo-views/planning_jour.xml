@@ -178,6 +178,7 @@
       <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
       <t t-set="col_name" t-value="emp.name"/>
       <t t-set="col_emp" t-value="emp.id"/>
+      <t t-set="col_res" t-value="emp.resource_id.id"/>
       <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
 
 <t t-set="onleave" t-value="[l for l in leaves if col_emp and l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= d and (l.date_to + dtoff).date() &gt;= d]"/>
@@ -186,7 +187,7 @@
     <div class="dc-name" t-out="col_name + (' — CONGÉS' if onleave else '')"/>
     <div class="dc-count" t-out="('%s interv.' % len(colslots)) if colslots else '—'"/>
   </div>
-  <div t-att-class="'day-col-body' + (' cell-conge' if onleave else '')" style="height: 672px;" t-att-data-day="d.isoformat()" t-att-data-emp="col_emp">
+  <div t-att-class="'day-col-body' + (' cell-conge' if onleave else '')" style="height: 672px;" t-att-data-day="d.isoformat()" t-att-data-emp="col_emp" t-att-data-res="col_res">
     <t t-foreach="range(5, 20)" t-as="h">
       <div t-att-class="'hline full'" t-att-style="'top: %spx;' % ((h-5)*48)"/>
     </t>
@@ -226,6 +227,7 @@
       <t t-set="color" t-value="'#64748b'"/>
       <t t-set="col_name" t-value="'Non assigné'"/>
       <t t-set="col_emp" t-value="0"/>
+      <t t-set="col_res" t-value="0"/>
       <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3]]"/>
       <t t-if="colslots">
         <div class="day-col">
@@ -233,7 +235,7 @@
             <div class="dc-name">Non assigné</div>
             <div class="dc-count" t-out="'%s interv.' % len(colslots)"/>
           </div>
-          <div class="day-col-body" style="height: 672px;" t-att-data-day="d.isoformat()" data-emp="0">
+          <div class="day-col-body" style="height: 672px;" t-att-data-day="d.isoformat()" data-emp="0" data-res="0">
             <t t-foreach="range(5, 20)" t-as="h">
               <div class="hline full" t-att-style="'top: %spx;' % ((h-5)*48)"/>
             </t>
@@ -356,7 +358,7 @@ document.addEventListener('dragstart', function (e) {
     e.dataTransfer.effectAllowed = 'move';
   }
   pdrag = { id: parseInt(c.dataset.id), start: c.dataset.start, end: c.dataset.end,
-            day: td.dataset.day, emp: parseInt(td.dataset.emp) };
+            day: td.dataset.day, emp: parseInt(td.dataset.emp), res: parseInt(td.dataset.res || 0) };
   c.classList.add('dragging');
 });
 document.addEventListener('dragend', function () {
@@ -383,13 +385,14 @@ document.addEventListener('drop', function (e) {
   td.classList.remove('drop-ok');
   var dayDelta = Math.round((new Date(td.dataset.day) - new Date(pdrag.day)) / 86400000);
   var newEmp = parseInt(td.dataset.emp);
+  var newRes = parseInt(td.dataset.res || 0);
   var vals = {};
   if (dayDelta !== 0) {
     vals.start_datetime = shiftUTC(pdrag.start, dayDelta);
     if (pdrag.end) { vals.end_datetime = shiftUTC(pdrag.end, dayDelta); }
   }
   if (newEmp !== pdrag.emp) {
-    if (newEmp) { vals.employee_ids = [[6, 0, [newEmp]]]; } else { vals.employee_ids = [[5]]; }
+    if (newRes) { vals.resource_ids = [[6, 0, [newRes]]]; } else { vals.resource_ids = [[5]]; }
   }
   if (Object.keys(vals).length === 0) { pdrag = null; return; }
   fetch('/web/dataset/call_kw/planning.slot/write', {
