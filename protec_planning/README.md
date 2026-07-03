@@ -67,3 +67,11 @@ Variables d'environnement :
 2. Copier ou envoyer par WhatsApp le lien de chaque chauffeur
 3. Le chauffeur le met en favori — rien à redéployer pour un nouveau chauffeur,
    son lien apparaît automatiquement sur la page.
+
+## Automatisations Odoo (base.automation)
+
+| # | Déclencheur | Effet |
+|---|---|---|
+| 8 | Commande confirmée | Crée le créneau planning (name = réf commande, 06h-15h à la date prévisionnelle) |
+| 9 | Date prévisionnelle modifiée | Met à jour les horaires du créneau |
+| 10 | **Opérateur saisi sur le BI** (`x_technicien_id`) | **Reporte l'opérateur sur le créneau planning** (resource_ids, via origin = réf commande) |

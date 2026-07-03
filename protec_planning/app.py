@@ -12,7 +12,7 @@ que le webhook Maquignon) — ou exécutable seul pour les tests.
 Données : Odoo v19 SaaS PROTEC via XML-RPC (planning.slot).
 Env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET
 """
-import os, json, hmac, hashlib, socket
+import os, json, time, hmac, hashlib, socket
 import xmlrpc.client
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
@@ -31,7 +31,7 @@ TZ  = ZoneInfo("Europe/Paris")
 UTC = ZoneInfo("UTC")
 
 # Employés à exclure (comptes techniques)
-EXCLUDED_EMPLOYEE_IDS = {3}  # "Validation notes de frais"
+EXCLUDED_EMPLOYEE_IDS = {1, 3, 8, 9}  # compte technique + Manon + Natacha (hors terrain)
 
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
@@ -64,12 +64,17 @@ def inject_base():
     return {"BASE": url_for("protec.week_view").rstrip("/")}
 
 # ─── Helpers Odoo ─────────────────────────────────────────────────────────────
+_uid_cache = {"uid": None}
+
 def odoo_connect():
+    models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+    if _uid_cache["uid"]:
+        return _uid_cache["uid"], models
     common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
     uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
     if not uid:
         raise ValueError("Authentification Odoo échouée")
-    models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+    _uid_cache["uid"] = uid
     return uid, models
 
 def x(models, uid, model, method, *params, **kw):
@@ -117,11 +122,21 @@ SLOT_FIELDS = ["name", "start_datetime", "end_datetime",
                "partner_id", "partner_city", "partner_zip", "partner_street",
                "partner_phone", "employee_ids", "role_id", "x_fdt_fait"]
 
+_emp_cache = {"t": 0.0, "data": None}
+
 def get_all_employees(uid, models):
+    now = time.time()
+    if _emp_cache["data"] is not None and now - _emp_cache["t"] < 600:
+        return _emp_cache["data"]
     emps = x(models, uid, "hr.employee", "search_read",
         [["active", "=", True]],
         fields=["id", "name"], order="name asc", limit=100)
-    return [e for e in emps if e["id"] not in EXCLUDED_EMPLOYEE_IDS]
+    data = [e for e in emps if e["id"] not in EXCLUDED_EMPLOYEE_IDS]
+    _emp_cache["t"], _emp_cache["data"] = now, data
+    return data
+
+def emp_name_map(uid, models):
+    return {e["id"]: e["name"] for e in get_all_employees(uid, models)}
 
 def fetch_slots(uid, models, d_start: date, d_end: date, emp_id=None):
     s_utc, e_utc = local_range_to_utc(d_start, d_end)
@@ -299,8 +314,7 @@ def ma_tournee():
     error, emp_name, dayblocks = None, "", []
     try:
         uid, models = odoo_connect()
-        emp = x(models, uid, "hr.employee", "read", [emp_id], fields=["name"])
-        emp_name = emp[0]["name"] if emp else f"Chauffeur {emp_id}"
+        emp_name = emp_name_map(uid, models).get(emp_id) or f"Chauffeur {emp_id}"
 
         today = date.today()
         slots = fetch_slots(uid, models, today - timedelta(days=1), today + timedelta(days=15), emp_id)
@@ -364,8 +378,8 @@ def fiche(slot_id):
 
     emp_names = ""
     if card["emp_ids"]:
-        emps = x(models, uid, "hr.employee", "read", card["emp_ids"], fields=["name"])
-        emp_names = ", ".join(e["name"] for e in emps)
+        nmap = emp_name_map(uid, models)
+        emp_names = ", ".join(nmap.get(i, "") for i in card["emp_ids"] if nmap.get(i))
 
     if request.method == "POST":
         f = request.form
