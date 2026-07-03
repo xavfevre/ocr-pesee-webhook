@@ -213,7 +213,7 @@
       <t t-set="col_name" t-value="emp.name"/>
       <t t-set="col_emp" t-value="emp.id"/>
       <t t-set="col_res" t-value="emp.resource_id.id"/>
-      <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18)]"/>
+      <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)]"/>
 
 <t t-set="onleave" t-value="[l for l in leaves if col_emp and l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= d and (l.date_to + dtoff).date() &gt;= d]"/>
 <div class="day-col">
@@ -237,7 +237,7 @@
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
     <span style="display:flex; gap:3px;">
-      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge">🌙</span>
+      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper' if s.x_nuit_etale else 'Cliquer pour étaler'" t-out="'🌙+' if s.x_nuit_etale else '🌙'"/>
       <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
       <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
     </span>
@@ -265,7 +265,7 @@
       <t t-set="col_name" t-value="'Non assigné'"/>
       <t t-set="col_emp" t-value="0"/>
       <t t-set="col_res" t-value="0"/>
-      <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18)]"/>
+      <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale)]"/>
       <t t-if="colslots">
         <div class="day-col">
           <div class="day-col-head col-none-head">
@@ -288,7 +288,7 @@
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
     <span style="display:flex; gap:3px;">
-      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge">🌙</span>
+      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper' if s.x_nuit_etale else 'Cliquer pour étaler'" t-out="'🌙+' if s.x_nuit_etale else '🌙'"/>
       <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
       <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
     </span>
@@ -370,7 +370,7 @@
 </div>
 <script>
 document.addEventListener('click', function (e) {
-  if (e.target.closest) { if (e.target.closest('a')) { return; } }
+  if (e.target.closest) { if (e.target.closest('a, .nuit-badge')) { return; } }
   var c = e.target.closest ? e.target.closest('.mcard, .card, .dcard') : null;
   if (!c) { return; }
   if (!c.dataset.client) { return; }
@@ -539,6 +539,26 @@ document.getElementById('am-save').addEventListener('click', function (ev) {
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.error) {
       alert('Création refusée — connectez-vous à Odoo dans cet onglet.');
+    } else { location.reload(); }
+  }).catch(function () { alert('Erreur réseau'); });
+});
+document.addEventListener('click', function (e) {
+  var b = e.target.closest ? e.target.closest('.nuit-badge') : null;
+  if (!b) { return; }
+  e.preventDefault();
+  var c = b.closest('[data-id]');
+  if (!c) { return; }
+  var newVal = b.dataset.etale !== '1';
+  fetch('/web/dataset/call_kw/planning.slot/write', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'call',
+      params: { model: 'planning.slot', method: 'write',
+                args: [[parseInt(c.dataset.id)], { x_nuit_etale: newVal }], kwargs: {} } })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.error) {
+      alert('Modification refusée — connectez-vous à Odoo dans cet onglet.');
     } else { location.reload(); }
   }).catch(function () { alert('Erreur réseau'); });
 });
