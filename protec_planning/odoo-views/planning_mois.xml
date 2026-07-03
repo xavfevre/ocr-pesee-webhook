@@ -58,7 +58,7 @@
     .day-hours { font-size: 10px; font-weight: 700; opacity: .85; color: #fff; margin-top: 1px; }
     td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
                   border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
-                  vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
+                  vertical-align: middle; padding: 8px; min-width: 130px; max-width: 150px; }
     .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; color: inherit; }
     .emp-count { font-size: 11px; margin-top: 2px; color: inherit; opacity: .85; }
     .emp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -67,13 +67,13 @@
     tr.row-none .emp-name { color: #7f1d1d; }
     td.slot-cell.is-today-col { background: #fff8e1 !important; }
     td.slot-cell.tg { padding: 0; position: relative; min-width: 175px; }
-    .tg-body { position: relative; height: 560px; }
+    .tg-body { position: relative; height: 578px; }
     .tg-hline { position: absolute; left: 0; right: 0; border-top: 1px solid #eef2f9; }
     td.hour-gut { width: 46px; min-width: 46px; padding: 0; vertical-align: top;
                   background: #f6f8fb; border-right: 1px solid #dce3ef;
                   border-bottom: 1px solid #dce3ef; }
-    .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 700;
-                 color: #8a99b4; transform: translateY(-50%); }
+    .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 800;
+                 color: #64748b; transform: translateY(-50%); background: #f6f8fb; padding: 0 2px; }
     .tgcard { position: absolute; left: 3px; right: 3px; margin: 0; overflow: hidden; z-index: 2; }
     .tg-chip { position: absolute; top: 3px; left: 3px; z-index: 3; }
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }

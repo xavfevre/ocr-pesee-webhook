@@ -58,7 +58,7 @@
     .day-hours { font-size: 10px; font-weight: 700; opacity: .85; color: #fff; margin-top: 1px; }
     td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
                   border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
-                  vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
+                  vertical-align: middle; padding: 8px; min-width: 130px; max-width: 150px; }
     .emp-name { font-size: 13px; font-weight: 800; line-height: 1.2; color: inherit; }
     .emp-count { font-size: 11px; margin-top: 2px; color: inherit; opacity: .85; }
     .emp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -67,13 +67,13 @@
     tr.row-none .emp-name { color: #7f1d1d; }
     td.slot-cell.is-today-col { background: #fff8e1 !important; }
     td.slot-cell.tg { padding: 0; position: relative; min-width: 175px; }
-    .tg-body { position: relative; height: 560px; }
+    .tg-body { position: relative; height: 578px; }
     .tg-hline { position: absolute; left: 0; right: 0; border-top: 1px solid #eef2f9; }
     td.hour-gut { width: 46px; min-width: 46px; padding: 0; vertical-align: top;
                   background: #f6f8fb; border-right: 1px solid #dce3ef;
                   border-bottom: 1px solid #dce3ef; }
-    .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 700;
-                 color: #8a99b4; transform: translateY(-50%); }
+    .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 800;
+                 color: #64748b; transform: translateY(-50%); background: #f6f8fb; padding: 0 2px; }
     .tgcard { position: absolute; left: 3px; right: 3px; margin: 0; overflow: hidden; z-index: 2; }
     .tg-chip { position: absolute; top: 3px; left: 3px; z-index: 3; }
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
@@ -370,7 +370,7 @@
           </td>
           <td class="hour-gut"><div class="tg-body">
             <t t-foreach="range(5, 20)" t-as="h">
-              <div class="hg2-label" t-att-style="'top: %spx;' % ((h-5)*40)" t-out="'%02d:00' % h"/>
+              <div class="hg2-label" t-att-style="'top: %spx;' % (12 + (h-5)*40)" t-out="'%02d:00' % h"/>
             </t>
           </div></td>
           <t t-foreach="days" t-as="day">
@@ -379,7 +379,7 @@
               <span t-if="onleave" class="conge-chip tg-chip">CONGÉS</span>
               <div class="tg-body">
                 <t t-foreach="range(5, 20)" t-as="h">
-                  <div class="tg-hline" t-att-style="'top: %spx;' % ((h-5)*40)"/>
+                  <div class="tg-hline" t-att-style="'top: %spx;' % (12 + (h-5)*40)"/>
                 </t>
                 <t t-set="cell" t-value="[s for s in empslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
                 <t t-foreach="cell" t-as="s">
@@ -389,7 +389,7 @@
 <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
 <t t-set="m0" t-value="0 if (s.start_datetime + dtoff).date() &lt; day else min(810, max(0, st.hour*60 + st.minute - 300))"/>
 <t t-set="m1" t-value="840 if (s.end_datetime and (s.end_datetime + dtoff).date() &gt; day) else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
-<div class="card tgcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*40//60, max(24, (m1-m0)*40//60), color)">
+<div class="card tgcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (12 + m0*40//60, max(24, (m1-m0)*40//60), color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
     <span style="display:flex; gap:3px;">
@@ -422,14 +422,14 @@
           </td>
           <td class="hour-gut"><div class="tg-body">
             <t t-foreach="range(5, 20)" t-as="h">
-              <div class="hg2-label" t-att-style="'top: %spx;' % ((h-5)*40)" t-out="'%02d:00' % h"/>
+              <div class="hg2-label" t-att-style="'top: %spx;' % (12 + (h-5)*40)" t-out="'%02d:00' % h"/>
             </t>
           </div></td>
           <t t-foreach="days" t-as="day">
             <td t-att-class="'slot-cell tg col-none' + (' is-today-col' if day == today else '')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
               <div class="tg-body">
                 <t t-foreach="range(5, 20)" t-as="h">
-                  <div class="tg-hline" t-att-style="'top: %spx;' % ((h-5)*40)"/>
+                  <div class="tg-hline" t-att-style="'top: %spx;' % (12 + (h-5)*40)"/>
                 </t>
                 <t t-set="cell" t-value="[s for s in naslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
                 <t t-foreach="cell" t-as="s">
@@ -439,7 +439,7 @@
 <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
 <t t-set="m0" t-value="0 if (s.start_datetime + dtoff).date() &lt; day else min(810, max(0, st.hour*60 + st.minute - 300))"/>
 <t t-set="m1" t-value="840 if (s.end_datetime and (s.end_datetime + dtoff).date() &gt; day) else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
-<div class="card tgcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*40//60, max(24, (m1-m0)*40//60), color)">
+<div class="card tgcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (12 + m0*40//60, max(24, (m1-m0)*40//60), color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
     <span style="display:flex; gap:3px;">
