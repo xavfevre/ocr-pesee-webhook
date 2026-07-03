@@ -245,7 +245,7 @@
 <t t-set="m0" t-value="0 if st.date() &lt; d else min(810, max(0, st.hour*60 + st.minute - 300))"/>
 <t t-set="m1" t-value="840 if en.date() &gt; d else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
 <t t-set="durm" t-value="max(30, m1 - m0)"/>
-<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
+<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-annexe="'' if s.partner_id else '1'" t-att-data-note="s.name or ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
   <div class="card-head" t-att-style="'background: %s; color: #fff;' % color">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
     <span style="display:flex; gap:3px;">
@@ -296,7 +296,7 @@
 <t t-set="m0" t-value="0 if st.date() &lt; d else min(810, max(0, st.hour*60 + st.minute - 300))"/>
 <t t-set="m1" t-value="840 if en.date() &gt; d else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
 <t t-set="durm" t-value="max(30, m1 - m0)"/>
-<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
+<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-annexe="'' if s.partner_id else '1'" t-att-data-note="s.name or ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
   <div class="card-head" t-att-style="'background: %s; color: #fff;' % color">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
     <span style="display:flex; gap:3px;">
@@ -355,8 +355,10 @@
         <span style="flex:1;"><span class="mlbl">Fin : </span><input type="time" id="am-h2" value="09:00" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/></span>
       </div>
     </div>
+    <input type="hidden" id="am-id"/>
     <div class="modal-actions">
-      <a href="#" id="am-save" style="cursor:pointer;">💾 Créer la tâche</a>
+      <a href="#" id="am-del" style="cursor:pointer; background:#dc2626; flex:0 0 auto; display:none;">🗑</a>
+      <a href="#" id="am-save" style="cursor:pointer;">💾 Enregistrer</a>
     </div>
   </div>
 </div>
@@ -386,6 +388,21 @@ document.addEventListener('click', function (e) {
   var c = e.target.closest ? e.target.closest('.mcard, .card, .dcard') : null;
   if (!c) { return; }
   if (!c.dataset.client) { return; }
+  if (c.dataset.annexe === '1') {
+    var td2 = c.closest('[data-day]');
+    var ctx2 = document.getElementById('pctx');
+    var off2 = parseInt(ctx2.dataset.off);
+    document.getElementById('am-id').value = c.dataset.id;
+    document.getElementById('am-date').value = td2 ? td2.dataset.day : ctx2.dataset.today;
+    document.getElementById('am-op').value = td2 ? (td2.dataset.res || '0') : '0';
+    document.getElementById('am-note').value = c.dataset.note || '';
+    if (c.dataset.start) { document.getElementById('am-h1').value = locHM(c.dataset.start, off2); }
+    if (c.dataset.end) { document.getElementById('am-h2').value = locHM(c.dataset.end, off2); }
+    document.getElementById('am-title').textContent = 'Modifier la tâche';
+    document.getElementById('am-del').style.display = '';
+    document.getElementById('amodal').classList.add('open');
+    return;
+  }
   var ds = c.dataset;
   function setrow(rowId, spanId, val) {
     var row = document.getElementById(rowId);
@@ -497,6 +514,10 @@ function fmtUTC(d) {
   return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate())
     + ' ' + pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds());
 }
+function locHM(utcStr, off) {
+  var d = new Date(new Date(utcStr.replace(' ', 'T') + 'Z').getTime() + off * 3600000);
+  return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes());
+}
 function mkUTC(dayIso, hhmm, off) {
   var dp = dayIso.split('-');
   var tp = hhmm.split(':');
@@ -511,7 +532,26 @@ document.addEventListener('dblclick', function (e) {
   document.getElementById('am-date').value = td.dataset.day;
   document.getElementById('am-op').value = td.dataset.res || '0';
   document.getElementById('am-note').value = '';
+  document.getElementById('am-id').value = '';
+  document.getElementById('am-title').textContent = 'Nouvelle tâche';
+  document.getElementById('am-del').style.display = 'none';
   document.getElementById('amodal').classList.add('open');
+});
+document.getElementById('am-del').addEventListener('click', function (ev) {
+  ev.preventDefault();
+  var editId = document.getElementById('am-id').value;
+  if (!editId) { return; }
+  if (!confirm('Supprimer cette tâche ?')) { return; }
+  fetch('/web/dataset/call_kw/planning.slot/unlink', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'call',
+      params: { model: 'planning.slot', method: 'unlink', args: [[parseInt(editId)]], kwargs: {} } })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.error) { alert('Suppression refusée — connectez-vous à Odoo.'); }
+    else { location.reload(); }
+  }).catch(function () { alert('Erreur réseau'); });
 });
 var bat = document.getElementById('btn-addtask');
 if (bat) {
@@ -521,6 +561,9 @@ if (bat) {
     document.getElementById('am-date').value = ctx.dataset.today;
     document.getElementById('am-op').value = '0';
     document.getElementById('am-note').value = '';
+    document.getElementById('am-id').value = '';
+    document.getElementById('am-title').textContent = 'Nouvelle tâche';
+    document.getElementById('am-del').style.display = 'none';
     document.getElementById('amodal').classList.add('open');
   });
 }
@@ -539,15 +582,19 @@ document.getElementById('am-save').addEventListener('click', function (ev) {
   var res = parseInt(document.getElementById('am-op').value);
   var h1 = document.getElementById('am-h1').value || '08:00';
   var h2 = document.getElementById('am-h2').value || '09:00';
+  var editId = document.getElementById('am-id').value;
   var vals = { name: note, start_datetime: mkUTC(day, h1, off),
-               end_datetime: mkUTC(day, h2, off), company_id: cid };
-  if (res) { vals.resource_ids = [[6, 0, [res]]]; }
-  fetch('/web/dataset/call_kw/planning.slot/create', {
+               end_datetime: mkUTC(day, h2, off) };
+  if (!editId) { vals.company_id = cid; }
+  if (res) { vals.resource_ids = [[6, 0, [res]]]; } else { vals.resource_ids = [[5]]; }
+  var meth = editId ? 'write' : 'create';
+  var args = editId ? [[parseInt(editId)], vals] : [vals];
+  fetch('/web/dataset/call_kw/planning.slot/' + meth, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
     body: JSON.stringify({ jsonrpc: '2.0', method: 'call',
-      params: { model: 'planning.slot', method: 'create', args: [vals], kwargs: {} } })
+      params: { model: 'planning.slot', method: meth, args: args, kwargs: {} } })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (d.error) {
       alert('Création refusée — connectez-vous à Odoo dans cet onglet.');
