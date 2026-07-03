@@ -66,6 +66,16 @@
     tr.row-none td.emp-cell { background: #fef2f2; }
     tr.row-none .emp-name { color: #7f1d1d; }
     td.slot-cell.is-today-col { background: #fff8e1 !important; }
+    td.slot-cell.tg { padding: 0; position: relative; min-width: 175px; }
+    .tg-body { position: relative; height: 560px; }
+    .tg-hline { position: absolute; left: 0; right: 0; border-top: 1px solid #eef2f9; }
+    td.hour-gut { width: 46px; min-width: 46px; padding: 0; vertical-align: top;
+                  background: #f6f8fb; border-right: 1px solid #dce3ef;
+                  border-bottom: 1px solid #dce3ef; }
+    .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 700;
+                 color: #8a99b4; transform: translateY(-50%); }
+    .tgcard { position: absolute; left: 3px; right: 3px; margin: 0; overflow: hidden; z-index: 2; }
+    .tg-chip { position: absolute; top: 3px; left: 3px; z-index: 3; }
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
     .cell-conge { background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 6px, #fff3f3 6px, #fff3f3 12px) !important; }
     .conge-chip { display: inline-block; font-size: 9px; font-weight: 900; color: #b91c1c;
@@ -333,9 +343,10 @@
       <tr>
         <th class="emp-col"><div class="th-emp-inner">
           <div class="th-name" style="font-size:11px;">Chauffeur</div></div></th>
+        <th style="background:#2c4880; width:46px; min-width:46px;"><div style="width:46px;"/></th>
         <t t-foreach="days" t-as="day">
           <th t-att-class="'day-th' + (' is-today' if day == today else '')">
-            <div class="th-inner" style="min-width:165px;">
+            <div class="th-inner" style="min-width:175px;">
               <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
                 <div class="day-dow2" t-out="jours_fr[day.weekday()]"/>
                 <div class="day-num2" t-out="'%s/%s' % (day.day, day.month)"/>
@@ -357,40 +368,46 @@
             <t t-set="emin" t-value="sum([int((s.end_datetime - s.start_datetime).total_seconds() // 60) for s in empslots if s.end_datetime])"/>
             <div class="emp-count" t-out="('%s interv. · %s' % (len(empslots), (('%sh%02d' % (emin // 60, emin % 60)) if emin % 60 else ('%sh' % (emin // 60))))) if empslots else '—'"/>
           </td>
+          <td class="hour-gut"><div class="tg-body">
+            <t t-foreach="range(5, 20)" t-as="h">
+              <div class="hg2-label" t-att-style="'top: %spx;' % ((h-5)*40)" t-out="'%02d:00' % h"/>
+            </t>
+          </div></td>
           <t t-foreach="days" t-as="day">
             <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
-            <td t-att-class="'slot-cell' + (' is-today-col' if day == today else '') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
-              <span t-if="onleave" class="conge-chip">CONGÉS</span>
-              <t t-set="cell" t-value="[s for s in empslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
-              <t t-if="cell"><t t-foreach="cell" t-as="s">
+            <td t-att-class="'slot-cell tg' + (' is-today-col' if day == today else '') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
+              <span t-if="onleave" class="conge-chip tg-chip">CONGÉS</span>
+              <div class="tg-body">
+                <t t-foreach="range(5, 20)" t-as="h">
+                  <div class="tg-hline" t-att-style="'top: %spx;' % ((h-5)*40)"/>
+                </t>
+                <t t-set="cell" t-value="[s for s in empslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
+                <t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
 <t t-set="st" t-value="s.start_datetime + dtoff"/>
 <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
-<t t-set="m0" t-value="max(0, st.hour*60 + st.minute - 300)"/>
-<t t-set="m1" t-value="min(840, (en.hour*60 + en.minute - 300) if en.date() == st.date() else 840)"/>
-<div class="card" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'border-left-color: %s; min-height: %spx;' % (color, max(34, (m1 - m0) * 26 // 60))">
+<t t-set="m0" t-value="0 if (s.start_datetime + dtoff).date() &lt; day else min(810, max(0, st.hour*60 + st.minute - 300))"/>
+<t t-set="m1" t-value="840 if (s.end_datetime and (s.end_datetime + dtoff).date() &gt; day) else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
+<div class="card tgcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*40//60, max(24, (m1-m0)*40//60), color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
-    <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper sur le jour de début' if s.x_nuit_etale else 'Cliquer pour étaler sur les jours couverts'" t-out="'🌙 ÉTALÉ' if s.x_nuit_etale else '🌙 NUIT'"/>
-    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+    <span style="display:flex; gap:3px;">
+      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper' if s.x_nuit_etale else 'Cliquer pour étaler'" t-out="'🌙 ÉTALÉ' if s.x_nuit_etale else '🌙 NUIT'"/>
+      <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
+    </span>
   </div>
   <div class="card-body">
-    <div class="timebar">
-      <div class="timebar-seg" t-att-style="'left: %s%%; width: %s%%; background: %s;' % (m0*100//840, max(3, (m1-m0)*100//840), color)"/>
-    </div>
     <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
     <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
     <div class="card-lieu" t-out="'📍 ' + (lieu[:60] if lieu else ((((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')) or '—'))"/>
-    <div class="card-foot">
-      <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:22]"/>
-      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
-    </div>
+    <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:24]"/>
   </div>
 </div>
 
-              </t></t>
-              <t t-else=""><div class="empty-cell"/></t>
+                </t>
+              </div>
             </td>
           </t>
         </tr>
@@ -403,38 +420,44 @@
             <div class="emp-name">Non assigné</div>
             <div class="emp-count" t-out="'%s interv.' % len(naslots)"/>
           </td>
+          <td class="hour-gut"><div class="tg-body">
+            <t t-foreach="range(5, 20)" t-as="h">
+              <div class="hg2-label" t-att-style="'top: %spx;' % ((h-5)*40)" t-out="'%02d:00' % h"/>
+            </t>
+          </div></td>
           <t t-foreach="days" t-as="day">
-            <td t-att-class="'slot-cell col-none' + (' is-today-col' if day == today else '')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
-              <t t-set="cell" t-value="[s for s in naslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
-              <t t-if="cell"><t t-foreach="cell" t-as="s">
+            <td t-att-class="'slot-cell tg col-none' + (' is-today-col' if day == today else '')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
+              <div class="tg-body">
+                <t t-foreach="range(5, 20)" t-as="h">
+                  <div class="tg-hline" t-att-style="'top: %spx;' % ((h-5)*40)"/>
+                </t>
+                <t t-set="cell" t-value="[s for s in naslots if ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
+                <t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
 <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
 <t t-set="st" t-value="s.start_datetime + dtoff"/>
 <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
-<t t-set="m0" t-value="max(0, st.hour*60 + st.minute - 300)"/>
-<t t-set="m1" t-value="min(840, (en.hour*60 + en.minute - 300) if en.date() == st.date() else 840)"/>
-<div class="card" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'border-left-color: %s; min-height: %spx;' % (color, max(34, (m1 - m0) * 26 // 60))">
+<t t-set="m0" t-value="0 if (s.start_datetime + dtoff).date() &lt; day else min(810, max(0, st.hour*60 + st.minute - 300))"/>
+<t t-set="m1" t-value="840 if (s.end_datetime and (s.end_datetime + dtoff).date() &gt; day) else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
+<div class="card tgcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*40//60, max(24, (m1-m0)*40//60), color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
-    <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper sur le jour de début' if s.x_nuit_etale else 'Cliquer pour étaler sur les jours couverts'" t-out="'🌙 ÉTALÉ' if s.x_nuit_etale else '🌙 NUIT'"/>
-    <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+    <span style="display:flex; gap:3px;">
+      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper' if s.x_nuit_etale else 'Cliquer pour étaler'" t-out="'🌙 ÉTALÉ' if s.x_nuit_etale else '🌙 NUIT'"/>
+      <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
+      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
+    </span>
   </div>
   <div class="card-body">
-    <div class="timebar">
-      <div class="timebar-seg" t-att-style="'left: %s%%; width: %s%%; background: %s;' % (m0*100//840, max(3, (m1-m0)*100//840), color)"/>
-    </div>
     <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
     <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
     <div class="card-lieu" t-out="'📍 ' + (lieu[:60] if lieu else ((((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')) or '—'))"/>
-    <div class="card-foot">
-      <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:22]"/>
-      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
-    </div>
+    <span t-if="s.name" class="card-ref" t-out="(s.name or '')[:24]"/>
   </div>
 </div>
 
-              </t></t>
-              <t t-else=""><div class="empty-cell"/></t>
+                </t>
+              </div>
             </td>
           </t>
         </tr>

@@ -66,6 +66,16 @@
     tr.row-none td.emp-cell { background: #fef2f2; }
     tr.row-none .emp-name { color: #7f1d1d; }
     td.slot-cell.is-today-col { background: #fff8e1 !important; }
+    td.slot-cell.tg { padding: 0; position: relative; min-width: 175px; }
+    .tg-body { position: relative; height: 560px; }
+    .tg-hline { position: absolute; left: 0; right: 0; border-top: 1px solid #eef2f9; }
+    td.hour-gut { width: 46px; min-width: 46px; padding: 0; vertical-align: top;
+                  background: #f6f8fb; border-right: 1px solid #dce3ef;
+                  border-bottom: 1px solid #dce3ef; }
+    .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 700;
+                 color: #8a99b4; transform: translateY(-50%); }
+    .tgcard { position: absolute; left: 3px; right: 3px; margin: 0; overflow: hidden; z-index: 2; }
+    .tg-chip { position: absolute; top: 3px; left: 3px; z-index: 3; }
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
     .cell-conge { background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 6px, #fff3f3 6px, #fff3f3 12px) !important; }
     .conge-chip { display: inline-block; font-size: 9px; font-weight: 900; color: #b91c1c;
