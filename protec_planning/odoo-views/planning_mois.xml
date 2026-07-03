@@ -9,15 +9,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
            background: #f0f4f8; color: #1a2e4a; min-height: 100vh; }
-<<<<<<< HEAD
     header { background: #3a5a99; color: #fff; position: sticky; top: 0; z-index: 300;
-=======
-<<<<<<< HEAD
-    header { background: #3a5a99; color: #fff; position: sticky; top: 0; z-index: 300;
-=======
-    header { background: #3a5a99; color: #fff; position: sticky; top: 0; z-index: 200;
->>>>>>> origin/main
->>>>>>> origin/main
              box-shadow: 0 2px 10px rgba(0,0,0,.3); }
     .hdr-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px 6px; }
     .logo { width: 34px; height: 34px; background: #fff; border-radius: 50%;
@@ -38,26 +30,17 @@
     .drv-select { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
                   color: #fff; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 600; }
     .drv-select option { color: #1a2e4a; }
-<<<<<<< HEAD
     .cl-input { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
                 color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 13px; width: 150px; }
     .cl-input::placeholder { color: rgba(255,255,255,.65); }
-=======
-<<<<<<< HEAD
->>>>>>> origin/main
     .soc-chip { background: rgba(255,255,255,.12); border: 1.5px dashed rgba(255,255,255,.55);
                 color: #fff; border-radius: 20px; padding: 5px 13px; font-size: 12px;
                 font-weight: 800; text-decoration: none; letter-spacing: .4px; }
     .soc-chip.active { background: #fff; color: #3a5a99; border-style: solid; border-color: #fff; }
-<<<<<<< HEAD
     .card-lieu { font-size: 11px; font-weight: 400; color: #6b7c9a; line-height: 1.3;
                  margin: 1px 0 2px; }
     .nuit-badge { font-size: 10px; font-weight: 800; color: #fff; background: #312e81;
                   border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
-=======
-    .card-lieu { font-size: 11.5px; font-weight: 800; color: #9a3412; line-height: 1.3;
-                 margin: 1px 0 2px; }
->>>>>>> origin/main
     .fdt-badge { font-size: 10px; font-weight: 800; color: #fff; background: #16a34a;
                  border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
     .bc-link { font-size: 10px; font-weight: 800; color: #3a5a99; text-decoration: none;
@@ -66,7 +49,6 @@
     .bc-link:hover { background: #3a5a99; color: #fff; }
     footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
     .drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
-<<<<<<< HEAD
     th.emp-col { background: #2c4880; position: sticky; left: 0; z-index: 150; }
     .th-emp-inner { padding: 8px 10px; min-width: 130px; text-align: left; color: #fff; }
     th.day-th { background: #3a5a99; color: #fff; }
@@ -93,9 +75,8 @@
     .hg2-label { position: absolute; right: 5px; font-size: 10px; font-weight: 800;
                  color: #64748b; transform: translateY(-50%); background: #f6f8fb; padding: 0 2px; }
     .tgcard { position: absolute; left: 3px; right: 3px; margin: 0; overflow: hidden; z-index: 2; }
+    .tgcard .card-extra { font-size: 10.5px; color: #44557a; line-height: 1.35; margin-top: 1px; }
     .tg-chip { position: absolute; top: 3px; left: 3px; z-index: 3; }
-=======
->>>>>>> origin/main
     .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
     .cell-conge { background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 6px, #fff3f3 6px, #fff3f3 12px) !important; }
     .conge-chip { display: inline-block; font-size: 9px; font-weight: 900; color: #b91c1c;
@@ -125,11 +106,7 @@
     .grid-wrap { overflow-x: auto; padding: 12px; }
     table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
     table.pl thead th { color: #fff; padding: 0; position: sticky; top: 0; z-index: 100; }
-<<<<<<< HEAD
     .th-inner { padding: 8px 10px; min-width: 165px; width: 100%; text-align: center; }
-=======
-    .th-inner { padding: 8px 10px; min-width: 165px; max-width: 195px; text-align: center; }
->>>>>>> origin/main
     th.day-col { background: #2c4880; width: 72px; min-width: 72px;
                  position: sticky; left: 0; z-index: 150; }
     .th-name { font-size: 13px; font-weight: 700; white-space: nowrap;
@@ -154,11 +131,7 @@
     .card:last-child { margin-bottom: 0; }
     .card-head { background: #e8f0fe; padding: 3px 8px; display: flex;
                  align-items: center; justify-content: space-between; gap: 4px; }
-<<<<<<< HEAD
     .card-time { font-size: 12px; font-weight: 800; color: inherit; white-space: nowrap; }
-=======
-    .card-time { font-size: 12px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
->>>>>>> origin/main
     .card-body { padding: 4px 8px 5px; }
     .card-client { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 2px; }
     .card-ville { font-size: 11px; color: #6b7c9a; }
@@ -170,24 +143,12 @@
     .timebar-seg { position: absolute; top: 0; height: 5px; border-radius: 3px; }
     .empty-cell { min-height: 36px; }
 
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/main
->>>>>>> origin/main
     .content { padding: 12px; }
     .week-band { background: linear-gradient(90deg, #3a5a99, #5878b8); color: #fff;
       border-radius: 10px 10px 0 0; padding: 8px 16px; margin-top: 18px;
       display: flex; align-items: center; justify-content: space-between;
       box-shadow: 0 2px 6px rgba(58,90,153,.25); }
-<<<<<<< HEAD
     .week-band:first-child { margin-top: 0; }
-=======
-<<<<<<< HEAD
-    .week-band:first-child { margin-top: 0; }
-=======
->>>>>>> origin/main
->>>>>>> origin/main
     .week-band .wb-label { font-size: 15px; font-weight: 800; }
     .week-band .wb-right { display: flex; align-items: center; gap: 10px; }
     .week-band .wb-count { font-size: 12px; opacity: .85; font-weight: 600; }
@@ -195,14 +156,8 @@
                    background: rgba(255,255,255,.18); border-radius: 6px; padding: 3px 10px; }
     .week-grid-wrap { overflow-x: auto; background: #fff; border: 1px solid #dce3ef;
                       border-top: none; border-radius: 0 0 10px 10px; }
-<<<<<<< HEAD
     table.pl thead th { position: static; }
     .th-inner { padding: 5px 8px; min-width: 120px; width: 100%; text-align: center; }
-=======
-<<<<<<< HEAD
-    table.pl thead th { position: static; }
-    .th-inner { padding: 5px 8px; min-width: 120px; max-width: 150px; }
->>>>>>> origin/main
     td.slot-cell { min-width: 120px; max-width: 150px; padding: 3px 3px; }
     td.day-cell { min-width: 62px; width: 62px; padding: 5px 4px; }
     .day-num { font-size: 14px; }
@@ -214,56 +169,10 @@
     .mcard .mc-time { font-weight: 800; color: #3a5a99; }
     .mcard .mc-fdt { color: #16a34a; font-weight: 900; }
     .empty-cell { min-height: 18px; }
-<<<<<<< HEAD
 </style>
 </head>
 <body>
 
-=======
-</style>
-</head>
-<body>
-
-=======
-    table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
-    table.pl thead th { color: #fff; padding: 0; }
-    .th-inner { padding: 5px 8px; min-width: 130px; max-width: 165px; text-align: center; }
-    th.day-col { background: #2c4880; width: 62px; min-width: 62px; position: sticky; left: 0; z-index: 40; }
-    .th-name { font-size: 12px; font-weight: 700; white-space: nowrap;
-               overflow: hidden; text-overflow: ellipsis; }
-    table.pl tr:nth-child(even) td { background: #f7f9fc; }
-    table.pl tr:nth-child(odd)  td { background: #fff; }
-    table.pl tr.is-today td { background: #fff8e1 !important; }
-    td.day-cell { position: sticky; left: 0; z-index: 30; background: inherit;
-                  border-right: 2px solid #dce3ef; vertical-align: top;
-                  padding: 6px 4px; text-align: center; min-width: 62px; width: 62px; }
-    .day-dow { font-size: 11px; font-weight: 800; color: #3a5a99; text-transform: uppercase; }
-    .day-num { font-size: 15px; font-weight: 900; line-height: 1.1; }
-    td.out-month, th.out-month { opacity: .45; }
-    tr.is-today .day-dow, tr.is-today .day-num { color: #f59e0b; }
-    td.slot-cell { vertical-align: top; padding: 4px 4px; border-right: 1px solid #dce3ef;
-                   border-bottom: 1px solid #dce3ef; min-width: 130px; max-width: 165px; }
-    td.slot-cell.col-none { background-color: #fef2f2 !important; }
-    .card { background: #fff; border-radius: 6px; border-left: 4px solid #3a5a99;
-            box-shadow: 0 1px 3px rgba(58,90,153,.14); margin-bottom: 4px; overflow: hidden; }
-    .card:last-child { margin-bottom: 0; }
-    .card-head { background: #e8f0fe; padding: 2px 6px; display: flex;
-                 align-items: center; justify-content: space-between; gap: 4px; }
-    .card-time { font-size: 11px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
-    .fdt-badge { font-size: 9px; font-weight: 800; color: #fff; background: #16a34a;
-                 border-radius: 4px; padding: 0 4px; white-space: nowrap; }
-    .card-body { padding: 3px 6px 4px; }
-    .card-client { font-size: 11px; font-weight: 700; line-height: 1.25; }
-    .card-ville { font-size: 10px; color: #6b7c9a; }
-    .card-ref { font-size: 9px; color: #6b7c9a; font-weight: 600; display: block; margin-top: 2px;
-                text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-    .empty-cell { min-height: 26px; }
-    footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
-</style>
-</head>
-<body>
->>>>>>> origin/main
->>>>>>> origin/main
 <t t-set="args" t-value="request.httprequest.args"/>
 <t t-set="cfil" t-value="int(args.get('c') or 0)"/>
 <t t-set="tnow" t-value="datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)"/>
@@ -273,7 +182,6 @@
 <t t-set="off" t-value="2 if dst_a &lt;= tnow.date() &lt; dst_b else 1"/>
 <t t-set="dtoff" t-value="datetime.timedelta(hours=off)"/>
 <t t-set="today" t-value="(tnow + dtoff).date()"/>
-<<<<<<< HEAD
 <t t-set="soc" t-value="args.get('soc') or 'protec'"/>
 <t t-set="ori" t-value="args.get('o') or 'l'"/>
 <t t-set="qori" t-value="'&amp;o=c' if ori == 'c' else ''"/>
@@ -284,14 +192,6 @@
 <t t-set="cmap" t-value="{4: '#2563eb', 5: '#eab308', 6: '#dc2626', 7: '#111827', 10: '#7c3aed', 2: '#7c3aed', 8: '#0d9488', 1: '#db2777', 9: '#ea580c'}"/>
 <t t-set="emps0" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id not in (1, 3, 8, 9) and (not soc_cid or e.company_id.id == soc_cid)]"/>
 <t t-set="emps" t-value="[e for k in sorted([(omap.get(x.id, 99), x.name, x.id) for x in emps0]) for e in emps0 if e.id == k[2]]"/>
-=======
-<<<<<<< HEAD
-<t t-set="soc" t-value="args.get('soc') or 'protec'"/>
-<t t-set="soc_cid" t-value="2 if soc == 'protec' else (1 if soc == 's3t' else 0)"/>
-<t t-set="omap" t-value="{4: 1, 5: 2, 6: 3, 7: 4, 10: 5, 2: 6, 8: 7, 9: 8, 1: 9}"/>
-<t t-set="cmap" t-value="{4: '#2563eb', 5: '#eab308', 6: '#dc2626', 7: '#111827', 10: '#7c3aed', 2: '#7c3aed', 8: '#0d9488', 1: '#db2777', 9: '#ea580c'}"/>
-<t t-set="emps0" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id != 3 and (not soc_cid or e.company_id.id == soc_cid)]"/>
-<t t-set="emps" t-value="[e for k in sorted([(omap.get(x.id, 99), x.name, x.id) for x in emps0]) for e in emps0 if e.id == k[2]]"/>
 <t t-set="cols" t-value="[e for e in emps if e.id == cfil] if cfil else emps"/>
 <t t-set="palette" t-value="['#2563eb','#16a34a','#ea580c','#9333ea','#0d9488','#db2777','#ca8a04','#4f46e5','#dc2626','#0891b2']"/>
 <t t-set="mois_abr" t-value="['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc']"/>
@@ -300,22 +200,6 @@
 
 <t t-set="active_tab" t-value="'mois'"/>
 <t t-set="cur_monday" t-value="today - datetime.timedelta(days=today.weekday())"/>
-=======
-<t t-set="cur_monday" t-value="today - datetime.timedelta(days=today.weekday())"/>
-<t t-set="emps" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id != 3]"/>
->>>>>>> origin/main
-<t t-set="cols" t-value="[e for e in emps if e.id == cfil] if cfil else emps"/>
-<t t-set="palette" t-value="['#2563eb','#16a34a','#ea580c','#9333ea','#0d9488','#db2777','#ca8a04','#4f46e5','#dc2626','#0891b2']"/>
-<t t-set="mois_abr" t-value="['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc']"/>
-<t t-set="jours_fr" t-value="['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"/>
-<t t-set="jours_long" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']"/>
-
-<<<<<<< HEAD
-<t t-set="active_tab" t-value="'mois'"/>
-<t t-set="cur_monday" t-value="today - datetime.timedelta(days=today.weekday())"/>
-=======
->>>>>>> origin/main
->>>>>>> origin/main
 <t t-set="mstr" t-value="args.get('m') or ''"/>
 <t t-set="y" t-value="int(mstr[:4]) if len(mstr) == 7 else today.year"/>
 <t t-set="mo" t-value="int(mstr[5:7]) if len(mstr) == 7 else today.month"/>
@@ -326,12 +210,7 @@
 <t t-set="weeks" t-value="[w0 + datetime.timedelta(days=7*i) for i in range(nweeks)]"/>
 <t t-set="su" t-value="datetime.datetime(w0.year, w0.month, w0.day) - dtoff"/>
 <t t-set="eu" t-value="su + datetime.timedelta(days=7*nweeks)"/>
-<<<<<<< HEAD
 <t t-set="dom" t-value="[('start_datetime','&lt;',eu),('end_datetime','&gt;',su)] + ([('employee_ids','in',[cfil])] if cfil else []) + ([('company_id','=',soc_cid)] if soc_cid else [])"/>
-=======
-<<<<<<< HEAD
-<t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',eu)] + ([('employee_ids','in',[cfil])] if cfil else []) + ([('company_id','=',soc_cid)] if soc_cid else [])"/>
->>>>>>> origin/main
 <t t-set="allslots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="somap" t-value="dict([(o.name, o) for o in request.env['sale.order'].sudo().search([('name','in',[((s.name or '').strip().split() or [''])[0] for s in allslots])])])"/>
 <t t-set="su_lv" t-value="su"/>
@@ -340,60 +219,22 @@
 
 <t t-set="qsoc" t-value="('&amp;soc=%s' % soc) if soc != 'protec' else ''"/>
 <t t-set="qcc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
-<<<<<<< HEAD
 <t t-set="qc" t-value="qsoc + qori + qnuit + qcc"/>
 <t t-set="prev_m" t-value="'%04d-%02d' % ((y-1, 12) if mo == 1 else (y, mo-1))"/>
 <t t-set="next_m" t-value="'%04d-%02d' % ((y+1, 1) if mo == 12 else (y, mo+1))"/>
 <t t-set="mois_fr" t-value="['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']"/>
 <t t-set="pageqs" t-value="'/planning-mois?m=%04d-%02d' % (y, mo)"/>
-=======
-<t t-set="qc" t-value="qsoc + qcc"/>
-<t t-set="prev_m" t-value="'%04d-%02d' % ((y-1, 12) if mo == 1 else (y, mo-1))"/>
-<t t-set="next_m" t-value="'%04d-%02d' % ((y+1, 1) if mo == 12 else (y, mo+1))"/>
-<t t-set="mois_fr" t-value="['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']"/>
-<t t-set="pageqs" t-value="'/planning-mois?m=%04d-%02d' % (y, mo)"/>
-=======
-<t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',eu)] + ([('employee_ids','in',[cfil])] if cfil else [])"/>
-<t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
-<t t-set="qc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
-<t t-set="prev_m" t-value="'%04d-%02d' % ((y-1, 12) if mo == 1 else (y, mo-1))"/>
-<t t-set="next_m" t-value="'%04d-%02d' % ((y+1, 1) if mo == 12 else (y, mo+1))"/>
->>>>>>> origin/main
->>>>>>> origin/main
 
 <header>
   <div class="hdr-top">
     <div class="logo">P</div>
     <div style="flex:1">
       <div class="hdr-title">Planning PROTEC</div>
-<<<<<<< HEAD
       <div class="hdr-sub">Vue mois — clic : détail · double-clic : nouvelle tâche</div>
-=======
-<<<<<<< HEAD
-      <div class="hdr-sub">Vue mois — cliquer une vignette pour le détail</div>
     </div>
     <div class="badge" t-out="'%s interventions' % len([s for s in allslots if first &lt;= (s.start_datetime + dtoff).date() &lt;= last])"/>
   </div>
   <div class="hdr-nav">
-    <span style="display:flex;gap:6px;">
-      <a t-att-href="pageqs + qcc" t-att-class="'soc-chip' + (' active' if soc == 'protec' else '')">PROTEC</a>
-      <a t-att-href="pageqs + '&amp;soc=s3t' + qcc" t-att-class="'soc-chip' + (' active' if soc == 's3t' else '')">S3T</a>
-      <a t-att-href="pageqs + '&amp;soc=tous' + qcc" t-att-class="'soc-chip' + (' active' if soc == 'tous' else '')">TOUS</a>
-    </span>
-
-    <a t-att-href="'/planning-jour?d=%s%s' % (today.isoformat(), qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'jour' else '')">Jour</a>
-    <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
-    <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
-
-    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo, qsoc)">
-=======
-      <div class="hdr-sub">Vue mois — bandeaux par semaine</div>
->>>>>>> origin/main
-    </div>
-    <div class="badge" t-out="'%s interventions' % len([s for s in allslots if first &lt;= (s.start_datetime + dtoff).date() &lt;= last])"/>
-  </div>
-  <div class="hdr-nav">
-<<<<<<< HEAD
     <span style="display:flex;gap:6px;">
       <a t-att-href="pageqs + qori + qnuit + qcc" t-att-class="'soc-chip' + (' active' if soc == 'protec' else '')">PROTEC</a>
       <a t-att-href="pageqs + '&amp;soc=s3t' + qori + qnuit + qcc" t-att-class="'soc-chip' + (' active' if soc == 's3t' else '')">S3T</a>
@@ -409,12 +250,6 @@
     <a href="#" id="btn-addtask" class="nav-btn" style="background:#16a34a; border-color:#16a34a;">➕ Tâche</a>
     <input id="clfilter" class="cl-input" type="search" placeholder="🔍 Client…"/>
     <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo, qsoc + qori + qnuit)">
-=======
-    <a t-att-href="'/planning-semaine?w=0%s' % qc" class="nav-btn">Semaine</a>
-    <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" class="nav-btn active">Mois</a>
-    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo)">
->>>>>>> origin/main
->>>>>>> origin/main
       <option value="0">Tous les chauffeurs</option>
       <t t-foreach="emps" t-as="e">
         <option t-att-value="e.id" t-att-selected="'selected' if cfil == e.id else None" t-out="e.name"/>
@@ -430,21 +265,9 @@
 
 <div class="content">
   <t t-foreach="weeks" t-as="wstart">
-<<<<<<< HEAD
     <t t-set="wend" t-value="wstart + datetime.timedelta(days=6)"/>
     <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(7)]"/>
     <t t-set="wslots" t-value="[s for s in allslots if (s.start_datetime + dtoff).date() &lt;= wend and ((s.end_datetime + dtoff).date() if s.end_datetime else (s.start_datetime + dtoff).date()) &gt;= wstart]"/>
-=======
-<<<<<<< HEAD
-    <t t-set="wend" t-value="wstart + datetime.timedelta(days=6)"/>
-    <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(7)]"/>
-    <t t-set="wslots" t-value="[s for s in allslots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
-=======
-    <t t-set="wend" t-value="wstart + datetime.timedelta(days=5)"/>
-    <t t-set="wdays" t-value="[wstart + datetime.timedelta(days=i) for i in range(6)]"/>
-    <t t-set="wslots" t-value="[s for s in slots if wstart &lt;= (s.start_datetime + dtoff).date() &lt;= wend]"/>
->>>>>>> origin/main
->>>>>>> origin/main
     <t t-set="wlabel" t-value="('S%s — %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, wend.day, mois_abr[wend.month-1], wend.year)) if wstart.month == wend.month else ('S%s — %s %s au %s %s %s' % (wstart.isocalendar()[1], wstart.day, mois_abr[wstart.month-1], wend.day, mois_abr[wend.month-1], wend.year))"/>
     <div class="week-band">
       <span class="wb-label" t-out="wlabel"/>
@@ -462,27 +285,11 @@
             <th class="day-col"><div class="th-inner" style="min-width:62px;padding:4px;">
               <div class="th-name" style="font-size:10px;">Jour</div></div></th>
             <t t-foreach="cols" t-as="emp">
-<<<<<<< HEAD
               <th t-att-style="'background: %s; color: #fff;' % cmap.get(emp.id, palette[emp.id % 10])">
                 <div class="th-inner"><div class="th-name" t-out="emp.name"/></div>
               </th>
             </t>
             <th t-if="not cfil" style="background: #475569;">
-=======
-<<<<<<< HEAD
-              <th t-att-style="'background: %s; color: %s;' % (cmap.get(emp.id, palette[emp.id % 10]), '#1a2e4a' if cmap.get(emp.id) == '#eab308' else '#fff')">
-                <div class="th-inner"><div class="th-name" t-out="emp.name"/></div>
-              </th>
-            </t>
-            <th t-if="not cfil" style="background: #475569;">
-=======
-              <th t-att-style="'background: %s;' % palette[emp.id % 10]">
-                <div class="th-inner"><div class="th-name" t-out="emp.name"/></div>
-              </th>
-            </t>
-            <th t-if="not cfil" style="background: #7f1d1d;">
->>>>>>> origin/main
->>>>>>> origin/main
               <div class="th-inner"><div class="th-name">Non assigné</div></div>
             </th>
           </tr>
@@ -491,61 +298,10 @@
           <t t-foreach="wdays" t-as="day">
             <tr t-att-class="'is-today' if day == today else ''">
               <td t-att-class="'day-cell' + ('' if day.month == mo else ' out-month')">
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> origin/main
                 <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
                   <div class="day-dow" t-out="jours_fr[day.weekday()]"/>
                   <div class="day-num" t-out="'%s/%s' % (day.day, day.month)"/>
                 </a>
-<<<<<<< HEAD
-=======
-              </td>
-              <t t-foreach="cols" t-as="emp">
-                <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
-                <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
-                <td t-att-class="'slot-cell' + ('' if day.month == mo else ' out-month') + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id" t-att-data-res="emp.resource_id.id">
-                  <span t-if="onleave" class="conge-chip">CONGÉS</span>
-                  <t t-set="cell" t-value="[s for s in wslots if emp.id in s.employee_ids.ids and (s.start_datetime + dtoff).date() == day]"/>
-                  <t t-if="cell"><t t-foreach="cell" t-as="s">
-<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
-<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
-<t t-set="st" t-value="s.start_datetime + dtoff"/>
-<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
-<div class="mcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-time="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M'), s.partner_id.name or '', s.partner_city or '', ((so.x_studio_interlocuteur_1 or '') if so else '')] if x])" t-att-style="'border-left-color: %s;' % color">
-  <span class="mc-time" t-out="st.strftime('%H:%M')"/>
-  <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
-  <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
-  <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
-  <div t-if="lieu or s.partner_city" style="color:#9a3412; font-weight:700;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
-</div>
-
-                  </t></t>
-                  <t t-else=""><div class="empty-cell"/></t>
-                </td>
-              </t>
-              <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
-                <t t-set="color" t-value="'#64748b'"/>
-                <t t-set="cell" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
-                <t t-if="cell"><t t-foreach="cell" t-as="s">
-<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
-<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
-<t t-set="st" t-value="s.start_datetime + dtoff"/>
-<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
-<div class="mcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-time="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M'), s.partner_id.name or '', s.partner_city or '', ((so.x_studio_interlocuteur_1 or '') if so else '')] if x])" t-att-style="'border-left-color: %s;' % color">
-  <span class="mc-time" t-out="st.strftime('%H:%M')"/>
-  <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
-  <t t-out="' ' + (s.partner_id.name or '—')[:16]"/>
-  <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
-  <div t-if="lieu or s.partner_city" style="color:#9a3412; font-weight:700;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
-</div>
-
-                </t></t>
-=======
-                <div class="day-dow" t-out="jours_fr[day.weekday()]"/>
-                <div class="day-num" t-out="'%s/%s' % (day.day, day.month)"/>
->>>>>>> origin/main
               </td>
               <t t-foreach="cols" t-as="emp">
                 <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
@@ -571,7 +327,6 @@
                   <t t-else=""><div class="empty-cell"/></t>
                 </td>
               </t>
-<<<<<<< HEAD
               <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')" t-att-data-day="day.isoformat()" data-emp="0" data-res="0">
                 <t t-set="color" t-value="'#64748b'"/>
                 <t t-set="cell" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and ((s.start_datetime + dtoff).date() == day or (s.end_datetime and (s.start_datetime + dtoff).date() &lt; day and (s.end_datetime + dtoff).date() &gt;= day and (not nuit or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime + dtoff).date() &gt; day)))]"/>
@@ -590,24 +345,6 @@
 </div>
 
                 </t></t>
-=======
-              <td t-if="not cfil" t-att-class="'slot-cell col-none' + ('' if day.month == mo else ' out-month')">
-                <t t-set="cellna" t-value="[s for s in wslots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
-                <t t-if="cellna">
-                  <t t-foreach="cellna" t-as="s">
-                    <div class="card" style="border-left-color: #ef4444;">
-                      <div class="card-head" style="background:#fee2e2;">
-                        <span class="card-time" style="color:#ef4444;" t-out="(s.start_datetime + dtoff).strftime('%H:%M')"/>
-                      </div>
-                      <div class="card-body">
-                        <div class="card-client" t-out="s.partner_id.name or '—'"/>
-                        <div t-if="s.partner_city" class="card-ville" t-out="'📍 ' + s.partner_city"/>
-                      </div>
-                    </div>
-                  </t>
-                </t>
->>>>>>> origin/main
->>>>>>> origin/main
                 <t t-else=""><div class="empty-cell"/></t>
               </td>
             </tr>
@@ -706,7 +443,6 @@
     </div>
   </t>
 </div>
-<<<<<<< HEAD
 <footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
 
 <div id="ro-banner">🔒 Lecture seule — connectez-vous à Odoo dans ce navigateur pour déplacer les interventions</div>
@@ -1023,158 +759,6 @@ fetch('/web/session/get_session_info', { method: 'POST',
 }).catch(function () {});
 </script>
 
-=======
-<<<<<<< HEAD
-<footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
-
-<div id="ro-banner">🔒 Lecture seule — connectez-vous à Odoo dans ce navigateur pour déplacer les interventions</div>
-<div class="modal-bg" id="pmodal">
-  <div class="modal">
-    <div class="modal-head">
-      <span class="modal-title" id="pm-client"/>
-      <button class="modal-close" onclick="document.getElementById('pmodal').classList.remove('open')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="mrow"><span class="mlbl">Horaire : </span><span id="pm-time"/> <span id="pm-fdt" class="fdt-badge" style="display:none;">✓ FDT</span></div>
-      <div class="mrow" id="pm-r-lieu" style="font-size:14px;"><span class="mlbl">📍 Lieu d'intervention : </span><b id="pm-lieu" style="color:#9a3412;"/></div>
-      <div class="mrow"><span class="mlbl">Adresse client : </span><span id="pm-adresse"/></div>
-      <div class="mrow" id="pm-r-inter"><span class="mlbl">Interlocuteur : </span><span id="pm-inter"/></div>
-      <div class="mrow" id="pm-r-tel"><span class="mlbl">Téléphone : </span><a id="pm-tel" href="#"/></div>
-      <div class="mrow" id="pm-r-objet"><span class="mlbl">Objet : </span><span id="pm-objet"/></div>
-      <div class="mrow"><span class="mlbl">Réf : </span><span id="pm-ref"/></div>
-    </div>
-    <div class="modal-actions">
-      <a id="pm-so" href="#" target="_blank">Ouvrir le bon de commande</a>
-    </div>
-  </div>
-</div>
-<script>
-document.addEventListener('click', function (e) {
-  if (e.target.closest) { if (e.target.closest('a')) { return; } }
-  var c = e.target.closest ? e.target.closest('.mcard, .card, .dcard') : null;
-  if (!c) { return; }
-  if (!c.dataset.client) { return; }
-  var ds = c.dataset;
-  function setrow(rowId, spanId, val) {
-    var row = document.getElementById(rowId);
-    if (val) { row.style.display = ''; document.getElementById(spanId).textContent = val; }
-    else { row.style.display = 'none'; }
-  }
-  document.getElementById('pm-client').textContent = ds.client;
-  document.getElementById('pm-time').textContent = ds.time;
-  document.getElementById('pm-adresse').textContent = ds.adresse || '—';
-  setrow('pm-r-inter', 'pm-inter', ds.inter);
-  setrow('pm-r-lieu', 'pm-lieu', ds.lieu);
-  setrow('pm-r-objet', 'pm-objet', ds.objet);
-  var telRow = document.getElementById('pm-r-tel');
-  if (ds.tel) {
-    telRow.style.display = '';
-    var a = document.getElementById('pm-tel');
-    a.textContent = ds.tel; a.href = 'tel:' + ds.tel.replace(/ /g, '');
-  } else { telRow.style.display = 'none'; }
-  document.getElementById('pm-ref').textContent = ds.ref || '—';
-  document.getElementById('pm-fdt').style.display = ds.fdt ? '' : 'none';
-  var so = document.getElementById('pm-so');
-  if (ds.so) { so.style.display = ''; so.href = ds.so; } else { so.style.display = 'none'; }
-  document.getElementById('pmodal').classList.add('open');
-});
-document.getElementById('pmodal').addEventListener('click', function (e) {
-  if (e.target.id === 'pmodal') { e.target.classList.remove('open'); }
-});
-</script>
-
-<script>
-var pdrag = null;
-function pad2(n) { return ('0' + n).slice(-2); }
-function shiftUTC(str, days) {
-  var d = new Date(str.replace(' ', 'T') + 'Z');
-  d = new Date(d.getTime() + days * 86400000);
-  return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate())
-    + ' ' + pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds());
-}
-function dropTarget(e) {
-  var el = e.target;
-  while (el) {
-    if (el.dataset) { if (el.dataset.day !== undefined) { if (el.dataset.emp !== undefined) { return el; } } }
-    el = el.parentElement;
-  }
-  return null;
-}
-document.addEventListener('dragstart', function (e) {
-  var c = e.target.closest ? e.target.closest('[draggable]') : null;
-  if (!c) { return; }
-  var td = dropTarget(e);
-  if (!td) { return; }
-  if (e.dataTransfer) {
-    e.dataTransfer.setData('text/plain', c.dataset.id || 'x');
-    e.dataTransfer.effectAllowed = 'move';
-  }
-  pdrag = { id: parseInt(c.dataset.id), start: c.dataset.start, end: c.dataset.end,
-            day: td.dataset.day, emp: parseInt(td.dataset.emp), res: parseInt(td.dataset.res || 0) };
-  c.classList.add('dragging');
-});
-document.addEventListener('dragend', function () {
-  document.querySelectorAll('.dragging').forEach(function (el) { el.classList.remove('dragging'); });
-  document.querySelectorAll('.drop-ok').forEach(function (el) { el.classList.remove('drop-ok'); });
-});
-document.addEventListener('dragover', function (e) {
-  var td = dropTarget(e);
-  if (td) { if (pdrag) {
-    e.preventDefault();
-    if (e.dataTransfer) { e.dataTransfer.dropEffect = 'move'; }
-    td.classList.add('drop-ok');
-  } }
-});
-document.addEventListener('dragleave', function (e) {
-  var td = dropTarget(e);
-  if (td) { td.classList.remove('drop-ok'); }
-});
-document.addEventListener('drop', function (e) {
-  var td = dropTarget(e);
-  if (!td) { return; }
-  if (!pdrag) { return; }
-  e.preventDefault();
-  td.classList.remove('drop-ok');
-  var dayDelta = Math.round((new Date(td.dataset.day) - new Date(pdrag.day)) / 86400000);
-  var newEmp = parseInt(td.dataset.emp);
-  var newRes = parseInt(td.dataset.res || 0);
-  var vals = {};
-  if (dayDelta !== 0) {
-    vals.start_datetime = shiftUTC(pdrag.start, dayDelta);
-    if (pdrag.end) { vals.end_datetime = shiftUTC(pdrag.end, dayDelta); }
-  }
-  if (newEmp !== pdrag.emp) {
-    if (newRes) { vals.resource_ids = [[6, 0, [newRes]]]; } else { vals.resource_ids = [[5]]; }
-  }
-  if (Object.keys(vals).length === 0) { pdrag = null; return; }
-  fetch('/web/dataset/call_kw/planning.slot/write', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ jsonrpc: '2.0', method: 'call',
-      params: { model: 'planning.slot', method: 'write',
-                args: [[pdrag.id], vals], kwargs: {} } })
-  }).then(function (r) { return r.json(); }).then(function (d) {
-    if (d.error) {
-      alert('Modification refusée — connectez-vous à Odoo dans cet onglet pour déplacer les interventions.');
-    } else { location.reload(); }
-  }).catch(function () { alert('Erreur réseau'); });
-  pdrag = null;
-});
-fetch('/web/session/get_session_info', { method: 'POST',
-  headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-  body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} })
-}).then(function (r) { return r.json(); }).then(function (d) {
-  var u = d.result ? d.result.uid : null;
-  if (!u) { var b = document.getElementById('ro-banner'); if (b) { b.style.display = 'block'; } }
-}).catch(function () {});
-</script>
-
-=======
-
-<footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
->>>>>>> origin/main
->>>>>>> origin/main
 </body>
 </html>
 </t>
