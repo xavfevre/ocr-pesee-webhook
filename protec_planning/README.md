@@ -3,7 +3,21 @@
 Application Flask lisant/écrivant le module **Planning** d'Odoo v19 SaaS
 (`planning.slot`) via XML-RPC. Aucun compte Odoo nécessaire pour les chauffeurs.
 
-## Pages
+## Plannings bureau = pages du site Odoo (comme Maquignon)
+
+Les vues **semaine** et **mois** du bureau sont des pages QWeb publiées sur le
+site `protec-s3t.odoo.com` (copies des vues dans `odoo-views/`) :
+
+| Page Odoo | Vue | Usage |
+|---|---|---|
+| `/planning-semaine?w=<offset>&c=<chauffeur>` | id 4162, clé `website.planning_protec_semaine` | Grille jours × chauffeurs, filtre chauffeur |
+| `/planning-mois?m=YYYY-MM&c=<chauffeur>` | id 4163, clé `website.planning_protec_mois` | Bandeaux d'entête par semaine |
+
+Particularité QWeb v19 SaaS : `dateutil.tz` et `pytz` indisponibles dans le
+rendu — le décalage Europe/Paris est calculé dans le template (heure d'été
+française = dernier dimanche de mars → dernier dimanche d'octobre).
+
+## Pages de l'app Render (chauffeurs)
 
 | Route | Usage |
 |---|---|
