@@ -37,7 +37,31 @@
     .bc-link:hover { background: #3a5a99; color: #fff; }
     footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
     .drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
-    .card.dragging, .dcard.dragging { opacity: .4; }
+    .card.dragging, .dcard.dragging, .mcard.dragging { opacity: .4; }
+    .cell-conge { background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 6px, #fff3f3 6px, #fff3f3 12px) !important; }
+    .conge-chip { display: inline-block; font-size: 9px; font-weight: 900; color: #b91c1c;
+                  border: 1px solid #fca5a5; border-radius: 4px; padding: 0 4px; background: #fff;
+                  margin-bottom: 3px; }
+    #ro-banner { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
+                 background: #1a2e4a; color: #fff; text-align: center; font-size: 12px;
+                 font-weight: 600; padding: 7px; }
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,25,50,.55);
+                z-index: 500; align-items: center; justify-content: center; padding: 16px; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 14px; max-width: 430px; width: 100%;
+             box-shadow: 0 10px 40px rgba(0,0,0,.35); overflow: hidden; }
+    .modal-head { background: #3a5a99; color: #fff; padding: 12px 16px; display: flex;
+                  justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 15px; font-weight: 800; }
+    .modal-close { background: none; border: none; color: #fff; font-size: 22px;
+                   cursor: pointer; line-height: 1; }
+    .modal-body { padding: 14px 16px; font-size: 13px; }
+    .modal-body .mrow { margin-bottom: 7px; line-height: 1.4; }
+    .modal-body .mlbl { font-weight: 800; color: #3a5a99; }
+    .modal-actions { padding: 0 16px 16px; display: flex; gap: 8px; }
+    .modal-actions a { flex: 1; text-align: center; background: #3a5a99; color: #fff;
+                       font-weight: 800; font-size: 13px; border-radius: 9px; padding: 10px;
+                       text-decoration: none; }
 
     .day-wrap { overflow-x: auto; padding: 12px; }
     .day-board { display: flex; min-width: max-content; }
@@ -90,6 +114,9 @@
 <t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',su + datetime.timedelta(days=1))] + ([('employee_ids','in',[cfil])] if cfil else [])"/>
 <t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="somap" t-value="dict([(o.name, o) for o in request.env['sale.order'].sudo().search([('name','in',[((s.name or '').strip().split() or [''])[0] for s in slots])])])"/>
+<t t-set="su_lv" t-value="su"/>
+<t t-set="eu_lv" t-value="su + datetime.timedelta(days=1)"/>
+<t t-set="leaves" t-value="request.env['resource.calendar.leaves'].sudo().search([('resource_id','!=',False),('date_from','&lt;',eu_lv),('date_to','&gt;',su_lv)])"/>
 <t t-set="qc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
 <t t-set="dlabel" t-value="'%s %s %s %s' % (jours_long[d.weekday()], d.day, mois_abr[d.month-1], d.year)"/>
 
@@ -136,12 +163,13 @@
       <t t-set="col_emp" t-value="emp.id"/>
       <t t-set="colslots" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
 
+<t t-set="onleave" t-value="[l for l in leaves if col_emp and l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= d and (l.date_to + dtoff).date() &gt;= d]"/>
 <div class="day-col">
-  <div class="day-col-head" t-att-style="'background: %s;' % color">
-    <div class="dc-name" t-out="col_name"/>
+  <div class="day-col-head" t-att-style="'background: %s;' % ('#b91c1c' if onleave else color)">
+    <div class="dc-name" t-out="col_name + (' — CONGÉS' if onleave else '')"/>
     <div class="dc-count" t-out="('%s interv.' % len(colslots)) if colslots else '—'"/>
   </div>
-  <div class="day-col-body" style="height: 672px;" t-att-data-day="d.isoformat()" t-att-data-emp="col_emp">
+  <div t-att-class="'day-col-body' + (' cell-conge' if onleave else '')" style="height: 672px;" t-att-data-day="d.isoformat()" t-att-data-emp="col_emp">
     <t t-foreach="range(5, 20)" t-as="h">
       <div t-att-class="'hline full'" t-att-style="'top: %spx;' % ((h-5)*48)"/>
     </t>
@@ -153,7 +181,7 @@
 <t t-set="m0" t-value="max(0, st.hour*60 + st.minute - 300)"/>
 <t t-set="m1" t-value="min(840, (en.hour*60 + en.minute) if en.date() == st.date() else 840)"/>
 <t t-set="durm" t-value="max(30, m1 - m0)"/>
-<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
+<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M'), s.partner_id.name or '', ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Lieu: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')"/>
     <span style="display:flex; gap:3px;">
@@ -200,7 +228,7 @@
 <t t-set="m0" t-value="max(0, st.hour*60 + st.minute - 300)"/>
 <t t-set="m1" t-value="min(840, (en.hour*60 + en.minute) if en.date() == st.date() else 840)"/>
 <t t-set="durm" t-value="max(30, m1 - m0)"/>
-<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
+<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M'), s.partner_id.name or '', ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Lieu: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
   <div class="card-head">
     <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + en.strftime('%H:%M')"/>
     <span style="display:flex; gap:3px;">
@@ -228,6 +256,62 @@
 </div>
 <footer class="pl">PROTEC S3T — Planning chauffeurs</footer>
 
+<div id="ro-banner">🔒 Lecture seule — connectez-vous à Odoo dans ce navigateur pour déplacer les interventions</div>
+<div class="modal-bg" id="pmodal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="pm-client"/>
+      <button class="modal-close" onclick="document.getElementById('pmodal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="mrow"><span class="mlbl">Horaire : </span><span id="pm-time"/> <span id="pm-fdt" class="fdt-badge" style="display:none;">✓ FDT</span></div>
+      <div class="mrow"><span class="mlbl">Adresse : </span><span id="pm-adresse"/></div>
+      <div class="mrow" id="pm-r-inter"><span class="mlbl">Interlocuteur : </span><span id="pm-inter"/></div>
+      <div class="mrow" id="pm-r-tel"><span class="mlbl">Téléphone : </span><a id="pm-tel" href="#"/></div>
+      <div class="mrow" id="pm-r-lieu"><span class="mlbl">Lieu d'intervention : </span><span id="pm-lieu"/></div>
+      <div class="mrow" id="pm-r-objet"><span class="mlbl">Objet : </span><span id="pm-objet"/></div>
+      <div class="mrow"><span class="mlbl">Réf : </span><span id="pm-ref"/></div>
+    </div>
+    <div class="modal-actions">
+      <a id="pm-so" href="#" target="_blank">Ouvrir le bon de commande</a>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('click', function (e) {
+  if (e.target.closest) { if (e.target.closest('a')) { return; } }
+  var c = e.target.closest ? e.target.closest('.mcard, .card, .dcard') : null;
+  if (!c) { return; }
+  if (!c.dataset.client) { return; }
+  var ds = c.dataset;
+  function setrow(rowId, spanId, val) {
+    var row = document.getElementById(rowId);
+    if (val) { row.style.display = ''; document.getElementById(spanId).textContent = val; }
+    else { row.style.display = 'none'; }
+  }
+  document.getElementById('pm-client').textContent = ds.client;
+  document.getElementById('pm-time').textContent = ds.time;
+  document.getElementById('pm-adresse').textContent = ds.adresse || '—';
+  setrow('pm-r-inter', 'pm-inter', ds.inter);
+  setrow('pm-r-lieu', 'pm-lieu', ds.lieu);
+  setrow('pm-r-objet', 'pm-objet', ds.objet);
+  var telRow = document.getElementById('pm-r-tel');
+  if (ds.tel) {
+    telRow.style.display = '';
+    var a = document.getElementById('pm-tel');
+    a.textContent = ds.tel; a.href = 'tel:' + ds.tel.replace(/ /g, '');
+  } else { telRow.style.display = 'none'; }
+  document.getElementById('pm-ref').textContent = ds.ref || '—';
+  document.getElementById('pm-fdt').style.display = ds.fdt ? '' : 'none';
+  var so = document.getElementById('pm-so');
+  if (ds.so) { so.style.display = ''; so.href = ds.so; } else { so.style.display = 'none'; }
+  document.getElementById('pmodal').classList.add('open');
+});
+document.getElementById('pmodal').addEventListener('click', function (e) {
+  if (e.target.id === 'pmodal') { e.target.classList.remove('open'); }
+});
+</script>
+
 <script>
 var pdrag = null;
 function pad2(n) { return ('0' + n).slice(-2); }
@@ -250,6 +334,10 @@ document.addEventListener('dragstart', function (e) {
   if (!c) { return; }
   var td = dropTarget(e);
   if (!td) { return; }
+  if (e.dataTransfer) {
+    e.dataTransfer.setData('text/plain', c.dataset.id || 'x');
+    e.dataTransfer.effectAllowed = 'move';
+  }
   pdrag = { id: parseInt(c.dataset.id), start: c.dataset.start, end: c.dataset.end,
             day: td.dataset.day, emp: parseInt(td.dataset.emp) };
   c.classList.add('dragging');
@@ -260,7 +348,11 @@ document.addEventListener('dragend', function () {
 });
 document.addEventListener('dragover', function (e) {
   var td = dropTarget(e);
-  if (td) { if (pdrag) { e.preventDefault(); td.classList.add('drop-ok'); } }
+  if (td) { if (pdrag) {
+    e.preventDefault();
+    if (e.dataTransfer) { e.dataTransfer.dropEffect = 'move'; }
+    td.classList.add('drop-ok');
+  } }
 });
 document.addEventListener('dragleave', function (e) {
   var td = dropTarget(e);
@@ -297,6 +389,13 @@ document.addEventListener('drop', function (e) {
   }).catch(function () { alert('Erreur réseau'); });
   pdrag = null;
 });
+fetch('/web/session/get_session_info', { method: 'POST',
+  headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+  body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} })
+}).then(function (r) { return r.json(); }).then(function (d) {
+  var u = d.result ? d.result.uid : null;
+  if (!u) { var b = document.getElementById('ro-banner'); if (b) { b.style.display = 'block'; } }
+}).catch(function () {});
 </script>
 
 </body>
