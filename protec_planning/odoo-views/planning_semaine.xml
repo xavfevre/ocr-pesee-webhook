@@ -55,6 +55,7 @@
     th.day-th.is-today { background: #f59e0b; }
     .day-dow2 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #fff; }
     .day-num2 { font-size: 15px; font-weight: 900; line-height: 1.1; color: #fff; }
+    .day-hours { font-size: 10px; font-weight: 700; opacity: .85; color: #fff; margin-top: 1px; }
     td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
                   border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
                   vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
@@ -225,8 +226,10 @@
           <th t-att-style="'background: %s; color: %s;' % (cmap.get(emp.id, palette[emp.id % 10]), '#1a2e4a' if cmap.get(emp.id) == '#eab308' else '#fff')">
             <div class="th-inner">
               <div class="th-name" t-out="emp.name"/>
-              <t t-set="nb" t-value="len([s for s in slots if emp.id in s.employee_ids.ids])"/>
-              <div class="th-count" t-out="('%s interv.' % nb) if nb else '—'"/>
+              <t t-set="csl" t-value="[s for s in slots if emp.id in s.employee_ids.ids]"/>
+              <t t-set="nb" t-value="len(csl)"/>
+              <t t-set="cmin" t-value="sum([int((s.end_datetime - s.start_datetime).total_seconds() // 60) for s in csl if s.end_datetime])"/>
+              <div class="th-count" t-out="('%s interv. · %s' % (nb, (('%sh%02d' % (cmin // 60, cmin % 60)) if cmin % 60 else ('%sh' % (cmin // 60))))) if nb else '—'"/>
             </div>
           </th>
         </t>
@@ -244,6 +247,8 @@
             <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
               <div class="day-dow" t-out="jours_fr[day.weekday()]"/>
               <div class="day-num" t-out="'%s/%s' % (day.day, day.month)"/>
+              <t t-set="dmin" t-value="sum([int((min(s.end_datetime + dtoff, datetime.datetime(day.year, day.month, day.day) + datetime.timedelta(days=1)) - max(s.start_datetime + dtoff, datetime.datetime(day.year, day.month, day.day))).total_seconds() // 60) for s in slots if s.end_datetime and (s.start_datetime + dtoff).date() &lt;= day and (s.end_datetime + dtoff).date() &gt;= day])"/>
+              <div style="font-size:10px; font-weight:700; color:#6b7c9a;" t-out="((('%sh%02d' % (dmin // 60, dmin % 60)) if dmin % 60 else ('%sh' % (dmin // 60)))) if dmin else ''"/>
             </a>
           </td>
           <t t-foreach="cols" t-as="emp">
@@ -334,6 +339,8 @@
               <a t-att-href="'/planning-jour?d=%s%s' % (day.isoformat(), qc)" style="text-decoration:none;">
                 <div class="day-dow2" t-out="jours_fr[day.weekday()]"/>
                 <div class="day-num2" t-out="'%s/%s' % (day.day, day.month)"/>
+                <t t-set="dmin" t-value="sum([int((min(s.end_datetime + dtoff, datetime.datetime(day.year, day.month, day.day) + datetime.timedelta(days=1)) - max(s.start_datetime + dtoff, datetime.datetime(day.year, day.month, day.day))).total_seconds() // 60) for s in slots if s.end_datetime and (s.start_datetime + dtoff).date() &lt;= day and (s.end_datetime + dtoff).date() &gt;= day])"/>
+                <div class="day-hours" t-out="((('%sh%02d' % (dmin // 60, dmin % 60)) if dmin % 60 else ('%sh' % (dmin // 60)))) if dmin else ''"/>
               </a>
             </div>
           </th>
@@ -347,7 +354,8 @@
         <tr>
           <td class="emp-cell" t-att-style="'background: %s; color: %s;' % (color, '#1a2e4a' if color == '#eab308' else '#fff')">
             <div class="emp-name" t-out="emp.name"/>
-            <div class="emp-count" t-out="('%s interv.' % len(empslots)) if empslots else '—'"/>
+            <t t-set="emin" t-value="sum([int((s.end_datetime - s.start_datetime).total_seconds() // 60) for s in empslots if s.end_datetime])"/>
+            <div class="emp-count" t-out="('%s interv. · %s' % (len(empslots), (('%sh%02d' % (emin // 60, emin % 60)) if emin % 60 else ('%sh' % (emin // 60))))) if empslots else '—'"/>
           </td>
           <t t-foreach="days" t-as="day">
             <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>

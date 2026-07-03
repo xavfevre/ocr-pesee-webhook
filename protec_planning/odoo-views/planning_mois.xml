@@ -55,6 +55,7 @@
     th.day-th.is-today { background: #f59e0b; }
     .day-dow2 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #fff; }
     .day-num2 { font-size: 15px; font-weight: 900; line-height: 1.1; color: #fff; }
+    .day-hours { font-size: 10px; font-weight: 700; opacity: .85; color: #fff; margin-top: 1px; }
     td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
                   border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
                   vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
@@ -260,7 +261,8 @@
     <div class="week-band">
       <span class="wb-label" t-out="wlabel"/>
       <span class="wb-right">
-        <span class="wb-count" t-out="'%s interv.' % len(wslots)"/>
+        <t t-set="wmin" t-value="sum([int((s.end_datetime - s.start_datetime).total_seconds() // 60) for s in wslots if s.end_datetime])"/>
+        <span class="wb-count" t-out="'%s interv. · %s' % (len(wslots), (('%sh%02d' % (wmin // 60, wmin % 60)) if wmin % 60 else ('%sh' % (wmin // 60))))"/>
         <a t-att-href="'/planning-semaine?w=%s%s' % ((wstart - cur_monday).days // 7, qc)">Ouvrir la semaine</a>
       </span>
     </div>

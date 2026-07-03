@@ -55,6 +55,7 @@
     th.day-th.is-today { background: #f59e0b; }
     .day-dow2 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #fff; }
     .day-num2 { font-size: 15px; font-weight: 900; line-height: 1.1; color: #fff; }
+    .day-hours { font-size: 10px; font-weight: 700; opacity: .85; color: #fff; margin-top: 1px; }
     td.emp-cell { position: sticky; left: 0; z-index: 50; background: #fff;
                   border-right: 2px solid #dce3ef; border-bottom: 1px solid #dce3ef;
                   vertical-align: top; padding: 8px; min-width: 130px; max-width: 150px; }
@@ -219,7 +220,8 @@
 <div class="day-col">
   <div class="day-col-head" t-att-style="'background: %s; color: %s;' % (('#b91c1c' if onleave else color), '#1a2e4a' if (color == '#eab308' and not onleave) else '#fff')">
     <div class="dc-name" t-out="col_name + (' — CONGÉS' if onleave else '')"/>
-    <div class="dc-count" t-out="('%s interv.' % len(colslots)) if colslots else '—'"/>
+    <t t-set="dcmin" t-value="sum([int((s.end_datetime - s.start_datetime).total_seconds() // 60) for s in colslots if s.end_datetime])"/>
+    <div class="dc-count" t-out="('%s interv. · %s' % (len(colslots), (('%sh%02d' % (dcmin // 60, dcmin % 60)) if dcmin % 60 else ('%sh' % (dcmin // 60))))) if colslots else '—'"/>
   </div>
   <div t-att-class="'day-col-body' + (' cell-conge' if onleave else '')" style="height: 672px;" t-att-data-day="d.isoformat()" t-att-data-emp="col_emp" t-att-data-res="col_res">
     <t t-foreach="range(5, 20)" t-as="h">
