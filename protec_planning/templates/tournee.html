@@ -101,7 +101,7 @@
       </div>
       <div class="m-actions">
         <a class="btn-fiche {% if c.fdt %}done{% endif %}"
-           href="/fiche/{{ c.id }}?t={{ c.token }}&back={{ ('/ma-tournee?c=' ~ emp_id ~ '&s=' ~ sig) | urlencode }}">
+           href="{{ BASE }}/fiche/{{ c.id }}?t={{ c.token }}&back={{ (BASE ~ '/ma-tournee?c=' ~ emp_id ~ '&s=' ~ sig) | urlencode }}">
           {% if c.fdt %}✓ Fiche remplie — voir / modifier{% else %}📝 Fiche de fin de travaux{% endif %}
         </a>
       </div>

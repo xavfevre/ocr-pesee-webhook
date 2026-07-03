@@ -7,12 +7,12 @@ Application Flask lisant/écrivant le module **Planning** d'Odoo v19 SaaS
 
 | Route | Usage |
 |---|---|
-| `/` | Planning **semaine** (bureau) — grille jours × chauffeurs, filtre par chauffeur |
-| `/mois?m=YYYY-MM` | Planning **mois** — bandeaux d'entête par semaine, filtre par chauffeur |
-| `/ma-tournee?c=<id>&s=<sig>` | Page **mobile chauffeur** (lien signé HMAC, navigation jour par jour) |
-| `/fiche/<slot_id>?t=<token>` | **Fiche de fin de travaux** (formulaire mobile, modèle PROTEC) |
-| `/liens?token=<PLANNING_SECRET>` | Page **admin** : liens signés de chaque chauffeur (copie / WhatsApp) |
-| `/health` | Healthcheck |
+| `/protec/` | Planning **semaine** (bureau) — grille jours × chauffeurs, filtre par chauffeur |
+| `/protec/mois?m=YYYY-MM` | Planning **mois** — bandeaux d'entête par semaine, filtre par chauffeur |
+| `/protec/ma-tournee?c=<id>&s=<sig>` | Page **mobile chauffeur** (lien signé HMAC, navigation jour par jour) |
+| `/protec/fiche/<slot_id>?t=<token>` | **Fiche de fin de travaux** (formulaire mobile, modèle PROTEC) |
+| `/protec/liens?token=<PROTEC_PLANNING_SECRET>` | Page **admin** : liens signés de chaque chauffeur (copie / WhatsApp) |
+| `/protec/health` | Healthcheck |
 
 ## Fiche de fin de travaux
 
@@ -35,23 +35,21 @@ chatter du créneau. Badge « ✓ FDT » visible sur les plannings bureau.
 
 ## Déploiement Render
 
-Nouveau Web Service sur ce dépôt, **Root Directory = `protec-planning`**.
+Le module est monté sous `/protec` dans le service Render existant (`ocr-pesee-webhook`) — aucun service séparé à créer. Ajouter simplement les variables d'environnement ci-dessous au service existant.
 
 Variables d'environnement :
 
 | Var | Valeur |
 |---|---|
-| `ODOO_URL` | `https://protec-s3t.odoo.com` |
-| `ODOO_DB` | `protec-s3t` |
-| `ODOO_USER` | login du compte technique |
-| `ODOO_PASSWORD` | mot de passe / clé API |
-| `PLANNING_SECRET` | secret HMAC (chaîne aléatoire ≥ 20 caractères) |
+| `PROTEC_ODOO_USER` | login du compte technique Odoo |
+| `PROTEC_ODOO_PASSWORD` | mot de passe / clé API |
+| `PROTEC_PLANNING_SECRET` | secret HMAC (chaîne aléatoire ≥ 20 caractères) |
 
-Build : `pip install -r requirements.txt` — Start : `gunicorn app:app --workers 2 --timeout 30`
+(`PROTEC_ODOO_URL` et `PROTEC_ODOO_DB` sont facultatives — valeurs protec-s3t par défaut.)
 
 ## Distribution des liens chauffeurs
 
-1. Ouvrir `/liens?token=<PLANNING_SECRET>`
+1. Ouvrir `/protec/liens?token=<PROTEC_PLANNING_SECRET>`
 2. Copier ou envoyer par WhatsApp le lien de chaque chauffeur
 3. Le chauffeur le met en favori — rien à redéployer pour un nouveau chauffeur,
    son lien apparaît automatiquement sur la page.

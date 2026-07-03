@@ -78,7 +78,7 @@
 {% if ok %}<div class="okbar">✓ Fiche enregistrée — transmise au bureau</div>
 {% elif deja_fait %}<div class="donebar">Fiche déjà remplie — vous pouvez la modifier</div>{% endif %}
 
-<form method="POST" action="/fiche/{{ slot_id }}?t={{ token }}{% if back %}&back={{ back | urlencode }}{% endif %}">
+<form method="POST" action="{{ BASE }}/fiche/{{ slot_id }}?t={{ token }}{% if back %}&back={{ back | urlencode }}{% endif %}">
 <div class="wrap">
 
   <div class="box">
