@@ -1,0 +1,26 @@
+{# Macros communes planning (cartes + entête) #}
+{% macro slot_card(card, color) %}
+<div class="card" style="border-left-color: {{ color }};">
+  <div class="card-head">
+    <span class="card-time">{{ card.start }}{% if card.end %} → {{ card.end }}{% endif %}</span>
+    {% if card.fdt %}<span class="fdt-badge" title="Fiche de fin de travaux remplie">✓ FDT</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <div class="card-client">{{ card.client }}</div>
+    {% if card.ville %}<div class="card-ville">📍 {{ card.ville }}</div>{% endif %}
+    <div class="card-foot">
+      {% if card.ref %}<span class="card-ref">{{ card.ref[:24] }}</span>{% endif %}
+      <a class="card-fiche" href="/fiche/{{ card.id }}?t={{ card.token }}">fiche</a>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro driver_filter(drivers, emp_filter, base_url, extra_qs) %}
+<select class="drv-select" onchange="location.href='{{ base_url }}?{{ extra_qs }}' + (this.value != '0' ? '&c=' + this.value : '')">
+  <option value="0">Tous les chauffeurs</option>
+  {% for d in drivers %}
+  <option value="{{ d.id }}" {% if emp_filter == d.id %}selected{% endif %}>{{ d.name }}</option>
+  {% endfor %}
+</select>
+{% endmacro %}

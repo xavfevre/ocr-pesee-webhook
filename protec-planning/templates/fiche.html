@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fiche de fin de travaux — {{ card.client }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --cy: #33CCCC; --cy-dk: #1fa8a8; --cy-lt: #e0f7f7; --bg: #f0f4f8;
+            --border: #cbd5e1; --text: #1a2e4a; --muted: #64748b;
+            --orange: #f59e0b; --green: #16a34a; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: var(--bg); color: var(--text); padding-bottom: 90px; }
+    header { background: var(--cy); color: #fff; padding: 14px 16px; text-align: center; }
+    .h-co { font-size: 12px; font-weight: 700; opacity: .9; }
+    .h-title { font-size: 18px; font-weight: 900; letter-spacing: .5px; }
+    .okbar { background: var(--green); color: #fff; text-align: center;
+             font-weight: 800; font-size: 14px; padding: 9px; }
+    .donebar { background: var(--cy-lt); color: var(--cy-dk); text-align: center;
+               font-weight: 700; font-size: 13px; padding: 7px; }
+    .wrap { padding: 12px; max-width: 720px; margin: 0 auto; }
+
+    .box { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+           margin-bottom: 12px; overflow: hidden; }
+    .box-title { background: var(--cy); color: #fff; font-size: 14px; font-weight: 900;
+                 padding: 8px 12px; text-transform: uppercase; letter-spacing: .4px; }
+    .box-body { padding: 12px; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .fld label { display: block; font-size: 12px; font-weight: 800; color: var(--cy-dk);
+                 margin-bottom: 3px; }
+    .fld input, .fld textarea {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 9px 10px; font-size: 15px; font-family: inherit; color: var(--text); }
+    .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--cy); }
+    .fld .ro { background: var(--cy-lt); border: none; border-radius: 8px;
+               padding: 9px 10px; font-size: 14px; font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { background: var(--cy-lt); color: var(--cy-dk); font-size: 11px; text-transform: uppercase;
+         padding: 6px 4px; border-bottom: 2px solid var(--cy); text-align: center; }
+    th:first-child { text-align: left; padding-left: 8px; }
+    td { border-bottom: 1px solid #eef2f7; padding: 5px 3px; font-size: 13px; vertical-align: middle; }
+    td.lbl { font-weight: 700; padding-left: 8px; line-height: 1.2; }
+    td.unit { text-align: center; color: var(--muted); font-weight: 700; font-size: 12px; }
+    td input[type=text], td input[type=number] {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 6px;
+      padding: 7px 6px; font-size: 15px; text-align: center; }
+    td input:focus { outline: none; border-color: var(--cy); }
+    td.ck { text-align: center; }
+    td.ck input { width: 22px; height: 22px; accent-color: var(--cy-dk); }
+    .col-q { width: 21%; } .col-u { width: 11%; } .col-t { width: 21%; }
+    .dech-scroll { overflow-x: auto; }
+    .dech-scroll table { min-width: 560px; }
+
+    textarea { min-height: 110px; resize: vertical; }
+
+    .savebar { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 12px;
+               background: rgba(255,255,255,.95); border-top: 2px solid var(--border);
+               display: flex; gap: 10px; max-width: 720px; margin: 0 auto; }
+    .btn-save { flex: 1; background: var(--cy); color: #fff; border: none;
+                font-size: 17px; font-weight: 900; border-radius: 12px; padding: 14px;
+                cursor: pointer; letter-spacing: .3px; }
+    .btn-save:active { background: var(--cy-dk); }
+    .btn-back { background: #fff; color: var(--text); border: 1.5px solid var(--border);
+                font-size: 15px; font-weight: 700; border-radius: 12px; padding: 14px 16px;
+                text-decoration: none; display: flex; align-items: center; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="h-co">PROTEC « Pôle Assainissement »</div>
+  <div class="h-title">FICHE DE FIN DE TRAVAUX</div>
+</header>
+
+{% if ok %}<div class="okbar">✓ Fiche enregistrée — transmise au bureau</div>
+{% elif deja_fait %}<div class="donebar">Fiche déjà remplie — vous pouvez la modifier</div>{% endif %}
+
+<form method="POST" action="/fiche/{{ slot_id }}?t={{ token }}{% if back %}&back={{ back | urlencode }}{% endif %}">
+<div class="wrap">
+
+  <div class="box">
+    <div class="box-body">
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="fld"><label>Date</label><div class="ro">{{ date_label }}</div></div>
+        <div class="fld"><label>Immatriculation véhicule</label>
+          <input type="text" name="vehicule" value="{{ prefill.vehicule }}" placeholder="AB-123-CD"></div>
+      </div>
+      <div class="grid3" style="margin-bottom:10px;">
+        <div class="fld"><label>Heure d'arrivée</label>
+          <input type="time" name="heure_arrivee" value="{{ prefill.heure_arrivee }}"></div>
+        <div class="fld"><label>Heure départ</label>
+          <input type="time" name="heure_depart" value="{{ prefill.heure_depart }}"></div>
+        <div class="fld"><label>Temps trajet A/R</label>
+          <input type="text" name="temps_trajet" value="{{ prefill.temps_trajet }}" placeholder="ex : 1h30"></div>
+      </div>
+      <div class="fld" style="margin-bottom:10px;">
+        <label>Opérateur(s)</label>
+        <input type="text" name="operateurs" value="{{ prefill.operateurs }}">
+      </div>
+      <div class="fld">
+        <label>Raison sociale + adresse des travaux</label>
+        <div class="ro">{{ card.client }}{% if adresse %} — {{ adresse }}{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">Nature des travaux</div>
+    <div class="box-body" style="padding:0 0 4px;">
+      <table>
+        <tr><th>Nature des travaux</th><th class="col-q">Quantités réalisées</th>
+            <th class="col-u">Unité</th><th class="col-t">Temps passé / h</th></tr>
+        {% for code, label, unit in travaux %}
+        {% set sv = saved.get('travaux', {}).get(code, {}) %}
+        <tr>
+          <td class="lbl">{{ label }}</td>
+          <td><input type="text" inputmode="decimal" name="trav_{{ code }}_qte" value="{{ sv.get('qte','') }}"></td>
+          <td class="unit">{{ unit }}</td>
+          <td><input type="text" inputmode="decimal" name="trav_{{ code }}_temps" value="{{ sv.get('temps','') }}"></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">Commentaires</div>
+    <div class="box-body">
+      <div class="fld"><textarea name="commentaires"
+        placeholder="Précisions, anomalies, travaux « Autre »…">{{ prefill.commentaires }}</textarea></div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">Déchets</div>
+    <div class="box-body dech-scroll" style="padding:0 0 4px;">
+      <table>
+        <tr><th>Déchets</th><th>Badge STEP<br>PROTEC</th><th>Badge STEP<br>CCLST</th>
+            <th>Volume / m³</th><th>Destination</th><th>Tps dépotage +<br>lavage citerne / h</th></tr>
+        {% for code, label in dechets %}
+        {% set sv = saved.get('dechets', {}).get(code, {}) %}
+        <tr>
+          <td class="lbl">{{ label }}</td>
+          <td class="ck"><input type="checkbox" name="dech_{{ code }}_bp" {% if sv.get('badge_protec') %}checked{% endif %}></td>
+          <td class="ck"><input type="checkbox" name="dech_{{ code }}_bc" {% if sv.get('badge_cclst') %}checked{% endif %}></td>
+          <td><input type="text" inputmode="decimal" name="dech_{{ code }}_vol" value="{{ sv.get('volume','') }}"></td>
+          <td><input type="text" name="dech_{{ code }}_dest" value="{{ sv.get('destination','') }}"></td>
+          <td><input type="text" inputmode="decimal" name="dech_{{ code }}_temps" value="{{ sv.get('temps','') }}"></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="savebar">
+  {% if back %}<a class="btn-back" href="{{ back }}">◀</a>{% endif %}
+  <button type="submit" class="btn-save">💾 ENREGISTRER LA FICHE</button>
+</div>
+</form>
+
+</body>
+</html>
