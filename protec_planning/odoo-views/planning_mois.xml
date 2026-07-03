@@ -130,7 +130,7 @@
     .card:last-child { margin-bottom: 0; }
     .card-head { background: #e8f0fe; padding: 3px 8px; display: flex;
                  align-items: center; justify-content: space-between; gap: 4px; }
-    .card-time { font-size: 12px; font-weight: 800; color: #3a5a99; white-space: nowrap; }
+    .card-time { font-size: 12px; font-weight: 800; color: inherit; white-space: nowrap; }
     .card-body { padding: 4px 8px 5px; }
     .card-client { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 2px; }
     .card-ville { font-size: 11px; color: #6b7c9a; }
@@ -284,7 +284,7 @@
             <th class="day-col"><div class="th-inner" style="min-width:62px;padding:4px;">
               <div class="th-name" style="font-size:10px;">Jour</div></div></th>
             <t t-foreach="cols" t-as="emp">
-              <th t-att-style="'background: %s; color: %s;' % (cmap.get(emp.id, palette[emp.id % 10]), '#1a2e4a' if cmap.get(emp.id) == '#eab308' else '#fff')">
+              <th t-att-style="'background: %s; color: #fff;' % cmap.get(emp.id, palette[emp.id % 10])">
                 <div class="th-inner"><div class="th-name" t-out="emp.name"/></div>
               </th>
             </t>
@@ -375,7 +375,7 @@
             <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
             <t t-set="empslots" t-value="[s for s in wslots if emp.id in s.employee_ids.ids]"/>
             <tr>
-              <td class="emp-cell" t-att-style="'background: %s; color: %s;' % (color, '#1a2e4a' if color == '#eab308' else '#fff')">
+              <td class="emp-cell" t-att-style="'background: %s; color: #fff;' % color">
                 <div class="emp-name" t-out="emp.name"/>
                 <div class="emp-count" t-out="('%s interv.' % len(empslots)) if empslots else '—'"/>
               </td>
