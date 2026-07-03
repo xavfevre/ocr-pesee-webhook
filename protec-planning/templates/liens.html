@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Liens chauffeurs — PROTEC</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #f0f4f8; color: #1a2e4a; padding: 16px; }
+    h1 { font-size: 19px; margin-bottom: 4px; }
+    p.sub { font-size: 13px; color: #6b7c9a; margin-bottom: 16px; }
+    .drv { background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.08);
+           padding: 12px 14px; margin-bottom: 10px; }
+    .drv-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .drv-name { font-size: 15px; font-weight: 800; flex: 1; }
+    .drv-url { font-size: 11px; color: #6b7c9a; word-break: break-all;
+               background: #f7f9fc; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
+    .actions { display: flex; gap: 8px; }
+    .btn { flex: 1; text-align: center; font-size: 13px; font-weight: 700; border-radius: 8px;
+           padding: 8px; text-decoration: none; cursor: pointer; border: none; }
+    .btn-copy { background: #3a5a99; color: #fff; }
+    .btn-wa { background: #25d366; color: #fff; }
+    .btn-open { background: #e8f0fe; color: #3a5a99; }
+    .error { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
+             padding: 14px; color: #856404; font-size: 13px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1>🔗 Liens « Ma tournée » par chauffeur</h1>
+  <p class="sub">À envoyer par SMS / WhatsApp. Chaque lien est personnel et signé —
+    un chauffeur ne voit que sa tournée. Conseil : mettre le lien en favori sur le téléphone.</p>
+
+  {% if error %}<div class="error">⚠️ {{ error }}</div>{% endif %}
+
+  {% for r in rows %}
+  <div class="drv">
+    <div class="drv-head">
+      <span class="dot" style="background: {{ r.color }};"></span>
+      <span class="drv-name">{{ r.name }}</span>
+    </div>
+    <div class="drv-url" id="url-{{ r.id }}">{{ r.url }}</div>
+    <div class="actions">
+      <button class="btn btn-copy" onclick="copyUrl({{ r.id }}, this)">📋 Copier</button>
+      <a class="btn btn-wa" target="_blank"
+         href="https://wa.me/?text={{ ('Bonjour ' ~ r.name ~ ', voici le lien de ta tournée PROTEC : ' ~ r.url) | urlencode }}">WhatsApp</a>
+      <a class="btn btn-open" target="_blank" href="{{ r.url }}">Ouvrir</a>
+    </div>
+  </div>
+  {% endfor %}
+
+<script>
+function copyUrl(id, btn) {
+  const t = document.getElementById('url-' + id).textContent.trim();
+  navigator.clipboard.writeText(t).then(() => {
+    btn.textContent = '✓ Copié';
+    setTimeout(() => btn.textContent = '📋 Copier', 1500);
+  });
+}
+</script>
+</body>
+</html>

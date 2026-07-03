@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Ma tournée — {{ emp_name }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --blue: #3a5a99; --blue-lt: #e8f0fe; --bg: #f0f4f8; --border: #dce3ef;
+            --text: #1a2e4a; --muted: #6b7c9a; --orange: #f59e0b; --green: #16a34a; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: var(--bg); color: var(--text); padding-bottom: 30px; }
+    header { background: var(--blue); color: #fff; padding: 14px 16px;
+             display: flex; align-items: center; gap: 12px; }
+    .logo { width: 38px; height: 38px; background: #fff; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 16px; color: var(--blue); }
+    .hdr-title { font-size: 17px; font-weight: 800; }
+    .hdr-sub { font-size: 12px; opacity: .8; }
+
+    /* Barre jour collante */
+    .daybar { position: sticky; top: 0; z-index: 100; background: #fff;
+              display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+              border-bottom: 2px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .daybar button { border: 1px solid var(--border); background: var(--blue-lt); color: var(--blue);
+                     font-size: 20px; font-weight: 800; border-radius: 10px;
+                     width: 46px; height: 42px; cursor: pointer; }
+    .daybar button:disabled { opacity: .3; }
+    #daylabel { flex: 1; text-align: center; font-size: 16px; font-weight: 800; }
+    #daylabel.today { color: var(--orange); }
+
+    .error { margin: 16px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
+             padding: 14px; color: #856404; font-size: 13px; }
+
+    .dayblock { display: none; padding: 12px; }
+    .dayblock.visible { display: block; }
+    .no-missions { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 15px; }
+
+    .mission { background: #fff; border-radius: 14px; margin-bottom: 14px;
+               box-shadow: 0 2px 8px rgba(58,90,153,.12); overflow: hidden; }
+    .m-head { background: var(--blue); color: #fff; padding: 10px 14px;
+              display: flex; align-items: center; justify-content: space-between; }
+    .m-time { font-size: 17px; font-weight: 900; }
+    .m-ref { font-size: 12px; opacity: .85; font-weight: 600; }
+    .m-body { padding: 12px 14px; }
+    .m-client { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+    .m-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;
+             font-size: 14px; line-height: 1.35; }
+    .m-row .ico { flex-shrink: 0; }
+    .m-row a { color: var(--blue); font-weight: 700; text-decoration: none; }
+    .m-note { background: var(--blue-lt); border-radius: 8px; padding: 8px 10px;
+              font-size: 13px; color: var(--text); margin-top: 6px; white-space: pre-wrap; }
+    .m-actions { padding: 0 14px 14px; }
+    .btn-fiche { display: block; width: 100%; text-align: center; text-decoration: none;
+                 background: var(--orange); color: #fff; font-size: 16px; font-weight: 800;
+                 border-radius: 12px; padding: 13px 10px; }
+    .btn-fiche.done { background: var(--green); }
+    footer { text-align: center; padding: 16px; font-size: 11px; color: #a0aec0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">P</div>
+  <div>
+    <div class="hdr-title">Ma tournée</div>
+    <div class="hdr-sub">{{ emp_name }}</div>
+  </div>
+</header>
+
+{% if error %}<div class="error">⚠️ Erreur : {{ error }}</div>{% endif %}
+
+<div class="daybar">
+  <button id="prev" onclick="nav(-1)">&#8249;</button>
+  <div id="daylabel"></div>
+  <button id="next" onclick="nav(1)">&#8250;</button>
+</div>
+
+{% for db in dayblocks %}
+<div class="dayblock" data-iso="{{ db.iso }}" data-label="{{ db.label }}" data-today="{{ 1 if db.is_today else 0 }}">
+  {% if db.cards %}
+    {% for c in db.cards %}
+    <div class="mission">
+      <div class="m-head">
+        <span class="m-time">{{ c.start }}{% if c.end %} → {{ c.end }}{% endif %}</span>
+        {% if c.ref %}<span class="m-ref">{{ c.ref[:28] }}</span>{% endif %}
+      </div>
+      <div class="m-body">
+        <div class="m-client">{{ c.client }}</div>
+        {% set addr = (c.street ~ ' ' ~ c.zip ~ ' ' ~ c.ville).strip() %}
+        {% if addr %}
+        <div class="m-row"><span class="ico">📍</span>
+          <a href="https://www.google.com/maps/search/?api=1&query={{ addr | urlencode }}" target="_blank">
+            {{ c.street }}{% if c.street %}, {% endif %}{{ c.zip }} {{ c.ville }}</a>
+        </div>
+        {% endif %}
+        {% if c.tel %}
+        <div class="m-row"><span class="ico">📞</span><a href="tel:{{ c.tel | replace(' ', '') }}">{{ c.tel }}</a></div>
+        {% endif %}
+        {% if c.role %}<div class="m-row"><span class="ico">🔧</span>{{ c.role }}</div>{% endif %}
+      </div>
+      <div class="m-actions">
+        <a class="btn-fiche {% if c.fdt %}done{% endif %}"
+           href="/fiche/{{ c.id }}?t={{ c.token }}&back={{ ('/ma-tournee?c=' ~ emp_id ~ '&s=' ~ sig) | urlencode }}">
+          {% if c.fdt %}✓ Fiche remplie — voir / modifier{% else %}📝 Fiche de fin de travaux{% endif %}
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-missions">Aucune intervention prévue ce jour 👍</div>
+  {% endif %}
+</div>
+{% endfor %}
+
+<footer>PROTEC S3T — Ma tournée</footer>
+
+<script>
+  const blocks = Array.from(document.querySelectorAll('.dayblock'));
+  const label = document.getElementById('daylabel');
+  const btnPrev = document.getElementById('prev');
+  const btnNext = document.getElementById('next');
+  let idx = blocks.findIndex(b => b.dataset.today === "1");
+  if (idx < 0) idx = 0;
+
+  function show() {
+    blocks.forEach((b, i) => b.classList.toggle('visible', i === idx));
+    const b = blocks[idx];
+    if (b) {
+      label.textContent = b.dataset.label;
+      label.classList.toggle('today', b.dataset.today === "1");
+    }
+    btnPrev.disabled = idx <= 0;
+    btnNext.disabled = idx >= blocks.length - 1;
+  }
+  function nav(d) { idx = Math.max(0, Math.min(blocks.length - 1, idx + d)); show(); }
+  if (blocks.length) show(); else label.textContent = "Aucune intervention";
+</script>
+</body>
+</html>
