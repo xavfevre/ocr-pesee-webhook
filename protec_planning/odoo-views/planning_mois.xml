@@ -30,6 +30,9 @@
     .drv-select { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
                   color: #fff; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 600; }
     .drv-select option { color: #1a2e4a; }
+    .cl-input { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
+                color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 13px; width: 150px; }
+    .cl-input::placeholder { color: rgba(255,255,255,.65); }
     .soc-chip { background: rgba(255,255,255,.12); border: 1.5px dashed rgba(255,255,255,.55);
                 color: #fff; border-radius: 20px; padding: 5px 13px; font-size: 12px;
                 font-weight: 800; text-decoration: none; letter-spacing: .4px; }
@@ -73,7 +76,7 @@
     .grid-wrap { overflow-x: auto; padding: 12px; }
     table.pl { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
     table.pl thead th { color: #fff; padding: 0; position: sticky; top: 0; z-index: 100; }
-    .th-inner { padding: 8px 10px; min-width: 165px; max-width: 195px; text-align: center; }
+    .th-inner { padding: 8px 10px; min-width: 165px; width: 100%; text-align: center; }
     th.day-col { background: #2c4880; width: 72px; min-width: 72px;
                  position: sticky; left: 0; z-index: 150; }
     .th-name { font-size: 13px; font-weight: 700; white-space: nowrap;
@@ -124,7 +127,7 @@
     .week-grid-wrap { overflow-x: auto; background: #fff; border: 1px solid #dce3ef;
                       border-top: none; border-radius: 0 0 10px 10px; }
     table.pl thead th { position: static; }
-    .th-inner { padding: 5px 8px; min-width: 120px; max-width: 150px; }
+    .th-inner { padding: 5px 8px; min-width: 120px; width: 100%; text-align: center; }
     td.slot-cell { min-width: 120px; max-width: 150px; padding: 3px 3px; }
     td.day-cell { min-width: 62px; width: 62px; padding: 5px 4px; }
     .day-num { font-size: 14px; }
@@ -208,6 +211,7 @@
     <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
     <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
 
+    <input id="clfilter" class="cl-input" type="search" placeholder="🔍 Client…"/>
     <select class="drv-select" t-att-onchange="&quot;location.href='/planning-mois?m=%04d-%02d%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (y, mo, qsoc)">
       <option value="0">Tous les chauffeurs</option>
       <t t-foreach="emps" t-as="e">
@@ -445,6 +449,17 @@ document.addEventListener('drop', function (e) {
   }).catch(function () { alert('Erreur réseau'); });
   pdrag = null;
 });
+var clf = document.getElementById('clfilter');
+if (clf) {
+  clf.addEventListener('input', function () {
+    var q = clf.value.toLowerCase();
+    document.querySelectorAll('[data-client]').forEach(function (el) {
+      var show = true;
+      if (q) { show = (el.dataset.client || '').toLowerCase().indexOf(q) !== -1; }
+      el.style.display = show ? '' : 'none';
+    });
+  });
+}
 fetch('/web/session/get_session_info', { method: 'POST',
   headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
   body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} })
