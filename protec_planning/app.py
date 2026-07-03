@@ -36,6 +36,10 @@ EXCLUDED_EMPLOYEE_IDS = {1, 3, 8, 9}  # compte technique + Manon + Natacha (hors
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
            "#db2777", "#ca8a04", "#4f46e5", "#dc2626", "#0891b2"]
+# Couleurs et ordre fixes, identiques aux pages planning du site
+CMAP = {4: "#2563eb", 5: "#eab308", 6: "#dc2626", 7: "#111827",
+        10: "#7c3aed", 2: "#7c3aed", 8: "#0d9488", 1: "#db2777", 9: "#ea580c"}
+OMAP = {4: 1, 5: 2, 6: 3, 7: 4, 10: 5, 2: 6, 8: 7, 9: 8, 1: 9}
 
 # ─── Fiche de fin de travaux : lignes fixes du modèle ────────────────────────
 TRAVAUX = [
@@ -96,7 +100,9 @@ def monday_of(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 def emp_color(emp_id: int) -> str:
-    return PALETTE[emp_id % len(PALETTE)] if emp_id else "#ef4444"
+    if not emp_id:
+        return "#64748b"
+    return CMAP.get(emp_id, PALETTE[emp_id % len(PALETTE)])
 
 MOIS_FR  = ["janvier","février","mars","avril","mai","juin","juillet","août",
             "septembre","octobre","novembre","décembre"]
@@ -131,7 +137,8 @@ def get_all_employees(uid, models):
     emps = x(models, uid, "hr.employee", "search_read",
         [["active", "=", True]],
         fields=["id", "name"], order="name asc", limit=100)
-    data = [e for e in emps if e["id"] not in EXCLUDED_EMPLOYEE_IDS]
+    data = sorted([e for e in emps if e["id"] not in EXCLUDED_EMPLOYEE_IDS],
+                  key=lambda e: (OMAP.get(e["id"], 99), e["name"]))
     _emp_cache["t"], _emp_cache["data"] = now, data
     return data
 
