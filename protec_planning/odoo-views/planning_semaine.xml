@@ -29,6 +29,10 @@
     .drv-select { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
                   color: #fff; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 600; }
     .drv-select option { color: #1a2e4a; }
+    .soc-chip { background: rgba(255,255,255,.12); border: 1.5px dashed rgba(255,255,255,.55);
+                color: #fff; border-radius: 20px; padding: 5px 13px; font-size: 12px;
+                font-weight: 800; text-decoration: none; letter-spacing: .4px; }
+    .soc-chip.active { background: #fff; color: #3a5a99; border-style: solid; border-color: #fff; }
     .fdt-badge { font-size: 10px; font-weight: 800; color: #fff; background: #16a34a;
                  border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
     .bc-link { font-size: 10px; font-weight: 800; color: #3a5a99; text-decoration: none;
@@ -115,7 +119,12 @@
 <t t-set="off" t-value="2 if dst_a &lt;= tnow.date() &lt; dst_b else 1"/>
 <t t-set="dtoff" t-value="datetime.timedelta(hours=off)"/>
 <t t-set="today" t-value="(tnow + dtoff).date()"/>
-<t t-set="emps" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id != 3]"/>
+<t t-set="soc" t-value="args.get('soc') or 'protec'"/>
+<t t-set="soc_cid" t-value="2 if soc == 'protec' else (1 if soc == 's3t' else 0)"/>
+<t t-set="omap" t-value="{4: 1, 5: 2, 6: 3, 7: 4, 10: 5, 2: 6, 8: 7, 9: 8, 1: 9}"/>
+<t t-set="cmap" t-value="{4: '#2563eb', 5: '#eab308', 6: '#dc2626', 7: '#111827', 10: '#7c3aed', 2: '#7c3aed', 8: '#0d9488', 1: '#db2777', 9: '#ea580c'}"/>
+<t t-set="emps0" t-value="[e for e in request.env['hr.employee'].sudo().search([('active','=',True)], order='name') if e.id != 3 and (not soc_cid or e.company_id.id == soc_cid)]"/>
+<t t-set="emps" t-value="[e for k in sorted([(omap.get(x.id, 99), x.name, x.id) for x in emps0]) for e in emps0 if e.id == k[2]]"/>
 <t t-set="cols" t-value="[e for e in emps if e.id == cfil] if cfil else emps"/>
 <t t-set="palette" t-value="['#2563eb','#16a34a','#ea580c','#9333ea','#0d9488','#db2777','#ca8a04','#4f46e5','#dc2626','#0891b2']"/>
 <t t-set="mois_abr" t-value="['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc']"/>
@@ -127,15 +136,18 @@
 <t t-set="monday" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(days=7*woff)"/>
 <t t-set="days" t-value="[monday + datetime.timedelta(days=i) for i in range(6)]"/>
 <t t-set="su" t-value="datetime.datetime(monday.year, monday.month, monday.day) - dtoff"/>
-<t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',su + datetime.timedelta(days=7))] + ([('employee_ids','in',[cfil])] if cfil else [])"/>
+<t t-set="dom" t-value="[('start_datetime','&gt;=',su),('start_datetime','&lt;',su + datetime.timedelta(days=7))] + ([('employee_ids','in',[cfil])] if cfil else []) + ([('company_id','=',soc_cid)] if soc_cid else [])"/>
 <t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="somap" t-value="dict([(o.name, o) for o in request.env['sale.order'].sudo().search([('name','in',[((s.name or '').strip().split() or [''])[0] for s in slots])])])"/>
 <t t-set="su_lv" t-value="su"/>
 <t t-set="eu_lv" t-value="su + datetime.timedelta(days=7)"/>
 <t t-set="leaves" t-value="request.env['resource.calendar.leaves'].sudo().search([('resource_id','!=',False),('date_from','&lt;',eu_lv),('date_to','&gt;',su_lv)])"/>
-<t t-set="qc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
+<t t-set="qsoc" t-value="('&amp;soc=%s' % soc) if soc != 'protec' else ''"/>
+<t t-set="qcc" t-value="('&amp;c=%s' % cfil) if cfil else ''"/>
+<t t-set="qc" t-value="qsoc + qcc"/>
 <t t-set="wend" t-value="monday + datetime.timedelta(days=5)"/>
 <t t-set="wlabel" t-value="('S%s — %s au %s %s %s' % (monday.isocalendar()[1], monday.day, wend.day, mois_abr[wend.month-1], wend.year)) if monday.month == wend.month else ('S%s — %s %s au %s %s %s' % (monday.isocalendar()[1], monday.day, mois_abr[monday.month-1], wend.day, mois_abr[wend.month-1], wend.year))"/>
+<t t-set="pageqs" t-value="'/planning-semaine?w=%s' % woff"/>
 
 <header>
   <div class="hdr-top">
@@ -147,12 +159,17 @@
     <div class="badge" t-out="'%s interventions' % len(slots)"/>
   </div>
   <div class="hdr-nav">
+    <span style="display:flex;gap:6px;">
+      <a t-att-href="pageqs + qcc" t-att-class="'soc-chip' + (' active' if soc == 'protec' else '')">PROTEC</a>
+      <a t-att-href="pageqs + '&amp;soc=s3t' + qcc" t-att-class="'soc-chip' + (' active' if soc == 's3t' else '')">S3T</a>
+      <a t-att-href="pageqs + '&amp;soc=tous' + qcc" t-att-class="'soc-chip' + (' active' if soc == 'tous' else '')">TOUS</a>
+    </span>
 
     <a t-att-href="'/planning-jour?d=%s%s' % (today.isoformat(), qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'jour' else '')">Jour</a>
     <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
     <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
 
-    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-semaine?w=%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % woff">
+    <select class="drv-select" t-att-onchange="&quot;location.href='/planning-semaine?w=%s%s' + (this.value != '0' ? '&amp;c=' + this.value : '')&quot; % (woff, qsoc)">
       <option value="0">Tous les chauffeurs</option>
       <t t-foreach="emps" t-as="e">
         <option t-att-value="e.id" t-att-selected="'selected' if cfil == e.id else None" t-out="e.name"/>
@@ -171,7 +188,7 @@
         <th class="day-col"><div class="th-inner" style="min-width:72px;padding:6px;">
           <div class="th-name" style="font-size:11px;">Jour</div></div></th>
         <t t-foreach="cols" t-as="emp">
-          <th t-att-style="'background: %s;' % palette[emp.id % 10]">
+          <th t-att-style="'background: %s; color: %s;' % (cmap.get(emp.id, palette[emp.id % 10]), '#1a2e4a' if cmap.get(emp.id) == '#eab308' else '#fff')">
             <div class="th-inner">
               <div class="th-name" t-out="emp.name"/>
               <t t-set="nb" t-value="len([s for s in slots if emp.id in s.employee_ids.ids])"/>
@@ -179,7 +196,7 @@
             </div>
           </th>
         </t>
-        <th t-if="not cfil" style="background: #7f1d1d;">
+        <th t-if="not cfil" style="background: #475569;">
           <div class="th-inner"><div class="th-name">Non assigné</div>
           <t t-set="nbna" t-value="len([s for s in slots if not [i for i in s.employee_ids.ids if i != 3]])"/>
           <div class="th-count" t-out="('%s interv.' % nbna) if nbna else '—'"/></div>
@@ -196,7 +213,7 @@
             </a>
           </td>
           <t t-foreach="cols" t-as="emp">
-            <t t-set="color" t-value="palette[emp.id % 10]"/>
+            <t t-set="color" t-value="cmap.get(emp.id, palette[emp.id % 10])"/>
             <t t-set="onleave" t-value="[l for l in leaves if l.resource_id.id == emp.resource_id.id and (l.date_from + dtoff).date() &lt;= day and (l.date_to + dtoff).date() &gt;= day]"/>
             <td t-att-class="'slot-cell' + (' cell-conge' if onleave else '')" t-att-data-day="day.isoformat()" t-att-data-emp="emp.id">
               <span t-if="onleave" class="conge-chip">CONGÉS</span>
@@ -231,7 +248,7 @@
             </td>
           </t>
           <td t-if="not cfil" class="slot-cell col-none" t-att-data-day="day.isoformat()" data-emp="0">
-            <t t-set="color" t-value="'#ef4444'"/>
+            <t t-set="color" t-value="'#64748b'"/>
             <t t-set="cell" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i != 3] and (s.start_datetime + dtoff).date() == day]"/>
             <t t-if="cell"><t t-foreach="cell" t-as="s">
 <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
