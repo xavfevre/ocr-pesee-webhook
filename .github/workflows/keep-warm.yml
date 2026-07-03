@@ -8,7 +8,7 @@ name: Keep Render service warm
 
 on:
   schedule:
-    - cron: '*/13 * * * *'   # ~toutes les 13 min (avant la mise en veille à 15 min)
+    - cron: '*/10 * * * *'   # ~toutes les 10 min (cron GitHub souvent décalé)
   workflow_dispatch:          # lancement manuel possible
 
 jobs:
