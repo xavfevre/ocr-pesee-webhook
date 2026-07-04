@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Ma tournée — {{ emp_name }}</title>
+  <link rel="manifest" href="{{ BASE }}/manifest.json?c={{ emp_id }}&s={{ sig }}"/>
+  <meta name="theme-color" content="#3a5a99"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --blue: #3a5a99; --blue-lt: #e8f0fe; --bg: #f0f4f8; --border: #dce3ef;
@@ -126,6 +128,12 @@
 </div>
 {% endfor %}
 
+<div id="off-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:200;
+     background:#b45309; color:#fff; text-align:center; font-size:13px; font-weight:700; padding:8px;">
+  📡 Hors connexion — données en cache</div>
+<div id="queue-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:201;
+     background:#1a2e4a; color:#fff; text-align:center; font-size:13px; font-weight:700; padding:8px;"></div>
+
 <footer>PROTEC S3T — Ma tournée</footer>
 
 <script>
@@ -148,6 +156,42 @@
   }
   function nav(d) { idx = Math.max(0, Math.min(blocks.length - 1, idx + d)); show(); }
   if (blocks.length) show(); else label.textContent = "Aucune intervention";
+
+  // ── PWA : service worker + état réseau + file d'attente des fiches ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('{{ BASE }}/sw.js').catch(function () {});
+  }
+  function updNet() {
+    document.getElementById('off-banner').style.display = navigator.onLine ? 'none' : 'block';
+  }
+  window.addEventListener('online', function () { updNet(); flushQueue(); });
+  window.addEventListener('offline', updNet);
+  updNet();
+
+  function updQueueBanner() {
+    var q = JSON.parse(localStorage.getItem('fdtq') || '[]');
+    var b = document.getElementById('queue-banner');
+    if (q.length) {
+      b.textContent = '⏳ ' + q.length + ' fiche(s) en attente d\u2019envoi — envoi automatique au retour du réseau';
+      b.style.display = 'block';
+    } else { b.style.display = 'none'; }
+  }
+  function flushQueue() {
+    var q = JSON.parse(localStorage.getItem('fdtq') || '[]');
+    if (!q.length || !navigator.onLine) { updQueueBanner(); return; }
+    var item = q[0];
+    fetch(item.u, { method: 'POST', body: item.b,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+      .then(function (r) {
+        if (!r.ok) throw 0;
+        q.shift();
+        localStorage.setItem('fdtq', JSON.stringify(q));
+        updQueueBanner();
+        if (q.length) { flushQueue(); } else { location.reload(); }
+      }).catch(function () { updQueueBanner(); });
+  }
+  updQueueBanner();
+  flushQueue();
 </script>
 </body>
 </html>
