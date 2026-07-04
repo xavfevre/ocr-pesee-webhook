@@ -109,6 +109,10 @@
         {% if c.role %}<div class="m-row"><span class="ico">🔧</span>{{ c.role }}</div>{% endif %}
       </div>
       <div class="m-actions">
+        {% if c.ref %}
+        <a class="btn-fiche" style="background:#3a5a99; margin-bottom:8px;"
+           href="{{ BASE }}/bi/{{ c.id }}?t={{ c.token }}" target="_blank">📄 Bon d'intervention</a>
+        {% endif %}
         <a class="btn-fiche {% if c.fdt %}done{% endif %}"
            href="{{ BASE }}/fiche/{{ c.id }}?t={{ c.token }}&back={{ (BASE ~ '/ma-tournee?c=' ~ emp_id ~ '&s=' ~ sig) | urlencode }}">
           {% if c.fdt %}✓ Fiche remplie — voir / modifier{% else %}📝 Fiche de fin de travaux{% endif %}
