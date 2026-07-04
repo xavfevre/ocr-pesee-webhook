@@ -205,6 +205,7 @@
       <a t-att-href="pageqs + '&amp;soc=tous' + qori + qnuit + qcc" t-att-class="'soc-chip' + (' active' if soc == 'tous' else '')">TOUS</a>
     </span>
 
+    <a t-att-href="'/planning-mobile?d=%s%s' % (today.isoformat(), qsoc)" class="nav-btn" title="Version mobile">📱</a>
     <a t-att-href="'/planning-jour?d=%s%s' % (today.isoformat(), qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'jour' else '')">Jour</a>
     <a t-att-href="'/planning-semaine?w=0%s' % qc" t-att-class="'nav-btn' + (' active' if active_tab == 'semaine' else '')">Semaine</a>
     <a t-att-href="'/planning-mois?m=%04d-%02d%s' % (today.year, today.month, qc)" t-att-class="'nav-btn' + (' active' if active_tab == 'mois' else '')">Mois</a>
