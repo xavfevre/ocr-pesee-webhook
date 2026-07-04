@@ -590,6 +590,71 @@ def bi_pdf(slot_id):
         _web_session["opener"] = None  # session expirée : ré-authentifier et réessayer
     return "Erreur de génération du PDF — réessayez.", 502
 
+# ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
+SW_JS = """
+const CACHE = 'protec-tournee-v1';
+self.addEventListener('install', function (e) { self.skipWaiting(); });
+self.addEventListener('activate', function (e) { e.waitUntil(clients.claim()); });
+self.addEventListener('fetch', function (e) {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const p = new URL(req.url).pathname;
+  if (p.indexOf('/ma-tournee') === -1 && p.indexOf('/fiche/') === -1 &&
+      p.indexOf('/bi/') === -1 && p.indexOf('/icon-') === -1) return;
+  e.respondWith(
+    fetch(req).then(function (r) {
+      if (r.ok) { var cp = r.clone(); caches.open(CACHE).then(function (c) { c.put(req, cp); }); }
+      return r;
+    }).catch(function () { return caches.match(req); })
+  );
+});
+"""
+
+@bp.route("/sw.js")
+def sw_js():
+    return Response(SW_JS, mimetype="application/javascript",
+                    headers={"Cache-Control": "no-cache"})
+
+@bp.route("/manifest.json")
+def manifest():
+    c = request.args.get("c", "")
+    sg = request.args.get("s", "")
+    base = BASE_PREFIX()
+    start = f"{base}/ma-tournee?c={c}&s={sg}" if c else f"{base}/"
+    return json.dumps({
+        "name": "Ma tournée PROTEC", "short_name": "Tournée",
+        "start_url": start, "scope": base + "/",
+        "display": "standalone", "background_color": "#3a5a99",
+        "theme_color": "#3a5a99",
+        "icons": [{"src": f"{base}/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                  {"src": f"{base}/icon-512.png", "sizes": "512x512", "type": "image/png"}],
+    }), 200, {"Content-Type": "application/manifest+json"}
+
+def BASE_PREFIX():
+    return url_for("protec.week_view").rstrip("/")
+
+_icon_cache = {}
+
+@bp.route("/icon-<int:size>.png")
+def icon(size):
+    if size not in (192, 512):
+        abort(404)
+    if size not in _icon_cache:
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        img = Image.new("RGB", (size, size), "#3a5a99")
+        d = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(size * 0.55))
+        except Exception:
+            font = ImageFont.load_default()
+        d.text((size / 2, size / 2), "P", fill="#ffffff", font=font, anchor="mm")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        _icon_cache[size] = buf.getvalue()
+    return Response(_icon_cache[size], mimetype="image/png",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
 # ─── LIENS CHAUFFEURS (admin) ────────────────────────────────────────────────
 @bp.route("/liens")
 def liens():
