@@ -48,6 +48,16 @@
                background: #f2f6ff; }
     .bc-link:hover { background: #3a5a99; color: #fff; }
     footer.pl { text-align: center; padding: 20px; font-size: 11px; color: #a0aec0; }
+    .na-strip { background: #e7f0f3; border-bottom: 1px solid #d3e2e8; padding: 8px 14px; }
+    .na-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .na-title { font-size: 13px; font-weight: 800; color: #1a2e4a; }
+    .na-hide { margin-left: auto; border: 1px solid #9db8c4; background: #fff; border-radius: 14px;
+               padding: 3px 12px; font-size: 12px; font-weight: 700; color: #33566b; cursor: pointer; }
+    .na-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .na-chip { background: #fff; border: 1.5px solid #b9cdd7; border-radius: 16px;
+               padding: 4px 11px; font-size: 12px; cursor: grab; white-space: nowrap; }
+    .na-chip b { font-weight: 800; }
+    .na-chip .nc-sub { color: #64748b; font-size: 11px; }
     .drop-ok { outline: 2px dashed #3a5a99; outline-offset: -3px; }
     th.emp-col { background: #2c4880; position: sticky; left: 0; z-index: 150; }
     .th-emp-inner { padding: 8px 10px; min-width: 130px; text-align: left; color: #fff; }
@@ -165,6 +175,7 @@
 <t t-set="dom" t-value="[('start_datetime','&lt;',su + datetime.timedelta(days=1)),('end_datetime','&gt;',su)] + ([('employee_ids','in',[cfil])] if cfil else []) + ([('company_id','=',soc_cid)] if soc_cid else [])"/>
 <t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="somap" t-value="dict([(o.name, o) for o in request.env['sale.order'].sudo().search([('name','in',[((s.name or '').strip().split() or [''])[0] for s in slots])])])"/>
+<t t-set="na_src" t-value="slots"/>
 <t t-set="su_lv" t-value="su"/>
 <t t-set="eu_lv" t-value="su + datetime.timedelta(days=1)"/>
 <t t-set="leaves" t-value="request.env['resource.calendar.leaves'].sudo().search([('resource_id','!=',False),('date_from','&lt;',eu_lv),('date_to','&gt;',su_lv)])"/>
@@ -212,6 +223,26 @@
     </span>
   </div>
 </header>
+
+<t t-set="naslots" t-value="[s for s in na_src if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)]]"/>
+<div t-if="naslots" class="na-strip">
+  <div class="na-head">
+    <span class="na-title" t-out="'📋 À planifier (%s)' % len(naslots)"/>
+    <button class="na-hide" id="na-hide-btn" onclick="naToggle()">Masquer</button>
+  </div>
+  <div class="na-chips" id="na-chips">
+    <t t-foreach="naslots" t-as="s">
+      <t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
+      <t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
+      <t t-set="st" t-value="s.start_datetime + dtoff"/>
+      <t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else st"/>
+      <span class="na-chip" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-data-day="st.date().isoformat()" data-emp="0" data-res="0" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-so="so_url" t-att-data-annexe="'' if s.partner_id else '1'" t-att-data-note="s.name or ''" t-att-title="'Glisser sur le planning pour affecter — ' + ((s.partner_id.name or s.name) or '')">
+        <b t-out="(s.partner_id.name or (s.name or '—'))[:26]"/>
+        <span class="nc-sub" t-out="' · %s/%s %s' % (st.day, st.month, st.strftime('%H:%M'))"/>
+      </span>
+    </t>
+  </div>
+</div>
 
 <div class="day-wrap">
   <div class="day-board">
@@ -275,57 +306,6 @@
   </div>
 </div>
 
-    </t>
-    <t t-if="not cfil">
-      <t t-set="color" t-value="'#64748b'"/>
-      <t t-set="col_name" t-value="'Non assigné'"/>
-      <t t-set="col_emp" t-value="0"/>
-      <t t-set="col_res" t-value="0"/>
-      <t t-set="colslots" t-value="[s for s in slots if not [i for i in s.employee_ids.ids if i not in (1, 3, 8, 9)] and (not nuit or (s.start_datetime + dtoff).date() == d or (s.start_datetime + dtoff).hour &lt; 18 or s.x_nuit_etale or (s.end_datetime and (s.end_datetime + dtoff).date() &gt; d))]"/>
-      <t t-if="colslots">
-        <div class="day-col">
-          <div class="day-col-head col-none-head">
-            <div class="dc-name">Non assigné</div>
-            <div class="dc-count" t-out="'%s interv.' % len(colslots)"/>
-          </div>
-          <div class="day-col-body" style="height: 672px;" t-att-data-day="d.isoformat()" data-emp="0" data-res="0">
-            <t t-foreach="range(5, 20)" t-as="h">
-              <div class="hline full" t-att-style="'top: %spx;' % ((h-5)*48)"/>
-            </t>
-            <t t-foreach="colslots" t-as="s">
-<t t-set="so" t-value="somap.get(((s.name or '').strip().split() or [''])[0])"/>
-<t t-set="so_url" t-value="('/web#id=%s&amp;model=sale.order&amp;view_type=form' % so.id) if so else ''"/>
-<t t-set="st" t-value="s.start_datetime + dtoff"/>
-<t t-set="en" t-value="(s.end_datetime + dtoff) if s.end_datetime else (st + datetime.timedelta(hours=1))"/>
-<t t-set="m0" t-value="0 if st.date() &lt; d else min(810, max(0, st.hour*60 + st.minute - 300))"/>
-<t t-set="m1" t-value="840 if en.date() &gt; d else min(840, max(m0 + 30, en.hour*60 + en.minute - 300))"/>
-<t t-set="durm" t-value="max(30, m1 - m0)"/>
-<div class="dcard" draggable="true" t-att-data-id="s.id" t-att-data-start="s.start_datetime.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="s.end_datetime.strftime('%Y-%m-%d %H:%M:%S') if s.end_datetime else ''" t-att-title="' • '.join([x for x in [st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M')), s.partner_id.name or '', ('Intervention: ' + so.x_studio_lieu_dintervention_2) if so and so.x_studio_lieu_dintervention_2 else '', 'Client: ' + ((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or ''), ('Interlocuteur: ' + so.x_studio_interlocuteur_1) if so and so.x_studio_interlocuteur_1 else '', s.partner_phone or '', ('Objet: ' + so.x_studio_lieu_dintervention_1) if so and so.x_studio_lieu_dintervention_1 else '', (s.name or '')[:40]] if x])" t-att-data-time="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))" t-att-data-client="s.partner_id.name or '—'" t-att-data-adresse="((s.partner_street + ', ') if s.partner_street else '') + ((s.partner_zip + ' ') if s.partner_zip else '') + (s.partner_city or '')" t-att-data-inter="(so.x_studio_interlocuteur_1 or '') if so else ''" t-att-data-tel="s.partner_phone or ''" t-att-data-lieu="(so.x_studio_lieu_dintervention_2 or '') if so else ''" t-att-data-objet="(so.x_studio_lieu_dintervention_1 or '') if so else ''" t-att-data-ref="(s.name or '')[:40]" t-att-data-fdt="'1' if s.x_fdt_fait else ''" t-att-data-annexe="'' if s.partner_id else '1'" t-att-data-note="s.name or ''" t-att-data-so="so_url" t-att-style="'top: %spx; height: %spx; border-left-color: %s;' % (m0*48//60, durm*48//60, color)">
-  <div class="card-head" t-att-style="'background: %s; color: #fff;' % color">
-    <span class="card-time" t-out="st.strftime('%H:%M') + ' → ' + (en.strftime('%d/%m %H:%M') if en.date() != st.date() else en.strftime('%H:%M'))"/>
-    <span style="display:flex; gap:3px;">
-      <span t-if="s.end_datetime and (s.end_datetime + dtoff).date() != (s.start_datetime + dtoff).date() and (s.start_datetime + dtoff).hour &gt;= 18" class="nuit-badge" style="cursor:pointer;" t-att-data-etale="'1' if s.x_nuit_etale else '0'" t-att-title="'Cliquer pour regrouper' if s.x_nuit_etale else 'Cliquer pour étaler'" t-out="'🌙+' if s.x_nuit_etale else '🌙'"/>
-      <span t-if="s.x_fdt_fait" class="fdt-badge">✓ FDT</span>
-      <a t-if="so_url" class="bc-link" t-att-href="so_url" target="_blank">BC ↗</a>
-    </span>
-  </div>
-  <div class="card-body">
-    <div class="card-client" t-out="s.partner_id.name or (s.name or '—')[:34]"/>
-    <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
-    <t t-set="adr_cli" t-value="((s.partner_street + ', ') if s.partner_street else '') + (s.partner_city or '')"/>
-    <div class="card-lieu" t-out="'📍 ' + (lieu if lieu else (adr_cli or '—'))"/>
-    <div t-if="lieu and adr_cli" class="card-extra" t-out="'🏢 Client : ' + adr_cli"/>
-    <div t-if="so and so.x_studio_interlocuteur_1" class="card-extra" t-out="'👤 ' + so.x_studio_interlocuteur_1[:70]"/>
-    <div t-if="s.partner_phone" class="card-extra" t-out="'📞 ' + s.partner_phone"/>
-    <div t-if="so and so.x_studio_lieu_dintervention_1" class="card-extra" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:70]"/>
-    <div t-if="s.name" class="card-extra" style="color:#8fa0bd;" t-out="(s.name or '')[:28]"/>
-  </div>
-</div>
-
-            </t>
-          </div>
-        </div>
-      </t>
     </t>
   </div>
 </div>
@@ -625,6 +605,23 @@ document.addEventListener('click', function (e) {
     } else { location.reload(); }
   }).catch(function () { alert('Erreur réseau'); });
 });
+function naToggle() {
+  var el = document.getElementById('na-chips');
+  var btn = document.getElementById('na-hide-btn');
+  if (!el) { return; }
+  var hide = el.style.display !== 'none';
+  el.style.display = hide ? 'none' : '';
+  if (btn) { btn.textContent = hide ? 'Afficher' : 'Masquer'; }
+  localStorage.setItem('naHide', hide ? '1' : '0');
+}
+var ncInit = document.getElementById('na-chips');
+if (ncInit) {
+  if (localStorage.getItem('naHide') === '1') {
+    ncInit.style.display = 'none';
+    var nbInit = document.getElementById('na-hide-btn');
+    if (nbInit) { nbInit.textContent = 'Afficher'; }
+  }
+}
 var clf = document.getElementById('clfilter');
 if (clf) {
   clf.addEventListener('input', function () {
