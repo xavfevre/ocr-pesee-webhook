@@ -13,10 +13,11 @@ Données : Odoo v19 SaaS PROTEC via XML-RPC (planning.slot).
 Env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET
 """
 import os, json, time, hmac, hashlib, socket
+import urllib.request, http.cookiejar
 import xmlrpc.client
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
-from flask import Blueprint, Flask, render_template, request, redirect, url_for, abort
+from flask import Blueprint, Flask, render_template, request, redirect, url_for, abort, Response
 
 bp = Blueprint("protec", __name__, template_folder="templates")
 socket.setdefaulttimeout(25)
@@ -534,6 +535,60 @@ def render_fiche_html(card, vals, data, nphotos=0):
         html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Badge</th><th>Vol. m³</th>"
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
     return html
+
+# ─── BON D'INTERVENTION (PDF chiffré, via session web du compte technique) ──
+BI_REPORT = "protec_custom.report_deliveryslip_priced"
+_web_session = {"opener": None}
+
+def _web_opener():
+    if _web_session["opener"] is not None:
+        return _web_session["opener"]
+    cj = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    payload = json.dumps({"jsonrpc": "2.0", "method": "call",
+        "params": {"db": ODOO_DB, "login": ODOO_USER, "password": ODOO_PASSWORD}}).encode()
+    req = urllib.request.Request(f"{ODOO_URL}/web/session/authenticate", data=payload,
+                                 headers={"Content-Type": "application/json"})
+    opener.open(req, timeout=30)
+    _web_session["opener"] = opener
+    return opener
+
+@bp.route("/bi/<int:slot_id>")
+def bi_pdf(slot_id):
+    token = request.args.get("t", "")
+    if not check_sig(f"fdt:{slot_id}", token):
+        abort(403)
+    uid, models = odoo_connect()
+    rec = x(models, uid, "planning.slot", "read", [slot_id], fields=["name"])
+    if not rec:
+        abort(404)
+    ref = (rec[0]["name"] or "").strip().split()[0] if rec[0].get("name") else ""
+    if not ref:
+        return "Pas de commande liée à cette intervention.", 404
+    picks = x(models, uid, "stock.picking", "search_read",
+              [["origin", "=", ref], ["picking_type_id.sequence_code", "=", "ASS/BI/"]],
+              fields=["id", "name", "company_id"], order="id desc", limit=1)
+    if not picks:
+        return "Pas de bon d'intervention pour cette intervention.", 404
+    pid, pname = picks[0]["id"], picks[0]["name"]
+    cid = picks[0]["company_id"][0] if picks[0].get("company_id") else 2
+    # allowed_company_ids dans l'URL : requis pour les enregistrements hors
+    # société par défaut de la session (multi-sociétés)
+    import urllib.parse as _up
+    ctx = _up.quote(json.dumps({"allowed_company_ids": [cid]}))
+    for _attempt in (1, 2):
+        try:
+            op = _web_opener()
+            r = op.open(f"{ODOO_URL}/report/pdf/{BI_REPORT}/{pid}?context={ctx}", timeout=60)
+            pdf = r.read()
+            if pdf[:4] == b"%PDF":
+                fn = pname.replace("/", "_")
+                return Response(pdf, mimetype="application/pdf",
+                                headers={"Content-Disposition": f'inline; filename="BI_{fn}.pdf"'})
+        except Exception:
+            pass
+        _web_session["opener"] = None  # session expirée : ré-authentifier et réessayer
+    return "Erreur de génération du PDF — réessayez.", 502
 
 # ─── LIENS CHAUFFEURS (admin) ────────────────────────────────────────────────
 @bp.route("/liens")
