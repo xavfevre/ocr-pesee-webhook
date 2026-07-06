@@ -21,6 +21,7 @@ import hashlib
 import xmlrpc.client
 from datetime import datetime, date
 from functools import wraps
+from urllib.parse import quote
 from flask import Flask, request, jsonify
 
 from mistralai import Mistral
@@ -737,15 +738,47 @@ def tournee_liens():
         ch = t.get("x_studio_chauffeur")
         if ch:
             drivers[ch[0]] = ch[1]
+    # téléphones (pour pré-remplir WhatsApp) — best effort
+    phones = {}
+    if drivers:
+        try:
+            for e in x(models, uid, "hr.employee", "read", list(drivers.keys()),
+                       fields=["mobile_phone", "work_phone"]):
+                phones[e["id"]] = e.get("mobile_phone") or e.get("work_phone") or ""
+        except Exception:
+            phones = {}
+
     base = request.host_url.rstrip("/")
-    html = (_TOURNEE_HEAD + "<h3>🔗 Liens chauffeurs</h3>"
-            "<p class=\"meta\" style=\"margin-bottom:12px;\">Un lien personnel par chauffeur "
-            "— ne pas partager entre chauffeurs.</p>")
+    html = (_TOURNEE_HEAD
+            + "<style>.lkbtns{display:flex;gap:8px;margin-top:9px;}"
+              ".lkb{flex:1;text-align:center;border:none;border-radius:10px;padding:12px;"
+              "font-weight:800;font-size:15px;cursor:pointer;text-decoration:none;}"
+              ".lkb.copy{background:#01666B;color:#fff;} .lkb.copy.ok{background:#16a34a;}"
+              ".lkb.wa{background:#25D366;color:#fff;}</style>"
+              "<h3>🔗 Liens chauffeurs</h3>"
+              "<p class=\"meta\" style=\"margin-bottom:12px;\">Un lien personnel par chauffeur "
+              "— ne pas partager entre chauffeurs.</p>")
     for cid, nm in sorted(drivers.items(), key=lambda a: (a[1] or "").upper()):
         link = f"{base}/ma-tournee?c={cid}&s={_driver_sign(cid)}"
+        num = re.sub(r"\D", "", phones.get(cid, "") or "")
+        if num.startswith("0"):
+            num = "33" + num[1:]
+        msg = quote(f"Bonjour {nm}, voici votre lien Ma tournée : {link}")
+        wa = f"https://wa.me/{num}?text={msg}"
         html += (f'<div class="card"><div class="cli">{_esc(nm)}</div>'
-                 f'<div class="meta" style="word-break:break-all;margin-top:4px;">{_esc(link)}</div></div>')
-    html += "</div></body></html>"
+                 f'<div class="meta" style="word-break:break-all;margin-top:4px;">{_esc(link)}</div>'
+                 f'<div class="lkbtns">'
+                 f'<button type="button" class="lkb copy" data-link="{_esc(link)}" onclick="cp(this)">📋 Copier</button>'
+                 f'<a class="lkb wa" target="_blank" href="{_esc(wa)}">🟢 WhatsApp</a>'
+                 f'</div></div>')
+    html += ("<script>function cp(b){var t=b.getAttribute('data-link');"
+             "function ok(){var o=b.textContent;b.textContent='✓ Copié';b.classList.add('ok');"
+             "setTimeout(function(){b.textContent=o;b.classList.remove('ok');},1500);}"
+             "if(navigator.clipboard&&navigator.clipboard.writeText){"
+             "navigator.clipboard.writeText(t).then(ok).catch(fb);}else{fb();}"
+             "function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);"
+             "a.select();try{document.execCommand('copy');}catch(e){}a.remove();ok();}}</script>"
+             "</div></body></html>")
     return html
 
 
