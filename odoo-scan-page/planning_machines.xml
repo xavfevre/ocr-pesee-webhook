@@ -43,7 +43,7 @@
         <t t-set="ots" t-value="website.env['mrp.workorder'].sudo().search([('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1)] + qdom, order='date_start')"/>
         <t t-set="draft_dom" t-value="[('production_id.state','=','draft'),('production_id.company_id','=',1)] + qdom + type_dom + (bc and [('production_id.origin','=',bc)] or [])"/>
         <t t-set="draft_ots" t-value="website.env['mrp.workorder'].sudo().search(draft_dom, order='create_date, id', limit=(None if (q or bc) else 30))"/>
-        <t t-set="ots" t-value="ots | draft_ots"/>
+        <t t-set="ots" t-value="ots | draft_ots"/><t t-set="done_day_ots" t-value="website.env['mrp.workorder'].sudo().search([('state','=','done'),('production_id.state','=','done'),('production_id.company_id','=',1),('date_start','&gt;=',day.strftime('%Y-%m-%d 00:00:00')),('date_start','&lt;',(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))] + qdom, order='date_start')"/><t t-set="ots" t-value="ots | done_day_ots"/>
         <t t-set="bcs" t-value="q and sorted(set([o for o in ots.mapped('production_id.origin') if o])) or []"/>
         <t t-set="ots" t-value="ots.filtered(lambda w: w.production_id.origin == bc) if bc else ots"/>
         <t t-if="board == 'secondaire'">

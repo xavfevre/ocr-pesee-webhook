@@ -63,7 +63,7 @@
     </style>
 
     <div class="scan-wrap">
-      <h3 class="scan-h">📦 Poste de scan — Colis / OF</h3>
+      <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:16px;white-space:nowrap;background:#fff;border-radius:8px 8px 0 0;padding:4px 6px 0;"><li class="nav-item"><a class="nav-link" id="nav-maprod" href="/vue-operateur">✅ Ma production</a></li><li class="nav-item"><a class="nav-link" id="nav-hist" href="/vue-operateur?hist=1">🕘 Historique</a></li><li class="nav-item"><a class="nav-link active fw-bold" href="#">📦 Poste de scan</a></li></ul><h3 class="scan-h">📦 Poste de scan — Colis / OF</h3>
 
       <div class="scan-colis">
         <div class="scan-colis-lbl">Colis actif</div>

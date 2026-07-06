@@ -25,8 +25,8 @@
       ◆ <t t-esc="of.x_studio_ref_pierre"/>
     </div>
     <div style="font-size:13px;font-weight:700;color:#222;margin:1px 0;">
-      <t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/><span style="font-weight:400;font-size:11px;"> m</span>
-      <span t-if="of.x_studio_nbr" style="float:right;background:#2d6a6f;color:#fff;border-radius:8px;padding:0 7px;font-size:11px;"><t t-esc="of.x_studio_nbr"/> pc</span>
+      <t t-esc="'%.3f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.3f' % (of.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.3f' % (of.x_studio_haut_m_1 or 0)"/><span style="font-weight:400;font-size:11px;"> m</span>
+      <t t-set="_fait" t-value="(of.x_studio_nbr or 0) if w.state == 'done' else (w.x_studio_nbr_fait or 0)"/><span t-if="of.x_studio_nbr" t-attf-style="float:right;background:{{'#16a34a' if _fait &gt;= of.x_studio_nbr else ('#E07020' if _fait else '#2d6a6f')}};color:#fff;border-radius:8px;padding:0 7px;font-size:11px;font-weight:800;"><t t-esc="_fait"/>/<t t-esc="of.x_studio_nbr"/> pc</span>
     </div>
     <div class="d-flex gap-1 align-items-center flex-wrap" style="margin-top:3px;font-size:10px;">
       <span t-if="of.state == 'draft'" class="badge text-bg-warning">📝 Brouillon — à valider</span>
@@ -36,7 +36,7 @@
       <span t-elif="w.state == 'blocked'" class="badge text-bg-danger">⛔ Bloquée</span>
       <span t-else="" class="badge text-bg-light">○ À faire</span>
       <span t-if="w.date_start" class="badge text-bg-info" style="font-size:10px;">🕐 <t t-esc="w.date_start.strftime('%H:%M')"/><t t-if="w.date_start.date() != datetime.date.today()"> · <t t-esc="w.date_start.strftime('%d/%m')"/></t></span>
-      <span class="text-muted" t-esc="w.workcenter_id.name"/>
+      <span t-if="w.duration" class="badge" style="background:#334155;color:#fff;font-size:10px;">⏱ <t t-esc="('%dh%02d' % (int(w.duration // 60), int(w.duration % 60))) if w.duration &gt;= 60 else ('%d min' % int(w.duration))"/></span><span class="text-muted" t-esc="w.workcenter_id.name"/>
     </div>
     <div t-if="w.state != 'done'" class="d-flex align-items-center gap-1 mt-1">
       <select class="pf-op form-select form-select-sm" t-att-data-op="w.employee_assigned_ids[:1].id or ''" style="font-size:11px;padding:1px 4px;flex:1;min-width:0;"/>

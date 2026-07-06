@@ -15,6 +15,7 @@ import time
 import base64
 import socket
 import re
+import html as _htmllib
 import hmac
 import hashlib
 import xmlrpc.client
@@ -446,6 +447,26 @@ def _esc(s):
         "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+def _desc_text(raw):
+    """Convertit la description HTML d'une tâche en texte propre (retours à la ligne
+    préservés, métadonnées Odoo retirées). Retourne '' si vide."""
+    if not raw:
+        return ""
+    s = str(raw)
+    # frontières de blocs -> sauts de ligne
+    s = re.sub(r"(?i)<\s*br\s*/?>", "\n", s)
+    s = re.sub(r"(?i)</\s*(div|p|li|tr|h[1-6])\s*>", "\n", s)
+    s = re.sub(r"(?i)<\s*li[^>]*>", "• ", s)
+    s = re.sub(r"<[^>]+>", "", s)          # retire les balises restantes
+    s = _htmllib.unescape(s).replace("\xa0", " ")
+    lines = [ln.strip() for ln in s.splitlines()]
+    out = []
+    for ln in lines:
+        if ln or (out and out[-1]):        # évite les lignes vides consécutives
+            out.append(ln)
+    return "\n".join(out).strip()
+
+
 _TOURNEE_HEAD = """<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 <title>Ma tournée</title><style>
@@ -473,6 +494,7 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .addr b{color:#334155;}
 .mini{text-decoration:none;font-size:15px;}
 .ocr{background:#dcfce7;color:#166534;border-radius:8px;padding:4px 9px;font-size:12.5px;font-weight:700;margin-top:7px;display:inline-block;}
+.note{background:#FEF9C3;border:1px solid #FDE68A;border-radius:8px;padding:7px 10px;font-size:14px;font-weight:600;color:#713f12;margin:7px 0;white-space:pre-wrap;line-height:1.35;}
 .acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:11px;}
 .acts2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px;}
 .ph{position:relative;text-align:center;border-radius:10px;padding:10px 4px;font-weight:800;font-size:13px;cursor:pointer;border:2px solid #01666B;color:#01666B;background:#fff;overflow:hidden;}
@@ -556,7 +578,7 @@ def ma_tournee():
                   fields=["id", "name", "partner_id", "planned_date_begin", "date_deadline",
                           "x_studio_transport", "x_studio_adresse_de_chargement",
                           "x_studio_adresse_de_livraison_3", "x_studio_statut_de_locr",
-                          "x_studio_bon_scanne", "tag_ids"],
+                          "x_studio_bon_scanne", "tag_ids", "description"],
                   order="planned_date_begin")
 
         # noms des étiquettes (type de mission)
@@ -637,6 +659,9 @@ def ma_tournee():
             html += f'<div class="cardhead"><span class="time">🕐 {tr}</span> {tags}</div>'
             html += f'<div class="cli">{_esc(cli)}</div>'
             html += f'<div class="meta">{_esc(t["name"])}</div>'
+            note = _desc_text(t.get("description"))
+            if note:
+                html += f'<div class="note">📝 {_esc(note)}</div>'
             html += _addr("📦", "Chargement", t.get("x_studio_adresse_de_chargement"))
             html += _addr("🏁", "Livraison", t.get("x_studio_adresse_de_livraison_3"))
             if veh:
