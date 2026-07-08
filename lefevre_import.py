@@ -624,7 +624,11 @@ def _run_import(sid, payload):
         uom_id = conn.get_uom_m3()
         _slog(sid, f"Création du devis {order_ref}…")
         order_id = conn.create_sale_order(partner_id, order_ref, order_date)
-        _slog(sid, f"✓ Devis créé (ID: {order_id})", "ok")
+        try:
+            order_name = conn.call("sale.order", "read", [[order_id]], {"fields": ["name"]})[0]["name"]
+        except Exception:
+            order_name = str(order_id)
+        _slog(sid, f"✓ Devis créé : {order_name} (ID: {order_id})", "ok")
         _sprog(sid, 10)
 
         all_codes = list({r["product_code"] for r in parsed_rows
@@ -662,6 +666,7 @@ def _run_import(sid, payload):
 
         order_url = (f"{ODOO_URL.rstrip('/')}/odoo/sales/{order_id}")
         _slog(sid, "══ IMPORT TERMINÉ ══════════════════", "ok")
+        _slog(sid, f"✓ Devis Odoo : {order_name}", "ok")
         _slog(sid, f"✓ Lignes créées : {ok_count}", "ok")
         if warn_count:
             _slog(sid, f"⚠ Avertissements : {warn_count}", "warn")
@@ -669,7 +674,8 @@ def _run_import(sid, payload):
             _slog(sid, f"❌ Erreurs : {err_count}", "err")
         with _LOCK:
             _SESSIONS[sid].update({"done": True, "progress": 100,
-                                   "order_id": order_id, "order_url": order_url})
+                                   "order_id": order_id, "order_name": order_name,
+                                   "order_url": order_url})
     except Exception as e:
         _slog(sid, f"❌ Erreur : {e}", "err")
         with _LOCK:
@@ -753,7 +759,8 @@ def lef_status():
             return jsonify({"error": "session inconnue"}), 404
         return jsonify({"logs": s["logs"][after:], "next": len(s["logs"]),
                         "progress": s["progress"], "done": s["done"],
-                        "order_id": s.get("order_id"), "order_url": s.get("order_url"),
+                        "order_id": s.get("order_id"), "order_name": s.get("order_name"),
+                        "order_url": s.get("order_url"),
                         "error": s.get("error")})
 
 
@@ -1018,7 +1025,7 @@ function poll(sid, after){
         document.getElementById('b-import').disabled = false;
         if(d.order_url){
           document.getElementById('done').innerHTML =
-            '✅ <a href="' + d.order_url + '" target="_blank">Ouvrir le devis dans Odoo (ID ' + d.order_id + ')</a>';
+            '✅ Devis <b>' + (d.order_name || d.order_id) + '</b> créé — <a href="' + d.order_url + '" target="_blank">ouvrir dans Odoo</a>';
         }
         return;
       }
