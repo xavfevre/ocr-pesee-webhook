@@ -70,6 +70,8 @@
         <div class="text-muted small mt-1">Fond de pastille = statut · Bordure gauche = couleur du client</div>
       </div>
 
+      <div id="trmCountBar" class="text-center mb-2 d-flex flex-wrap justify-content-center gap-1"></div>
+
       <div class="text-center mb-2">
         <span class="text-muted small me-2">Clients :</span>
         <button id="clAll" type="button" class="btn btn-outline-secondary btn-sm py-0 px-2">Tout</button>
@@ -170,6 +172,32 @@
             c.style.display = show ? '' : 'none';
           });
           saveState();
+          trmRenderCounts();
+        }
+        function trmRenderCounts(){
+          var cl = {}; document.querySelectorAll('.trm-cl').forEach(function(cb){ cl[cb.value] = cb.checked; });
+          var c = {facture:0,paye:0,brouillon:0,afacturer:0,annule:0,autre:0}, total=0;
+          document.querySelectorAll('.trm-task').forEach(function(t){
+            if(!cl[t.getAttribute('data-client')]){ return; }
+            var s = t.getAttribute('data-status') || 'autre';
+            if(c[s] === undefined){ s = 'autre'; }
+            c[s]++; total++;
+          });
+          var defs = [['🏷️ Tous','#334155',total],
+            ['✅ Facturé','#198754',c.facture],
+            ['💰 Payé','#0d6efd',c.paye],
+            ['🧾 Brouillon','#eab308',c.brouillon],
+            ['🧾 À facturer','#fd7e14',c.afacturer],
+            ['❌ Annulé','#dc3545',c.annule],
+            ['• Sans statut','#94a3b8',c.autre]];
+          var bar = document.getElementById('trmCountBar'); if(!bar){ return; }
+          bar.innerHTML = '';
+          defs.forEach(function(d){
+            var chip = document.createElement('span');
+            chip.style.cssText = 'border:1.5px solid ' + d[1] + ';border-radius:14px;padding:2px 10px;font-size:12px;font-weight:700;color:' + d[1] + ';background:#fff;';
+            chip.textContent = d[0] + '  ' + d[2];
+            bar.appendChild(chip);
+          });
         }
         document.querySelectorAll('.trm-st').forEach(function(cb){ cb.addEventListener('change', applyFilter); });
         document.querySelectorAll('.trm-cl').forEach(function(cb){ cb.addEventListener('change', applyFilter); });
