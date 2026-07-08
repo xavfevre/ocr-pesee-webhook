@@ -782,6 +782,10 @@ def tournee_liens():
     return html
 
 
+from lefevre_import import lefevre_bp  # noqa: E402
+app.register_blueprint(lefevre_bp)
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
