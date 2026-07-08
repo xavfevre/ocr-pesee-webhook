@@ -35,7 +35,7 @@ DEFAULT_FIELDS = {
     "nbr":        "x_studio_nbr",
     "long":       "x_studio_long",
     "larg":       "x_studio_larg",
-    "haut":       "x_studio_taille_de_p",  # v19 : pas de champ hauteur numérique — dims en texte
+    "haut":       "x_studio_epais",  # champ « Haut. (m) » (float) sur sale.order.line
     "poids":      "x_studio_poids",
 }
 DEFAULT_MAPPING = {
@@ -742,7 +742,7 @@ class OdooConnector:
         return self.call("sale.order.line", "create", [{
             "order_id": order_id, "display_type": "line_section", "name": name}])
 
-    def create_order_line_product(self, order_id, line_data, fields_cfg, uom_id=False):
+    def create_order_line_product(self, order_id, line_data, fields_cfg, uom_id=False, taille=False):
         product = self._product_cache.get(line_data["product_code"])
         if not product:
             return None, f"Produit introuvable: {line_data['product_code']}"
@@ -754,29 +754,28 @@ class OdooConnector:
         }
         if uom_id:
             vals["product_uom_id"] = uom_id  # v19 (ex product_uom)
-        taille_txt = None
-        if line_data.get("haut_m"):
-            if line_data.get("long_m") and line_data.get("prof_m"):
-                taille_txt = "%.3f x %.3f x %.3f m" % (
-                    line_data["long_m"], line_data["prof_m"], line_data["haut_m"])
-            else:
-                taille_txt = "H %.3f m" % line_data["haut_m"]
         studio = {
             fields_cfg.get("ref_pierre", "x_studio_ref_pierre"): line_data.get("ref"),
             fields_cfg.get("nbr", "x_studio_nbr"): line_data.get("qte"),
             fields_cfg.get("long", "x_studio_long"): line_data.get("long_m"),
             fields_cfg.get("larg", "x_studio_larg"): line_data.get("prof_m"),
-            fields_cfg.get("haut", "x_studio_taille_de_p"): taille_txt,
+            fields_cfg.get("haut", "x_studio_epais"): line_data.get("haut_m"),
             fields_cfg.get("poids", "x_studio_poids"): line_data.get("poids"),
         }
         for f, v in studio.items():
             if v:
                 vals[f] = v
+        # « Taille de pierre » : cochée → flag booléen + mot « taille » ; sinon champ vide
+        if taille:
+            vals["x_studio_taille_de_pierre"] = True
+            vals["x_studio_taille_de_p"] = "taille"
+        core = {"order_id", "product_id", "product_uom_qty", "name", "product_uom_id"}
         try:
             return self.call("sale.order.line", "create", [vals]), None
         except Exception as e:
-            for f in studio:
-                vals.pop(f, None)
+            for f in list(vals):
+                if f not in core:
+                    vals.pop(f, None)
             try:
                 line_id = self.call("sale.order.line", "create", [vals])
                 return line_id, f"⚠ Champs Studio ignorés pour {line_data.get('ref')}: {e}"
@@ -918,6 +917,7 @@ def _run_import(sid, payload):
         customer = payload.get("customer") or "LEFEVRE"
         customer_code = payload.get("customer_code") or ""
         order_date = payload.get("order_date") or ""
+        taille = bool(payload.get("taille"))
 
         _slog(sid, "Connexion à Odoo…")
         conn = OdooConnector()
@@ -965,7 +965,7 @@ def _run_import(sid, payload):
                 conn.create_order_line_section(order_id, lbl)
                 ok_count += 1
             elif item["type"] == "line":
-                line_id, err = conn.create_order_line_product(order_id, item, fields_cfg, uom_id)
+                line_id, err = conn.create_order_line_product(order_id, item, fields_cfg, uom_id, taille)
                 if err and line_id:
                     _slog(sid, f"  {err}", "warn")
                     warn_count += 1
@@ -1212,6 +1212,9 @@ a{color:var(--accent2);}
    <div><label>Code client Odoo</label><input type="text" id="ocode" value="LEF001"/></div>
    <div><label>Date commande</label><input type="text" id="odate" value="__TODAY__"/></div>
   </div>
+  <div style="margin-top:12px;"><label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--text);">
+   <input type="checkbox" id="otaille" style="width:auto;transform:scale(1.3);"/> Taille de pierre (cocher si la commande comporte de la taille → coche le champ « Taille de pierre » et inscrit « taille »)
+  </label></div>
   <div class="btns">
    <button class="btn p" id="b-analyse" disabled onclick="analyser()">🔍 Analyser</button>
    <button class="btn s" id="b-export" disabled onclick="exporter()">📥 Exporter Excel</button>
@@ -1436,7 +1439,8 @@ function payload(){
     order_ref: document.getElementById('oref').value,
     customer: document.getElementById('ocust').value,
     customer_code: document.getElementById('ocode').value,
-    order_date: document.getElementById('odate').value };
+    order_date: document.getElementById('odate').value,
+    taille: document.getElementById('otaille').checked };
 }
 function exporter(){
   fetch('/import-lefevre/export', {method:'POST', headers:{'Content-Type':'application/json'},
