@@ -143,7 +143,7 @@ p3={
 }
 LIST_ZERO={"1":{"id":"1","name":"Lignes ≤ 0 €","model":"account.move.line",
  "columns":["date","move_name","partner_id","name","price_subtotal"],
- "domain":["&","&","&","&",["parent_state","=","posted"],
+ "domain":[["parent_state","=","posted"],
            ["move_id.move_type","in",["out_invoice","out_refund"]],
            ["display_type","=","product"],["price_subtotal","<=",0]],
  "context":{},"orderBy":[{"name":"date","asc":False}],

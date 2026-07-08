@@ -101,18 +101,21 @@ D5=doc([sheet(cells,st,fo,merges,[],
     cols={"0":{"size":300},"1":{"size":140},"2":{"size":140},"3":{"size":140},"4":{"size":140},"5":{"size":140}},
     rows={"0":{"size":42},"3":{"size":22},"4":{"size":40},"7":{"size":28},"28":{"size":28},"114":{"size":28}})],pv)
 
-# ══════════ D6 — TGAP & REP ══════════
+# ══════════ D6 — TGAP & REP (taxes) ══════════
 BASE=["&","&",["move_type","in",["out_invoice","out_refund"]],["state","=","posted"],["product_id","!=",False]]
 def and_dom(c): return ["&",c]+BASE
-D_TGAP=and_dom(["product_id.default_code","=","TGAP"])
 D_GRAN=and_dom(["product_categ_id","child_of",[38,39,66,25]])   # H-Concassé, H-Enrochement, H-Remblai, Sable et Granulats
-D_REP =and_dom(["product_categ_id.name","ilike","eco contribution"])
+D_TGAP_TAX=["&",["parent_state","=","posted"],["tax_line_id.name","ilike","tgap"]]
+D_REP_TAX =["&",["parent_state","=","posted"],["tax_line_id.name","=like","REP%"]]
 M_QC=[{"id":"quantity","fieldName":"quantity","aggregator":"sum","userDefinedName":"Tonnes"},
       {"id":"price_subtotal","fieldName":"price_subtotal","aggregator":"sum","userDefinedName":"Montant HT"}]
+M_TAX=[{"id":"balance","fieldName":"balance","aggregator":"sum","userDefinedName":"Montant (signe - = collecté)"}]
 YM=[{"fieldName":"invoice_date","granularity":"year"},{"fieldName":"invoice_date","granularity":"month"}]
+YM_D=[{"fieldName":"date","granularity":"year"},{"fieldName":"date","granularity":"month"}]
 pv6={
- "1":{"type":"ODOO","model":"account.invoice.report","name":"TGAP refacturée","formulaId":"1",
-   "rows":[],"columns":YM,"measures":M_QC,"domain":D_TGAP,"context":{},"sortedColumn":None,"fieldMatching":fm_air()},
+ "1":{"type":"ODOO","model":"account.move.line","name":"TGAP par taxe/mois","formulaId":"1",
+   "rows":[{"fieldName":"tax_line_id"}],"columns":YM_D,"measures":M_TAX,"domain":D_TGAP_TAX,
+   "context":{},"sortedColumn":None,"fieldMatching":fm_aml()},
  "2":{"type":"ODOO","model":"account.invoice.report","name":"Base granulats","formulaId":"2",
    "rows":[{"fieldName":"product_categ_id"}],"columns":[],"measures":M_QC,"domain":D_GRAN,
    "context":{},"sortedColumn":{"measure":"quantity","order":"desc","domain":[]},"fieldMatching":fm_air()},
@@ -120,15 +123,15 @@ pv6={
    "rows":[{"fieldName":"product_categ_id"}],"columns":YM,
    "measures":[{"id":"quantity","fieldName":"quantity","aggregator":"sum","userDefinedName":"Tonnes"}],
    "domain":D_GRAN,"context":{},"sortedColumn":None,"fieldMatching":fm_air()},
- "4":{"type":"ODOO","model":"account.invoice.report","name":"REP","formulaId":"4",
-   "rows":[{"fieldName":"company_id"}],"columns":YM,"measures":M_QC,"domain":D_REP,
-   "context":{},"sortedColumn":None,"fieldMatching":fm_air()},
- "5":{"type":"ODOO","model":"account.invoice.report","name":"TGAP tot","formulaId":"5",
-   "rows":[],"columns":[],"measures":M_QC,"domain":D_TGAP,"context":{},"sortedColumn":None,"fieldMatching":fm_air()},
+ "4":{"type":"ODOO","model":"account.move.line","name":"REP par taxe/mois","formulaId":"4",
+   "rows":[{"fieldName":"tax_line_id"}],"columns":YM_D,"measures":M_TAX,"domain":D_REP_TAX,
+   "context":{},"sortedColumn":None,"fieldMatching":fm_aml()},
+ "5":{"type":"ODOO","model":"account.move.line","name":"TGAP tot","formulaId":"5",
+   "rows":[],"columns":[],"measures":M_TAX,"domain":D_TGAP_TAX,"context":{},"sortedColumn":None,"fieldMatching":fm_aml()},
  "6":{"type":"ODOO","model":"account.invoice.report","name":"Granulats tot","formulaId":"6",
    "rows":[],"columns":[],"measures":M_QC,"domain":D_GRAN,"context":{},"sortedColumn":None,"fieldMatching":fm_air()},
- "7":{"type":"ODOO","model":"account.invoice.report","name":"REP tot","formulaId":"7",
-   "rows":[],"columns":[],"measures":M_QC,"domain":D_REP,"context":{},"sortedColumn":None,"fieldMatching":fm_air()},
+ "7":{"type":"ODOO","model":"account.move.line","name":"REP tot","formulaId":"7",
+   "rows":[],"columns":[],"measures":M_TAX,"domain":D_REP_TAX,"context":{},"sortedColumn":None,"fieldMatching":fm_aml()},
 }
 figs6=[{"id":"c6-gran","width":1130,"height":320,"tag":"chart",
  "data":{"title":{"text":"Tonnages granulats facturés par mois (base TGAP)"},"background":"","legendPosition":"top",
@@ -139,25 +142,25 @@ figs6=[{"id":"c6-gran","width":1130,"height":320,"tag":"chart",
   "stacked":False,"cumulatedStart":False,"fillArea":True,"chartId":"c6-gran","fieldMatching":fm_air()},
  "offset":{"x":0,"y":170},"col":0,"row":0}]
 cells6={
- "A1":"TGAP & REP (éco-contributions)",
- "A2":"TGAP granulats : base = tonnages facturés (H-Concassé, H-Enrochement, H-Remblai, Sable et Granulats) · REP = catégorie Eco Contribution",
- "A4":"TGAP REFACTURÉE","A5":"=PIVOT.VALUE(5,\"price_subtotal\")",
- "C4":"TONNES TGAP FACT.","C5":"=PIVOT.VALUE(5,\"quantity\")",
+ "A1":"TGAP & REP (taxes environnementales)",
+ "A2":"TGAP = taxes fixes 0,23 €/t (TGAP / TGAP CHATEL / TGAP MAQ) · REP = taxes REP Béton/Granulats/Tuffeau/Pierres · lignes de taxes des factures validées",
+ "A4":"TGAP COLLECTÉE","A5":"=-PIVOT.VALUE(5,\"balance\")",
+ "C4":"TONNES TAXÉES TGAP","C5":"=A5/0,23",
  "E4":"BASE GRANULATS (t)","E5":"=PIVOT.VALUE(6,\"quantity\")",
- "G4":"REP FACTURÉE","G5":"=PIVOT.VALUE(7,\"price_subtotal\")",
- "A7":"⚠ Rappel : l'article [TGAP] « Contribution TGAP (coût à la tonne) » (0,23 €/t) vient d'être créé — à ajouter sur les factures granulats pour refacturer la taxe.",
- "A24":"BASE TGAP — TONNAGES GRANULATS PAR CATÉGORIE","A25":"=PIVOT(2, 20, TRUE, TRUE)",
- "A50":"TONNAGES GRANULATS PAR MOIS","A51":"=PIVOT(3, 20, TRUE, TRUE)",
- "A76":"TGAP REFACTURÉE PAR MOIS","A77":"=PIVOT(1, 10, TRUE, TRUE)",
- "A92":"REP (ECO CONTRIBUTION) PAR SOCIÉTÉ ET PAR MOIS","A93":"=PIVOT(4, 15, TRUE, TRUE)",
+ "G4":"REP COLLECTÉE","G5":"=-PIVOT.VALUE(7,\"balance\")",
+ "A7":"⚠ Contrôle : si « Tonnes taxées TGAP » est très inférieur à « Base granulats », des factures granulats partent sans la taxe TGAP.",
+ "A24":"TGAP PAR TAXE ET PAR MOIS (signe négatif = collecté)","A25":"=PIVOT(1, 12, TRUE, TRUE)",
+ "A42":"BASE TGAP — TONNAGES GRANULATS PAR CATÉGORIE","A43":"=PIVOT(2, 20, TRUE, TRUE)",
+ "A68":"TONNAGES GRANULATS PAR MOIS","A69":"=PIVOT(3, 20, TRUE, TRUE)",
+ "A94":"REP PAR TAXE ET PAR MOIS (signe négatif = collecté)","A95":"=PIVOT(4, 15, TRUE, TRUE)",
 }
-st6={"A1":1,"A2":2,"A4:B4":4,"A5:B5":5,"C4:D4":4,"C5:D5":5,"E4:F4":4,"E5:F5":6,"G4:H4":4,"G5:H5":5,
-     "A7:J7":2,"A24:F24":3,"A50:N50":3,"A76:N76":3,"A92:N92":3}
+st6={"A1":1,"A2":2,"A4:B4":4,"A5:B5":5,"C4:D4":4,"C5:D5":5,"E4:F4":4,"E5:F5":5,"G4:H4":4,"G5:H5":5,
+     "A7:J7":2,"A24:N24":3,"A42:F42":3,"A68:N68":3,"A94:N94":3}
 fo6={"A5:B5":1,"G5:H5":1,"C5:D5":2,"E5:F5":2}
 merges6=["A1:H1","A2:J2","A4:B4","A5:B5","C4:D4","C5:D5","E4:F4","E5:F5","G4:H4","G5:H5",
-         "A7:J7","A24:F24","A50:N50","A76:N76","A92:N92"]
+         "A7:J7","A24:N24","A42:F42","A68:N68","A94:N94"]
 D6=doc([sheet(cells6,st6,fo6,merges6,figs6,
-    rows={"0":{"size":42},"3":{"size":22},"4":{"size":40},"6":{"size":24},"23":{"size":28},"49":{"size":28},"75":{"size":28},"91":{"size":28}})],pv6)
+    rows={"0":{"size":42},"3":{"size":22},"4":{"size":40},"6":{"size":24},"23":{"size":28},"41":{"size":28},"67":{"size":28},"93":{"size":28}})],pv6)
 
 # ══════════ Création ══════════
 ctx=ssl.create_default_context()
