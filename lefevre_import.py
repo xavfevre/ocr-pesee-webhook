@@ -313,6 +313,10 @@ def parse_lefevre(file_bytes, nature_mapping, sheet_name=None):
             parsed_rows.append({"type": "subsection", "label": ref,
                                 "section": current_section, "subsection": ref})
         elif detect_section_pattern(vals, col_ref, col_map):
+            # ignorer les résidus d'en-tête pris pour des sections
+            if ref.lower().strip(" .:") in ("n°", "no", "n", "ref", "réf",
+                                            "désignation", "designation", "repère", "repere"):
+                continue
             current_section = ref
             current_subsection = ""
             parsed_rows.append({"type": "section", "label": ref,
