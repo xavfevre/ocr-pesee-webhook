@@ -332,6 +332,321 @@ def parse_lefevre(file_bytes, nature_mapping, sheet_name=None):
 
 
 # ══════════════════════════════════════════════════════════════════════
+# PARSER v2 — mappage explicite des colonnes + validation manuelle
+# (gère les « fiches de débit » multi-onglets : nature en en-tête,
+#  N° décalé, sections issues de colonnes dédiées « inline »)
+# ══════════════════════════════════════════════════════════════════════
+
+FIELDS_V2 = ["ref", "nature", "qte", "long", "prof", "haut", "cube", "poids",
+             "section", "subsection"]
+
+
+def _sheet_is_recap(name):
+    nl = (name or "").lower()
+    return any(k in nl for k in ["total", "totaux", "tota", "recap", "récap",
+                                 "synth", "somme", "résumé", "resume"])
+
+
+def list_data_sheets(file_bytes):
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True, read_only=True)
+    sheets = list(wb.sheetnames)
+    wb.close()
+    data = [s for s in sheets if not _sheet_is_recap(s)]
+    return sheets, (data or sheets)
+
+
+def load_rows_for(file_bytes, sheet_name):
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True, read_only=True)
+    if sheet_name not in wb.sheetnames:
+        sheet_name = wb.sheetnames[0]
+    ws = wb[sheet_name]
+    rows = [list(r) for r in ws.iter_rows(values_only=True)]
+    wb.close()
+    return rows
+
+
+def build_grid(rows, max_rows=16, max_cols=20):
+    ncols = 0
+    for r in rows[:60]:
+        ncols = max(ncols, len(list(r)))
+    ncols = min(ncols, max_cols)
+    grid = []
+    for r in rows[:max_rows]:
+        vals = list(r)
+        grid.append([safe_str(vals[c]) if c < len(vals) else "" for c in range(ncols)])
+    return grid, ncols
+
+
+def detect_nature_header(rows):
+    for row in rows[:15]:
+        rs = [safe_str(v) for v in row]
+        for j, cell in enumerate(rs):
+            if "nature" in cell.lower():
+                for k in range(j + 1, min(j + 8, len(rs))):
+                    if rs[k] and "nature" not in rs[k].lower():
+                        return rs[k]
+    return ""
+
+
+_DITTO = ('"', "“", "”", "''", "«", "»", "”", "″", "same", "idem")
+
+
+def _ditto(v):
+    v = (v or "").strip()
+    return "" if v in _DITTO else v
+
+
+def _emit_line(out, ref, nat, qte, long_raw, haut_raw, prof_raw, cube_raw,
+               poids_raw, divisor, nature_mapping, sec, sub):
+    long_m = round(long_raw / divisor, 5) if long_raw else None
+    haut_m = round(haut_raw / divisor, 5) if haut_raw else None
+    prof_m = round(prof_raw / divisor, 5) if prof_raw else None
+    qty_m3 = cube_raw
+    if qty_m3 is None and long_m and haut_m and prof_m:
+        qty_m3 = round(long_m * haut_m * prof_m * (qte or 1), 6)
+    elif qty_m3:
+        qty_m3 = round(qty_m3, 6)
+    prod = nature_mapping.get(nat)
+    if prod is None:
+        for k, v in nature_mapping.items():
+            if k.lower() == (nat or "").lower():
+                prod = v
+                break
+    out.append({
+        "type": "line",
+        "ref": ref if ref else "SUP",
+        "nature": nat,
+        "qte": int(qte) if (qte is not None and qte == int(qte)) else qte,
+        "long_m": long_m, "haut_m": haut_m, "prof_m": prof_m,
+        "qty_m3": qty_m3, "poids": poids_raw,
+        "section": sec, "subsection": sub,
+        "product": prod["product"] if prod else f"[INCONNU] {nat or ''}",
+        "product_code": prod["product_code"] if prod else "???",
+        "mapped": prod is not None,
+    })
+
+
+def _parse_one_sheet(rows, mp, nature_mapping, sheet_nature):
+    cols = mp.get("cols", {})
+    c_ref = cols.get("ref")
+    c_nat = cols.get("nature")
+    c_qte = cols.get("qte")
+    c_long = cols.get("long")
+    c_haut = cols.get("haut")
+    c_prof = cols.get("prof")
+    c_cube = cols.get("cube")
+    c_poids = cols.get("poids")
+    c_sec = cols.get("section")
+    c_sub = cols.get("subsection")
+    header_row = mp.get("header_row")
+    unit = mp.get("unit") or "auto"
+
+    def gv(vals, c):
+        return vals[c] if (c is not None and c < len(vals)) else None
+
+    if unit not in ("cm", "mm"):
+        sample = []
+        for row in rows:
+            vals = list(row) + [None] * 30
+            n = safe_num(gv(vals, c_long))
+            if n and n > 0:
+                sample.append(n)
+            if len(sample) >= 20:
+                break
+        unit = detect_unit(sample)
+    divisor = 10.0 if unit == "mm" else 100.0
+
+    inline = (c_sec is not None) or (c_sub is not None)
+    out = []
+    cur_sec, cur_sub = "", ""
+    start = (header_row + 1) if header_row is not None else 0
+
+    for i, row in enumerate(rows):
+        if i < start:
+            continue
+        vals = list(row) + [None] * 30
+        ref = safe_str(gv(vals, c_ref))
+        qte = safe_num(gv(vals, c_qte))
+        long_raw = safe_num(gv(vals, c_long))
+        haut_raw = safe_num(gv(vals, c_haut))
+        prof_raw = safe_num(gv(vals, c_prof))
+        cube_raw = safe_num(gv(vals, c_cube))
+        poids_raw = safe_num(gv(vals, c_poids))
+        nat = safe_str(gv(vals, c_nat)) if c_nat is not None else ""
+
+        if inline:
+            sec_v = _ditto(safe_str(gv(vals, c_sec))) if c_sec is not None else ""
+            sub_v = _ditto(safe_str(gv(vals, c_sub))) if c_sub is not None else ""
+            # met à jour section/sous-section même sur une ligne de donnée
+            if c_sec is not None and sec_v and sec_v != cur_sec:
+                cur_sec, cur_sub = sec_v, ""
+                out.append({"type": "section", "label": cur_sec,
+                            "section": cur_sec, "subsection": ""})
+            if c_sub is not None and sub_v and sub_v != cur_sub:
+                cur_sub = sub_v
+                out.append({"type": "subsection", "label": cur_sub,
+                            "section": cur_sec, "subsection": cur_sub})
+            # ligne réelle : réf présente + une dimension/cube + qté
+            is_line = (bool(ref) and (qte is not None and qte > 0)
+                       and ((long_raw and long_raw > 0) or (cube_raw and cube_raw > 0)))
+            if is_line:
+                _emit_line(out, ref, nat or sheet_nature, qte, long_raw, haut_raw,
+                           prof_raw, cube_raw, poids_raw, divisor, nature_mapping,
+                           cur_sec, cur_sub)
+            continue
+
+        # ── mode « motif » (ancien format : sections détectées) ──
+        if not ref and not nat and qte is None and long_raw is None:
+            continue
+        if qte is not None and qte > 0 and long_raw is not None and long_raw > 0:
+            _emit_line(out, ref, nat or sheet_nature, qte, long_raw, haut_raw,
+                       prof_raw, cube_raw, poids_raw, divisor, nature_mapping,
+                       cur_sec, cur_sub)
+        elif detect_subsection_pattern(vals, c_ref if c_ref is not None else 1):
+            cur_sub = ref
+            out.append({"type": "subsection", "label": ref,
+                        "section": cur_sec, "subsection": ref})
+        elif detect_section_pattern(vals, c_ref if c_ref is not None else 1,
+                                    {"qte": c_qte, "long": c_long,
+                                     "haut": c_haut, "prof": c_prof}):
+            if ref.lower().strip(" .:") in ("n°", "no", "n", "ref", "réf",
+                                            "désignation", "designation",
+                                            "repère", "repere"):
+                continue
+            cur_sec, cur_sub = ref, ""
+            out.append({"type": "section", "label": ref,
+                        "section": ref, "subsection": ""})
+    return out
+
+
+def parse_lefevre_explicit(file_bytes, mp, nature_mapping, sheet):
+    all_sheets, data_sheets = list_data_sheets(file_bytes)
+    if sheet == "__ALL__":
+        targets = data_sheets
+        merge = True
+    else:
+        if sheet not in all_sheets:
+            sheet = data_sheets[0]
+        targets = [sheet]
+        merge = False
+
+    hrows = load_rows_for(file_bytes, targets[0])
+    header_info = parse_header_flexible(hrows)
+    header_info["nature_header"] = detect_nature_header(hrows)
+    header_info["all_sheets"] = all_sheets
+    header_info["data_sheets"] = data_sheets
+    header_info["sheet_used"] = sheet
+    header_info["unit"] = mp.get("unit") or "auto"
+    header_info["header_row"] = mp.get("header_row")
+
+    has_section_col = mp.get("cols", {}).get("section") is not None
+    parsed_rows = []
+    for sname in targets:
+        rows = load_rows_for(file_bytes, sname)
+        sheet_nature = mp.get("global_nature") or detect_nature_header(rows) \
+            or header_info.get("nature_header") or ""
+        sub = _parse_one_sheet(rows, mp, nature_mapping, sheet_nature)
+        if merge and not has_section_col and sub:
+            parsed_rows.append({"type": "section", "label": sname,
+                                "section": sname, "subsection": ""})
+        parsed_rows.extend(sub)
+
+    if not header_info.get("cubage_total"):
+        header_info["cubage_total"] = round(
+            sum(r.get("qty_m3") or 0 for r in parsed_rows if r["type"] == "line"), 6)
+    return header_info, parsed_rows
+
+
+def guess_mapping(rows):
+    """Devine un mappage de colonnes (pré-remplissage de l'étape de validation).
+    Repère la ligne d'en-tête via les mots-clés de dimensions, trouve le début
+    réel des données, décale la réf. quand la colonne « désignation » ne contient
+    que des libellés de groupe, et route les sections vers « Observations »."""
+    dim_fields = ["long", "prof", "haut", "qte", "cube", "poids"]
+
+    def row_dim_score(i):
+        rs = [safe_str(v).lower() for v in rows[i]]
+        s = 0
+        for fld in dim_fields:
+            if any(txt and any(kw in txt for kw in COL_KEYWORDS[fld]) for txt in rs):
+                s += 1
+        return s
+
+    base, bs = -1, 0
+    for i in range(min(len(rows), 25)):
+        s = row_dim_score(i)
+        if s > bs:
+            base, bs = i, s
+
+    if base < 0 or bs < 3:
+        return {"header_row": None, "global_nature": "", "unit": "auto",
+                "cols": {"ref": 1, "nature": None, "qte": 3, "long": 4,
+                         "haut": 5, "prof": 6, "cube": 7, "poids": 8,
+                         "section": None, "subsection": None}}
+
+    # colonnes : mots-clés de la ligne d'en-tête + la ligne juste en dessous
+    r0 = [safe_str(v).lower() for v in rows[base]]
+    r1 = [safe_str(v).lower() for v in (rows[base + 1] if base + 1 < len(rows) else [])]
+    ncol = max(len(r0), len(r1))
+    ctext = [((r0[c] if c < len(r0) else "") + " " +
+              (r1[c] if c < len(r1) else "")).strip() for c in range(ncol)]
+
+    def find(field):
+        for j, txt in enumerate(ctext):
+            if txt and any(kw in txt for kw in COL_KEYWORDS[field]):
+                return j
+        return None
+
+    cols = {f: find(f) for f in ["ref", "nature", "qte", "long",
+                                 "prof", "haut", "cube", "poids"]}
+    cols["section"] = None
+    cols["subsection"] = None
+    obs = find("obs")
+
+    # début réel des données : 1re ligne après l'en-tête avec un nombre en qté/long/cube
+    probe = [cols["qte"], cols["long"], cols["cube"]]
+    data_start = base + 1
+    for i in range(base + 1, min(len(rows), base + 6)):
+        vals = list(rows[i]) + [None] * 30
+        if any((safe_num(vals[c]) or 0) > 0 for c in probe if c is not None):
+            data_start = i
+            break
+    header_row = data_start - 1
+
+    used = lambda: [c for c in cols.values() if isinstance(c, int)]
+    data = rows[data_start: data_start + 12]
+
+    def col_vals(c):
+        vv = []
+        for r in data:
+            vals = list(r) + [None] * 30
+            vv.append(safe_str(vals[c]) if (c is not None and c < len(vals)) else "")
+        return [v for v in vv if v]
+
+    # nature collision avec réf. → on retombera sur la nature par défaut
+    if cols["nature"] is not None and cols["nature"] == cols["ref"]:
+        cols["nature"] = None
+
+    # décalage réf. : colonne « désignation » = libellés de groupe, N° en colonne suivante
+    # (déclenché seulement en présence d'une colonne « Observations » = fiche de débit)
+    if cols["ref"] is not None and obs is not None:
+        rv = col_vals(cols["ref"])
+        looks_group = rv and sum(1 for v in rv if (" " in v or not re.search(r"\d", v))) / len(rv) > 0.5
+        nxt = cols["ref"] + 1
+        nv = col_vals(nxt)
+        nxt_refs = nv and sum(1 for v in nv if re.search(r"\d", v)) / len(nv) > 0.5
+        if looks_group and nxt not in used() and nxt_refs:
+            cols["subsection"] = cols["ref"]
+            cols["ref"] = nxt
+
+    if obs is not None and obs not in used():
+        cols["section"] = obs
+
+    gn = detect_nature_header(rows) if cols["nature"] is None else ""
+    return {"header_row": header_row, "global_nature": gn, "unit": "auto", "cols": cols}
+
+
+# ══════════════════════════════════════════════════════════════════════
 # CONNECTEUR ODOO (repris du desktop ; correctif v19 product_uom_id)
 # ══════════════════════════════════════════════════════════════════════
 
@@ -693,17 +1008,48 @@ def lef_parse():
     f = request.files.get("file")
     if not f:
         return jsonify({"error": "fichier manquant"}), 400
+    file_bytes = f.read()
     sheet = request.form.get("sheet") or None
+    mapping_json = request.form.get("mapping")
     try:
         conn = OdooConnector()
         conn.connect()
-        mapping = conn.load_config()["nature_mapping"]
+        nature_mapping = conn.load_config()["nature_mapping"]
     except Exception:
-        mapping = dict(DEFAULT_MAPPING)
+        nature_mapping = dict(DEFAULT_MAPPING)
+
     try:
-        header_info, parsed_rows = parse_lefevre(f.read(), mapping, sheet)
+        all_sheets, data_sheets = list_data_sheets(file_bytes)
+    except Exception as e:
+        return jsonify({"error": f"Fichier illisible : {e}"}), 422
+
+    # feuille de référence pour la grille / la devinette
+    if sheet == "__ALL__" or not sheet or sheet not in all_sheets:
+        ref_sheet = data_sheets[0]
+    else:
+        ref_sheet = sheet
+    # par défaut : fusionner toutes les feuilles de données s'il y en a plusieurs
+    use_sheet = sheet or ("__ALL__" if len(data_sheets) > 1 else data_sheets[0])
+
+    if mapping_json:
+        try:
+            mp = json.loads(mapping_json)
+        except Exception:
+            mp = guess_mapping(load_rows_for(file_bytes, ref_sheet))
+    else:
+        mp = guess_mapping(load_rows_for(file_bytes, ref_sheet))
+
+    try:
+        header_info, parsed_rows = parse_lefevre_explicit(file_bytes, mp, nature_mapping, use_sheet)
     except Exception as e:
         return jsonify({"error": f"Parsing impossible : {e}"}), 422
+
+    grid, ncols = build_grid(load_rows_for(file_bytes, ref_sheet))
+    header_info["grid"] = grid
+    header_info["ncols"] = ncols
+    header_info["mapping"] = mp
+    header_info["sheet_used"] = use_sheet
+
     lines = [r for r in parsed_rows if r["type"] == "line"]
     stats = {
         "sections": sum(1 for r in parsed_rows if r["type"] == "section"),
@@ -839,6 +1185,10 @@ tr.unmapped td{background:#4a1f1f;}
 .hide{display:none;}
 a{color:var(--accent2);}
 .maprow input{margin:0;}
+#gridtbl td,#gridtbl th{white-space:nowrap;font-size:11.5px;padding:3px 7px;border:1px solid var(--border);}
+#gridtbl .colhdr th{background:var(--sidebar);color:var(--accent2);position:sticky;top:0;text-align:center;}
+#gridtbl tr.hrow td{background:#123048;color:var(--accent2);font-weight:700;}
+#mapcols select,#mapcols input{padding:7px 8px;font-size:13px;}
 </style></head><body>
 <div class="hdr"><div style="font-size:26px;">🪨</div>
  <div><h2>Import Lefevre → Odoo</h2><div class="sub">Carrières Maquignon — convertisseur de commandes (web)</div></div></div>
@@ -854,9 +1204,6 @@ a{color:var(--accent2);}
  <div class="card"><h4>Fichier Lefevre</h4>
   <div class="drop" id="drop">📂 Glissez le fichier Excel ici — ou cliquez pour choisir<input type="file" id="file" accept=".xlsx,.xlsm" style="display:none"/></div>
   <div id="finfo" class="sub" style="margin-top:8px;color:var(--dim);"></div>
-  <div id="sheetbox" class="hide" style="margin-top:8px;max-width:300px;">
-    <label>Feuille</label><select id="sheet" onchange="analyser()"></select>
-  </div>
  </div>
  <div class="card"><h4>Paramètres commande</h4>
   <div class="grid2">
@@ -871,7 +1218,28 @@ a{color:var(--accent2);}
    <button class="btn g" id="b-import" disabled onclick="importer()">🚀 Importer dans Odoo</button>
   </div>
  </div>
- <div class="card hide" id="resume"><h4>Résumé</h4>
+ <div class="card hide" id="mapcols"><h4>① Validation du mappage des colonnes</h4>
+  <div class="sub" style="margin-bottom:10px;color:var(--dim);">Vérifiez que chaque colonne du fichier pointe vers le bon champ, puis appliquez. Les valeurs devinées sont pré-remplies.</div>
+  <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+   <div><label>Feuille</label><select id="m_sheet"></select></div>
+   <div><label>Ligne d'en-tête (n° Excel)</label><input type="text" id="m_hrow" placeholder="auto"/></div>
+   <div><label>Unité dimensions</label><select id="m_unit"><option value="auto">Auto</option><option value="cm">cm</option><option value="mm">mm</option></select></div>
+   <div><label>Réf. pièce (N°)</label><select id="m_ref"></select></div>
+   <div><label>Nature (colonne)</label><select id="m_nature"></select></div>
+   <div><label>Nature par défaut</label><input type="text" id="m_gnat" placeholder="ex : Tuffeau"/></div>
+   <div><label>Quantité</label><select id="m_qte"></select></div>
+   <div><label>Longueur</label><select id="m_long"></select></div>
+   <div><label>Largeur / Prof.</label><select id="m_prof"></select></div>
+   <div><label>Hauteur</label><select id="m_haut"></select></div>
+   <div><label>Cube (m³)</label><select id="m_cube"></select></div>
+   <div><label>Poids</label><select id="m_poids"></select></div>
+   <div><label>Section (colonne)</label><select id="m_section"></select></div>
+   <div><label>Sous-section (colonne)</label><select id="m_subsection"></select></div>
+  </div>
+  <div class="tblbox" style="max-height:34vh;margin-top:12px;"><table id="gridtbl"></table></div>
+  <div class="btns"><button class="btn p" onclick="applyMapping()">✅ Appliquer le mappage &amp; ré-analyser</button></div>
+ </div>
+ <div class="card hide" id="resume"><h4>② Résumé</h4>
   <div id="chantier" style="font-weight:800;font-size:16px;margin-bottom:10px;"></div>
   <div class="kpis" id="kpis"></div>
  </div>
@@ -937,35 +1305,110 @@ function setFile(f){
   analyser();
 }
 
-function analyser(){
+var GRID = null, NCOLS = 0, GRID_HEADERS = [];
+var MAPFIELDS = ['ref','nature','qte','long','prof','haut','cube','poids','section','subsection'];
+
+function analyser(mappingOverride){
   if(!FILE){ return; }
   var fd = new FormData();
   fd.append('file', FILE); fd.append('token', TOKEN);
-  var sheet = document.getElementById('sheet').value;
+  var ms = document.getElementById('m_sheet');
+  var sheet = (ms && ms.value) ? ms.value : '';
   if(sheet){ fd.append('sheet', sheet); }
+  if(mappingOverride){ fd.append('mapping', JSON.stringify(mappingOverride)); }
   document.getElementById('finfo').textContent = '⏳ Analyse en cours…';
   fetch('/import-lefevre/parse', {method:'POST', body: fd}).then(function(r){ return r.json(); }).then(function(d){
     if(d.error){ document.getElementById('finfo').textContent = '❌ ' + d.error; return; }
     ROWS = d.rows; HDR = d.header_info;
+    GRID = HDR.grid || []; NCOLS = HDR.ncols || 0;
     document.getElementById('finfo').textContent =
-      '✓ ' + FILE.name + ' — feuille "' + HDR.sheet_used + '" · unité ' + HDR.unit;
-    var sb = document.getElementById('sheetbox'), sel = document.getElementById('sheet');
-    if(HDR.all_sheets && HDR.all_sheets.length > 1){
-      sb.classList.remove('hide');
-      sel.innerHTML = HDR.all_sheets.map(function(s){
-        return '<option' + (s===HDR.sheet_used?' selected':'') + '>' + s + '</option>'; }).join('');
-    }
+      '✓ ' + FILE.name + ' — feuille "' + HDR.sheet_used + '"';
+    renderMapper();
+    document.getElementById('mapcols').classList.remove('hide');
     document.getElementById('resume').classList.remove('hide');
-    document.getElementById('chantier').textContent = '🏗 ' + (HDR.chantier || 'Chantier non détecté');
+    document.getElementById('chantier').textContent = '🏗 ' + (HDR.chantier || 'Chantier non détecté') +
+      (HDR.code_chantier ? '  ·  code ' + HDR.code_chantier : '');
     var k = d.stats;
     document.getElementById('kpis').innerHTML =
       kpi('Sections', k.sections) + kpi('Sous-sections', k.subsections) + kpi('Lignes', k.lines) +
       kpi('Pièces', k.pieces) + kpi('Cubage m³', k.cubage) +
       kpi('Non mappés', k.unknown, k.unknown > 0);
     document.getElementById('b-export').disabled = false;
-    document.getElementById('b-import').disabled = false;
+    document.getElementById('b-import').disabled = (k.lines === 0);
     fillPreview();
   }).catch(function(e){ document.getElementById('finfo').textContent = '❌ ' + e; });
+}
+
+function colLabel(c){
+  var letter = String.fromCharCode(65 + c);
+  var t = GRID_HEADERS[c] || '';
+  return t ? (letter + ' · ' + t) : ('Col ' + letter);
+}
+function computeHeaders(){
+  GRID_HEADERS = [];
+  var hr = HDR.mapping.header_row; if(hr === null || hr === undefined){ hr = 0; }
+  for(var c=0; c<NCOLS; c++){
+    var t = '';
+    for(var rr=Math.max(0,hr-1); rr<=hr && rr<GRID.length; rr++){
+      var v = (GRID[rr] && GRID[rr][c]) ? GRID[rr][c] : '';
+      if(v){ t = (t ? t + ' ' : '') + v; }
+    }
+    GRID_HEADERS.push(t.length > 22 ? t.slice(0,22) : t);
+  }
+}
+function fillColSel(id, val){
+  var sel = document.getElementById('m_' + id);
+  var h = '<option value="">— aucune —</option>';
+  for(var c=0; c<NCOLS; c++){ h += '<option value="' + c + '">' + esc(colLabel(c)) + '</option>'; }
+  sel.innerHTML = h;
+  sel.value = (val === null || val === undefined) ? '' : String(val);
+}
+function renderMapper(){
+  computeHeaders();
+  var mp = HDR.mapping || {cols:{}};
+  var cols = mp.cols || {};
+  // feuilles
+  var ms = document.getElementById('m_sheet'), opts = '';
+  (HDR.all_sheets || []).forEach(function(s){
+    opts += '<option value="' + esc(s) + '"' + (s===HDR.sheet_used?' selected':'') + '>' + esc(s) + '</option>';
+  });
+  if((HDR.data_sheets || []).length > 1){
+    opts += '<option value="__ALL__"' + (HDR.sheet_used==='__ALL__'?' selected':'') + '>➕ Toutes les feuilles (fusionner)</option>';
+  }
+  ms.innerHTML = opts;
+  document.getElementById('m_hrow').value = (mp.header_row === null || mp.header_row === undefined) ? '' : (mp.header_row + 1);
+  document.getElementById('m_unit').value = mp.unit || 'auto';
+  document.getElementById('m_gnat').value = mp.global_nature || '';
+  MAPFIELDS.forEach(function(f){ fillColSel(f, cols[f]); });
+  renderGrid();
+}
+function renderGrid(){
+  var hr = HDR.mapping.header_row;
+  var t = document.getElementById('gridtbl');
+  var h = '<tr class="colhdr"><th>#</th>';
+  for(var c=0; c<NCOLS; c++){ h += '<th>' + String.fromCharCode(65+c) + '</th>'; }
+  h += '</tr>';
+  for(var r=0; r<GRID.length; r++){
+    h += '<tr' + (r===hr?' class="hrow"':'') + '><td style="color:var(--dim)">' + (r+1) + '</td>';
+    for(var c2=0; c2<NCOLS; c2++){ h += '<td>' + esc((GRID[r] && GRID[r][c2]) || '') + '</td>'; }
+    h += '</tr>';
+  }
+  t.innerHTML = h;
+}
+function applyMapping(){
+  var cols = {};
+  MAPFIELDS.forEach(function(f){
+    var v = document.getElementById('m_' + f).value;
+    cols[f] = (v === '') ? null : parseInt(v, 10);
+  });
+  var hrow = document.getElementById('m_hrow').value.trim();
+  var mp = {
+    cols: cols,
+    header_row: hrow === '' ? null : (parseInt(hrow, 10) - 1),
+    unit: document.getElementById('m_unit').value,
+    global_nature: document.getElementById('m_gnat').value.trim()
+  };
+  analyser(mp);
 }
 function kpi(lbl, val, warn){
   return '<div class="kpi' + (warn?' warn':'') + '"><b>' + val + '</b>' + lbl + '</div>';
