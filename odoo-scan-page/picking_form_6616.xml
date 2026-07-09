@@ -17,4 +17,7 @@
   <xpath expr="//header" position="inside">
     <button name="1962" type="action" string="✉ Envoyer BL par mail" class="btn-secondary"/>
   </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='operations']/field[@name='move_ids']" position="before">
+    <field name="x_studio_notes_bl" readonly="1" invisible="not x_studio_notes_bl" string="Notes de la commande"/>
+  </xpath>
 </data>
