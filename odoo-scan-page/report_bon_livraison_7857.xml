@@ -54,12 +54,7 @@
                                                 <t t-out="'%.2f €' % total_ttc"/>
                                             </td>
                                         </tr>
-                                        <tr>
-                                            <td colspan="2" style="padding:8px 12px; text-align:center;                                                                    font-size:9pt; color:#666; font-style:italic;                                                                    border-top:1px solid #ddd;">
-                                                Règlement · Chèque ou espèces
-                                            </td>
-                                        </tr>
-                                    </tbody>
+                                        </tbody>
                                 </table>
                                 <p style="font-size:8pt; color:#aaa; margin-top:6px; text-align:right;">
                                     Réf. : <t t-out="o.origin or o.name"/>
@@ -89,5 +84,13 @@
   <xpath expr="//span[@t-out='o.picking_type_id._get_code_report_name()']" position="replace">
     <span t-if="o.picking_type_id.code in ('internal','outgoing')">Bon de livraison</span>
     <span t-else="" t-out="o.picking_type_id._get_code_report_name()"/>
+  </xpath>
+  <!-- lignes de note de la commande (ex. date/consignes) affichées sur le BL -->
+  <xpath expr="//table[@name='stock_move_table']" position="before">
+    <div t-if="o.sale_id and o.sale_id.order_line.filtered(lambda l: l.display_type == 'line_note')" class="mb-2">
+      <t t-foreach="o.sale_id.order_line.filtered(lambda l: l.display_type == 'line_note')" t-as="nl">
+        <div style="font-style:italic; color:#374151;" t-out="nl.name"/>
+      </t>
+    </div>
   </xpath>
 </data>
