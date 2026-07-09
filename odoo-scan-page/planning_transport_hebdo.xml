@@ -80,6 +80,9 @@
         </div>
       </div>
 
+      <!-- Compteur factures par statut (recalculé selon les filtres) -->
+      <div id="tpCountBar" class="d-flex flex-wrap justify-content-center align-items-center gap-1 mb-2"></div>
+
       <!-- Navigation semaine : Préc / Semaine en cours / Suiv -->
       <div class="text-center mb-2 d-none d-md-flex justify-content-center align-items-center gap-2">
         <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
@@ -153,7 +156,7 @@
       <t t-set="filtered_records" t-value="[t for t in filtered_records if t.planned_date_begin]"/>
 
       <!-- VERSION DESKTOP : Table avec bandeau fixe -->
-      <div class="d-none d-md-block">
+      <div id="tpDesktop" class="d-none d-md-block">
         <!-- Bandeau fixe des transports -->
         <t t-set="immats" t-value="sorted(set([t.x_studio_transport.display_name for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]))"/>
         <t t-set="immats" t-value="list(immats) + ['SANS TRANSPORT']"/>
@@ -279,6 +282,20 @@
                             <t t-set="tache_date_str" t-value="tache.planned_date_begin.strftime('%Y-%m-%d')"/>
                             <t t-set="current_date_str" t-value="current_date.strftime('%Y-%m-%d')"/>
                             <t t-if="tache_date_str == current_date_str">
+                              <t t-set="st_key" t-value="''"/>
+                              <t t-if="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>
+                              <t t-if="not st_key">
+                                <t t-set="_so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+                                <t t-if="_so">
+                                  <t t-set="_inv" t-value="_so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/><t t-if="_inv">
+                                    <t t-set="_ps" t-value="set(_inv.mapped('payment_state'))"/>
+                                    <t t-if="_ps and all(s in ('paid', 'in_payment', 'reversed') for s in _ps)"><t t-set="st_key" t-value="'paye'"/></t>
+                                    <t t-else=""><t t-set="st_key" t-value="'facture'"/></t>
+                                  </t>
+                                  <t t-elif="_so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_key" t-value="'brouillon'"/></t>
+                                  <t t-elif="_so.invoice_status == 'to invoice'"><t t-set="st_key" t-value="'afacturer'"/></t>
+                                </t>
+                              </t>
                               <div class="tp-card border rounded bg-warning px-2 py-1 mb-1 small text-start hover-shadow" style="font-size: 11px; cursor: grab; position: relative; transition: all 0.2s ease;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" t-att-data-status="st_key or 'autre'" t-att-data-id="tache.id" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''">
                                 <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:10px;text-decoration:none;z-index:2;" title="Ouvrir la tâche">🔗</a>
                                   <strong class="d-block text-truncate"><t t-esc="tache.name"/></strong>
@@ -314,7 +331,7 @@
       </div>
 
       <!-- VERSION MOBILE : Cards par jour -->
-      <div class="d-md-none">
+      <div id="tpMobile" class="d-md-none">
         <t t-set="m_off" t-value="int(request.params.get('day_offset') or 0)"/>
         <t t-set="current_date" t-value="datetime.datetime.now() + datetime.timedelta(days=m_off)"/>
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
@@ -529,10 +546,48 @@
         if(btn){ btn.innerHTML = hideTP ? '🏗️ Afficher TP' : '🏗️ Masquer TP'; }
         var sel = document.getElementById('statusFilter');
         if(sel){ sel.value = st; }
+        tpRenderCounts();
+      }
+      function tpComputeCounts(){
+        var desktop = window.matchMedia('(min-width: 768px)').matches;
+        var scope = document.getElementById(desktop ? 'tpDesktop' : 'tpMobile') || document;
+        var cards = scope.querySelectorAll('.tp-card');
+        var hideTP = localStorage.getItem('tpHidden') === '1';
+        var c = {facture:0, paye:0, brouillon:0, afacturer:0, annule:0, autre:0, total:0};
+        cards.forEach(function(card){
+          if(hideTP &amp;&amp; card.getAttribute('data-tp') === '1'){ return; }
+          var s = card.getAttribute('data-status') || 'autre';
+          if(c[s] === undefined){ s = 'autre'; }
+          c[s]++; c.total++;
+        });
+        return c;
+      }
+      function tpRenderCounts(){
+        var bar = document.getElementById('tpCountBar');
+        if(!bar){ return; }
+        var c = tpComputeCounts();
+        var st = localStorage.getItem('tpStatus') || '';
+        var defs = [['','🏷️ Tous','#334155',c.total],
+          ['facture','✅ Facturé','#198754',c.facture],
+          ['paye','💰 Payé','#0d6efd',c.paye],
+          ['brouillon','🧾 Brouillon','#eab308',c.brouillon],
+          ['afacturer','🧾 À facturer','#fd7e14',c.afacturer],
+          ['annule','❌ Annulé','#dc3545',c.annule],
+          ['autre','⬜ Sans statut','#6c757d',c.autre]];
+        bar.innerHTML = '';
+        defs.forEach(function(d){
+          var active = (d[0] === st) || (d[0] === '' &amp;&amp; !st);
+          var chip = document.createElement('span');
+          chip.style.cssText = 'cursor:pointer;border:1.5px solid ' + d[2] + ';border-radius:14px;padding:2px 10px;font-size:12px;font-weight:700;' + (active ? ('background:' + d[2] + ';color:#fff;') : ('background:#fff;color:' + d[2] + ';'));
+          chip.textContent = d[1] + '  ' + d[3];
+          chip.addEventListener('click', function(){ filterByStatus(d[0]); });
+          bar.appendChild(chip);
+        });
       }
       function toggleTP(){ localStorage.setItem('tpHidden', localStorage.getItem('tpHidden') === '1' ? '0' : '1'); applyFilters(); }
       function filterByStatus(v){ localStorage.setItem('tpStatus', v); applyFilters(); }
       window.addEventListener('DOMContentLoaded', applyFilters);
+      window.addEventListener('resize', tpRenderCounts);
 
       // Gestion du bandeau fixe
       window.addEventListener('DOMContentLoaded', function() {

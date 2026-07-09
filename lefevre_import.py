@@ -603,18 +603,16 @@ def guess_mapping(rows):
     cols["subsection"] = None
     obs = find("obs")
 
-    # début réel des données : 1re ligne après l'en-tête avec un nombre en qté/long/cube
-    probe = [cols["qte"], cols["long"], cols["cube"]]
-    data_start = base + 1
-    for i in range(base + 1, min(len(rows), base + 6)):
-        vals = list(rows[i]) + [None] * 30
-        if any((safe_num(vals[c]) or 0) > 0 for c in probe if c is not None):
-            data_start = i
-            break
-    header_row = data_start - 1
+    # ligne d'en-tête : base, +1 si la ligne juste en dessous est une sous-ligne
+    # d'unités (CM / M3 / Kg / N°). On ne descend PAS au-delà : des lignes de
+    # section (palettes, contreforts…) peuvent précéder la 1re ligne de données.
+    header_row = base
+    nxt_txt = " ".join(safe_str(v).lower() for v in (rows[base + 1] if base + 1 < len(rows) else []))
+    if any(u in nxt_txt for u in ["cm", "mm", "m3", "m³", "kg", "n°"]):
+        header_row = base + 1
 
     used = lambda: [c for c in cols.values() if isinstance(c, int)]
-    data = rows[data_start: data_start + 12]
+    data = rows[header_row + 1: header_row + 1 + 14]
 
     def col_vals(c):
         vv = []
@@ -639,7 +637,9 @@ def guess_mapping(rows):
             cols["subsection"] = cols["ref"]
             cols["ref"] = nxt
 
-    if obs is not None and obs not in used():
+    # « Observations » ne sert de colonne section que si elle est réellement
+    # remplie (sinon les sections viennent du motif de la colonne réf.)
+    if obs is not None and obs not in used() and col_vals(obs):
         cols["section"] = obs
 
     gn = detect_nature_header(rows) if cols["nature"] is None else ""
