@@ -40,6 +40,8 @@
       .trm-bon:hover{opacity:.75;}
       .trm-st-lbl{display:inline-flex;align-items:center;gap:5px;border:2px solid #cbd5e1;border-radius:14px;padding:2px 11px;font-size:12.5px;font-weight:700;cursor:pointer;margin:2px;background:#fff;user-select:none;}
       .trm-st-lbl input{cursor:pointer;margin:0;}
+      .trm-st-n{display:inline-block;min-width:20px;text-align:center;background:#f1f5f9;border-radius:9px;padding:0 6px;font-weight:800;font-size:11.5px;color:#334155;}
+      .trm-st-lbl.off{opacity:.45;}
       .trm-cl-wrap{max-height:95px;overflow-y:auto;margin-top:5px;padding:4px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa;}
       .trm-cl-lbl{display:inline-flex;align-items:center;gap:5px;border:1px solid #cbd5e1;border-radius:12px;padding:1px 9px 1px 6px;font-size:11.5px;font-weight:600;cursor:pointer;margin:2px;background:#fff;user-select:none;}
       .trm-cl-lbl input{cursor:pointer;margin:0;}
@@ -60,17 +62,16 @@
       </div>
 
       <div class="text-center mb-2">
-        <span class="text-muted small me-2">Statuts (coche pour afficher) :</span>
-        <label class="trm-st-lbl" style="border-color:#198754;"><input type="checkbox" class="trm-st" value="facture" checked="checked"/> ✅ Facturé</label>
-        <label class="trm-st-lbl" style="border-color:#0d6efd;"><input type="checkbox" class="trm-st" value="paye" checked="checked"/> 💰 Payé</label>
-        <label class="trm-st-lbl" style="border-color:#eab308;"><input type="checkbox" class="trm-st" value="brouillon" checked="checked"/> 🧾 Facture brouillon</label>
-        <label class="trm-st-lbl" style="border-color:#fd7e14;"><input type="checkbox" class="trm-st" value="afacturer" checked="checked"/> 🧾 À facturer</label>
-        <label class="trm-st-lbl" style="border-color:#dc3545;"><input type="checkbox" class="trm-st" value="annule" checked="checked"/> ❌ Annulé</label>
-        <label class="trm-st-lbl" style="border-color:#94a3b8;"><input type="checkbox" class="trm-st" value="autre" checked="checked"/> • Sans statut</label>
-        <div class="text-muted small mt-1">Fond de pastille = statut · Bordure gauche = couleur du client</div>
+        <span class="text-muted small me-2">Statuts (coche pour afficher · le nombre = factures des clients filtrés) :</span>
+        <label class="trm-st-lbl" style="border-color:#198754;"><input type="checkbox" class="trm-st" value="facture" checked="checked"/> ✅ Facturé <span class="trm-st-n" data-st="facture">0</span></label>
+        <label class="trm-st-lbl" style="border-color:#0d6efd;"><input type="checkbox" class="trm-st" value="paye" checked="checked"/> 💰 Payé <span class="trm-st-n" data-st="paye">0</span></label>
+        <label class="trm-st-lbl" style="border-color:#eab308;"><input type="checkbox" class="trm-st" value="brouillon" checked="checked"/> 🧾 Facture brouillon <span class="trm-st-n" data-st="brouillon">0</span></label>
+        <label class="trm-st-lbl" style="border-color:#fd7e14;"><input type="checkbox" class="trm-st" value="afacturer" checked="checked"/> 🧾 À facturer <span class="trm-st-n" data-st="afacturer">0</span></label>
+        <label class="trm-st-lbl" style="border-color:#dc3545;"><input type="checkbox" class="trm-st" value="annule" checked="checked"/> ❌ Annulé <span class="trm-st-n" data-st="annule">0</span></label>
+        <label class="trm-st-lbl" style="border-color:#94a3b8;"><input type="checkbox" class="trm-st" value="autre" checked="checked"/> • Sans statut <span class="trm-st-n" data-st="autre">0</span></label>
+        <span class="fw-bold ms-2" style="color:#15324f;">Total <span id="trmTotal">0</span></span>
+        <div class="text-muted small mt-1">Fond de pastille = statut · Bordure gauche = couleur du client · nombre = factures</div>
       </div>
-
-      <div id="trmCountBar" class="text-center mb-2 d-flex flex-wrap justify-content-center gap-1"></div>
 
       <div class="text-center mb-2">
         <span class="text-muted small me-2">Clients :</span>
@@ -183,20 +184,13 @@
             if(c[s] === undefined){ s = 'autre'; }
             c[s]++; total++;
           });
-          var defs = [['🏷️ Tous','#334155',total],
-            ['✅ Facturé','#198754',c.facture],
-            ['💰 Payé','#0d6efd',c.paye],
-            ['🧾 Brouillon','#eab308',c.brouillon],
-            ['🧾 À facturer','#fd7e14',c.afacturer],
-            ['❌ Annulé','#dc3545',c.annule],
-            ['• Sans statut','#94a3b8',c.autre]];
-          var bar = document.getElementById('trmCountBar'); if(!bar){ return; }
-          bar.innerHTML = '';
-          defs.forEach(function(d){
-            var chip = document.createElement('span');
-            chip.style.cssText = 'border:1.5px solid ' + d[1] + ';border-radius:14px;padding:2px 10px;font-size:12px;font-weight:700;color:' + d[1] + ';background:#fff;';
-            chip.textContent = d[0] + '  ' + d[2];
-            bar.appendChild(chip);
+          document.querySelectorAll('.trm-st-n').forEach(function(sp){
+            var k = sp.getAttribute('data-st');
+            sp.textContent = (c[k] === undefined ? 0 : c[k]);
+          });
+          var tot = document.getElementById('trmTotal'); if(tot){ tot.textContent = total; }
+          document.querySelectorAll('.trm-st').forEach(function(cb){
+            var lbl = cb.closest('.trm-st-lbl'); if(lbl){ lbl.classList.toggle('off', !cb.checked); }
           });
         }
         document.querySelectorAll('.trm-st').forEach(function(cb){ cb.addEventListener('change', applyFilter); });
