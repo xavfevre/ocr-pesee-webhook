@@ -1,0 +1,93 @@
+<data inherit_id="stock.report_delivery_document">
+  <xpath expr="//div[@name='div_operator']" position="after">
+    <t t-set="poids_total_reel" t-value="sum(o.move_ids.mapped('x_studio_poids_kg') or [0])"/>
+<div t-if="poids_total_reel &gt; 0" class="col col-3 mw-100 mb-2">
+                        <strong>Poids total</strong>
+                        <div>
+                            <t t-out="'%.0f' % poids_total_reel"/> kg
+                        </div>
+                    </div>
+  </xpath>
+  <xpath expr="//div[@name='signature']" position="before">
+    <t t-if="o.picking_type_id.code == 'outgoing'">
+
+                    <t t-set="lines_with_price" t-value="o.move_ids.filtered(lambda m: m.sale_line_id and m.sale_line_id.product_uom_qty &gt; 0)"/>
+
+                    <t t-set="total_ht" t-value="sum(m.quantity * m.sale_line_id.price_unit for m in lines_with_price)"/>
+
+                    <t t-set="total_ttc" t-value="sum(m.quantity * (m.sale_line_id.price_total / m.sale_line_id.product_uom_qty) for m in lines_with_price)"/>
+
+                    <t t-set="total_tva" t-value="total_ttc - total_ht"/>
+
+                    <t t-if="total_ttc &gt; 0">
+
+                        <hr style="border-top: 2px solid #2c3e50; margin-top: 24px; margin-bottom: 16px;"/>
+
+                        <div class="row justify-content-end">
+                            <div class="col-6">
+                                <table style="width:100%; border-collapse:collapse; font-size:11pt;">
+                                    <thead>
+                                        <tr style="background-color:#2c3e50; color:white;">
+                                            <th colspan="2" style="padding:8px 12px; text-align:center; letter-spacing:1px; font-size:12pt;">
+                                                MONTANT À RÉGLER
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr style="border-bottom:1px solid #ddd;">
+                                            <td style="padding:6px 12px;">Total HT</td>
+                                            <td style="padding:6px 12px; text-align:right;">
+                                                <t t-out="'%.2f €' % total_ht"/>
+                                            </td>
+                                        </tr>
+                                        <tr style="border-bottom:1px solid #ddd;">
+                                            <td style="padding:6px 12px;">TVA</td>
+                                            <td style="padding:6px 12px; text-align:right;">
+                                                <t t-out="'%.2f €' % total_tva"/>
+                                            </td>
+                                        </tr>
+                                        <tr style="background-color:#f0f4f8;">
+                                            <td style="padding:10px 12px; font-size:14pt; font-weight:bold;">
+                                                TOTAL TTC
+                                            </td>
+                                            <td style="padding:10px 12px; font-size:14pt; font-weight:bold; text-align:right; color:#2c3e50;">
+                                                <t t-out="'%.2f €' % total_ttc"/>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2" style="padding:8px 12px; text-align:center;                                                                    font-size:9pt; color:#666; font-style:italic;                                                                    border-top:1px solid #ddd;">
+                                                Règlement · Chèque ou espèces
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <p style="font-size:8pt; color:#aaa; margin-top:6px; text-align:right;">
+                                    Réf. : <t t-out="o.origin or o.name"/>
+                                    — Ce document ne constitue pas une facture
+                                </p>
+                            </div>
+                        </div>
+
+                    </t>
+                </t>
+                
+  </xpath>
+
+  <xpath expr="//div[@name='div_contact']" position="inside">
+    <div t-if="o.partner_id.street" t-field="o.partner_id.street" class="m-0"/>
+    <div t-if="o.partner_id.zip or o.partner_id.city" class="m-0"><span t-field="o.partner_id.zip"/> <span t-field="o.partner_id.city"/></div>
+    <div t-if="o.partner_id.phone" class="m-0">Tél : <span t-field="o.partner_id.phone"/></div>
+  </xpath>
+
+  <!-- 1) retirer le « Poids total » standard (o.shipping_weight, ex. 4 048,000 kg) -->
+  <xpath expr="//div[@t-if='o.shipping_weight']" position="replace"/>
+  <!-- 2) quantités : arrondir à 3 décimales -->
+  <xpath expr="//t[@t-set='format_number']" position="replace">
+    <t t-set="format_number" t-value="lambda x: int(x) if x == int(x) else round(x, 3)"/>
+  </xpath>
+  <!-- 3) titre : « Bon de livraison » (sortie/interne) -->
+  <xpath expr="//span[@t-out='o.picking_type_id._get_code_report_name()']" position="replace">
+    <span t-if="o.picking_type_id.code in ('internal','outgoing')">Bon de livraison</span>
+    <span t-else="" t-out="o.picking_type_id._get_code_report_name()"/>
+  </xpath>
+</data>
