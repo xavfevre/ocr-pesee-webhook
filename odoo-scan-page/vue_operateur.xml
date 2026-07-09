@@ -131,7 +131,7 @@
         <t t-set="today" t-value="datetime.date.today()"/>
         <t t-set="dfday" t-value="today.strftime('%Y-%m-%d 00:00:00')"/>
         <t t-set="dom" t-value="[('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1),('employee_assigned_ids','in',[int(op)]),'|',('state','in',['ready','progress']),'&amp;',('state','=','done'),('date_start','&gt;=',dfday)]"/>
-        <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, order='workcenter_id, date_start', limit=300)"/>
+        <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, limit=300).sorted(key=lambda w: (w.production_id.name or '', w.id))"/>
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
         <t t-set="clients_op" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in ots if w.production_id.x_studio_nom_du_client))"/>
         <t t-set="machines_op" t-value="sorted(set(w.workcenter_id.name for w in ots if w.workcenter_id))"/>
