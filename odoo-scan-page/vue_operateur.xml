@@ -277,8 +277,9 @@
               if(m==='undo_finish' &amp;&amp; !confirm('Annuler le Terminé de cette opération ?')){ return; }
               b.disabled=true; b.textContent='…';
               var body;
-              if(m==='undo_finish'){
-                body = {jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1940]],kwargs:{context:{active_model:'mrp.workorder',active_ids:[id]}}}};
+              if(m==='undo_finish' || m==='button_pending'){
+                var _act = (m==='undo_finish') ? 1940 : 1953;
+                body = {jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[_act]],kwargs:{context:{active_model:'mrp.workorder',active_ids:[id]}}}};
               } else {
                 body = {jsonrpc:'2.0',method:'call',params:{model:'mrp.workorder',method:m,args:[[id]],kwargs:{}}};
               }
