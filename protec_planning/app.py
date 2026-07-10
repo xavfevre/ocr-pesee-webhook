@@ -548,6 +548,17 @@ def fiche(slot_id):
         if so_l and so_l[0].get("x_studio_lieu_dintervention_2"):
             adresse = so_l[0]["x_studio_lieu_dintervention_2"]
 
+    # Préremplissage du véhicule depuis le camion renseigné sur le BI
+    if not prefill["vehicule"] and ref0:
+        try:
+            bi = x(models, uid, "stock.picking", "search_read",
+                   [["origin", "=", ref0], ["x_camion_id", "!=", False]],
+                   fields=["x_camion_id"], limit=1)
+            if bi and bi[0].get("x_camion_id"):
+                prefill["vehicule"] = bi[0]["x_camion_id"][1]
+        except Exception:
+            pass
+
     return render_template("fiche.html",
         card=card, slot_id=slot_id, token=token,
         date_label=f"{d.day:02d}/{d.month:02d}/{d.year}",
