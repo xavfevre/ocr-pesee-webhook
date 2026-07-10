@@ -702,6 +702,8 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
     return "".join(html)
 
 # ─── BON D'INTERVENTION (PDF chiffré, via session web du compte technique) ──
+# NB : le rapport « Fiche de fin de travaux » est consultable/envoyable depuis
+# la commande, la facture et le BI via des smart boutons Odoo (rendu à la volée).
 BI_REPORT = "protec_custom.report_deliveryslip_priced"
 FICHE_REPORT = "protec_custom.report_fiche_fin_travaux"
 _web_session = {"opener": None}
