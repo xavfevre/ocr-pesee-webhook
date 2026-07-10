@@ -528,13 +528,6 @@ def fiche(slot_id):
         except Exception:
             pass
 
-        # PDF de la fiche attaché à la commande, au client et à la facture
-        try:
-            _pid = s["partner_id"][0] if s.get("partner_id") else None
-            push_fiche_attachments(uid, models, slot_id, card.get("ref", ""), _pid)
-        except Exception:
-            pass
-
         back = request.args.get("back", "")
         return redirect(url_for(".fiche", slot_id=slot_id, t=token, back=back, ok=1))
 
@@ -702,63 +695,10 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
     return "".join(html)
 
 # ─── BON D'INTERVENTION (PDF chiffré, via session web du compte technique) ──
+# NB : le rapport « Fiche de fin de travaux » est consultable/envoyable depuis
+# la commande, la facture et le BI via des smart boutons Odoo (rendu à la volée).
 BI_REPORT = "protec_custom.report_deliveryslip_priced"
-FICHE_REPORT = "protec_custom.report_fiche_fin_travaux"
 _web_session = {"opener": None}
-
-def _render_report_pdf(report_name, res_id, cid=2):
-    """Rend un rapport Odoo en PDF via la session web (réauth si expirée)."""
-    import urllib.parse as _up
-    ctx = _up.quote(json.dumps({"allowed_company_ids": [cid]}))
-    for _attempt in (1, 2):
-        try:
-            op = _web_opener()
-            r = op.open(f"{ODOO_URL}/report/pdf/{report_name}/{res_id}?context={ctx}",
-                        timeout=60)
-            pdf = r.read()
-            if pdf[:4] == b"%PDF":
-                return pdf
-        except Exception:
-            pass
-        _web_session["opener"] = None
-    return None
-
-def push_fiche_attachments(uid, models, slot_id, ref, partner_id, cid=2):
-    """Génère le PDF de la fiche et l'attache à la commande, au client et à la
-    facture (si elle existe). Ré-exécutable : remplace les pièces précédentes
-    de la même fiche (marqueur dans le champ description)."""
-    import base64
-    pdf = _render_report_pdf(FICHE_REPORT, slot_id, cid)
-    if not pdf:
-        return
-    ref0 = (ref or "").split()[0] if ref else ""
-    fname = f"Fiche_{ref0 or slot_id}.pdf"
-    marker = f"FDT-slot-{slot_id}"
-    b64 = base64.b64encode(pdf).decode()
-
-    targets = []  # (res_model, res_id)
-    if ref0:
-        so = x(models, uid, "sale.order", "search_read",
-               [["name", "=", ref0]], fields=["id", "invoice_ids"], limit=1)
-        if so:
-            targets.append(("sale.order", so[0]["id"]))
-            for inv_id in so[0].get("invoice_ids", []):
-                targets.append(("account.move", inv_id))
-    if partner_id:
-        targets.append(("res.partner", partner_id))
-
-    for res_model, res_id in targets:
-        old = x(models, uid, "ir.attachment", "search",
-                [["res_model", "=", res_model], ["res_id", "=", res_id],
-                 ["description", "=", marker]])
-        if old:
-            x(models, uid, "ir.attachment", "unlink", old)
-        x(models, uid, "ir.attachment", "create", [{
-            "name": fname, "datas": b64, "type": "binary",
-            "mimetype": "application/pdf", "description": marker,
-            "res_model": res_model, "res_id": res_id,
-        }])
-
 
 def _web_opener():
     if _web_session["opener"] is not None:
