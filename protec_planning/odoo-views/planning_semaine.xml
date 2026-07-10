@@ -77,7 +77,7 @@
     tr.row-none .emp-name { color: #7f1d1d; }
     td.slot-cell.is-today-col { background: #fff8e1 !important; }
     td.slot-cell.tg { padding: 0; position: relative; min-width: 175px; }
-    .tg-body { position: relative; height: 594px; }
+    .tg-body { position: relative; height: 612px; }
     .tg-hline { position: absolute; left: 0; right: 0; border-top: 1px solid #eef2f9; }
     td.hour-gut { width: 46px; min-width: 46px; padding: 0; vertical-align: top;
                   background: #f6f8fb; border-right: 1px solid #dce3ef;
