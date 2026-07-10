@@ -492,6 +492,15 @@ def fiche(slot_id):
             "x_fdt_data":          json.dumps(data, ensure_ascii=False),
             "x_fdt_signataire":    f.get("signataire", "").strip(),
         }
+        # Corps HTML du rapport PDF (fiche de fin de travaux)
+        _d = date.fromisoformat(card["day"])
+        _adresse = ", ".join(p for p in [card["street"],
+                   f"{card['zip']} {card['ville']}".strip()] if p)
+        vals["x_fdt_report_body"] = build_report_body(
+            card["client"], _adresse, f"{_d.day:02d}/{_d.month:02d}/{_d.year}",
+            vals["x_fdt_vehicule"], vals["x_fdt_operateurs"],
+            vals["x_fdt_heure_arrivee"], vals["x_fdt_heure_depart"],
+            vals["x_fdt_temps_trajet"], vals["x_fdt_commentaires"], data)
         sig = bin_val(f.get("signature", ""))
         if sig:
             vals["x_fdt_signature"] = sig
@@ -516,6 +525,13 @@ def fiche(slot_id):
                 "message_type": "comment", "subtype_id": subtype[1],
                 "body": html,
             }])
+        except Exception:
+            pass
+
+        # PDF de la fiche attaché à la commande, au client et à la facture
+        try:
+            _pid = s["partner_id"][0] if s.get("partner_id") else None
+            push_fiche_attachments(uid, models, slot_id, card.get("ref", ""), _pid)
         except Exception:
             pass
 
@@ -620,9 +636,129 @@ def render_fiche_html(card, vals, data, nphotos=0):
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
     return html
 
+def _labelize(code):
+    """Libellé lisible pour un code inconnu (anciennes fiches)."""
+    return code.replace("_", " ").capitalize()
+
+def build_report_body(client, adresse, date_label, vehicule, operateurs,
+                      h_arrivee, h_depart, trajet, commentaires, data):
+    """Corps HTML du rapport PDF (fiche de fin de travaux). Enrobé côté Odoo
+    par le rapport QWeb (en-tête société + logo, signature, photos)."""
+    from markupsafe import escape
+    def E(v): return str(escape(v or ""))
+    th = ("padding:5px 8px;text-align:left;background:#0b7285;color:#fff;"
+          "font-size:11px;border:1px solid #0b7285;")
+    td = "padding:5px 8px;border:1px solid #cbd5e1;font-size:12px;"
+    lbl = "padding:4px 8px;font-weight:700;color:#0b7285;width:150px;vertical-align:top;"
+    val = "padding:4px 8px;"
+
+    def info(k, v):
+        return (f"<tr><td style='{lbl}'>{k}</td>"
+                f"<td style='{val}'>{E(v) or '—'}</td></tr>")
+
+    html = ["<table style='width:100%;border-collapse:collapse;margin-bottom:14px;'>"]
+    html.append(info("Client", client))
+    html.append(info("Adresse des travaux", adresse))
+    html.append(info("Date d'intervention", date_label))
+    html.append(info("Véhicule", vehicule))
+    html.append(info("Opérateur(s)", operateurs))
+    html.append(info("Heure d'arrivée / départ",
+                     f"{h_arrivee or '—'}  →  {h_depart or '—'}"))
+    html.append(info("Temps de trajet A/R", trajet))
+    html.append("</table>")
+
+    labels_t = {c: (l, u) for c, l, u in TRAVAUX}
+    rows_t = data.get("travaux", {})
+    if rows_t:
+        html.append("<h3 style='color:#0b7285;font-size:14px;margin:10px 0 4px;'>Nature des travaux</h3>")
+        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:12px;'>")
+        html.append(f"<tr><th style='{th}'>Prestation</th><th style='{th}'>Quantité</th>"
+                    f"<th style='{th}'>Temps</th></tr>")
+        for code, v in rows_t.items():
+            label, unit = labels_t.get(code, (_labelize(code), ""))
+            qte = f"{E(v.get('qte',''))} {unit}".strip()
+            html.append(f"<tr><td style='{td}'>{label}</td><td style='{td}'>{qte}</td>"
+                        f"<td style='{td}'>{E(v.get('temps',''))} {'h' if v.get('temps') else ''}</td></tr>")
+        html.append("</table>")
+
+    if commentaires:
+        html.append("<h3 style='color:#0b7285;font-size:14px;margin:10px 0 4px;'>Commentaires</h3>")
+        html.append(f"<div style='font-size:12px;white-space:pre-wrap;margin-bottom:12px;'>{E(commentaires)}</div>")
+
+    labels_d = dict(DECHETS)
+    rows_d = data.get("dechets", {})
+    if rows_d:
+        html.append("<h3 style='color:#0b7285;font-size:14px;margin:10px 0 4px;'>Déchets évacués</h3>")
+        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:12px;'>")
+        html.append(f"<tr><th style='{th}'>Déchet</th><th style='{th}'>Volume (m³)</th>"
+                    f"<th style='{th}'>Destination</th><th style='{th}'>Tps dépotage</th></tr>")
+        for code, v in rows_d.items():
+            html.append(f"<tr><td style='{td}'>{labels_d.get(code, _labelize(code))}</td>"
+                        f"<td style='{td}'>{E(v.get('volume',''))}</td>"
+                        f"<td style='{td}'>{E(v.get('destination',''))}</td>"
+                        f"<td style='{td}'>{E(v.get('temps',''))}</td></tr>")
+        html.append("</table>")
+
+    return "".join(html)
+
 # ─── BON D'INTERVENTION (PDF chiffré, via session web du compte technique) ──
 BI_REPORT = "protec_custom.report_deliveryslip_priced"
+FICHE_REPORT = "protec_custom.report_fiche_fin_travaux"
 _web_session = {"opener": None}
+
+def _render_report_pdf(report_name, res_id, cid=2):
+    """Rend un rapport Odoo en PDF via la session web (réauth si expirée)."""
+    import urllib.parse as _up
+    ctx = _up.quote(json.dumps({"allowed_company_ids": [cid]}))
+    for _attempt in (1, 2):
+        try:
+            op = _web_opener()
+            r = op.open(f"{ODOO_URL}/report/pdf/{report_name}/{res_id}?context={ctx}",
+                        timeout=60)
+            pdf = r.read()
+            if pdf[:4] == b"%PDF":
+                return pdf
+        except Exception:
+            pass
+        _web_session["opener"] = None
+    return None
+
+def push_fiche_attachments(uid, models, slot_id, ref, partner_id, cid=2):
+    """Génère le PDF de la fiche et l'attache à la commande, au client et à la
+    facture (si elle existe). Ré-exécutable : remplace les pièces précédentes
+    de la même fiche (marqueur dans le champ description)."""
+    import base64
+    pdf = _render_report_pdf(FICHE_REPORT, slot_id, cid)
+    if not pdf:
+        return
+    ref0 = (ref or "").split()[0] if ref else ""
+    fname = f"Fiche_{ref0 or slot_id}.pdf"
+    marker = f"FDT-slot-{slot_id}"
+    b64 = base64.b64encode(pdf).decode()
+
+    targets = []  # (res_model, res_id)
+    if ref0:
+        so = x(models, uid, "sale.order", "search_read",
+               [["name", "=", ref0]], fields=["id", "invoice_ids"], limit=1)
+        if so:
+            targets.append(("sale.order", so[0]["id"]))
+            for inv_id in so[0].get("invoice_ids", []):
+                targets.append(("account.move", inv_id))
+    if partner_id:
+        targets.append(("res.partner", partner_id))
+
+    for res_model, res_id in targets:
+        old = x(models, uid, "ir.attachment", "search",
+                [["res_model", "=", res_model], ["res_id", "=", res_id],
+                 ["description", "=", marker]])
+        if old:
+            x(models, uid, "ir.attachment", "unlink", old)
+        x(models, uid, "ir.attachment", "create", [{
+            "name": fname, "datas": b64, "type": "binary",
+            "mimetype": "application/pdf", "description": marker,
+            "res_model": res_model, "res_id": res_id,
+        }])
+
 
 def _web_opener():
     if _web_session["opener"] is not None:
