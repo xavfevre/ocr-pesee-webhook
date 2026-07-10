@@ -58,7 +58,7 @@ TRAVAUX_TABS = [
         ("hydro_reu_amiante", "Hydrocurage REU amianté", "ML"),
         ("hydro_exo",       "Hydrocurage exo",         "ML"),
     ]),
-    ("poste", "Poste de relevage", [
+    ("poste", "PR", [
         ("pomp_poste",      "PR poste de relevage",   "U"),
         ("pomp_puisard",    "PR puisard",             "U"),
         ("pomp_regard",     "PR regard de visite",    "U"),
@@ -66,12 +66,12 @@ TRAVAUX_TABS = [
         ("travaux_pompage", "PR travaux de pompage",  "H"),
         ("visite_satese",   "PR visite Satèse",       "H"),
     ]),
-    ("bac", "Bac à graisse", [
+    ("bac", "BG", [
         ("pomp_bac_graisse", "BG bac à graisses", "U"),
         ("pomp_bac_mousse",  "BG bac à mousse",   "U"),
         ("pomp_siphon",      "BG curage siphon",  "U"),
     ]),
-    ("step", "Station d'épuration", [
+    ("step", "STEP", [
         ("pomp_dessableur",  "Pompage nettoyage dessableur",       "U"),
         ("pomp_decanteur",   "Pompage nettoyage décanteur",        "U"),
         ("pomp_degrilleur",  "Pompage nettoyage panier dégrilleur", "U"),
