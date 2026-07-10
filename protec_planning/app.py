@@ -89,6 +89,15 @@ TRAVAUX_TABS = [
         ("filtre_coco",       "Changement de filtre coco",            "H"),
         ("visite_fosse",      "Visite contrôle entretien fosse",      "U"),
     ]),
+    ("itv", "ITV", [
+        ("itv_inspection", "Inspection télévisée",              "ML"),
+        ("itv_branchements", "Branchements",                    "U"),
+        ("itv_fourgon",    "Prise en charge fourgon ITV / tests", "H"),
+        ("itv_tests",      "Tests",                             "H"),
+        ("itv_rech_fuite", "Recherche de fuite",                "H"),
+        ("itv_rech_reseau","Recherche de réseau",               "H"),
+        ("itv_rapport",    "Rapport",                           "U"),
+    ]),
     ("autre", "Autre", [
         ("main_oeuvre",   "Main d'œuvre",                    "H"),
         ("lavage_mat",    "Lavage matériel",                 "U"),
