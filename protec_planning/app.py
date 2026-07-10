@@ -198,6 +198,23 @@ def get_all_employees(uid, models):
 def emp_name_map(uid, models):
     return {e["id"]: e["name"] for e in get_all_employees(uid, models)}
 
+_veh_cache = {"t": 0.0, "data": None}
+
+def get_fleet_vehicles(uid, models):
+    """Noms des camions du parc (format « Surnom (Plaque) »), pour la liste
+    déroulante véhicule de la fiche. Tolérant aux erreurs d'accès."""
+    now = time.time()
+    if _veh_cache["data"] is not None and now - _veh_cache["t"] < 600:
+        return _veh_cache["data"]
+    try:
+        vs = x(models, uid, "fleet.vehicle", "search_read",
+               [["active", "=", True]], fields=["name"], order="name asc", limit=200)
+        data = [v["name"] for v in vs if v.get("name")]
+    except Exception:
+        data = []
+    _veh_cache["t"], _veh_cache["data"] = now, data
+    return data
+
 def fetch_slots(uid, models, d_start: date, d_end: date, emp_id=None):
     s_utc, e_utc = local_range_to_utc(d_start, d_end)
     domain = [["start_datetime", ">=", s_utc], ["start_datetime", "<", e_utc]]
@@ -548,12 +565,24 @@ def fiche(slot_id):
         if so_l and so_l[0].get("x_studio_lieu_dintervention_2"):
             adresse = so_l[0]["x_studio_lieu_dintervention_2"]
 
+    # Préremplissage du véhicule depuis le camion renseigné sur le BI
+    if not prefill["vehicule"] and ref0:
+        try:
+            bi = x(models, uid, "stock.picking", "search_read",
+                   [["origin", "=", ref0], ["x_camion_id", "!=", False]],
+                   fields=["x_camion_id"], limit=1)
+            if bi and bi[0].get("x_camion_id"):
+                prefill["vehicule"] = bi[0]["x_camion_id"][1]
+        except Exception:
+            pass
+
     return render_template("fiche.html",
         card=card, slot_id=slot_id, token=token,
         date_label=f"{d.day:02d}/{d.month:02d}/{d.year}",
         adresse=adresse, prefill=prefill,
         travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts,
         dechets=DECHETS, destinations=DESTINATIONS,
+        vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
         has=has,
         signataire=s.get("x_fdt_signataire") or "",

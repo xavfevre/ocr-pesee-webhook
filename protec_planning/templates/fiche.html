@@ -30,10 +30,11 @@
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .fld label { display: block; font-size: 12px; font-weight: 800; color: var(--cy-dk);
                  margin-bottom: 3px; }
-    .fld input, .fld textarea {
+    .fld input, .fld textarea, .fld select {
       width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
-      padding: 9px 10px; font-size: 15px; font-family: inherit; color: var(--text); }
-    .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--cy); }
+      padding: 9px 10px; font-size: 15px; font-family: inherit; color: var(--text);
+      background: #fff; }
+    .fld input:focus, .fld textarea:focus, .fld select:focus { outline: none; border-color: var(--cy); }
     .fld .ro { background: var(--cy-lt); border: none; border-radius: 8px;
                padding: 9px 10px; font-size: 14px; font-weight: 700; }
 
@@ -100,8 +101,16 @@
     <div class="box-body">
       <div class="grid2" style="margin-bottom:10px;">
         <div class="fld"><label>Date</label><div class="ro">{{ date_label }}</div></div>
-        <div class="fld"><label>Immatriculation véhicule</label>
-          <input type="text" name="vehicule" value="{{ prefill.vehicule }}" placeholder="AB-123-CD"></div>
+        <div class="fld"><label>Véhicule</label>
+          <select name="vehicule">
+            <option value=""{% if not prefill.vehicule %} selected{% endif %}>— choisir —</option>
+            {% for v in vehicules %}
+            <option value="{{ v }}"{% if v == prefill.vehicule %} selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+            {% if prefill.vehicule and prefill.vehicule not in vehicules %}
+            <option value="{{ prefill.vehicule }}" selected>{{ prefill.vehicule }}</option>
+            {% endif %}
+          </select></div>
       </div>
       <div class="grid3" style="margin-bottom:10px;">
         <div class="fld"><label>Heure d'arrivée</label>
