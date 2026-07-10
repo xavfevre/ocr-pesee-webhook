@@ -42,19 +42,38 @@ CMAP = {4: "#2563eb", 5: "#eab308", 6: "#dc2626", 7: "#111827",
         10: "#7c3aed", 2: "#7c3aed", 8: "#0d9488", 1: "#db2777", 9: "#ea580c"}
 OMAP = {4: 1, 5: 2, 6: 3, 7: 4, 10: 5, 2: 6, 8: 7, 9: 8, 1: 9}
 
-# ─── Fiche de fin de travaux : lignes fixes du modèle ────────────────────────
-TRAVAUX = [
-    ("deb_brancht_eu", "Débouchage branchement EU", "U"),
-    ("deb_brancht_ep", "Débouchage branchement EP", "U"),
-    ("deb_reseau_eu",  "Débouchage réseau EU",      "U"),
-    ("deb_reseau_ep",  "Débouchage réseau EP",      "U"),
-    ("curage_eu",      "Curage réseau EU",          "ML"),
-    ("curage_ep",      "Curage réseau EP",          "ML"),
-    ("poste_relevage", "Poste de relevage",         "U"),
-    ("bac_graisse",    "Bac à graisse",             "U"),
-    ("step",           "Station d'épuration",       "U"),
-    ("autre",          "Autre (préciser dans commentaires)", "H"),
+# ─── Fiche de fin de travaux : natures de travaux par onglet ────────────────
+# (les codes existants sont conservés → compatibilité des fiches déjà remplies)
+TRAVAUX_TABS = [
+    ("deb", "Débouchage", [
+        ("deb_brancht_eu", "Débouchage branchement EU", "U"),
+        ("deb_brancht_ep", "Débouchage branchement EP", "U"),
+        ("deb_reseau_eu",  "Débouchage réseau EU",      "U"),
+        ("deb_reseau_ep",  "Débouchage réseau EP",      "U"),
+    ]),
+    ("curage", "Curage", [
+        ("curage_eu", "Curage réseau EU", "ML"),
+        ("curage_ep", "Curage réseau EP", "ML"),
+    ]),
+    ("poste", "Poste de relevage", [
+        ("poste_relevage", "Poste de relevage", "U"),
+    ]),
+    ("bac", "Bac à graisse", [
+        ("bac_graisse", "Bac à graisse", "U"),
+    ]),
+    ("step", "Station d'épuration", [
+        ("step", "Station d'épuration", "U"),
+    ]),
+    ("fosse", "Fosse", [
+        ("fosse_septique",    "Fosse septique",    "U"),
+        ("fosse_toutes_eaux", "Fosse toutes eaux", "U"),
+    ]),
+    ("autre", "Autre", [
+        ("autre", "Autre (préciser dans commentaires)", "H"),
+    ]),
 ]
+# Liste à plat (POST + chatter) — compatibilité avec le code existant
+TRAVAUX = [row for _k, _lbl, rows in TRAVAUX_TABS for row in rows]
 DECHETS = [
     ("sable",   "Sable"),
     ("graisse", "Graisse"),
@@ -476,6 +495,11 @@ def fiche(slot_id):
         except (ValueError, TypeError):
             saved_data = {}
 
+    # Nb de lignes remplies par onglet (badge)
+    _sv_trav = saved_data.get("travaux", {}) if isinstance(saved_data, dict) else {}
+    tab_counts = {tkey: sum(1 for code, _l, _u in rows if code in _sv_trav)
+                  for tkey, _tl, rows in TRAVAUX_TABS}
+
     prefill = {
         "vehicule":      s.get("x_fdt_vehicule") or "",
         "heure_arrivee": s.get("x_fdt_heure_arrivee") or card["start"],
@@ -497,7 +521,7 @@ def fiche(slot_id):
         card=card, slot_id=slot_id, token=token,
         date_label=f"{d.day:02d}/{d.month:02d}/{d.year}",
         adresse=adresse, prefill=prefill,
-        travaux=TRAVAUX, dechets=DECHETS,
+        travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts, dechets=DECHETS,
         saved=saved_data,
         has=has,
         signataire=s.get("x_fdt_signataire") or "",
