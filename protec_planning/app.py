@@ -418,8 +418,6 @@ def fiche(slot_id):
                 data["travaux"][code] = {"qte": qte, "temps": temps}
         for code, _label in DECHETS:
             row = {
-                "badge_protec": bool(f.get(f"dech_{code}_bp")),
-                "badge_cclst":  bool(f.get(f"dech_{code}_bc")),
                 "volume":       f.get(f"dech_{code}_vol", "").strip(),
                 "destination":  f.get(f"dech_{code}_dest", "").strip(),
                 "temps":        f.get(f"dech_{code}_temps", "").strip(),
@@ -539,8 +537,7 @@ def render_fiche_html(card, vals, data, nphotos=0):
     rows_d = ""
     labels_d = dict(DECHETS)
     for code, v in data.get("dechets", {}).items():
-        badges = " ".join(b for b, on in [("PROTEC", v.get("badge_protec")), ("CCLST", v.get("badge_cclst"))] if on)
-        rows_d += (f"<tr><td>{labels_d.get(code, code)}</td><td>{badges}</td>"
+        rows_d += (f"<tr><td>{labels_d.get(code, code)}</td>"
                    f"<td>{v.get('volume','')}</td><td>{v.get('destination','')}</td><td>{v.get('temps','')}</td></tr>")
     html = (
         f"<p><b>📝 Fiche de fin de travaux</b> — {card['client']}</p>"
@@ -556,7 +553,7 @@ def render_fiche_html(card, vals, data, nphotos=0):
     if vals["x_fdt_commentaires"]:
         html += f"<p><b>Commentaires :</b><br/>{vals['x_fdt_commentaires']}</p>"
     if rows_d:
-        html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Badge</th><th>Vol. m³</th>"
+        html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Vol. m³</th>"
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
     return html
 
