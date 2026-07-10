@@ -111,6 +111,9 @@ DECHETS = [
     ("vidange", "Matières de vidanges"),
     ("autre",   "Autre"),
 ]
+# Destinations possibles des déchets (liste déroulante de la fiche)
+DESTINATIONS = ["Assainissement", "Châtellerault", "Chinon",
+                "Dépotage sur place", "Loches", "Saché"]
 
 @bp.app_context_processor
 def inject_base():
@@ -549,7 +552,8 @@ def fiche(slot_id):
         card=card, slot_id=slot_id, token=token,
         date_label=f"{d.day:02d}/{d.month:02d}/{d.year}",
         adresse=adresse, prefill=prefill,
-        travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts, dechets=DECHETS,
+        travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts,
+        dechets=DECHETS, destinations=DESTINATIONS,
         saved=saved_data,
         has=has,
         signataire=s.get("x_fdt_signataire") or "",
