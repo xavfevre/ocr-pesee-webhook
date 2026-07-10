@@ -44,10 +44,11 @@
     td { border-bottom: 1px solid #eef2f7; padding: 5px 3px; font-size: 13px; vertical-align: middle; }
     td.lbl { font-weight: 700; padding-left: 8px; line-height: 1.2; }
     td.unit { text-align: center; color: var(--muted); font-weight: 700; font-size: 12px; }
-    td input[type=text], td input[type=number] {
+    td input[type=text], td input[type=number], td select {
       width: 100%; border: 1.5px solid var(--border); border-radius: 6px;
       padding: 7px 6px; font-size: 15px; text-align: center; }
-    td input:focus { outline: none; border-color: var(--cy); }
+    td select { background: #fff; color: var(--text); text-align: left; }
+    td input:focus, td select:focus { outline: none; border-color: var(--cy); }
     td.ck { text-align: center; }
     td.ck input { width: 22px; height: 22px; accent-color: var(--cy-dk); }
     .col-q { width: 21%; } .col-u { width: 11%; } .col-t { width: 21%; }
@@ -172,7 +173,17 @@
         <tr>
           <td class="lbl">{{ label }}</td>
           <td><input type="text" inputmode="decimal" name="dech_{{ code }}_vol" value="{{ sv.get('volume','') }}"></td>
-          <td><input type="text" name="dech_{{ code }}_dest" value="{{ sv.get('destination','') }}"></td>
+          <td>
+            <select name="dech_{{ code }}_dest">
+              <option value=""></option>
+              {% for dst in destinations %}
+              <option value="{{ dst }}" {% if sv.get('destination') == dst %}selected{% endif %}>{{ dst }}</option>
+              {% endfor %}
+              {% if sv.get('destination') and sv.get('destination') not in destinations %}
+              <option value="{{ sv.get('destination') }}" selected>{{ sv.get('destination') }}</option>
+              {% endif %}
+            </select>
+          </td>
           <td><input type="text" inputmode="decimal" name="dech_{{ code }}_temps" value="{{ sv.get('temps','') }}"></td>
         </tr>
         {% endfor %}
