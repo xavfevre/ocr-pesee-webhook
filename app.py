@@ -24,8 +24,6 @@ from functools import wraps
 from urllib.parse import quote
 from flask import Flask, request, jsonify
 
-from mistralai import Mistral
-
 app = Flask(__name__)
 
 # Évite qu'un appel XML-RPC ou Mistral ne bloque indéfiniment le worker Render.
@@ -166,6 +164,7 @@ def resize_image(image_base64: str, max_size: int = 1024) -> str:
 def extract_with_mistral(image_base64, mime_type="image/jpeg"):
     """Appel Mistral Vision avec retry automatique sur rate limit (429)."""
     image_base64 = resize_image(image_base64)
+    from mistralai import Mistral  # import paresseux : accélère le boot du service
     client = Mistral(api_key=MISTRAL_API_KEY)
     last_error = None
     for attempt in range(4):

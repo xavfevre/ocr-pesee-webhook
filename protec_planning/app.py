@@ -50,26 +50,20 @@ TRAVAUX_TABS = [
         ("deb_brancht_ep", "Débouchage branchement EP", "U"),
         ("deb_reseau_eu",  "Débouchage réseau EU",      "U"),
         ("deb_reseau_ep",  "Débouchage réseau EP",      "U"),
-        ("deb_travaux",    "Travaux de curage / débouchage", "H"),
     ]),
     ("curage", "Curage", [
         ("hydro_reu",       "Hydrocurage REU",         "ML"),
         ("hydro_rep",       "Hydrocurage REP",         "ML"),
         ("hydro_reu_amiante", "Hydrocurage REU amianté", "ML"),
-        ("hydro_exo",       "Hydrocurage exo",         "ML"),
+        ("pomp_siphon",     "Curage siphon",           "U"),
     ]),
-    ("poste", "PR", [
+    ("poste", "Pompage", [
         ("pomp_poste",      "PR poste de relevage",   "U"),
         ("pomp_puisard",    "PR puisard",             "U"),
         ("pomp_regard",     "PR regard de visite",    "U"),
-        ("prest_pr_step",   "PR + STEP",              "U"),
         ("travaux_pompage", "PR travaux de pompage",  "H"),
-        ("visite_satese",   "PR visite Satèse",       "H"),
-    ]),
-    ("bac", "BG", [
-        ("pomp_bac_graisse", "BG bac à graisses", "U"),
-        ("pomp_bac_mousse",  "BG bac à mousse",   "U"),
-        ("pomp_siphon",      "BG curage siphon",  "U"),
+        ("pomp_bac_graisse", "Bac à graisses",        "U"),
+        ("pomp_bac_mousse",  "Bac à mousse",          "U"),
     ]),
     ("step", "STEP", [
         ("pomp_dessableur",  "Pompage nettoyage dessableur",       "U"),
@@ -88,6 +82,7 @@ TRAVAUX_TABS = [
         ("lavage_filtre_complet", "Lavage complet filtre fosse",      "U"),
         ("filtre_coco",       "Changement de filtre coco",            "H"),
         ("visite_fosse",      "Visite contrôle entretien fosse",      "U"),
+        ("colonne_asp",       "Pose dépose colonne d'aspiration",     "U"),
     ]),
     ("itv", "ITV", [
         ("itv_inspection", "Inspection télévisée",              "ML"),
@@ -97,13 +92,14 @@ TRAVAUX_TABS = [
         ("itv_rech_fuite", "Recherche de fuite",                "H"),
         ("itv_rech_reseau","Recherche de réseau",               "H"),
         ("itv_rapport",    "Rapport",                           "U"),
+        ("aerogommage",    "Aérogommage",                       "m²"),
     ]),
     ("autre", "Autre", [
         ("main_oeuvre",   "Main d'œuvre",                    "H"),
         ("lavage_mat",    "Lavage matériel",                 "U"),
-        ("gasoil",        "Fourniture de Gasoil",            "U"),
         ("mad_materiel",  "Mise à disposition de matériel",  "U"),
         ("divers",        "Divers",                          "U"),
+        ("deratisation",  "Dératisation",                    "U"),
         ("autre",         "Autre (préciser dans commentaires)", "H"),
     ]),
 ]
