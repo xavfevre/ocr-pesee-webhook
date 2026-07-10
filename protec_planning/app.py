@@ -640,6 +640,12 @@ def _labelize(code):
     """Libellé lisible pour un code inconnu (anciennes fiches)."""
     return code.replace("_", " ").capitalize()
 
+def _first_names(s):
+    """Ne garde que le prénom (1er mot) de chaque opérateur, ex.
+    « Alexandre GIRAUDEAU, Didier BELLIARD » → « Alexandre, Didier »."""
+    parts = [p.strip() for p in (s or "").split(",") if p.strip()]
+    return ", ".join(p.split()[0] for p in parts if p.split())
+
 def build_report_body(client, adresse, date_label, vehicule, operateurs,
                       h_arrivee, h_depart, trajet, commentaires, data):
     """Corps HTML du rapport PDF (fiche de fin de travaux). Enrobé côté Odoo
@@ -661,7 +667,7 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
     html.append(info("Adresse des travaux", adresse))
     html.append(info("Date d'intervention", date_label))
     html.append(info("Véhicule", vehicule))
-    html.append(info("Opérateur(s)", operateurs))
+    html.append(info("Opérateur(s)", _first_names(operateurs)))
     html.append(info("Heure d'arrivée / départ",
                      f"{h_arrivee or '—'}  →  {h_depart or '—'}"))
     html.append(info("Temps de trajet A/R", trajet))
