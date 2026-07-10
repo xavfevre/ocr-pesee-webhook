@@ -569,7 +569,7 @@ def fiche(slot_id):
         "heure_arrivee": s.get("x_fdt_heure_arrivee") or card["start"],
         "heure_depart":  s.get("x_fdt_heure_depart") or card["end"],
         "temps_trajet":  s.get("x_fdt_temps_trajet") or "",
-        "operateurs":    s.get("x_fdt_operateurs") or emp_names,
+        "operateurs":    _first_names(s.get("x_fdt_operateurs") or emp_names),
         "commentaires":  s.get("x_fdt_commentaires") or "",
     }
     d = date.fromisoformat(card["day"])
