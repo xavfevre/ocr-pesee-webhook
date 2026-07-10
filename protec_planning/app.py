@@ -394,7 +394,8 @@ def ma_tournee():
         emp_name = emp_name_map(uid, models).get(emp_id) or f"Chauffeur {emp_id}"
 
         today = date.today()
-        slots = fetch_slots(uid, models, today - timedelta(days=1), today + timedelta(days=15), emp_id)
+        # Fenêtre : 15 jours avant → 15 jours après (borne de fin exclusive)
+        slots = fetch_slots(uid, models, today - timedelta(days=15), today + timedelta(days=16), emp_id)
         by_day = {}
         cards = []
         for s in slots:
