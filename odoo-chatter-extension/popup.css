@@ -53,6 +53,68 @@ fieldset label {
   pointer-events: none;
 }
 
+.badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #714b67;
+  border-radius: 8px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+#premium-box {
+  border: 1px solid #714b67;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: #faf6f9;
+}
+
+#premium-box p {
+  margin: 0 0 8px;
+}
+
+#premium-box button {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px;
+  border: none;
+  border-radius: 5px;
+  background: #714b67;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#premium-box button:hover {
+  background: #5d3d55;
+}
+
+#premium-box button.link {
+  background: none;
+  color: #714b67;
+  font-weight: 400;
+  text-decoration: underline;
+  padding: 2px;
+  margin-bottom: 0;
+}
+
+#btn-trial {
+  background: #fff !important;
+  color: #714b67 !important;
+  border: 1px solid #714b67 !important;
+}
+
+.trial-info {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
 .hint {
   margin: 8px 0 0;
   font-size: 11px;

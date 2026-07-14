@@ -55,6 +55,41 @@ Les sélecteurs couvrent les classes des versions récentes d'Odoo
 dernière version, si une mise à jour d'Odoo change les noms de classes, il
 suffit d'ajuster `content.css`.
 
+## Monétisation (Premium)
+
+La **pleine largeur** est une fonction **Premium** (achat unique ou essai
+gratuit de 7 jours). La gestion du chatter reste gratuite. Les paiements
+passent par [ExtensionPay](https://extensionpay.com) (Stripe).
+
+### Mise en route (une seule fois)
+
+1. Créer un compte sur <https://extensionpay.com> (gratuit).
+2. **Register a new extension** avec l'identifiant exact :
+   `odoo-chatter-manager` (sinon, modifier `OCX_EXTPAY_ID` dans
+   `config.js` pour qu'il corresponde).
+3. Connecter son compte **Stripe** (création possible dans la foulée) et
+   fixer le prix (paiement unique ou abonnement, au choix — le prix se
+   règle côté ExtensionPay, rien à changer dans le code).
+4. Recharger l'extension. Tant que l'extension n'est pas enregistrée sur
+   ExtensionPay, le statut Premium est simplement « non payé » (aucune
+   erreur bloquante).
+
+### Comment ça marche
+
+- `background.js` interroge ExtensionPay (`extpay.getUser()`) et met le
+  statut en cache local (utilisable hors ligne).
+- Le script de contenu n'applique la pleine largeur que si le statut est
+  Premium (payé, ou essai de 7 jours en cours — durée définie dans
+  `config.js`, côté extension).
+- Le popup affiche un encart d'achat / d'essai / de reconnexion quand la
+  fonction est verrouillée, et les jours d'essai restants pendant l'essai.
+- Après paiement, ExtensionPay notifie l'extension (`extpay.onPaid`) et la
+  pleine largeur se débloque immédiatement dans tous les onglets.
+
+ExtensionPay prélève ~5 % + les frais Stripe. L'utilisateur peut
+retrouver son achat sur un autre poste via « Déjà acheté ? Se
+reconnecter » (lien magique par e-mail).
+
 ## Fichiers
 
 | Fichier         | Rôle                                                    |
@@ -62,5 +97,7 @@ suffit d'ajuster `content.css`.
 | `manifest.json` | Déclaration de l'extension (MV3)                        |
 | `content.js`    | Applique les réglages, bouton flottant, messages        |
 | `content.css`   | Toutes les règles de mise en page (pleine largeur, etc.)|
-| `background.js` | Relaie les raccourcis clavier vers l'onglet actif       |
-| `popup.html/js/css` | Interface de réglages                               |
+| `background.js` | Raccourcis clavier + statut Premium (ExtensionPay)      |
+| `popup.html/js/css` | Interface de réglages + encart Premium              |
+| `config.js`     | Identifiant ExtensionPay + durée de l'essai gratuit     |
+| `ExtPay.js`     | Librairie officielle ExtensionPay (non modifiée)        |

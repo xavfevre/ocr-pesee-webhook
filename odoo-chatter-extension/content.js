@@ -19,10 +19,14 @@ const OCX_CHATTER_LABELS = {
 };
 
 let ocxSettings = { ...OCX_DEFAULTS };
+let ocxPremium = false; // pleine largeur = fonction Premium (achat ou essai)
 
 function ocxApply() {
   const html = document.documentElement;
-  html.setAttribute("data-ocx-fullwidth", ocxSettings.fullwidth ? "1" : "0");
+  html.setAttribute(
+    "data-ocx-fullwidth",
+    ocxSettings.fullwidth && ocxPremium ? "1" : "0"
+  );
   html.setAttribute("data-ocx-chatter", ocxSettings.chatter);
   html.style.setProperty("--ocx-chatter-width", ocxSettings.chatterWidth + "%");
   ocxUpdateFab();
@@ -113,7 +117,15 @@ chrome.runtime.onMessage.addListener((msg) => {
     const i = OCX_CHATTER_CYCLE.indexOf(ocxSettings.chatter);
     ocxSave({ chatter: OCX_CHATTER_CYCLE[(i + 1) % OCX_CHATTER_CYCLE.length] });
   } else if (msg.type === "ocx-toggle-fullwidth") {
-    ocxSave({ fullwidth: !ocxSettings.fullwidth });
+    if (ocxPremium) {
+      ocxSave({ fullwidth: !ocxSettings.fullwidth });
+    } else {
+      // Fonction Premium non débloquée : on ouvre la page de paiement.
+      chrome.runtime.sendMessage({ type: "ocx-open-payment" });
+    }
+  } else if (msg.type === "ocx-premium-changed") {
+    ocxPremium = !!(msg.status && msg.status.premium);
+    ocxApply();
   }
 });
 
@@ -148,6 +160,13 @@ chrome.storage.sync.get(OCX_DEFAULTS, (stored) => {
   } else {
     document.addEventListener("DOMContentLoaded", ocxBoot);
   }
+});
+
+/* Statut Premium demandé au service worker (ExtensionPay). */
+chrome.runtime.sendMessage({ type: "ocx-get-status" }, (status) => {
+  if (chrome.runtime.lastError) return;
+  ocxPremium = !!(status && status.premium);
+  ocxApply();
 });
 
 /* Appliquer au plus tôt les attributs (avant le chargement du storage)
