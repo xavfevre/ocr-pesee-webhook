@@ -3,14 +3,20 @@
   "name": "Odoo Chatter Manager",
   "version": "1.0.0",
   "description": "Contenu en pleine largeur et gestion du chatter (côté / en bas / masqué) pour Odoo Online.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": ["storage"],
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["https://*/*"],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": ["https://*/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_start"
@@ -23,7 +29,12 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Odoo Chatter Manager"
+    "default_title": "Odoo Chatter Manager",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
   },
   "commands": {
     "cycle-chatter": {
