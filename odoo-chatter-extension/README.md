@@ -27,13 +27,19 @@ et s'appliquent immédiatement à tous les onglets Odoo ouverts.
    `odoo-chatter-extension`.
 5. Ouvrir Odoo → l'icône de l'extension permet de régler les options.
 
-## Domaine personnalisé
+## Domaines couverts
 
-L'extension est active sur `https://*.odoo.com/*` et `strate-design.fr`.
-Pour ajouter un autre domaine personnalisé (ex. `erp.mondomaine.fr`),
-complétez les listes `host_permissions` **et** `matches` dans
-`manifest.json` avec `"https://erp.mondomaine.fr/*"`, puis rechargez
-l'extension dans `chrome://extensions` (bouton ↻).
+L'extension fonctionne sur **tous les sites Odoo**, quel que soit le
+domaine : `*.odoo.com`, `*.odoo.sh`, domaines personnalisés
+(`erp.mondomaine.fr`, etc.). Elle est déclarée sur tous les sites mais
+**détecte automatiquement** si la page est un Odoo (présence du web
+client ou des assets `/web/assets/`) avant de s'activer ; sur les autres
+sites elle ne fait rien et s'endort au bout de quelques secondes.
+
+C'est pourquoi Chrome affiche à l'installation l'avertissement « peut
+lire et modifier les données sur tous les sites » : c'est le prix de la
+compatibilité avec les domaines personnalisés, l'extension ne lit ni
+n'envoie rien nulle part (tout le code est dans ce dossier, lisible).
 
 ## Fonctionnement
 

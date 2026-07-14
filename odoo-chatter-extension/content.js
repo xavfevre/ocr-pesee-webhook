@@ -34,6 +34,17 @@ function ocxSave(patch) {
   ocxApply();
 }
 
+/* ---------- Détection d'Odoo ----------
+ * L'extension est déclarée sur tous les sites : on ne s'active
+ * (observateur DOM, bouton flottant) que si la page est un Odoo. */
+
+function ocxLooksLikeOdoo() {
+  return !!document.querySelector(
+    ".o_web_client, .o_action_manager, .o_form_view, " +
+      'script[src*="/web/assets/"], link[href*="/web/assets/"]'
+  );
+}
+
 /* ---------- Bouton flottant ---------- */
 
 function ocxIsFormWithChatter() {
@@ -108,16 +119,34 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 /* ---------- Initialisation ---------- */
 
+/* Attend qu'Odoo soit détecté (le web client se charge en différé) avant
+ * d'installer l'observateur DOM. Abandonne au bout de ~10 s sur les sites
+ * qui ne sont pas des Odoo, pour ne rien leur coûter. */
+function ocxBoot() {
+  ocxApply();
+  if (ocxLooksLikeOdoo()) {
+    ocxObserve();
+    ocxUpdateFab();
+    return;
+  }
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (ocxLooksLikeOdoo()) {
+      clearInterval(timer);
+      ocxObserve();
+      ocxUpdateFab();
+    } else if (++tries >= 10) {
+      clearInterval(timer);
+    }
+  }, 1000);
+}
+
 chrome.storage.sync.get(OCX_DEFAULTS, (stored) => {
   ocxSettings = { ...OCX_DEFAULTS, ...stored };
-  ocxApply();
   if (document.body) {
-    ocxObserve();
+    ocxBoot();
   } else {
-    document.addEventListener("DOMContentLoaded", () => {
-      ocxApply();
-      ocxObserve();
-    });
+    document.addEventListener("DOMContentLoaded", ocxBoot);
   }
 });
 
