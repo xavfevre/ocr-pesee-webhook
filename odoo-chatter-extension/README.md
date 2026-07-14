@@ -29,17 +29,11 @@ et s'appliquent immédiatement à tous les onglets Odoo ouverts.
 
 ## Domaine personnalisé
 
-L'extension est active sur `https://*.odoo.com/*`. Si votre base Odoo est
-servie sur un domaine personnalisé (ex. `erp.mondomaine.fr`), ajoutez-le dans
-`manifest.json` :
-
-```json
-"host_permissions": ["https://*.odoo.com/*", "https://erp.mondomaine.fr/*"],
-...
-"matches": ["https://*.odoo.com/*", "https://erp.mondomaine.fr/*"],
-```
-
-puis rechargez l'extension dans `chrome://extensions`.
+L'extension est active sur `https://*.odoo.com/*` et `strate-design.fr`.
+Pour ajouter un autre domaine personnalisé (ex. `erp.mondomaine.fr`),
+complétez les listes `host_permissions` **et** `matches` dans
+`manifest.json` avec `"https://erp.mondomaine.fr/*"`, puis rechargez
+l'extension dans `chrome://extensions` (bouton ↻).
 
 ## Fonctionnement
 

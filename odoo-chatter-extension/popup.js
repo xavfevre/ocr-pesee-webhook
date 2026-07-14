@@ -22,14 +22,9 @@ function refreshWidthRow(chatter) {
 }
 
 async function save(patch) {
+  // Les scripts de contenu écoutent chrome.storage.onChanged :
+  // l'application est immédiate dans tous les onglets Odoo ouverts.
   await chrome.storage.sync.set(patch);
-  // Prévenir tous les onglets Odoo ouverts pour application immédiate
-  const tabs = await chrome.tabs.query({ url: "https://*.odoo.com/*" });
-  for (const tab of tabs) {
-    chrome.tabs
-      .sendMessage(tab.id, { type: "ocx-settings-changed", settings: patch })
-      .catch(() => {});
-  }
 }
 
 chrome.storage.sync.get(DEFAULTS, (s) => {

@@ -78,14 +78,27 @@ function ocxObserve() {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
-/* ---------- Messages (popup + raccourcis clavier) ---------- */
+/* ---------- Synchronisation des réglages ---------- */
+
+/* Tout changement fait depuis le popup (ou un autre onglet) est appliqué
+ * immédiatement, quel que soit le domaine de la page. */
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "sync") return;
+  const patch = {};
+  for (const [key, { newValue }] of Object.entries(changes)) {
+    if (key in OCX_DEFAULTS) patch[key] = newValue;
+  }
+  if (Object.keys(patch).length) {
+    ocxSettings = { ...ocxSettings, ...patch };
+    ocxApply();
+  }
+});
+
+/* ---------- Raccourcis clavier (relayés par le service worker) ---------- */
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (!msg || !msg.type) return;
-  if (msg.type === "ocx-settings-changed") {
-    ocxSettings = { ...ocxSettings, ...msg.settings };
-    ocxApply();
-  } else if (msg.type === "ocx-cycle-chatter") {
+  if (msg.type === "ocx-cycle-chatter") {
     const i = OCX_CHATTER_CYCLE.indexOf(ocxSettings.chatter);
     ocxSave({ chatter: OCX_CHATTER_CYCLE[(i + 1) % OCX_CHATTER_CYCLE.length] });
   } else if (msg.type === "ocx-toggle-fullwidth") {

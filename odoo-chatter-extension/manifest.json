@@ -4,13 +4,21 @@
   "version": "1.0.0",
   "description": "Contenu en pleine largeur et gestion du chatter (côté / en bas / masqué) pour Odoo Online.",
   "permissions": ["storage"],
-  "host_permissions": ["https://*.odoo.com/*"],
+  "host_permissions": [
+    "https://*.odoo.com/*",
+    "https://strate-design.fr/*",
+    "https://*.strate-design.fr/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://*.odoo.com/*"],
+      "matches": [
+        "https://*.odoo.com/*",
+        "https://strate-design.fr/*",
+        "https://*.strate-design.fr/*"
+      ],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_start"
