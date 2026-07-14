@@ -1,0 +1,68 @@
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  width: 260px;
+  margin: 0;
+  padding: 12px 14px;
+  color: #1f1f1f;
+  background: #fff;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 10px;
+  color: #714b67;
+}
+
+.row {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+fieldset {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 0 0 10px;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+fieldset label {
+  display: block;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+#width-row input[type="range"] {
+  width: 100%;
+}
+
+#width-row.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #777;
+}
+
+kbd {
+  background: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 10px;
+}

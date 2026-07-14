@@ -1,0 +1,102 @@
+/* ==========================================================================
+   Odoo Chatter Manager — styles injectés
+   Les réglages sont portés par des attributs data-* sur <html> :
+     data-ocx-fullwidth = "1" | "0"
+     data-ocx-chatter   = "side" | "below" | "hidden"
+   et par la variable CSS --ocx-chatter-width (largeur du chatter en mode côté).
+   Les sélecteurs couvrent Odoo 16 → 19 (Odoo Online = dernière version).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1) Pleine largeur du contenu des formulaires
+   Odoo limite la feuille avec un max-width (~1140px). On le supprime.
+   -------------------------------------------------------------------------- */
+html[data-ocx-fullwidth="1"] .o_form_view .o_form_sheet_bg > .o_form_sheet,
+html[data-ocx-fullwidth="1"] .o_form_view .o_form_sheet {
+  max-width: none !important;
+}
+
+/* Certaines vues (paramètres, wizards) utilisent aussi un conteneur limité */
+html[data-ocx-fullwidth="1"] .o_form_view .o_inner_group {
+  max-width: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   2) Chatter masqué
+   .o-mail-Form-chatter : Odoo 16.3+ / 17 / 18 / 19
+   .o_FormRenderer_chatterContainer : anciennes versions (14 – 16.2)
+   -------------------------------------------------------------------------- */
+html[data-ocx-chatter="hidden"] .o-mail-Form-chatter,
+html[data-ocx-chatter="hidden"] .o_FormRenderer_chatterContainer {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   3) Chatter en bas (sous la fiche, sur toute la largeur)
+   On passe le renderer en colonne et le chatter à 100 %.
+   -------------------------------------------------------------------------- */
+html[data-ocx-chatter="below"] .o_form_renderer:has(.o-mail-Form-chatter),
+html[data-ocx-chatter="below"] .o_form_renderer:has(.o_FormRenderer_chatterContainer) {
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  overflow-y: auto !important;
+}
+
+html[data-ocx-chatter="below"] .o_form_renderer .o_form_sheet_bg {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+
+html[data-ocx-chatter="below"] .o-mail-Form-chatter,
+html[data-ocx-chatter="below"] .o_FormRenderer_chatterContainer {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  height: auto !important;
+  border-left: none !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Le fil de discussion ne doit plus avoir son propre scroll interne réduit */
+html[data-ocx-chatter="below"] .o-mail-Chatter {
+  height: auto !important;
+}
+
+/* --------------------------------------------------------------------------
+   4) Chatter sur le côté : largeur réglable
+   -------------------------------------------------------------------------- */
+html[data-ocx-chatter="side"] .o-mail-Form-chatter.o-aside,
+html[data-ocx-chatter="side"] .o_FormRenderer_chatterContainer.o-aside {
+  width: var(--ocx-chatter-width, 35%) !important;
+  min-width: 280px;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   5) Bouton flottant de bascule
+   -------------------------------------------------------------------------- */
+#ocx-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #714b67; /* violet Odoo */
+  color: #fff;
+  font-size: 17px;
+  line-height: 40px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  opacity: 0.85;
+  padding: 0;
+}
+
+#ocx-fab:hover {
+  opacity: 1;
+  transform: scale(1.06);
+}
