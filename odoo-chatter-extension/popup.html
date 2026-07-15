@@ -15,9 +15,10 @@
 
     <div id="premium-box" hidden>
       <p id="premium-text">
-        La pleine largeur est une fonction <strong>Premium</strong>.
+        <strong>Premium</strong> : pleine largeur + chatter ultra-fin
+        (jusqu'à 5&nbsp;%, idéal écrans ultrawide).
       </p>
-      <button id="btn-pay" type="button">💳 Débloquer la pleine largeur</button>
+      <button id="btn-pay" type="button">💳 Débloquer Premium</button>
       <button id="btn-trial" type="button">Essai gratuit 7 jours</button>
       <button id="btn-login" type="button" class="link">
         Déjà acheté ? Se reconnecter
@@ -37,7 +38,10 @@
       <label for="chatterWidth">
         Largeur du chatter : <span id="width-value">35</span>&nbsp;%
       </label>
-      <input type="range" id="chatterWidth" min="20" max="50" step="1" />
+      <input type="range" id="chatterWidth" min="5" max="50" step="1" />
+      <span class="mini-hint" id="width-premium-hint" hidden>
+        En dessous de 20&nbsp;% : Premium&nbsp;🔒
+      </span>
     </div>
 
     <label class="row checkbox">

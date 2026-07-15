@@ -56,19 +56,28 @@ $btnPay.addEventListener("click", () => extpay.openPaymentPage());
 $btnTrial.addEventListener("click", () => extpay.openTrialPage("7 jours"));
 $btnLogin.addEventListener("click", () => extpay.openLoginPage());
 
+const $widthHint = document.getElementById("width-premium-hint");
+
 function refreshPremiumUI(status) {
   const premium = !!(status && status.premium);
+  isPremium = premium;
   $fullwidth.disabled = !premium;
   $badge.hidden = premium;
   $premiumBox.hidden = premium;
+  $widthHint.hidden = premium;
+  $width.min = premium ? 5 : 20;
 
   if (!premium) {
     $fullwidth.checked = false;
+    if (Number($width.value) < 20) {
+      $width.value = 20;
+      $widthValue.textContent = 20;
+    }
     if (status && status.trialStartedAt && !status.trialActive) {
       // Essai déjà consommé
       $btnTrial.hidden = true;
       $premiumText.innerHTML =
-        "Essai gratuit terminé — débloquez la <strong>pleine largeur</strong> :";
+        "Essai gratuit terminé — débloquez les fonctions <strong>Premium</strong> :";
     }
     return;
   }
@@ -99,12 +108,22 @@ chrome.runtime.sendMessage({ type: "ocx-get-status" }, (status) => {
 
 $fab.addEventListener("change", () => save({ fab: $fab.checked }));
 
+let isPremium = false;
+
 $width.addEventListener("input", () => {
   $widthValue.textContent = $width.value;
 });
-$width.addEventListener("change", () =>
-  save({ chatterWidth: Number($width.value) })
-);
+$width.addEventListener("change", () => {
+  let value = Number($width.value);
+  if (!isPremium && value < 20) {
+    // Chatter ultra-fin (< 20 %) : fonction Premium
+    value = 20;
+    $width.value = 20;
+    $widthValue.textContent = 20;
+    extpay.openPaymentPage();
+  }
+  save({ chatterWidth: value });
+});
 
 for (const r of radios()) {
   r.addEventListener("change", () => {

@@ -88,7 +88,9 @@ html[data-ocx-chatter="below"] .o-mail-Chatter {
 html[data-ocx-chatter="side"] .o-mail-Form-chatter.o-aside,
 html[data-ocx-chatter="side"] .o_FormRenderer_chatterContainer.o-aside {
   width: var(--ocx-chatter-width, 35%) !important;
-  min-width: 280px;
+  /* assez bas pour permettre le mode ultra-fin (Premium, jusqu'à 5 %,
+     pensé pour les écrans ultrawide) */
+  min-width: 48px;
   flex-shrink: 0;
 }
 

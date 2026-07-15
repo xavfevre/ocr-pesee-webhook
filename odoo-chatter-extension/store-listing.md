@@ -19,9 +19,9 @@
 > • Bouton flottant pour basculer en un clic
 > • Raccourcis clavier : Alt+Maj+C (chatter), Alt+Maj+F (pleine largeur)
 >
-> 💎 PREMIUM (achat unique, essai gratuit 7 jours) — Pleine largeur :
-> • Supprime les grandes marges vides des formulaires Odoo
-> • Votre contenu occupe enfin tout l'écran
+> 💎 PREMIUM (achat unique, essai gratuit 7 jours) :
+> • Pleine largeur : supprime les grandes marges vides des formulaires Odoo
+> • Chatter ultra-fin : largeur réduite jusqu'à 5 %, idéal écrans ultrawide
 >
 > Fonctionne sur toutes les bases Odoo : Odoo Online (*.odoo.com), Odoo.sh et domaines personnalisés. L'extension détecte automatiquement les sites Odoo et reste inactive partout ailleurs.
 >

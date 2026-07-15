@@ -57,9 +57,14 @@ suffit d'ajuster `content.css`.
 
 ## Monétisation (Premium)
 
-La **pleine largeur** est une fonction **Premium** (achat unique ou essai
-gratuit de 7 jours). La gestion du chatter reste gratuite. Les paiements
-passent par [ExtensionPay](https://extensionpay.com) (Stripe).
+Fonctions **Premium** (achat unique ou essai gratuit de 7 jours) :
+
+- la **pleine largeur** ;
+- le **chatter ultra-fin** : largeur réglable en dessous de 20 %
+  (jusqu'à 5 %), pensé pour les écrans ultrawide.
+
+La gestion du chatter (position, largeur 20–50 %) reste gratuite. Les
+paiements passent par [ExtensionPay](https://extensionpay.com) (Stripe).
 
 ### Mise en route (une seule fois)
 

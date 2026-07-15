@@ -28,7 +28,10 @@ function ocxApply() {
     ocxSettings.fullwidth && ocxPremium ? "1" : "0"
   );
   html.setAttribute("data-ocx-chatter", ocxSettings.chatter);
-  html.style.setProperty("--ocx-chatter-width", ocxSettings.chatterWidth + "%");
+  // En dessous de 20 %, le chatter ultra-fin est une fonction Premium.
+  let width = ocxSettings.chatterWidth;
+  if (!ocxPremium && width < 20) width = 20;
+  html.style.setProperty("--ocx-chatter-width", width + "%");
   ocxUpdateFab();
 }
 

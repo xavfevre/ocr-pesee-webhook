@@ -108,6 +108,13 @@ fieldset label {
   border: 1px solid #714b67 !important;
 }
 
+.mini-hint {
+  display: block;
+  font-size: 10px;
+  color: #714b67;
+  margin-top: 2px;
+}
+
 .trial-info {
   margin: 0 0 10px;
   font-size: 11px;
