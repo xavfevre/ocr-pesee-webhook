@@ -37,6 +37,7 @@
     <group name="studio_group_56r_1jjh5srml" invisible="False" string="SCAN DU BON DE PESEE">
       <group name="studio_group_56r_left">
         <field widget="image" name="x_studio_photo_bon" options="{&quot;reload&quot;:true,&quot;zoom&quot;:false,&quot;convert_to_webp&quot;:false}"/>
+        <button name="1976" type="action" string="↻ Pivoter la photo (90°)" class="btn-secondary btn-sm" invisible="not x_studio_photo_bon"/>
       </group>
       <group name="studio_group_56r_right">
         <field name="x_studio_ocr_statut"/>
@@ -58,10 +59,12 @@
       <group name="studio_group_32f_left" string="PRISE EN CHARGE">
         <field name="x_studio_reserve"/>
         <field widget="image" name="x_studio_photo" options="{&quot;convert_to_webp&quot;:false,&quot;reload&quot;:true,&quot;zoom&quot;:false}" invisible="False"/>
+        <button name="1977" type="action" string="↻ Pivoter la photo (90°)" class="btn-secondary btn-sm" invisible="not x_studio_photo"/>
       </group>
       <group name="studio_group_32f_right" string="LIVRAISON">
         <field name="x_studio_reserve_1"/>
         <field widget="image" name="x_studio_photo_1" options="{&quot;reload&quot;:true,&quot;zoom&quot;:false,&quot;convert_to_webp&quot;:false}"/>
+        <button name="1978" type="action" string="↻ Pivoter la photo (90°)" class="btn-secondary btn-sm" invisible="not x_studio_photo_1"/>
       </group>
     </group>
   </xpath>
