@@ -130,6 +130,16 @@
       </div>
     </div>
 
+    <div id="login-pop" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,.88); z-index:9999; align-items:center; justify-content:center;">
+      <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:28px 30px; width:340px; box-shadow:0 20px 60px rgba(0,0,0,.5);">
+        <div style="font-size:20px; font-weight:800; color:#f1f5f9; margin-bottom:4px;">🔐 Session expirée</div>
+        <div style="font-size:13px; color:#94a3b8; margin-bottom:16px;">Reconnectez-vous pour continuer — l'action en cours sera rejouée.</div>
+        <input id="login-user" type="text" placeholder="Email" autocomplete="username" style="width:100%; padding:10px 12px; margin-bottom:10px; border-radius:8px; border:1px solid #475569; background:#0f172a; color:#f1f5f9; font-size:15px;"/>
+        <input id="login-pass" type="password" placeholder="Mot de passe" autocomplete="current-password" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #475569; background:#0f172a; color:#f1f5f9; font-size:15px;"/>
+        <div id="login-err" style="color:#f87171; font-size:12.5px; min-height:18px; margin:6px 0 8px;"> </div>
+        <button id="login-btn" style="width:100%; padding:11px; border:none; border-radius:8px; background:#22d3ee; color:#0f172a; font-weight:800; font-size:15px; cursor:pointer;">Se reconnecter</button>
+      </div>
+    </div>
     <script>
 
 (function(){
@@ -145,14 +155,61 @@
   var pending = null;     // {id,name,total,remaining,hasLines}
   var qteStr  = '';
 
-  function rpc(model, method, args, kwargs){
+  var loginQueue = [];
+  function sessionLost(d){
+    if(!d || !d.error){ return false; }
+    return d.error.code === 100 || (d.error.data &amp;&amp; d.error.data.name === 'odoo.http.SessionExpiredException');
+  }
+  function rawRpc(model, method, args, kwargs){
     return fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:kwargs||{}}})
-    }).then(function(r){return r.json();}).then(function(d){
-      if(d.error){ throw new Error((d.error.data &amp;&amp; d.error.data.message) || d.error.message); }
-      return d.result;
+    }).then(function(r){
+      return r.text().then(function(t){
+        var d;
+        try{ d = JSON.parse(t); }catch(err){ var ex = new Error('Session expirée'); ex.sessionExpired = true; throw ex; }
+        if(sessionLost(d)){ var ex2 = new Error('Session expirée'); ex2.sessionExpired = true; throw ex2; }
+        if(d.error){ throw new Error((d.error.data &amp;&amp; d.error.data.message) || d.error.message); }
+        return d.result;
+      });
     });
   }
+  function rpc(model, method, args, kwargs){
+    return rawRpc(model, method, args, kwargs).catch(function(e){
+      if(e &amp;&amp; e.sessionExpired){
+        return new Promise(function(resolve, reject){
+          loginQueue.push(function(){ rawRpc(model, method, args, kwargs).then(resolve, reject); });
+          showLogin();
+        });
+      }
+      throw e;
+    });
+  }
+  var loginPop = document.getElementById('login-pop');
+  var loginUser = document.getElementById('login-user');
+  var loginPass = document.getElementById('login-pass');
+  var loginErr = document.getElementById('login-err');
+  function showLogin(){
+    loginPop.style.display = 'flex';
+    loginErr.textContent = '';
+    setTimeout(function(){ (loginUser.value ? loginPass : loginUser).focus(); }, 60);
+  }
+  function doLogin(){
+    loginErr.textContent = '';
+    fetch('/web/session/authenticate', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{db:'maquignon', login:loginUser.value.trim(), password:loginPass.value}})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.error || !d.result || !d.result.uid){ loginErr.textContent = 'Identifiants incorrects'; loginPass.value = ''; loginPass.focus(); return; }
+      loginPop.style.display = 'none';
+      loginPass.value = '';
+      var q = loginQueue.splice(0, loginQueue.length);
+      q.forEach(function(fn){ fn(); });
+      setRes('✅ Reconnecté — action rejouée');
+      input.focus();
+    }).catch(function(){ loginErr.textContent = 'Erreur réseau — réessayez'; });
+  }
+  document.getElementById('login-btn').addEventListener('click', doLogin);
+  loginPass.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ doLogin(); } });
+  loginUser.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ loginPass.focus(); } });
   function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
   function fmtN(n){ return (Math.round(n*1000)/1000).toString().replace('.', ','); }
   function classFor(txt){
