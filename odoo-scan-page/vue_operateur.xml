@@ -108,6 +108,7 @@
               <strong style="font-size:17px;">📦 Choisir le colis</strong>
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
+            <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <t t-foreach="colis_ouverts" t-as="cp">
               <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/>
@@ -176,6 +177,7 @@
               <strong style="font-size:17px;">📦 Choisir le colis</strong>
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
+            <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <t t-foreach="colis_ouverts" t-as="cp">
               <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/>
@@ -296,17 +298,17 @@
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
           function assign(ofid, cid, cname, btn, after){
             fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context:{active_model:'mrp.production',active_ids:[ofid],colis_id:cid}}}})
+              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
             }).then(function(r){return r.json();}).then(function(d){
               if(after){ after(); }
               if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
-              saveLast(cid,cname);
+              if(cid){ saveLast(cid,cname); }
               markDone(btn,cname);
               if(pop){ pop.style.display='none'; }
             }).catch(function(e){ if(after){ after(); } alert('Échec : '+e); });
           }
           document.querySelectorAll('.vo-addcolis').forEach(function(b){
-            b.onclick=function(){ curOf=parseInt(b.getAttribute('data-ofid')); curBtn=b; if(pop){ pop.style.display='flex'; } };
+            b.onclick=function(){ curOf=parseInt(b.getAttribute('data-ofid')); curBtn=b; if(pop){ pop.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchH(); setTimeout(function(){ s.focus(); },80); } } };
             if(lastColis &amp;&amp; lastColis.id){
               var q=document.createElement('button'); q.type='button'; q.className='btn btn-sm btn-primary'; q.style.cssText='font-weight:800;margin-left:6px;';
               q.textContent='⚡ '+lastColis.name;
@@ -314,6 +316,21 @@
               b.after(q);
             }
           });
+          var srchH=document.getElementById('vo-colis-search');
+          function applySrchH(){ var v=(srchH &amp;&amp; srchH.value || '').trim().toLowerCase(); document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ cb.style.display = (!v || (cb.getAttribute('data-cname')||'').toLowerCase().indexOf(v)!==-1) ? '' : 'none'; }); }
+          if(srchH){
+            srchH.addEventListener('input', applySrchH);
+            srchH.addEventListener('keydown', function(e){
+              if(e.key!=='Enter'){ return; }
+              e.preventDefault();
+              var v=(srchH.value||'').trim(); if(!v){ return; }
+              var vv=v.toLowerCase(); var match=null;
+              document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ if((cb.getAttribute('data-cname')||'').toLowerCase()===vv){ match=cb; } });
+              if(match){ match.click(); return; }
+              srchH.disabled=true;
+              assign(curOf, null, v, curBtn, function(){ srchH.disabled=false; });
+            });
+          }
           var cls=document.getElementById('vo-colis-close'); if(cls){ cls.onclick=function(){ pop.style.display='none'; }; }
           document.querySelectorAll('.vo-colis-choice').forEach(function(cb){
             cb.onclick=function(){
@@ -389,11 +406,11 @@
         function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
         function assignC(ofid, cid, cname, card, after){
           fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context:{active_model:'mrp.production',active_ids:[ofid],colis_id:cid}}}})
+            body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
           }).then(function(r){return r.json();}).then(function(d){
             if(after){ after(); }
             if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
-            saveLastC(cid,cname);
+            if(cid){ saveLastC(cid,cname); }
             if(popC){ popC.style.display='none'; }
             if(card){
               card.setAttribute('data-coliso', cname);
@@ -403,9 +420,24 @@
         }
         function bindColis(root, card){
           var b=root.querySelector('.vo-addcolis2');
-          if(b){ b.onclick=function(){ curOfP=parseInt(card.getAttribute('data-ofid')); curCardP=card; if(popC){ popC.style.display='flex'; } }; }
+          if(b){ b.onclick=function(){ curOfP=parseInt(card.getAttribute('data-ofid')); curCardP=card; if(popC){ popC.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchP(); setTimeout(function(){ s.focus(); },80); } } }; }
           var q=root.querySelector('.vo-lastcolis2');
           if(q){ q.onclick=function(){ q.disabled=true; assignC(parseInt(card.getAttribute('data-ofid')), lastColis.id, lastColis.name, card, function(){ q.disabled=false; }); }; }
+        }
+        var srchP=document.getElementById('vo-colis-search');
+        function applySrchP(){ var v=(srchP &amp;&amp; srchP.value || '').trim().toLowerCase(); document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ cb.style.display = (!v || (cb.getAttribute('data-cname')||'').toLowerCase().indexOf(v)!==-1) ? '' : 'none'; }); }
+        if(srchP){
+          srchP.addEventListener('input', applySrchP);
+          srchP.addEventListener('keydown', function(e){
+            if(e.key!=='Enter'){ return; }
+            e.preventDefault();
+            var v=(srchP.value||'').trim(); if(!v){ return; }
+            var vv=v.toLowerCase(); var match=null;
+            document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ if((cb.getAttribute('data-cname')||'').toLowerCase()===vv){ match=cb; } });
+            if(match){ match.click(); return; }
+            srchP.disabled=true;
+            assignC(curOfP, null, v, curCardP, function(){ srchP.disabled=false; });
+          });
         }
         var clsC=document.getElementById('vo-colis-close'); if(clsC){ clsC.onclick=function(){ popC.style.display='none'; }; }
         document.querySelectorAll('.vo-colis-choice').forEach(function(cb){
