@@ -89,10 +89,10 @@
         </div>
         <p class="text-muted mb-2"><strong id="vo-hn"><t t-esc="len(dones)"/></strong> opération(s) terminée(s) sur <t t-esc="histj"/> jours</p>
         <t t-if="dones">
-          <t t-if="len(hmach) &gt; 1"><div class="vo-chips"><span class="vo-lbl">Machines</span><t t-foreach="hmach" t-as="mc"><span class="vo-chip chip-hmac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t></div></t>
-          <t t-if="len(hcli) &gt; 1"><div class="vo-chips"><span class="vo-lbl">Clients</span><t t-foreach="hcli" t-as="cl"><span class="vo-chip chip-hcli" t-att-data-val="cl"><t t-esc="cl"/></span></t></div></t>
-          <t t-if="len(hrefs) &gt; 1"><div class="vo-chips"><span class="vo-lbl">Réf. cde</span><t t-foreach="hrefs" t-as="rf"><span class="vo-chip chip-href" t-att-data-val="rf" t-att-title="rf"><t t-esc="rf"/></span></t></div></t>
-          <t t-if="hpals"><div class="vo-chips"><span class="vo-lbl">Palette</span><t t-foreach="hpals" t-as="pa"><span class="vo-chip chip-hpal" t-att-data-val="pa" t-att-title="pa">🟪 <t t-esc="pa"/></span></t></div></t>
+          <t t-if="len(hmach) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Machines</span><t t-foreach="hmach" t-as="mc"><span class="vo-chip chip-hmac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t></div></t>
+          <t t-if="len(hcli) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Clients</span><t t-foreach="hcli" t-as="cl"><span class="vo-chip chip-hcli" t-att-data-val="cl"><t t-esc="cl"/></span></t></div></t>
+          <t t-if="len(hrefs) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Réf. cde</span><t t-foreach="hrefs" t-as="rf"><span class="vo-chip chip-href" t-att-data-val="rf" t-att-title="rf"><t t-esc="rf"/></span></t></div></t>
+          <t t-if="hpals"><div class="vo-chips vo-hrow"><span class="vo-lbl">Palette</span><t t-foreach="hpals" t-as="pa"><span class="vo-chip chip-hpal" t-att-data-val="pa" t-att-title="pa">🟪 <t t-esc="pa"/></span></t></div></t>
         </t>
         <t t-if="not dones"><div class="alert alert-secondary">Aucune opération terminée pour le moment.</div></t>
         <t t-if="dones">
@@ -301,11 +301,34 @@
           for(var i=0;i&lt;blocks.length;i++){ if(blocks[i].getAttribute('data-today')==='1'){ idx=i; break; } }
           var lbl=document.getElementById('vd-lbl'), prev=document.getElementById('vd-prev'), next=document.getElementById('vd-next');
           function nextVis(from,dir){ var i=from+dir; while(i&gt;=0 &amp;&amp; i&lt;blocks.length){ if(blocks[i].getAttribute('data-vis')!=='0'){ return i; } i+=dir; } return -1; }
+          function refreshChips(){
+            var b=blocks[idx];
+            var pm={}, pc={}, pr={}, pp={};
+            b.querySelectorAll('.vo-card').forEach(function(card){
+              pm[card.getAttribute('data-machine')||'']=1;
+              pc[card.getAttribute('data-client')||'']=1;
+              pr[card.getAttribute('data-ref')||'']=1;
+              pp[card.getAttribute('data-palette')||'']=1;
+            });
+            function upd(cls, present, sel){
+              document.querySelectorAll(cls).forEach(function(ch){
+                var v=ch.getAttribute('data-val');
+                ch.style.display = (present[v] || sel[v]) ? '' : 'none';
+              });
+            }
+            upd('.chip-hmac',pm,selHM); upd('.chip-hcli',pc,selHC); upd('.chip-href',pr,selHR); upd('.chip-hpal',pp,selHP);
+            document.querySelectorAll('.vo-hrow').forEach(function(row){
+              var any=false;
+              row.querySelectorAll('.vo-chip').forEach(function(ch){ if(ch.style.display!=='none'){ any=true; } });
+              row.style.display = any ? '' : 'none';
+            });
+          }
           function show(){
             for(var i=0;i&lt;blocks.length;i++){ blocks[i].style.display = (i===idx)?'':'none'; }
             if(lbl){ lbl.textContent = blocks[idx].getAttribute('data-label'); }
             if(next){ next.disabled = (nextVis(idx,-1)===-1); }
             if(prev){ prev.disabled = (nextVis(idx,1)===-1); }
+            refreshChips();
             window.scrollTo(0,0);
           }
           function applyH(){
