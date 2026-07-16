@@ -119,14 +119,14 @@
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
             <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) for c in colis_ouverts]) + ']'"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0)) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
               <t t-foreach="colis_ouverts" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
               </t>
@@ -205,14 +205,14 @@
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
             <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) for c in colis_ouverts]) + ']'"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0)) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
               <t t-foreach="colis_ouverts" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
               </t>
@@ -355,7 +355,7 @@ var dataC=document.getElementById('vo-colis-data');
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF&lt;/span&gt;&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchH(){
@@ -496,7 +496,7 @@ var dataC=document.getElementById('vo-colis-data');
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF&lt;/span&gt;&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchP(){
