@@ -14,7 +14,7 @@
         .vo-head small{font-weight:700;font-size:13px;opacity:.9;}
         .vo-body{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;padding:10px 12px;}
         .vo-main{flex:1 1 300px;min-width:0;}
-        .vo-card.doned{opacity:.5;}
+        .vo-card.doned .vo-main{opacity:.5;} .vo-card.doned .vo-bc img,.vo-card.doned .vo-bc-txt{opacity:.5;}
         .vo-card.doned .vo-head{text-decoration:line-through;}
         .vo-cli{font-weight:700;color:#15324f;font-size:14px;margin:3px 0;}
         .vo-ref{font-size:12.5px;background:#FEF9C3;border:1px solid #FDE68A;border-radius:5px;padding:1px 7px;margin:3px 0;display:inline-block;}
@@ -77,7 +77,9 @@
         <t t-set="histj" t-value="int(request.params.get('j')) if (request.params.get('j') or '') in ['7','30','90','365'] else 7"/>
         <t t-set="dsince" t-value="datetime.datetime.now() - datetime.timedelta(days=histj)"/>
         <t t-set="dones" t-value="request.env['mrp.workorder'].sudo().search([('production_id.company_id','=',1),('employee_assigned_ids','in',[int(op)]),('state','=','done'),('date_finished','&gt;=',dsince)], order='date_finished desc', limit=2000)"/>
-        <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=20)"/>
+        <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
+        <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
+        <t t-set="rep_cnt" t-value="dict((g['x_studio_colis_id'][0], g['x_studio_colis_id_count']) for g in request.env['x_repartition_palette'].sudo().read_group([('x_studio_colis_id','in',colis_ouverts.ids)], ['id'], ['x_studio_colis_id']))"/>
         <t t-set="hmach" t-value="sorted(set(w.workcenter_id.name for w in dones if w.workcenter_id))"/>
         <t t-set="hcli" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in dones if w.production_id.x_studio_nom_du_client))"/>
         <t t-set="hrefs" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in dones if w.production_id.x_studio_ref_commande_client))"/>
@@ -117,14 +119,18 @@
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
             <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
-            <t t-foreach="colis_ouverts" t-as="cp">
-              <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/><t t-set="cprn" t-value="request.env['x_repartition_palette'].sudo().search_count([('x_studio_colis_id','=',cp.id)])"/>
-              <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
-                <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
-                <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
-              </div>
-            </t>
+            <div id="vo-colis-dyn" style="display:none;"/>
+            <div id="vo-colis-list">
+              <t t-foreach="colis_ouverts" t-as="cp">
+                <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
+                <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
+                  <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+                </div>
+              </t>
+            </div>
           </div>
         </div>
         <t t-set="hdays" t-value="sorted(set(w.date_finished.date() for w in dones), reverse=True)"/>
@@ -181,7 +187,9 @@
         <t t-set="dom" t-value="[('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1),('employee_assigned_ids','in',[int(op)]),'|',('state','in',['ready','progress']),'&amp;',('state','=','done'),('date_start','&gt;=',dfday)]"/>
         <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, limit=300).sorted(key=lambda w: (w.production_id.name or '', w.id))"/>
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
-        <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=20)"/>
+        <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
+        <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
+        <t t-set="rep_cnt" t-value="dict((g['x_studio_colis_id'][0], g['x_studio_colis_id_count']) for g in request.env['x_repartition_palette'].sudo().read_group([('x_studio_colis_id','in',colis_ouverts.ids)], ['id'], ['x_studio_colis_id']))"/>
         <div id="vo-zone-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:1001;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:22px;width:min(400px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4);">
             <div style="font-size:17px;font-weight:800;margin-bottom:12px;">🔒 Clôturer <span id="vo-zone-cname"/> — emplacement :</div>
@@ -197,14 +205,18 @@
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
             <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
-            <t t-foreach="colis_ouverts" t-as="cp">
-              <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/><t t-set="cprn" t-value="request.env['x_repartition_palette'].sudo().search_count([('x_studio_colis_id','=',cp.id)])"/>
-              <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
-                <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
-                <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
-              </div>
-            </t>
+            <div id="vo-colis-dyn" style="display:none;"/>
+            <div id="vo-colis-list">
+              <t t-foreach="colis_ouverts" t-as="cp">
+                <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
+                <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
+                  <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+                </div>
+              </t>
+            </div>
           </div>
         </div>
         <t t-set="clients_op" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in ots if w.production_id.x_studio_nom_du_client))"/>
@@ -338,33 +350,47 @@
               b.after(q);
             }
           });
-          var srchH=document.getElementById('vo-colis-search');
-          function applySrchH(){ var v=(srchH &amp;&amp; srchH.value || '').trim().toLowerCase(); document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ cb.style.display = (!v || (cb.getAttribute('data-cname')||'').toLowerCase().indexOf(v)!==-1) ? '' : 'none'; }); }
-          if(srchH){
-            srchH.addEventListener('input', applySrchH);
-            srchH.addEventListener('keydown', function(e){
+var dataC=document.getElementById('vo-colis-data');
+          var COLIS=[]; try{ COLIS=JSON.parse((dataC &amp;&amp; dataC.getAttribute('data-colis'))||'[]'); }catch(e){}
+          var dynC=document.getElementById('vo-colis-dyn');
+          var listC=document.getElementById('vo-colis-list');
+          function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF&lt;/span&gt;&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
+          var srchC=document.getElementById('vo-colis-search');
+          function applySrchH(){
+            var v=(srchC &amp;&amp; srchC.value || '').trim().toLowerCase();
+            if(!v){ if(listC){ listC.style.display=''; } if(dynC){ dynC.innerHTML=''; dynC.style.display='none'; } return; }
+            if(listC){ listC.style.display='none'; }
+            var m=COLIS.filter(function(c){ return c.name.toLowerCase().indexOf(v)!==-1; }).slice(0,15);
+            if(dynC){ dynC.style.display=''; dynC.innerHTML = m.length ? m.map(rowC).join('') : '&lt;div class="alert alert-warning"&gt;Aucun colis ouvert ne correspond — Entrée pour chercher ce numéro exact&lt;/div&gt;'; }
+          }
+          if(srchC){
+            srchC.addEventListener('input', applySrchH);
+            srchC.addEventListener('keydown', function(e){
               if(e.key!=='Enter'){ return; }
               e.preventDefault();
-              var v=(srchH.value||'').trim(); if(!v){ return; }
-              var vv=v.toLowerCase(); var match=null;
-              document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ if((cb.getAttribute('data-cname')||'').toLowerCase()===vv){ match=cb; } });
-              if(match){ match.click(); return; }
-              srchH.disabled=true;
-              assign(curOf, null, v, curBtn, function(){ srchH.disabled=false; });
+              var v=(srchC.value||'').trim(); if(!v){ return; }
+              var vv=v.toLowerCase();
+              var ex=COLIS.filter(function(c){ return c.name.toLowerCase()===vv; });
+              if(ex.length===1){ assign(curOf, ex[0].id, ex[0].name, curBtn, null); return; }
+              var m=COLIS.filter(function(c){ return c.name.toLowerCase().indexOf(vv)!==-1; });
+              if(m.length===1){ assign(curOf, m[0].id, m[0].name, curBtn, null); return; }
+              if(m.length&gt;1){ return; }
+              srchC.disabled=true;
+              assign(curOf, null, v, curBtn, function(){ srchC.disabled=false; });
             });
           }
-          var cls=document.getElementById('vo-colis-close'); if(cls){ cls.onclick=function(){ pop.style.display='none'; }; }
-          document.querySelectorAll('.vo-colis-choice').forEach(function(cb){
-            cb.onclick=function(){
-              var cid=parseInt(cb.getAttribute('data-cid')); var cname=cb.getAttribute('data-cname');
-              cb.disabled=true;
-              assign(curOf, cid, cname, curBtn, function(){ cb.disabled=false; });
-            };
-          });
+          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ pop.style.display='none'; }; }
           var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
-          document.querySelectorAll('.vo-colis-lock').forEach(function(lb){
-            lb.onclick=function(){ lockCid=parseInt(lb.getAttribute('data-cid')); lockName=lb.getAttribute('data-cname'); lockRow=lb.parentNode; var n=document.getElementById('vo-zone-cname'); if(n){ n.textContent=lockName; } if(zonePop){ zonePop.style.display='flex'; } };
-          });
+          if(pop){
+            pop.addEventListener('click', function(e){
+              var cb=e.target.closest('.vo-colis-choice');
+              if(cb){ cb.disabled=true; assign(curOf, parseInt(cb.getAttribute('data-cid')), cb.getAttribute('data-cname'), curBtn, function(){ cb.disabled=false; }); return; }
+              var lb=e.target.closest('.vo-colis-lock');
+              if(lb){ lockCid=parseInt(lb.getAttribute('data-cid')); lockName=lb.getAttribute('data-cname'); lockRow=lb.parentNode; var n=document.getElementById('vo-zone-cname'); if(n){ n.textContent=lockName; } if(zonePop){ zonePop.style.display='flex'; } }
+            });
+          }
           document.querySelectorAll('.vo-zone-cancel').forEach(function(zc){ zc.onclick=function(){ zonePop.style.display='none'; }; });
           document.querySelectorAll('.vo-zone-btn').forEach(function(zb){
             zb.onclick=function(){
@@ -465,33 +491,47 @@
           var q=root.querySelector('.vo-lastcolis2');
           if(q){ q.onclick=function(){ q.disabled=true; assignC(parseInt(card.getAttribute('data-ofid')), lastColis.id, lastColis.name, card, function(){ q.disabled=false; }); }; }
         }
-        var srchP=document.getElementById('vo-colis-search');
-        function applySrchP(){ var v=(srchP &amp;&amp; srchP.value || '').trim().toLowerCase(); document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ cb.style.display = (!v || (cb.getAttribute('data-cname')||'').toLowerCase().indexOf(v)!==-1) ? '' : 'none'; }); }
-        if(srchP){
-          srchP.addEventListener('input', applySrchP);
-          srchP.addEventListener('keydown', function(e){
-            if(e.key!=='Enter'){ return; }
-            e.preventDefault();
-            var v=(srchP.value||'').trim(); if(!v){ return; }
-            var vv=v.toLowerCase(); var match=null;
-            document.querySelectorAll('.vo-colis-choice').forEach(function(cb){ if((cb.getAttribute('data-cname')||'').toLowerCase()===vv){ match=cb; } });
-            if(match){ match.click(); return; }
-            srchP.disabled=true;
-            assignC(curOfP, null, v, curCardP, function(){ srchP.disabled=false; });
-          });
-        }
-        var clsC=document.getElementById('vo-colis-close'); if(clsC){ clsC.onclick=function(){ popC.style.display='none'; }; }
-        document.querySelectorAll('.vo-colis-choice').forEach(function(cb){
-          cb.onclick=function(){
-            var cid=parseInt(cb.getAttribute('data-cid')); var cname=cb.getAttribute('data-cname');
-            cb.disabled=true;
-            assignC(curOfP, cid, cname, curCardP, function(){ cb.disabled=false; });
-          };
-        });
+var dataC=document.getElementById('vo-colis-data');
+          var COLIS=[]; try{ COLIS=JSON.parse((dataC &amp;&amp; dataC.getAttribute('data-colis'))||'[]'); }catch(e){}
+          var dynC=document.getElementById('vo-colis-dyn');
+          var listC=document.getElementById('vo-colis-list');
+          function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF&lt;/span&gt;&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
+          var srchC=document.getElementById('vo-colis-search');
+          function applySrchP(){
+            var v=(srchC &amp;&amp; srchC.value || '').trim().toLowerCase();
+            if(!v){ if(listC){ listC.style.display=''; } if(dynC){ dynC.innerHTML=''; dynC.style.display='none'; } return; }
+            if(listC){ listC.style.display='none'; }
+            var m=COLIS.filter(function(c){ return c.name.toLowerCase().indexOf(v)!==-1; }).slice(0,15);
+            if(dynC){ dynC.style.display=''; dynC.innerHTML = m.length ? m.map(rowC).join('') : '&lt;div class="alert alert-warning"&gt;Aucun colis ouvert ne correspond — Entrée pour chercher ce numéro exact&lt;/div&gt;'; }
+          }
+          if(srchC){
+            srchC.addEventListener('input', applySrchP);
+            srchC.addEventListener('keydown', function(e){
+              if(e.key!=='Enter'){ return; }
+              e.preventDefault();
+              var v=(srchC.value||'').trim(); if(!v){ return; }
+              var vv=v.toLowerCase();
+              var ex=COLIS.filter(function(c){ return c.name.toLowerCase()===vv; });
+              if(ex.length===1){ assignC(curOfP, ex[0].id, ex[0].name, curCardP, null); return; }
+              var m=COLIS.filter(function(c){ return c.name.toLowerCase().indexOf(vv)!==-1; });
+              if(m.length===1){ assignC(curOfP, m[0].id, m[0].name, curCardP, null); return; }
+              if(m.length&gt;1){ return; }
+              srchC.disabled=true;
+              assignC(curOfP, null, v, curCardP, function(){ srchC.disabled=false; });
+            });
+          }
+          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ popC.style.display='none'; }; }
           var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
-          document.querySelectorAll('.vo-colis-lock').forEach(function(lb){
-            lb.onclick=function(){ lockCid=parseInt(lb.getAttribute('data-cid')); lockName=lb.getAttribute('data-cname'); lockRow=lb.parentNode; var n=document.getElementById('vo-zone-cname'); if(n){ n.textContent=lockName; } if(zonePop){ zonePop.style.display='flex'; } };
-          });
+          if(popC){
+            popC.addEventListener('click', function(e){
+              var cb=e.target.closest('.vo-colis-choice');
+              if(cb){ cb.disabled=true; assignC(curOfP, parseInt(cb.getAttribute('data-cid')), cb.getAttribute('data-cname'), curCardP, function(){ cb.disabled=false; }); return; }
+              var lb=e.target.closest('.vo-colis-lock');
+              if(lb){ lockCid=parseInt(lb.getAttribute('data-cid')); lockName=lb.getAttribute('data-cname'); lockRow=lb.parentNode; var n=document.getElementById('vo-zone-cname'); if(n){ n.textContent=lockName; } if(zonePop){ zonePop.style.display='flex'; } }
+            });
+          }
           document.querySelectorAll('.vo-zone-cancel').forEach(function(zc){ zc.onclick=function(){ zonePop.style.display='none'; }; });
           document.querySelectorAll('.vo-zone-btn').forEach(function(zb){
             zb.onclick=function(){
@@ -518,8 +558,8 @@
             var ch='';
             if(coliso){ ch=' &lt;span class="vo-pal"&gt;📦 '+coliso+'&lt;/span&gt;'; }
             else {
-              ch=' &lt;button type="button" class="vo-addcolis2 btn btn-outline-primary"&gt;📦 Mettre au colis&lt;/button&gt;';
-              if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-primary" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
+              ch=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis&lt;/button&gt;';
+              if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
             }
             acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch;
             bindColis(acts, card);
