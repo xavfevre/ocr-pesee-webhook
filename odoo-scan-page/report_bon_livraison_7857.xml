@@ -87,13 +87,58 @@
   </xpath>
   <!-- BL reconstruit depuis la commande : notes / sections / produits dans l'ordre -->
   <xpath expr="//table[@name='stock_move_table']" position="attributes">
-    <attribute name="t-if">o.state != 'done' and not o.sale_id</attribute>
+    <attribute name="t-if">o.state != 'done' and not o.sale_id and not has_palettes</attribute>
   </xpath>
   <xpath expr="//table[@name='stock_move_line_table']" position="attributes">
-    <attribute name="t-elif">o.move_line_ids and o.state == 'done' and not o.sale_id</attribute>
+    <attribute name="t-elif">o.move_line_ids and o.state == 'done' and not o.sale_id and not has_palettes</attribute>
   </xpath>
   <xpath expr="//table[@name='stock_move_table']" position="before">
-    <table t-if="o.sale_id" class="table table-sm table-borderless" name="maq_bl_table">
+    <t t-set="fmtq2" t-value="lambda v: int(v) if v == int(v) else round(v, 3)"/>
+    <t t-set="of_names" t-value="[m.x_studio_n_of for m in o.move_ids if m.x_studio_n_of]"/>
+    <t t-set="of_by_name" t-value="{p.name: p for p in o.env['mrp.production'].search([('name','in',of_names)])} if of_names else {}"/>
+    <t t-set="has_palettes" t-value="any(p.x_studio_palette for p in of_by_name.values())"/>
+    <table t-if="has_palettes" class="table table-sm" name="maq_bl_palettes" style="font-size:10pt;">
+      <thead>
+        <tr style="background-color:#2c3e50; color:white;">
+          <th style="padding:4px 8px;">Palette / Pièce</th>
+          <th style="padding:4px 8px;">N° OF</th>
+          <th class="text-end" style="padding:4px 8px;">Quantité</th>
+          <th class="text-end" style="padding:4px 8px;">Poids</th>
+        </tr>
+      </thead>
+      <tbody>
+        <t t-set="pal_of" t-value="lambda m: (of_by_name[m.x_studio_n_of].x_studio_palette or 'Sans palette') if m.x_studio_n_of in of_by_name else 'Sans palette'"/>
+        <t t-set="palnum" t-value="lambda s: int(''.join(c for c in s.split('-')[0] if c.isdigit()) or 999)"/>
+        <t t-set="moves_sorted" t-value="o.move_ids.filtered(lambda m: m.product_uom_qty).sorted(key=lambda m: (palnum(pal_of(m)), pal_of(m), m.x_studio_n_of or ''))"/>
+        <t t-foreach="moves_sorted" t-as="m">
+          <t t-set="pal" t-value="pal_of(m)"/>
+          <tr t-if="m_index == 0 or pal != pal_of(moves_sorted[m_index-1])" style="background-color:#e8eef4; border-top:2px solid #2c3e50;">
+            <td colspan="2" style="padding:5px 8px;"><strong t-out="pal"/>
+              <span style="color:#64748b;"> — <t t-out="len([1 for x in moves_sorted if pal_of(x) == pal])"/> pièce(s)</span></td>
+            <td class="text-end" style="padding:5px 8px;"><strong><t t-out="fmtq2(sum(x.quantity for x in moves_sorted if pal_of(x) == pal))"/> <span t-field="m.product_uom"/></strong></td>
+            <td class="text-end" style="padding:5px 8px;">
+              <t t-set="palw" t-value="sum(x.x_studio_poids_kg or 0 for x in moves_sorted if pal_of(x) == pal)"/>
+              <strong t-if="palw &gt; 0"><t t-out="'%.0f kg' % palw"/></strong>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:2px 8px 2px 20px;"><span t-field="m.product_id"/><t t-if="m.description_picking and m.description_picking != m.product_id.display_name"> — <t t-out="m.description_picking"/></t></td>
+            <td style="padding:2px 8px;"><t t-out="m.x_studio_n_of"/></td>
+            <td class="text-end" style="padding:2px 8px;"><t t-out="fmtq2(m.quantity)"/> <span t-field="m.product_uom"/></td>
+            <td class="text-end" style="padding:2px 8px;"><t t-if="m.x_studio_poids_kg"><t t-out="'%.0f kg' % m.x_studio_poids_kg"/></t></td>
+          </tr>
+        </t>
+        <tr style="border-top:2px solid #2c3e50; background-color:#f0f4f8;">
+          <td colspan="2" style="padding:6px 8px;"><strong>TOTAL — <t t-out="len(set(pal_of(x) for x in moves_sorted))"/> palette(s), <t t-out="len(moves_sorted)"/> pièce(s)</strong></td>
+          <td class="text-end" style="padding:6px 8px;"><strong><t t-out="fmtq2(sum(x.quantity for x in moves_sorted))"/></strong></td>
+          <td class="text-end" style="padding:6px 8px;">
+            <t t-set="totw" t-value="sum(x.x_studio_poids_kg or 0 for x in moves_sorted)"/>
+            <strong t-if="totw &gt; 0"><t t-out="'%.0f kg' % totw"/></strong>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <table t-if="o.sale_id and not has_palettes" class="table table-sm table-borderless" name="maq_bl_table">
       <thead>
         <tr>
           <th><strong>Product</strong></th>
