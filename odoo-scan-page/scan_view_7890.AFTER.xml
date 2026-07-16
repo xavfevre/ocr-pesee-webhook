@@ -237,6 +237,7 @@
     if(o.x_studio_larg_m_1){ dims.push(fmtN(o.x_studio_larg_m_1)); }
     if(o.x_studio_haut_m_1){ dims.push(fmtN(o.x_studio_haut_m_1)); }
     var meta = [];
+    if(o.x_studio_ref_pierre){ meta.push('◆ ' + esc(o.x_studio_ref_pierre)); }
     if(o.x_studio_nom_du_client){ meta.push(esc(o.x_studio_nom_du_client)); }
     if(dims.length){ meta.push(dims.join(' × ') + ' m'); }
     return meta.join(' · ');
@@ -248,7 +249,7 @@
       +   '&lt;button class="of-del" data-kind="' + kind + '" data-id="' + refId + '" data-name="' + esc(o.name) + '"&gt;🗑️&lt;/button&gt;'
       + '&lt;/div&gt;';
   }
-  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1'];
+  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1','x_studio_ref_pierre'];
 
   function loadOfs(colisId){
     var box = document.getElementById('of-list');
