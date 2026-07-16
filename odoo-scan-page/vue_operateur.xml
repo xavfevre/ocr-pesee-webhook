@@ -74,7 +74,7 @@
       <!-- ═══════════ HISTORIQUE ═══════════ -->
       <t t-if="op and hist">
         <t t-set="today" t-value="datetime.date.today()"/>
-        <t t-set="histj" t-value="int(request.params.get('j')) if (request.params.get('j') or '') in ['7','30','90','365'] else 30"/>
+        <t t-set="histj" t-value="int(request.params.get('j')) if (request.params.get('j') or '') in ['7','30','90','365'] else 7"/>
         <t t-set="dsince" t-value="datetime.datetime.now() - datetime.timedelta(days=histj)"/>
         <t t-set="dones" t-value="request.env['mrp.workorder'].sudo().search([('production_id.company_id','=',1),('employee_assigned_ids','in',[int(op)]),('state','=','done'),('date_finished','&gt;=',dsince)], order='date_finished desc', limit=2000)"/>
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=20)"/>
