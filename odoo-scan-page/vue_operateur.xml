@@ -102,6 +102,14 @@
             <button type="button" id="vd-next">▶</button>
           </div>
         </t>
+        <div id="vo-zone-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:1001;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;padding:22px;width:min(400px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4);">
+            <div style="font-size:17px;font-weight:800;margin-bottom:12px;">🔒 Clôturer <span id="vo-zone-cname"/> — emplacement :</div>
+            <button type="button" class="vo-zone-btn btn btn-success w-100 mb-2" style="font-weight:800;font-size:16px;padding:12px;" data-zone="Stock Atelier">📍 Stock Atelier</button>
+            <button type="button" class="vo-zone-btn btn btn-success w-100 mb-2" style="font-weight:800;font-size:16px;padding:12px;" data-zone="Stock Usine">📍 Stock Usine</button>
+            <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
+          </div>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -111,8 +119,11 @@
             <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <t t-foreach="colis_ouverts" t-as="cp">
-              <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/>
-              <button type="button" class="vo-colis-choice btn btn-outline-primary w-100 mb-2" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF</span></button>
+              <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/><t t-set="cprn" t-value="request.env['x_repartition_palette'].sudo().search_count([('x_studio_colis_id','=',cp.id)])"/>
+              <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
+                <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
+                <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+              </div>
             </t>
           </div>
         </div>
@@ -171,6 +182,14 @@
         <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, limit=300).sorted(key=lambda w: (w.production_id.name or '', w.id))"/>
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=20)"/>
+        <div id="vo-zone-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:1001;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;padding:22px;width:min(400px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4);">
+            <div style="font-size:17px;font-weight:800;margin-bottom:12px;">🔒 Clôturer <span id="vo-zone-cname"/> — emplacement :</div>
+            <button type="button" class="vo-zone-btn btn btn-success w-100 mb-2" style="font-weight:800;font-size:16px;padding:12px;" data-zone="Stock Atelier">📍 Stock Atelier</button>
+            <button type="button" class="vo-zone-btn btn btn-success w-100 mb-2" style="font-weight:800;font-size:16px;padding:12px;" data-zone="Stock Usine">📍 Stock Usine</button>
+            <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
+          </div>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -180,8 +199,11 @@
             <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <t t-foreach="colis_ouverts" t-as="cp">
-              <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/>
-              <button type="button" class="vo-colis-choice btn btn-outline-primary w-100 mb-2" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF</span></button>
+              <t t-set="cpn" t-value="request.env['mrp.production'].sudo().search_count([('x_studio_colis','=',cp.id)])"/><t t-set="cprn" t-value="request.env['x_repartition_palette'].sudo().search_count([('x_studio_colis_id','=',cp.id)])"/>
+              <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
+                <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t></span></button>
+                <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+              </div>
             </t>
           </div>
         </div>
@@ -339,6 +361,25 @@
               assign(curOf, cid, cname, curBtn, function(){ cb.disabled=false; });
             };
           });
+          var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
+          document.querySelectorAll('.vo-colis-lock').forEach(function(lb){
+            lb.onclick=function(){ lockCid=parseInt(lb.getAttribute('data-cid')); lockName=lb.getAttribute('data-cname'); lockRow=lb.parentNode; var n=document.getElementById('vo-zone-cname'); if(n){ n.textContent=lockName; } if(zonePop){ zonePop.style.display='flex'; } };
+          });
+          document.querySelectorAll('.vo-zone-cancel').forEach(function(zc){ zc.onclick=function(){ zonePop.style.display='none'; }; });
+          document.querySelectorAll('.vo-zone-btn').forEach(function(zb){
+            zb.onclick=function(){
+              zb.disabled=true;
+              fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1972]],kwargs:{context:{active_model:'stock.package',active_ids:[lockCid],zone:zb.getAttribute('data-zone')}}}})
+              }).then(function(r){return r.json();}).then(function(d){
+                zb.disabled=false;
+                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+                zonePop.style.display='none';
+                window.open('/report/pdf/maquignon.report_bon_colisage/'+lockCid, '_blank');
+                if(lockRow){ lockRow.remove(); }
+              }).catch(function(e){ zb.disabled=false; alert('Échec : '+e); });
+            };
+          });
           if(!blocks.length){ return; }
           var selHC={}, selHR={}, selHM={}, selHP={};
           function hOk(sel, card, attr){ var k=Object.keys(sel); return k.length===0 || !!sel[card.getAttribute(attr)||'']; }
@@ -447,6 +488,25 @@
             assignC(curOfP, cid, cname, curCardP, function(){ cb.disabled=false; });
           };
         });
+          var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
+          document.querySelectorAll('.vo-colis-lock').forEach(function(lb){
+            lb.onclick=function(){ lockCid=parseInt(lb.getAttribute('data-cid')); lockName=lb.getAttribute('data-cname'); lockRow=lb.parentNode; var n=document.getElementById('vo-zone-cname'); if(n){ n.textContent=lockName; } if(zonePop){ zonePop.style.display='flex'; } };
+          });
+          document.querySelectorAll('.vo-zone-cancel').forEach(function(zc){ zc.onclick=function(){ zonePop.style.display='none'; }; });
+          document.querySelectorAll('.vo-zone-btn').forEach(function(zb){
+            zb.onclick=function(){
+              zb.disabled=true;
+              fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1972]],kwargs:{context:{active_model:'stock.package',active_ids:[lockCid],zone:zb.getAttribute('data-zone')}}}})
+              }).then(function(r){return r.json();}).then(function(d){
+                zb.disabled=false;
+                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+                zonePop.style.display='none';
+                window.open('/report/pdf/maquignon.report_bon_colisage/'+lockCid, '_blank');
+                if(lockRow){ lockRow.remove(); }
+              }).catch(function(e){ zb.disabled=false; alert('Échec : '+e); });
+            };
+          });
         function render(card){
           var st=card.getAttribute('data-state');
           var id=card.getAttribute('data-id');
