@@ -1,0 +1,99 @@
+<data>
+  <xpath expr="//form[1]/sheet[1]" position="before">
+    <header>
+      <button string="Dupliquer le Bon de transport" name="1515" type="action"/>
+      <button string="Produits" name="1518" type="action"/>
+      <button string="Bon de livraison" name="1522" type="action"/>
+      <button string="Lancer Scan bon de pesée" name="1611" type="action"/>
+    </header>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/h1[1]" position="before">
+    <group name="studio_group_6h2_1inttbq5j"/>
+    <field name="x_studio_km_requis" invisible="True"/>
+    <div class="alert alert-warning" role="alert" invisible="not x_studio_km_requis">🚚 <b>Premier transport du jour avec ce camion</b> : merci de saisir le <b>kilométrage au compteur</b> (et de vérifier le camion réel).</div>
+    <group name="studio_group_363_1jc6v5k4r">
+      <group name="studio_group_363_left" string="TRANSPORT">
+        <field name="x_studio_lettre_de_voiture_n" force_save="1" readonly="True"/>
+        <field name="x_studio_conducteur"/>
+        <field name="x_studio_immat_tracteur" string="Immat Tracteur (prévu)"/>
+        <field name="x_vehicle_id" string="🚚 Camion réel" options="{&quot;no_create&quot;: true, &quot;no_open&quot;: true}" help="Vérifiez : c'est CE camion qui recevra le kilométrage. Corrigez-le si vous conduisez un autre camion que celui prévu."/>
+        <field name="x_studio_km" required="x_studio_km_requis"/>
+        <field name="x_studio_immat_remorque"/>
+      </group>
+      <group name="studio_group_363_right" string="Date">
+        <field name="x_studio_date"/>
+        <field name="x_studio_date_et_heure_de_chargement" widget="datetime" options="{&quot;show_seconds&quot;:false}"/>
+        <field name="x_studio_date_et_heure_de_livraison"/>
+      </group>
+    </group>
+    <group name="studio_group_ed_1inrie4co">
+      <group name="studio_group_ed_left" string="EXPEDITEUR">
+        <field name="x_studio_chargement"/>
+      </group>
+      <group name="studio_group_ed_right" string="DESTINATAIRE">
+        <field name="x_studio_livraison_3"/>
+      </group>
+    </group>
+    <group name="studio_group_56r_1jjh5srml" invisible="False" string="SCAN DU BON DE PESEE">
+      <group name="studio_group_56r_left">
+        <field widget="image" name="x_studio_photo_bon" options="{&quot;reload&quot;:true,&quot;zoom&quot;:false,&quot;convert_to_webp&quot;:false}"/>
+        <button name="1976" type="action" string="↻ Pivoter la photo (90°)" class="btn-secondary btn-sm" invisible="not x_studio_photo_bon"/>
+      </group>
+      <group name="studio_group_56r_right">
+        <field name="x_studio_ocr_statut"/>
+        <field name="x_studio_numero_bon"/>
+        <field name="x_studio_date_bon"/>
+        <field name="x_studio_client_pesee"/>
+        <field name="x_studio_transporteur"/>
+        <field name="x_studio_produit_pesee"/>
+        <field name="x_studio_chantier_pesee"/>
+        <field name="x_studio_vehicule"/>
+        <field name="x_studio_pesee1_poids"/>
+        <field name="x_studio_pesee2_poids"/>
+        <field name="x_studio_poids_net"/>
+        <field name="x_studio_pesee1_ticket" invisible="True"/>
+        <field name="x_studio_pesee2_ticket" invisible="True"/>
+      </group>
+    </group>
+    <group name="studio_group_32f_1iovc19uf">
+      <group name="studio_group_32f_left" string="PRISE EN CHARGE">
+        <field name="x_studio_reserve"/>
+        <field widget="image" name="x_studio_photo" options="{&quot;convert_to_webp&quot;:false,&quot;reload&quot;:true,&quot;zoom&quot;:false}" invisible="False"/>
+        <button name="1977" type="action" string="↻ Pivoter la photo (90°)" class="btn-secondary btn-sm" invisible="not x_studio_photo"/>
+      </group>
+      <group name="studio_group_32f_right" string="LIVRAISON">
+        <field name="x_studio_reserve_1"/>
+        <field widget="image" name="x_studio_photo_1" options="{&quot;reload&quot;:true,&quot;zoom&quot;:false,&quot;convert_to_webp&quot;:false}"/>
+        <button name="1978" type="action" string="↻ Pivoter la photo (90°)" class="btn-secondary btn-sm" invisible="not x_studio_photo_1"/>
+      </group>
+    </group>
+  </xpath>
+  <xpath expr="//field[@name='x_project_task_id']" position="attributes">
+    <attribute name="class">h3</attribute>
+    <attribute name="force_save">1</attribute>
+    <attribute name="readonly">True</attribute>
+    <attribute name="string">Nom de la Tache</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[not(@name)][1]" position="attributes">
+    <attribute name="string">Marchandise</attribute>
+  </xpath>
+  <xpath expr="//field[@name='x_comments']" position="before">
+    <field name="x_studio_bon_de_commande" force_save="1" readonly="True" invisible="True"/>
+    <field name="x_studio_nature_de_la_marchandise"/>
+    <field name="x_studio_quantit" help="Merci de saisir la quantité en TONNES"/>
+  </xpath>
+  <xpath expr="//field[@name='x_comments']" position="attributes">
+    <attribute name="placeholder"> Ajoutez des détails sur votre intervention...</attribute>
+    <attribute name="string">Commentaire</attribute>
+  </xpath>
+  <xpath expr="//field[@name='x_comments']" position="after">
+    <field widget="signature" name="x_studio_expditeur" options="{&quot;size&quot;:[0,180]}"/>
+    <field widget="signature" name="x_studio_destinataire" options="{&quot;size&quot;:[0,180]}"/>
+    <field name="x_studio_marchandise_reu_en_bon_tat_par_" help="Saisir le nom du SIGNATAIRE"/>
+    <field widget="file" invisible="True" name="x_studio_photos_2_filename"/>
+    <field widget="file" invisible="True" name="x_studio_photos_1_filename"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]" position="after">
+    <chatter/>
+  </xpath>
+</data>
