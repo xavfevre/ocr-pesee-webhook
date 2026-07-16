@@ -85,13 +85,27 @@ html[data-ocx-chatter="below"] .o-mail-Chatter {
 /* --------------------------------------------------------------------------
    4) Chatter sur le côté : largeur réglable
    -------------------------------------------------------------------------- */
+/* Odoo dimensionne le chatter latéral via flex-basis : il faut surcharger
+   flex ET width/max-width, sinon le réglage est ignoré. Le sélecteur
+   .o_form_renderer > .o-mail-Form-chatter couvre les versions où la classe
+   o-aside a changé (le chatter "en bas" natif est, lui, DANS la feuille). */
+html[data-ocx-chatter="side"] .o_form_renderer > .o-mail-Form-chatter,
 html[data-ocx-chatter="side"] .o-mail-Form-chatter.o-aside,
 html[data-ocx-chatter="side"] .o_FormRenderer_chatterContainer.o-aside {
+  flex: 0 0 var(--ocx-chatter-width, 35%) !important;
   width: var(--ocx-chatter-width, 35%) !important;
-  /* assez bas pour permettre le mode ultra-fin (Premium, jusqu'à 5 %,
-     pensé pour les écrans ultrawide) */
-  min-width: 48px;
-  flex-shrink: 0;
+  max-width: var(--ocx-chatter-width, 35%) !important;
+  /* assez bas pour le mode ultra-fin (Premium, jusqu'à 5 %, écrans ultrawide) */
+  min-width: 48px !important;
+  overflow-x: hidden;
+}
+
+/* En mode très fin, la barre de boutons du chatter passe à la ligne
+   au lieu de déborder. */
+html[data-ocx-chatter="side"] .o-mail-Form-chatter .o-mail-Chatter-topbar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 0;
 }
 
 /* --------------------------------------------------------------------------

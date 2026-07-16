@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Odoo Chatter Manager",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Contenu en pleine largeur et gestion du chatter (côté / en bas / masqué) pour Odoo Online.",
   "icons": {
     "16": "icons/icon16.png",
@@ -9,21 +9,35 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage"],
-  "host_permissions": ["https://*/*"],
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://*/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://extensionpay.com/*"],
-      "js": ["ExtPay.js"],
+      "matches": [
+        "https://extensionpay.com/*"
+      ],
+      "js": [
+        "ExtPay.js"
+      ],
       "run_at": "document_start"
     }
   ],
@@ -38,11 +52,15 @@
   },
   "commands": {
     "cycle-chatter": {
-      "suggested_key": { "default": "Alt+Shift+C" },
+      "suggested_key": {
+        "default": "Alt+Shift+C"
+      },
       "description": "Basculer le chatter (côté / en bas / masqué)"
     },
     "toggle-fullwidth": {
-      "suggested_key": { "default": "Alt+Shift+F" },
+      "suggested_key": {
+        "default": "Alt+Shift+F"
+      },
       "description": "Activer/désactiver la pleine largeur"
     }
   }
