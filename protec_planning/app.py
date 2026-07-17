@@ -877,6 +877,95 @@ def liens():
         error = str(ex)
     return render_template("liens.html", rows=rows, error=error)
 
+# ─── EXPORT COMPTABLE EBP (admin) ────────────────────────────────────────────
+# Journaux Odoo (PROTEC) → EBP : la comptable importe les CSV dans EBP SaaS.
+# À terme : poussée directe via l'API EBP (couche push_ebp_api à câbler quand
+# la clé d'abonnement et la doc des endpoints seront fournies).
+EBP_COMPANY_ID = 2
+
+def _ebp_month_range(mois):
+    """'2026-06' → ('2026-06-01', '2026-06-30')."""
+    import calendar
+    y, mo = int(mois[:4]), int(mois[5:7])
+    return (f"{y:04d}-{mo:02d}-01",
+            f"{y:04d}-{mo:02d}-{calendar.monthrange(y, mo)[1]:02d}")
+
+def _ebp_lines(uid, models, mois, journal_code=None):
+    d1, d2 = _ebp_month_range(mois)
+    dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+           ["date", ">=", d1], ["date", "<=", d2]]
+    if journal_code:
+        dom.append(["journal_id.code", "=", journal_code])
+    return x(models, uid, "account.move.line", "search_read", dom,
+             fields=["date", "move_id", "account_id", "partner_id", "name",
+                     "debit", "credit", "journal_id"],
+             order="date, move_id", limit=50000)
+
+@bp.route("/ebp")
+def ebp_page():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    error, rows, months = None, [], []
+    try:
+        uid, models = odoo_connect()
+        lines = _ebp_lines(uid, models, mois)
+        agg = {}
+        for l in lines:
+            code = l["journal_id"][1]
+            jid = l["journal_id"][0]
+            a = agg.setdefault(jid, {"name": code, "code": "", "nlines": 0,
+                                     "debit": 0.0, "pieces": set()})
+            a["nlines"] += 1
+            a["debit"] += l["debit"] or 0
+            a["pieces"].add(l["move_id"][0])
+        if agg:
+            jinfo = x(models, uid, "account.journal", "read", list(agg.keys()),
+                      fields=["code", "name"])
+            for j in jinfo:
+                agg[j["id"]]["code"] = j["code"]
+                agg[j["id"]]["name"] = j["name"]
+        rows = sorted(agg.values(), key=lambda r: r["code"])
+        for r in rows:
+            r["npieces"] = len(r.pop("pieces"))
+        d = date.today()
+        for i in range(8):
+            mm = (d.year * 12 + d.month - 1 - i)
+            months.append(f"{mm // 12:04d}-{mm % 12 + 1:02d}")
+    except Exception as ex:
+        error = str(ex)
+    return render_template("ebp.html", mois=mois, months=months, rows=rows,
+                           error=error, token=request.args.get("token"))
+
+@bp.route("/ebp.csv")
+def ebp_csv():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    code = request.args.get("journal") or ""
+    uid, models = odoo_connect()
+    lines = _ebp_lines(uid, models, mois, journal_code=code or None)
+    acc_ids = list({l["account_id"][0] for l in lines})
+    # code comptable : champ multi-société en v19 → lecture en contexte PROTEC
+    accs = {a["id"]: a["code"] for a in x(models, uid, "account.account", "read",
+            acc_ids, fields=["code"],
+            context={"allowed_company_ids": [EBP_COMPANY_ID]})} if acc_ids else {}
+    def fr(v):
+        return f"{round(v or 0, 2):.2f}".replace(".", ",")
+    out = ["Journal;Date;N° pièce;Compte;Libellé;Débit;Crédit;Partenaire"]
+    for l in lines:
+        lib = (l["name"] or "").replace(";", ",").replace("\n", " ")[:60]
+        out.append(";".join([
+            str(code or l["journal_id"][1]), str(l["date"]), str(l["move_id"][1]),
+            str(accs.get(l["account_id"][0]) or ""), lib,
+            fr(l["debit"]), fr(l["credit"]),
+            (l["partner_id"][1] if l["partner_id"] else "").replace(";", ","),
+        ]))
+    body = "﻿" + "\r\n".join(out)
+    fn = f"Export_{code or 'TOUS'}_{mois}.csv"
+    return Response(body, mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
 @bp.route("/health")
 def health():
     return {"status": "ok", "app": "protec-planning"}
