@@ -438,7 +438,8 @@ def ma_tournee():
 # ─── FICHE DE FIN DE TRAVAUX ─────────────────────────────────────────────────
 FDT_FIELDS = ["x_fdt_fait", "x_fdt_date", "x_fdt_vehicule", "x_fdt_heure_arrivee",
               "x_fdt_heure_depart", "x_fdt_temps_trajet", "x_fdt_operateurs",
-              "x_fdt_commentaires", "x_fdt_data", "x_fdt_signataire"]
+              "x_fdt_commentaires", "x_fdt_data", "x_fdt_signataire",
+              "x_fdt_prochain_entretien"]
 
 @bp.route("/fiche/<int:slot_id>", methods=["GET", "POST"])
 def fiche(slot_id):
@@ -492,16 +493,35 @@ def fiche(slot_id):
             "x_fdt_commentaires":  f.get("commentaires", "").strip(),
             "x_fdt_data":          json.dumps(data, ensure_ascii=False),
             "x_fdt_signataire":    f.get("signataire", "").strip(),
+            "x_fdt_prochain_entretien": f.get("prochain_entretien", "").strip(),
         }
-        # Corps HTML du rapport PDF (fiche de fin de travaux)
+        # Corps HTML du rapport d'intervention (lieu/interlocuteur/objet
+        # repris de la commande liée quand elle existe)
         _d = date.fromisoformat(card["day"])
         _adresse = ", ".join(p for p in [card["street"],
                    f"{card['zip']} {card['ville']}".strip()] if p)
+        _inter, _objet = "", ""
+        _ref0 = card["ref"].split()[0] if card["ref"] else ""
+        if _ref0:
+            try:
+                _so = x(models, uid, "sale.order", "search_read",
+                        [["name", "=", _ref0]],
+                        fields=["x_studio_lieu_dintervention_2",
+                                "x_studio_interlocuteur_1",
+                                "x_studio_lieu_dintervention_1"], limit=1)
+                if _so:
+                    _adresse = _so[0].get("x_studio_lieu_dintervention_2") or _adresse
+                    _inter = _so[0].get("x_studio_interlocuteur_1") or ""
+                    _objet = _so[0].get("x_studio_lieu_dintervention_1") or ""
+            except Exception:
+                pass
         vals["x_fdt_report_body"] = build_report_body(
             card["client"], _adresse, f"{_d.day:02d}/{_d.month:02d}/{_d.year}",
             vals["x_fdt_vehicule"], vals["x_fdt_operateurs"],
             vals["x_fdt_heure_arrivee"], vals["x_fdt_heure_depart"],
-            vals["x_fdt_temps_trajet"], vals["x_fdt_commentaires"], data)
+            vals["x_fdt_temps_trajet"], vals["x_fdt_commentaires"], data,
+            interlocuteur=_inter, objet=_objet,
+            prochain=vals["x_fdt_prochain_entretien"])
         sig = bin_val(f.get("signature", ""))
         if sig:
             vals["x_fdt_signature"] = sig
@@ -572,6 +592,7 @@ def fiche(slot_id):
         "temps_trajet":  s.get("x_fdt_temps_trajet") or "",
         "operateurs":    _first_names(s.get("x_fdt_operateurs") or emp_names),
         "commentaires":  s.get("x_fdt_commentaires") or "",
+        "prochain_entretien": s.get("x_fdt_prochain_entretien") or "",
     }
     d = date.fromisoformat(card["day"])
     adresse = ", ".join(p for p in [card["street"], f"{card['zip']} {card['ville']}".strip()] if p)
@@ -648,39 +669,45 @@ def _first_names(s):
     return ", ".join(p.split()[0] for p in parts if p.split())
 
 def build_report_body(client, adresse, date_label, vehicule, operateurs,
-                      h_arrivee, h_depart, trajet, commentaires, data):
-    """Corps HTML du rapport PDF (fiche de fin de travaux). Enrobé côté Odoo
-    par le rapport QWeb (en-tête société + logo, signature, photos)."""
+                      h_arrivee, h_depart, trajet, commentaires, data,
+                      interlocuteur="", objet="", prochain=""):
+    """Corps HTML du rapport d'intervention client. Enrobé côté Odoo par le
+    rapport QWeb (en-tête société + logo, titre, photos, signatures)."""
     from markupsafe import escape
     def E(v): return str(escape(v or ""))
-    th = ("padding:5px 8px;text-align:left;background:#0b7285;color:#fff;"
-          "font-size:11px;border:1px solid #0b7285;")
-    td = "padding:5px 8px;border:1px solid #cbd5e1;font-size:12px;"
-    lbl = "padding:4px 8px;font-weight:700;color:#0b7285;width:150px;vertical-align:top;"
-    val = "padding:4px 8px;"
+    H2 = ("background:#0b7285;color:#fff;font-size:12px;padding:6px 12px;"
+          "border-radius:3px;margin:16px 0 6px;letter-spacing:0.4px;")
+    th = ("padding:6px 10px;text-align:left;background:#e6f4f1;color:#0b7285;"
+          "font-size:11px;border:1px solid #d3e5e2;")
+    td = "padding:6px 10px;border:1px solid #e5e7eb;font-size:12px;"
+    lbl = ("padding:6px 8px;font-weight:700;color:#0b7285;width:145px;"
+           "vertical-align:top;border-bottom:1px solid #eef2f4;font-size:12px;")
+    val = "padding:6px 8px;border-bottom:1px solid #eef2f4;font-size:12px;"
 
     def info(k, v):
-        return (f"<tr><td style='{lbl}'>{k}</td>"
-                f"<td style='{val}'>{E(v) or '—'}</td></tr>")
+        return f"<tr><td style='{lbl}'>{k}</td><td style='{val}'>{E(v) or '—'}</td></tr>"
 
-    html = ["<table style='width:100%;border-collapse:collapse;margin-bottom:14px;'>"]
+    html = [f"<h3 style='{H2}'>INFORMATIONS</h3>"]
+    html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
     html.append(info("Client", client))
-    html.append(info("Adresse des travaux", adresse))
+    if interlocuteur:
+        html.append(info("Interlocuteur", interlocuteur))
+    html.append(info("Lieu d'intervention", adresse))
+    if objet:
+        html.append(info("Objet", objet))
     html.append(info("Date d'intervention", date_label))
+    html.append(info("Technicien(s)", _first_names(operateurs)))
     html.append(info("Véhicule", vehicule))
-    html.append(info("Opérateur(s)", _first_names(operateurs)))
-    html.append(info("Heure d'arrivée / départ",
-                     f"{h_arrivee or '—'}  →  {h_depart or '—'}"))
-    html.append(info("Temps de trajet A/R", trajet))
+    html.append(info("Arrivée / Départ", f"{h_arrivee or '—'}  →  {h_depart or '—'}"))
     html.append("</table>")
 
     labels_t = {c: (l, u) for c, l, u in TRAVAUX}
     rows_t = data.get("travaux", {})
     if rows_t:
-        html.append("<h3 style='color:#0b7285;font-size:14px;margin:10px 0 4px;'>Nature des travaux</h3>")
-        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:12px;'>")
-        html.append(f"<tr><th style='{th}'>Prestation</th><th style='{th}'>Quantité</th>"
-                    f"<th style='{th}'>Temps</th></tr>")
+        html.append(f"<h3 style='{H2}'>PRESTATIONS RÉALISÉES</h3>")
+        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
+        html.append(f"<tr><th style='{th}'>Prestation</th><th style='{th};width:100px;'>Quantité</th>"
+                    f"<th style='{th};width:80px;'>Temps</th></tr>")
         for code, v in rows_t.items():
             label, unit = labels_t.get(code, (_labelize(code), ""))
             qte = f"{E(v.get('qte',''))} {unit}".strip()
@@ -688,23 +715,30 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
                         f"<td style='{td}'>{E(v.get('temps',''))} {'h' if v.get('temps') else ''}</td></tr>")
         html.append("</table>")
 
-    if commentaires:
-        html.append("<h3 style='color:#0b7285;font-size:14px;margin:10px 0 4px;'>Commentaires</h3>")
-        html.append(f"<div style='font-size:12px;white-space:pre-wrap;margin-bottom:12px;'>{E(commentaires)}</div>")
-
     labels_d = dict(DECHETS)
     rows_d = data.get("dechets", {})
     if rows_d:
-        html.append("<h3 style='color:#0b7285;font-size:14px;margin:10px 0 4px;'>Déchets évacués</h3>")
-        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:12px;'>")
-        html.append(f"<tr><th style='{th}'>Déchet</th><th style='{th}'>Volume (m³)</th>"
-                    f"<th style='{th}'>Destination</th><th style='{th}'>Tps dépotage</th></tr>")
+        html.append(f"<h3 style='{H2}'>MATIÈRES ÉVACUÉES — TRAÇABILITÉ</h3>")
+        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
+        html.append(f"<tr><th style='{th}'>Déchet</th><th style='{th};width:100px;'>Volume (m³)</th>"
+                    f"<th style='{th}'>Destination de traitement</th></tr>")
         for code, v in rows_d.items():
             html.append(f"<tr><td style='{td}'>{labels_d.get(code, _labelize(code))}</td>"
                         f"<td style='{td}'>{E(v.get('volume',''))}</td>"
-                        f"<td style='{td}'>{E(v.get('destination',''))}</td>"
-                        f"<td style='{td}'>{E(v.get('temps',''))}</td></tr>")
+                        f"<td style='{td}'>{E(v.get('destination',''))}</td></tr>")
         html.append("</table>")
+
+    if commentaires or prochain:
+        html.append(f"<h3 style='{H2}'>OBSERVATIONS &amp; RECOMMANDATIONS</h3>")
+        html.append("<div style='border:1px solid #e5e7eb;border-left:4px solid #0b7285;"
+                    "background:#f8fafc;padding:9px 13px;font-size:12px;"
+                    "white-space:pre-wrap;margin-bottom:6px;'>")
+        if commentaires:
+            html.append(E(commentaires))
+        if prochain:
+            html.append(("<br/><br/>" if commentaires else "")
+                        + f"<b>Prochain entretien conseillé : {E(prochain)}</b>")
+        html.append("</div>")
 
     return "".join(html)
 
