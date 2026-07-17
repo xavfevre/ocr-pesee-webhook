@@ -79,6 +79,12 @@
                 font-size: 17px; font-weight: 900; border-radius: 12px; padding: 14px;
                 cursor: pointer; letter-spacing: .3px; }
     .btn-save:active { background: var(--cy-dk); }
+    .btn-pause { background: #fff; color: var(--cy-dk); border: 2px solid var(--cy);
+                 font-size: 15px; font-weight: 900; border-radius: 12px; padding: 14px 14px;
+                 cursor: pointer; letter-spacing: .3px; }
+    .btn-pause:active { background: var(--cy-lt); }
+    .pausebar { background: #f59e0b; color: #fff; text-align: center;
+                font-weight: 800; padding: 9px; font-size: 14px; }
     .btn-back { background: #fff; color: var(--text); border: 1.5px solid var(--border);
                 font-size: 15px; font-weight: 700; border-radius: 12px; padding: 14px 16px;
                 text-decoration: none; display: flex; align-items: center; }
@@ -91,8 +97,10 @@
   <div class="h-title">FICHE DE FIN DE TRAVAUX</div>
 </header>
 
-{% if ok %}<div class="okbar">✓ Fiche enregistrée — transmise au bureau</div>
-{% elif deja_fait %}<div class="donebar">Fiche déjà remplie — vous pouvez la modifier</div>{% endif %}
+{% if ok == "2" %}<div class="pausebar">⏸ Fiche mise en pause — vos saisies sont conservées, revenez quand vous voulez</div>
+{% elif ok %}<div class="okbar">✓ Fiche enregistrée — transmise au bureau</div>
+{% elif deja_fait %}<div class="donebar">Fiche déjà remplie — vous pouvez la modifier</div>
+{% elif en_pause %}<div class="pausebar">⏸ Fiche en pause — reprenez votre saisie puis ENREGISTRER</div>{% endif %}
 
 <form method="POST" action="{{ BASE }}/fiche/{{ slot_id }}?t={{ token }}{% if back %}&back={{ back | urlencode }}{% endif %}">
 <div class="wrap">
@@ -252,7 +260,11 @@
 
 <div class="savebar">
   {% if back %}<a class="btn-back" href="{{ back }}">◀</a>{% endif %}
-  <button type="submit" class="btn-save">💾 ENREGISTRER LA FICHE</button>
+  <input type="hidden" name="save_mode" id="save_mode" value="final"/>
+  <button type="submit" class="btn-pause"
+          onclick="document.getElementById('save_mode').value='pause'">⏸ PAUSE</button>
+  <button type="submit" class="btn-save"
+          onclick="document.getElementById('save_mode').value='final'">💾 ENREGISTRER</button>
 </div>
 </form>
 
@@ -342,7 +354,7 @@ document.querySelector('form').addEventListener('submit', function (ev) {
         history.back();
       } catch (e) {
         alert('Mémoire du téléphone pleine — impossible de stocker la fiche hors connexion. Réessayez avec moins de photos ou attendez le réseau.');
-        btn.textContent = '💾 ENREGISTRER LA FICHE';
+        btn.textContent = '💾 ENREGISTRER';
       }
     });
 });
