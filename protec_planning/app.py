@@ -894,6 +894,7 @@ def _ebp_lines(uid, models, mois, journal_code=None):
     d1, d2 = _ebp_month_range(mois)
     dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
            ["account_id", "!=", False],  # exclut notes/sections sans compte
+           "|", ["debit", "!=", 0], ["credit", "!=", 0],  # EBP refuse les lignes à 0
            ["date", ">=", d1], ["date", "<=", d2]]
     if journal_code:
         dom.append(["journal_id.code", "=", journal_code])
@@ -946,6 +947,8 @@ def ebp_page():
     except Exception as ex:
         error = str(ex)
     return render_template("ebp.html", mois=mois, months=months, rows=rows,
+                           mois_debut=_ebp_month_range(mois)[0],
+                           mois_fin=_ebp_month_range(mois)[1],
                            error=error, token=request.args.get("token"))
 
 def _ebp_csv_body(uid, models, mois, code):
@@ -1021,6 +1024,7 @@ def ebp_fec():
 
     dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
            ["account_id", "!=", False], ["date", ">=", d1], ["date", "<=", d2],
+           "|", ["debit", "!=", 0], ["credit", "!=", 0],  # EBP refuse les lignes à 0
            ["journal_id.code", "not in", ["AN", "OUV"]]]
     if open_move:
         dom.append(["move_id", "!=", open_move])
