@@ -482,8 +482,11 @@ def fiche(slot_id):
                 return field_val.split(",", 1)[1]
             return None
 
+        # « pause » : tout est sauvegardé mais la fiche reste à reprendre
+        # (pas de badge FDT, pas de message au bureau)
+        pause = f.get("save_mode") == "pause"
         vals = {
-            "x_fdt_fait": True,
+            "x_fdt_fait": bool(s.get("x_fdt_fait")) if pause else True,
             "x_fdt_date": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
             "x_fdt_vehicule":      f.get("vehicule", "").strip(),
             "x_fdt_heure_arrivee": f.get("heure_arrivee", "").strip(),
@@ -537,27 +540,22 @@ def fiche(slot_id):
         x(models, uid, "planning.slot", "write", [slot_id], vals)
 
         # Message chatter pour le bureau (mail.message direct : message_post
-        # échappe le HTML passé par XML-RPC en v19)
-        try:
-            html = render_fiche_html(card, vals, data, nphotos)
-            subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
-            x(models, uid, "mail.message", "create", [{
-                "model": "planning.slot", "res_id": slot_id,
-                "message_type": "comment", "subtype_id": subtype[1],
-                "body": html,
-            }])
-        except Exception:
-            pass
-
-        # PDF de la fiche attaché à la commande, au client et à la facture
-        try:
-            _pid = s["partner_id"][0] if s.get("partner_id") else None
-            push_fiche_attachments(uid, models, slot_id, card.get("ref", ""), _pid)
-        except Exception:
-            pass
+        # échappe le HTML passé par XML-RPC en v19) — pas de message en pause
+        if not pause:
+            try:
+                html = render_fiche_html(card, vals, data, nphotos)
+                subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
+                x(models, uid, "mail.message", "create", [{
+                    "model": "planning.slot", "res_id": slot_id,
+                    "message_type": "comment", "subtype_id": subtype[1],
+                    "body": html,
+                }])
+            except Exception:
+                pass
 
         back = request.args.get("back", "")
-        return redirect(url_for(".fiche", slot_id=slot_id, t=token, back=back, ok=1))
+        return redirect(url_for(".fiche", slot_id=slot_id, t=token, back=back,
+                                ok=2 if pause else 1))
 
     # GET : présence signature/photos sans télécharger les binaires
     bins = x(models, uid, "planning.slot", "read", [slot_id],
@@ -625,6 +623,7 @@ def fiche(slot_id):
         has=has,
         signataire=s.get("x_fdt_signataire") or "",
         deja_fait=bool(s.get("x_fdt_fait")),
+        en_pause=bool(s.get("x_fdt_data")) and not s.get("x_fdt_fait"),
         ok=request.args.get("ok"),
         back=request.args.get("back", ""))
 
@@ -745,62 +744,7 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
 # NB : le rapport « Fiche de fin de travaux » est consultable/envoyable depuis
 # la commande, la facture et le BI via des smart boutons Odoo (rendu à la volée).
 BI_REPORT = "protec_custom.report_deliveryslip_priced"
-FICHE_REPORT = "protec_custom.report_fiche_fin_travaux"
 _web_session = {"opener": None}
-
-def _render_report_pdf(report_name, res_id, cid=2):
-    """Rend un rapport Odoo en PDF via la session web (réauth si expirée)."""
-    import urllib.parse as _up
-    ctx = _up.quote(json.dumps({"allowed_company_ids": [cid]}))
-    for _attempt in (1, 2):
-        try:
-            op = _web_opener()
-            r = op.open(f"{ODOO_URL}/report/pdf/{report_name}/{res_id}?context={ctx}",
-                        timeout=60)
-            pdf = r.read()
-            if pdf[:4] == b"%PDF":
-                return pdf
-        except Exception:
-            pass
-        _web_session["opener"] = None
-    return None
-
-def push_fiche_attachments(uid, models, slot_id, ref, partner_id, cid=2):
-    """Génère le PDF de la fiche et l'attache à la commande, au client et à la
-    facture (si elle existe). Ré-exécutable : remplace les pièces précédentes
-    de la même fiche (marqueur dans le champ description)."""
-    import base64
-    pdf = _render_report_pdf(FICHE_REPORT, slot_id, cid)
-    if not pdf:
-        return
-    ref0 = (ref or "").split()[0] if ref else ""
-    fname = f"Fiche_{ref0 or slot_id}.pdf"
-    marker = f"FDT-slot-{slot_id}"
-    b64 = base64.b64encode(pdf).decode()
-
-    targets = []  # (res_model, res_id)
-    if ref0:
-        so = x(models, uid, "sale.order", "search_read",
-               [["name", "=", ref0]], fields=["id", "invoice_ids"], limit=1)
-        if so:
-            targets.append(("sale.order", so[0]["id"]))
-            for inv_id in so[0].get("invoice_ids", []):
-                targets.append(("account.move", inv_id))
-    if partner_id:
-        targets.append(("res.partner", partner_id))
-
-    for res_model, res_id in targets:
-        old = x(models, uid, "ir.attachment", "search",
-                [["res_model", "=", res_model], ["res_id", "=", res_id],
-                 ["description", "=", marker]])
-        if old:
-            x(models, uid, "ir.attachment", "unlink", old)
-        x(models, uid, "ir.attachment", "create", [{
-            "name": fname, "datas": b64, "type": "binary",
-            "mimetype": "application/pdf", "description": marker,
-            "res_model": res_model, "res_id": res_id,
-        }])
-
 
 def _web_opener():
     if _web_session["opener"] is not None:
