@@ -153,7 +153,13 @@
     .timebar { position: relative; height: 5px; background: #eef2f9; border-radius: 3px; margin: 3px 0 1px; }
     .timebar-seg { position: absolute; top: 0; height: 5px; border-radius: 3px; }
     .empty-cell { min-height: 36px; }
-</style>
+
+    /* le libellé heure+client se tronque, les badges FDT/BC restent visibles */
+    .card-head .card-time { flex: 1 1 auto; min-width: 0; overflow: hidden;
+                            text-overflow: ellipsis; white-space: nowrap; }
+    .card-head .nuit-badge, .card-head .fdt-badge, .card-head .bc-link,
+    .card-head &gt; span:last-child { flex: 0 0 auto; }
+    </style>
 </head>
 <body>
 
