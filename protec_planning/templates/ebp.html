@@ -23,6 +23,12 @@
     td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .btn { display: inline-block; font-size: 12px; font-weight: 800; border-radius: 8px;
            padding: 6px 12px; text-decoration: none; background: #0b7285; color: #fff; }
+    .cat { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 12px; }
+    .cat-0 { background: #dbeafe; color: #1d4ed8; }   /* Ventes */
+    .cat-1 { background: #fee2e2; color: #b91c1c; }   /* Achats */
+    .cat-2 { background: #dcfce7; color: #15803d; }   /* Banque */
+    .cat-3 { background: #fef3c7; color: #b45309; }   /* TVA */
+    .cat-4 { background: #e5e7eb; color: #374151; }   /* Autres */
     .note { background: #e6f4f1; border-left: 4px solid #0b7285; border-radius: 0 8px 8px 0;
             padding: 10px 14px; font-size: 12.5px; margin-top: 14px; color: #0b5560; }
     .warn { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
@@ -42,11 +48,19 @@
     {% endfor %}
   </div>
 
+  {% if rows %}
+  <div style="margin-bottom: 12px; text-align: right;">
+    <a class="btn" style="font-size:13px; padding:9px 16px;"
+       href="{{ BASE }}/ebp.zip?token={{ token }}&mois={{ mois }}">📦 Tout télécharger ({{ mois }}, ZIP)</a>
+  </div>
+  {% endif %}
+
   <table>
-    <tr><th>Journal</th><th>Code</th><th style="text-align:right;">Pièces</th>
+    <tr><th>Type</th><th>Journal</th><th>Code</th><th style="text-align:right;">Pièces</th>
         <th style="text-align:right;">Lignes</th><th style="text-align:right;">Total débit</th><th></th></tr>
     {% for r in rows %}
     <tr>
+      <td><span class="cat cat-{{ r.corder }}">{{ r.categorie }}</span></td>
       <td>{{ r.name }}</td>
       <td><b>{{ r.code }}</b></td>
       <td class="num">{{ r.npieces }}</td>
@@ -57,7 +71,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" style="text-align:center; color:#6b7c9a;">Aucune écriture pour {{ mois }}</td></tr>
+    <tr><td colspan="7" style="text-align:center; color:#6b7c9a;">Aucune écriture pour {{ mois }}</td></tr>
     {% endfor %}
   </table>
 

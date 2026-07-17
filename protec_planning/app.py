@@ -893,6 +893,7 @@ def _ebp_month_range(mois):
 def _ebp_lines(uid, models, mois, journal_code=None):
     d1, d2 = _ebp_month_range(mois)
     dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+           ["account_id", "!=", False],  # exclut notes/sections sans compte
            ["date", ">=", d1], ["date", "<=", d2]]
     if journal_code:
         dom.append(["journal_id.code", "=", journal_code])
@@ -921,11 +922,21 @@ def ebp_page():
             a["pieces"].add(l["move_id"][0])
         if agg:
             jinfo = x(models, uid, "account.journal", "read", list(agg.keys()),
-                      fields=["code", "name"])
+                      fields=["code", "name", "type"])
             for j in jinfo:
                 agg[j["id"]]["code"] = j["code"]
                 agg[j["id"]]["name"] = j["name"]
-        rows = sorted(agg.values(), key=lambda r: r["code"])
+                agg[j["id"]]["jtype"] = j["type"]
+        # regroupement : Ventes / Achats / Banque / TVA / Autres
+        def cat(r):
+            if r["code"] == "TVAE":
+                return (3, "TVA")
+            return {"sale": (0, "Ventes"), "purchase": (1, "Achats"),
+                    "bank": (2, "Banque"), "cash": (2, "Banque")}.get(
+                    r.get("jtype"), (4, "Autres"))
+        for r in agg.values():
+            r["corder"], r["categorie"] = cat(r)
+        rows = sorted(agg.values(), key=lambda r: (r["corder"], r["code"]))
         for r in rows:
             r["npieces"] = len(r.pop("pieces"))
         d = date.today()
@@ -937,13 +948,8 @@ def ebp_page():
     return render_template("ebp.html", mois=mois, months=months, rows=rows,
                            error=error, token=request.args.get("token"))
 
-@bp.route("/ebp.csv")
-def ebp_csv():
-    if not SECRET or request.args.get("token") != SECRET:
-        abort(403)
-    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
-    code = request.args.get("journal") or ""
-    uid, models = odoo_connect()
+def _ebp_csv_body(uid, models, mois, code):
+    """Contenu CSV (format import EBP) d'un journal pour un mois."""
     lines = _ebp_lines(uid, models, mois, journal_code=code or None)
     acc_ids = list({l["account_id"][0] for l in lines})
     # code comptable : champ multi-société en v19 → lecture en contexte PROTEC
@@ -961,10 +967,41 @@ def ebp_csv():
             fr(l["debit"]), fr(l["credit"]),
             (l["partner_id"][1] if l["partner_id"] else "").replace(";", ","),
         ]))
-    body = "﻿" + "\r\n".join(out)
+    return "﻿" + "\r\n".join(out)
+
+@bp.route("/ebp.csv")
+def ebp_csv():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    code = request.args.get("journal") or ""
+    uid, models = odoo_connect()
+    body = _ebp_csv_body(uid, models, mois, code)
     fn = f"Export_{code or 'TOUS'}_{mois}.csv"
     return Response(body, mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+@bp.route("/ebp.zip")
+def ebp_zip():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    uid, models = odoo_connect()
+    # journaux mouvementés du mois
+    lines = _ebp_lines(uid, models, mois)
+    jids = list({l["journal_id"][0] for l in lines})
+    codes = sorted({j["code"] for j in x(models, uid, "account.journal", "read",
+                    jids, fields=["code"])}) if jids else []
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for code in codes:
+            z.writestr(f"Export_{code}_{mois}.csv",
+                       _ebp_csv_body(uid, models, mois, code).encode("utf-8"))
+    buf.seek(0)
+    return Response(buf.read(), mimetype="application/zip",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="Export_EBP_{mois}.zip"'})
 
 @bp.route("/health")
 def health():
