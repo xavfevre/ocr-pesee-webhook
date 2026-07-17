@@ -1,0 +1,149 @@
+<data>
+  <xpath expr="//header" position="inside">
+    <button string="Envoyer la demande de transport" name="1440" type="action"/>
+    <button string="Imprimer" name="studio_customization.devis_commande_init_f82aa58b-24e6-4882-acab-514b07480240" type="action"/>
+    <button string="Calcule Qté Transport" name="1492" type="action" invisible="state not in [&quot;draft&quot;]"/>
+    <button string="Remettre en Devis" name="1560" type="action" invisible="state != 'sale'"/>
+    <button string="Bon de pesée" name="1615" type="action" invisible="project_id not in [2]"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/div[not(@name)][7]/h1[1]/field[@name='name']" position="attributes">
+    <attribute name="force_save">1</attribute>
+    <attribute name="readonly">user_id not in [2, 12]</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[@name='sale_header']/group[@name='partner_details']/field[@name='partner_id']" position="before">
+    <field name="x_studio_bl_en_cours" widget="boolean_toggle" invisible="company_id not in [3]"/>
+  </xpath>
+  <xpath expr="//field[@name='partner_shipping_id']" position="after">
+    <field name="x_studio_date_de_livraison_souhait" string="Date de livraison souhaitée"/>
+    <field name="x_studio_tache" domain="[(&quot;project_id&quot;, &quot;in&quot;, [13])]"/>
+    <field invisible="True" name="x_studio_related_field_t1_1ithjhlnc_filename"/>
+  </xpath>
+  <xpath expr="//field[@name='payment_term_id']" position="after">
+    <xpath expr="//field[@name='client_order_ref']" position="move"/>
+    <xpath expr="//field[@name='sale_order_template_id']" position="move"/>
+  </xpath>
+  <xpath expr="//group[@name='sale_header']" position="after">
+    <group name="studio_group_5s9_1iulplco5" string="Demande de transport Maquignon">
+      <group name="studio_group_5s9_left">
+        <field name="x_studio_transport_urgence"/>
+        <field name="x_studio_transport_adresse"/>
+      </group>
+      <group name="studio_group_5s9_right">
+        <field name="x_studio_transport_commentaire"/>
+        <field name="x_studio_demande_envoye"/>
+      </group>
+    </group>
+    <group name="studio_group_6ei_1jae6rn5m" string="Fabrication" invisible="company_id not in [1]">
+      <group name="studio_group_6ei_left">
+        <field widget="binary" filename="x_studio_plan_gnral_filename" name="x_studio_plan_gnral"/>
+        <field invisible="True" name="x_studio_plan_gnral_filename"/>
+      </group>
+      <group name="studio_group_6ei_right"/>
+    </group>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/form[1]/div[@name='invoice_lines']/field[@name='invoice_lines']" position="inside">
+    <list name="move_line_tree" string="Journal Items" create="false" edit="true" expand="context.get('expand', False)" multi_edit="1" sample="1" js_class="account_move_line_list">
+      <field name="move_id" column_invisible="True"/>
+      <field name="invoice_date" string="Invoice Date" optional="hide"/>
+      <field name="date" readonly="1"/>
+      <field name="company_id" column_invisible="True"/>
+      <field name="company_id" groups="base.group_multi_company" readonly="1" optional="hide"/>
+      <field name="journal_id" readonly="1" options="{&quot;no_open&quot;:True}" optional="hide"/>
+      <field name="move_name" string="Journal Entry" widget="open_move_widget"/>
+      <field name="account_id" options="{'no_open': True, 'no_create': True}" groups="account.group_account_readonly"/>
+      <field name="partner_id" optional="show" readonly="move_type != 'entry'"/>
+      <field name="ref" optional="hide" readonly="False"/>
+      <field name="product_id" readonly="1" optional="hide"/>
+      <field name="name" optional="show"/>
+      <field name="vehicle_id" optional="hidden"/>
+      <field name="deferred_start_date" optional="hide" readonly="has_deferred_moves"/>
+      <field name="deferred_end_date" optional="hide" readonly="has_deferred_moves"/>
+      <field name="analytic_distribution" widget="analytic_distribution" groups="analytic.group_analytic_accounting" optional="hide" options="{'product_field': 'product_id', 'account_field': 'account_id', 'force_applicability': 'optional'}"/>
+      <field name="tax_ids" widget="many2many_tags" optional="hide" readonly="1"/>
+      <field name="amount_currency" string="In Currency" groups="base.group_multi_currency" optional="hide" readonly="1" invisible="is_same_currency"/>
+      <field name="currency_id" groups="base.group_multi_currency" optional="hide" string="Currency" readonly="1" invisible="is_same_currency"/>
+      <field name="debit" sum="Total Debit" readonly="1"/>
+      <field name="credit" sum="Total Credit" readonly="1"/>
+      <field name="tax_tag_ids" string="Tax Grids" options="{'no_create': True, 'no_create_edit': True}" domain="[('applicability', '=', 'taxes')]" widget="many2many_tags" optional="hide"/>
+      <field name="discount_date" string="Discount Date" optional="hide"/>
+      <field name="discount_amount_currency" string="Discount Amount" optional="hide"/>
+      <field name="tax_line_id" string="Originator Tax" optional="hide" readonly="1"/>
+      <field name="date_maturity" readonly="1" optional="hide"/>
+      <field name="balance" sum="Total Balance" optional="hide" readonly="1"/>
+      <field name="matching_number" string="Matching" readonly="1" optional="show" widget="matching_link_widget"/>
+      <field name="amount_residual" sum="Total Residual" string="Residual" optional="hide" readonly="1" invisible="not is_account_reconcile"/>
+      <field name="amount_residual_currency" sum="Total Residual in Currency" string="Residual in Currency" optional="hide" readonly="1" invisible="is_same_currency or not is_account_reconcile" groups="base.group_multi_currency"/>
+      <field name="move_type" column_invisible="True"/>
+      <field name="parent_state" column_invisible="True"/>
+      <field name="account_type" column_invisible="True"/>
+      <field name="statement_line_id" column_invisible="True"/>
+      <field name="company_currency_id" column_invisible="True"/>
+      <field name="is_same_currency" column_invisible="True"/>
+      <field name="is_account_reconcile" column_invisible="True"/>
+      <field name="sequence" column_invisible="True"/>
+      <groupby name="partner_id">
+        <button name="edit" type="edit" icon="fa-edit" title="Edit"/>
+      </groupby>
+      <header>
+        <button name="action_reconcile" type="object" string="Reconcile" groups="account.group_account_user" data-hotkey="r"/>
+        <button name="turn_as_asset" type="object" string="Create Asset" groups="account.group_account_user" data-hotkey="c"/>
+      </header>
+      <field name="is_account_reconcile" column_invisible="True"/>
+      <field name="has_deferred_moves" column_invisible="True"/>
+    </list>
+  </xpath>
+  <xpath expr="//field[@name='product_template_id']" position="attributes">
+    <attribute name="options">{"no_open":true,"no_create_edit":true,"no_quick_create":true,"no_create":true}</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='name']" position="after">
+    <field optional="show" name="x_studio_taille_de_p"/>
+    <field optional="show" name="x_studio_plan_ligne_attachment" widget="many2many_binary" string="Plan ligne"/>
+    <field optional="show" name="x_studio_libell_client" help="Libellé vue sur la facture, si renseigné"/>
+    <field optional="hide" name="x_studio_ref_chantier" invisible="company_id not in [2]"/>
+    <field optional="hide" name="x_studio_date_de_distribution" invisible="company_id not in [2]"/>
+    <field optional="hide" name="x_studio_num_badge" invisible="company_id not in [2]"/>
+    <field optional="hide" name="x_studio_nom_badge"/>
+    <field optional="hide" name="x_studio_ref_pierre" column_invisible="False" invisible="False"/>
+    <field optional="hide" name="x_studio_nbr" invisible="False" column_invisible="False"/>
+    <field optional="hide" name="x_studio_long" options="{&quot;digits&quot;:[6,3],&quot;human_readable&quot;:false,&quot;decimals&quot;:3,&quot;enable_formatting&quot;:false}" invisible="False" column_invisible="False" string="Long. (m)"/>
+    <field optional="hide" name="x_studio_larg" options="{&quot;digits&quot;:[6,3],&quot;enable_formatting&quot;:false}" invisible="False" column_invisible="False" string="Larg. (m)"/>
+    <field optional="hide" name="x_studio_epais" options="{&quot;digits&quot;:[6,3],&quot;enable_formatting&quot;:false,&quot;human_readable&quot;:false}" invisible="False" column_invisible="False" string="Haut. (m)"/>
+    <field optional="hide" name="x_studio_surf" invisible="False" options="{&quot;digits&quot;:[6,3],&quot;enable_formatting&quot;:true,&quot;human_readable&quot;:false}" column_invisible="False" string="Surf. Total"/>
+    <field optional="hide" name="x_studio_vol" invisible="False" options="{&quot;digits&quot;:[6,3],&quot;enable_formatting&quot;:true}" column_invisible="False" string="Vol. Total"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/widget[@name='qty_at_date_widget']" position="after">
+    <field optional="hide" name="x_studio_fournisseur" invisible="company_id != 4"/>
+    <field optional="show" name="x_studio_poids" string="Poids Kg" invisible="company_id not in [1, 4]"/>
+    <field optional="hide" name="x_studio_poids_au_m3" column_invisible="False" invisible="False"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='product_uom_id']" position="after">
+    <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='product_uom_qty']" position="move"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='product_uom_id']" position="attributes">
+    <attribute name="options">{"no_open":true,"no_create":true}</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='product_uom_id']" position="after">
+    <field optional="show" name="x_studio_vente_m2"/>
+    <field optional="show" name="x_studio_udf" widget="selection" help="Unité vue sur la facture si renseignée"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='price_unit']" position="attributes">
+    <attribute name="options">{"enable_formatting":true,"human_readable":false}</attribute>
+    <attribute name="widget">monetary</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='price_unit']" position="after">
+    <field optional="hide" name="x_studio_prix_base"/>
+    <field name="currency_id" optional="hide"/>
+  </xpath>
+  <xpath expr="//field[@name='sale_order_template_id']" position="attributes">
+    <attribute name="groups">sale_management.group_sale_order_template,sales_team.group_sale_manager</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]/page[@name='order_lines']/field[@name='order_line']/list[1]/field[@name='product_uom_qty']" position="attributes">
+    <attribute name="optional">show</attribute>
+    <attribute name="options">{"human_readable":false,"enable_formatting":false,"decimals":3}</attribute>
+    <attribute name="placeholder">Saisir la quantité à facturer</attribute>
+    <attribute name="string">Qté. Fact.</attribute>
+  </xpath>
+  <xpath expr="//field[@name='client_order_ref']" position="attributes">
+    <attribute name="string">Reference Commande</attribute>
+  </xpath>
+</data>

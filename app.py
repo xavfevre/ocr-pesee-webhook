@@ -785,6 +785,46 @@ from lefevre_import import lefevre_bp  # noqa: E402
 app.register_blueprint(lefevre_bp)
 
 
+@app.route("/rotate-image", methods=["POST"])
+@require_secret
+def rotate_image():
+    """Pivote une photo d'une feuille de travail (appelé par un bouton Odoo
+    via webhook sortant). Payload webhook Odoo : {_model, _id} ; champ et
+    angle passés en query string. Chaque appel = +90° horaire par défaut."""
+    from PIL import Image
+
+    data = request.get_json(force=True, silent=True) or {}
+    model = data.get("_model") or data.get("model") or ""
+    rec_id = int(data.get("_id") or data.get("id") or 0)
+    field = request.args.get("field") or data.get("field") or ""
+    try:
+        angle = int(request.args.get("angle") or data.get("angle") or 90)
+    except ValueError:
+        angle = 90
+
+    ALLOWED_FIELDS = {"x_studio_photo_bon", "x_studio_photo", "x_studio_photo_1"}
+    ALLOWED_MODELS = {"x_project_task_worksheet_template_1"}
+    if model not in ALLOWED_MODELS or not rec_id or field not in ALLOWED_FIELDS:
+        return jsonify({"error": "bad params", "model": model, "id": rec_id, "field": field}), 400
+
+    uid, models = odoo_connect()
+    rec = x(models, uid, model, "read", [rec_id], fields=[field])
+    b64 = rec and rec[0].get(field)
+    if not b64:
+        return jsonify({"error": "no image"}), 404
+
+    img = Image.open(io.BytesIO(base64.b64decode(b64)))
+    fmt = (img.format or "JPEG").upper()
+    img = img.rotate(-angle, expand=True)  # -90 = quart de tour horaire
+    if fmt == "JPEG" and img.mode != "RGB":
+        img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format=fmt, quality=90)
+    x(models, uid, model, "write", [rec_id], {field: base64.b64encode(buf.getvalue()).decode()})
+    app.logger.info(f"rotate-image: {model}#{rec_id}.{field} +{angle}°")
+    return jsonify({"ok": True, "field": field, "angle": angle})
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
