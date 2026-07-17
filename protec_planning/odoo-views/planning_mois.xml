@@ -351,7 +351,7 @@
   <span t-if="s.x_fdt_fait" class="mc-fdt">✓</span>
   <t t-out="' ' + (s.partner_id.name or (s.name or '—'))[:18]"/>
   <t t-set="lieu" t-value="(so.x_studio_lieu_dintervention_2 or '') if so else ''"/>
-  <div t-if="lieu or s.partner_city" style="color:#6b7c9a;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/>
+  <div t-if="lieu or s.partner_city" style="color:#6b7c9a;" t-out="'📍' + (lieu[:20] if lieu else s.partner_city)"/> <div t-if="so and bimap.get(so.name)" style="color:#6b7c9a;" t-out="'🚚 ' + bimap.get(so.name).split(' (')[0]"/>
 </div>
 
                   </t></t>
