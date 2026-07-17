@@ -693,12 +693,11 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
     if interlocuteur:
         html.append(info("Interlocuteur", interlocuteur))
     html.append(info("Lieu d'intervention", adresse))
-    if objet:
-        html.append(info("Objet", objet))
     html.append(info("Date d'intervention", date_label))
     html.append(info("Technicien(s)", _first_names(operateurs)))
     html.append(info("Véhicule", vehicule))
     html.append(info("Arrivée / Départ", f"{h_arrivee or '—'}  →  {h_depart or '—'}"))
+    html.append(info("Temps de trajet A/R", trajet))
     html.append("</table>")
 
     labels_t = {c: (l, u) for c, l, u in TRAVAUX}
