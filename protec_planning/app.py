@@ -1003,6 +1003,80 @@ def ebp_zip():
                     headers={"Content-Disposition":
                              f'attachment; filename="Export_EBP_{mois}.zip"'})
 
+@bp.route("/ebp-fec")
+def ebp_fec():
+    """Export type FEC (18 colonnes, séparateur |) hors journaux d'ouverture."""
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    d1 = request.args.get("du") or _ebp_month_range(mois)[0]
+    d2 = request.args.get("au") or _ebp_month_range(mois)[1]
+    uid, models = odoo_connect()
+    CTX = {"allowed_company_ids": [EBP_COMPANY_ID]}
+
+    # écriture d'ouverture de la société + journaux d'à-nouveaux exclus
+    co = x(models, uid, "res.company", "read", [EBP_COMPANY_ID],
+           fields=["account_opening_move_id"], context=CTX)[0]
+    open_move = co["account_opening_move_id"][0] if co.get("account_opening_move_id") else 0
+
+    dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+           ["account_id", "!=", False], ["date", ">=", d1], ["date", "<=", d2],
+           ["journal_id.code", "not in", ["AN", "OUV"]]]
+    if open_move:
+        dom.append(["move_id", "!=", open_move])
+    lines = x(models, uid, "account.move.line", "search_read", dom,
+        fields=["journal_id", "move_id", "date", "account_id", "partner_id",
+                "name", "debit", "credit", "matching_number"],
+        order="date, move_id", limit=100000)
+
+    jids = list({l["journal_id"][0] for l in lines})
+    jmap = {j["id"]: j for j in x(models, uid, "account.journal", "read", jids,
+            fields=["code", "name"])} if jids else {}
+    aids = list({l["account_id"][0] for l in lines})
+    amap = {a["id"]: a for a in x(models, uid, "account.account", "read", aids,
+            fields=["code", "name", "account_type"], context=CTX)} if aids else {}
+    mids = list({l["move_id"][0] for l in lines})
+    mmap = {mv["id"]: mv for mv in x(models, uid, "account.move", "read", mids,
+            fields=["name", "ref", "date", "invoice_date"])} if mids else {}
+    pids = list({l["partner_id"][0] for l in lines if l["partner_id"]})
+    pmap = {p["id"]: p for p in x(models, uid, "res.partner", "read", pids,
+            fields=["ref", "name"])} if pids else {}
+
+    def dt(s):  # 2026-06-30 -> 20260630
+        return (s or "").replace("-", "")
+    def fr(v):
+        return f"{round(v or 0, 2):.2f}".replace(".", ",")
+    out = ["JournalCode|JournalLib|EcritureNum|EcritureDate|CompteNum|CompteLib|"
+           "CompAuxNum|CompAuxLib|PieceRef|PieceDate|EcritureLib|Debit|Credit|"
+           "EcritureLet|DateLet|ValidDate|Montantdevise|Idevise"]
+    for l in lines:
+        j = jmap.get(l["journal_id"][0], {})
+        a = amap.get(l["account_id"][0], {})
+        mv = mmap.get(l["move_id"][0], {})
+        aux_n, aux_l = "", ""
+        if l["partner_id"] and a.get("account_type") in ("asset_receivable",
+                                                         "liability_payable"):
+            p = pmap.get(l["partner_id"][0], {})
+            aux_n = p.get("ref") or f"P{l['partner_id'][0]}"
+            aux_l = p.get("name") or ""
+        def clean(s):
+            return str(s or "").replace("|", "/").replace("\n", " ").strip()
+        out.append("|".join([
+            clean(j.get("code")), clean(j.get("name")), clean(mv.get("name")),
+            dt(l["date"]), clean(a.get("code")), clean(a.get("name")),
+            clean(aux_n), clean(aux_l),
+            clean(mv.get("ref") or mv.get("name")),
+            dt(mv.get("invoice_date") or mv.get("date")),
+            clean(l["name"]) or "/",
+            fr(l["debit"]), fr(l["credit"]),
+            clean(l.get("matching_number") or ""), "",
+            dt(mv.get("date")), "", "",
+        ]))
+    body = "﻿" + "\r\n".join(out)
+    fn = f"FEC_PROTEC_{dt(d1)}_{dt(d2)}.txt"
+    return Response(body, mimetype="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
 @bp.route("/health")
 def health():
     return {"status": "ok", "app": "protec-planning"}
