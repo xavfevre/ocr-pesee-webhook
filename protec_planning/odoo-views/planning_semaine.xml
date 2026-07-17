@@ -1,4 +1,3 @@
-<!-- ir.ui.view id=4162 key=website.planning_protec_semaine - page website protec-s3t.odoo.com -->
 <t t-name="website.planning_protec_semaine">
 <html>
 <head>
@@ -489,6 +488,7 @@
     </div>
     <div class="modal-actions">
       <a id="pm-so" href="#" target="_blank">Ouvrir le bon de commande</a>
+      <a id="pm-rapport" href="#" target="_blank" style="display:none; background:#0b7285;">📄 Rapport d'intervention</a>
     </div>
   </div>
 </div>
@@ -533,6 +533,8 @@ document.addEventListener('click', function (e) {
   } else { telRow.style.display = 'none'; }
   document.getElementById('pm-ref').textContent = ds.ref || '—';
   document.getElementById('pm-fdt').style.display = ds.fdt ? '' : 'none';
+  var rp = document.getElementById('pm-rapport');
+  if (rp) { rp.style.display = 'none'; if (ds.fdt) { if (ds.id) { rp.style.display = ''; rp.href = '/report/pdf/protec_custom.report_fiche_fin_travaux/' + ds.id + '?context=%7B%22allowed_company_ids%22%3A%5B2%5D%7D'; } } }
   var so = document.getElementById('pm-so');
   if (ds.so) { so.style.display = ''; so.href = ds.so; } else { so.style.display = 'none'; }
   document.getElementById('pmodal').classList.add('open');
