@@ -49,7 +49,11 @@
   </div>
 
   {% if rows %}
-  <div style="margin-bottom: 12px; text-align: right;">
+  <div style="margin-bottom: 12px; text-align: right; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+    <a class="btn" style="font-size:13px; padding:9px 16px; background:#3a5a99;"
+       href="{{ BASE }}/ebp-fec?token={{ token }}&mois={{ mois }}">🗎 FEC du mois</a>
+    <a class="btn" style="font-size:13px; padding:9px 16px; background:#3a5a99;"
+       href="{{ BASE }}/ebp-fec?token={{ token }}&du={{ mois[:4] }}-01-01&mois={{ mois }}">🗎 FEC 01/01 → fin {{ mois }}</a>
     <a class="btn" style="font-size:13px; padding:9px 16px;"
        href="{{ BASE }}/ebp.zip?token={{ token }}&mois={{ mois }}">📦 Tout télécharger ({{ mois }}, ZIP)</a>
   </div>
