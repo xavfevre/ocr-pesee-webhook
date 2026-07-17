@@ -49,9 +49,17 @@
   </div>
 
   {% if rows %}
-  <div style="margin-bottom: 12px; text-align: right; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
-    <a class="btn" style="font-size:13px; padding:9px 16px; background:#3a5a99;"
-       href="{{ BASE }}/ebp-fec?token={{ token }}&mois={{ mois }}">🗎 FEC du mois</a>
+  <div style="margin-bottom: 12px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; align-items:center;">
+    <form method="GET" action="{{ BASE }}/ebp-fec"
+          style="display:flex; gap:6px; align-items:center; background:#fff; border:1px solid #dce3ef;
+                 border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;">
+      <input type="hidden" name="token" value="{{ token }}"/>
+      FEC du <input type="date" name="du" value="{{ mois_debut }}" required
+                    style="border:1.5px solid #cbd5e1; border-radius:7px; padding:4px 6px;"/>
+      au <input type="date" name="au" value="{{ mois_fin }}" required
+                style="border:1.5px solid #cbd5e1; border-radius:7px; padding:4px 6px;"/>
+      <button class="btn" style="border:none; cursor:pointer; background:#3a5a99;">🗎 FEC période</button>
+    </form>
     <a class="btn" style="font-size:13px; padding:9px 16px; background:#3a5a99;"
        href="{{ BASE }}/ebp-fec?token={{ token }}&du={{ mois[:4] }}-01-01&mois={{ mois }}">🗎 FEC 01/01 → fin {{ mois }}</a>
     <a class="btn" style="font-size:13px; padding:9px 16px;"
