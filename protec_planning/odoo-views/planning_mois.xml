@@ -454,6 +454,7 @@
     </div>
     <input type="hidden" id="am-id"/>
     <div class="modal-actions">
+      <a href="#" id="am-rapport" target="_blank" style="cursor:pointer; background:#0b7285; flex:0 0 auto; display:none;">📄 Rapport</a>
       <a href="#" id="am-del" style="cursor:pointer; background:#dc2626; flex:0 0 auto; display:none;">🗑</a>
       <a href="#" id="am-save" style="cursor:pointer;">💾 Enregistrer</a>
     </div>
@@ -498,6 +499,8 @@ document.addEventListener('click', function (e) {
     if (c.dataset.end) { document.getElementById('am-h2').value = locHM(c.dataset.end, off2); }
     document.getElementById('am-title').textContent = 'Modifier la tâche';
     document.getElementById('am-del').style.display = '';
+    var ar = document.getElementById('am-rapport');
+    if (ar) { ar.style.display = (c.dataset.fdt ? '' : 'none'); if (c.dataset.fdt) { ar.href = '/report/pdf/protec_custom.report_fiche_fin_travaux/' + c.dataset.id + '?context=%7B%22allowed_company_ids%22%3A%5B2%5D%7D'; } }
     document.getElementById('amodal').classList.add('open');
     return;
   }
@@ -634,7 +637,7 @@ document.addEventListener('dblclick', function (e) {
   document.getElementById('am-note').value = '';
   document.getElementById('am-id').value = '';
   document.getElementById('am-title').textContent = 'Nouvelle tâche';
-  document.getElementById('am-del').style.display = 'none';
+  document.getElementById('am-del').style.display = 'none'; var ar2 = document.getElementById('am-rapport'); if (ar2) { ar2.style.display = 'none'; }
   document.getElementById('amodal').classList.add('open');
 });
 document.getElementById('am-del').addEventListener('click', function (ev) {
@@ -663,7 +666,7 @@ if (bat) {
     document.getElementById('am-note').value = '';
     document.getElementById('am-id').value = '';
     document.getElementById('am-title').textContent = 'Nouvelle tâche';
-    document.getElementById('am-del').style.display = 'none';
+    document.getElementById('am-del').style.display = 'none'; var ar2 = document.getElementById('am-rapport'); if (ar2) { ar2.style.display = 'none'; }
     document.getElementById('amodal').classList.add('open');
   });
 }
