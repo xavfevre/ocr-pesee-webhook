@@ -1,4 +1,3 @@
-<!-- ir.ui.view id=4167 key=website.planning_protec_mobile - page website protec-s3t.odoo.com -->
 <t t-name="website.planning_protec_mobile">
 <html>
 <head>
@@ -79,6 +78,7 @@
 <t t-set="dom" t-value="[('start_datetime','&lt;',su + datetime.timedelta(days=1)),('end_datetime','&gt;',su)] + ([('company_id','=',soc_cid)] if soc_cid else [])"/>
 <t t-set="slots" t-value="request.env['planning.slot'].sudo().search(dom, order='start_datetime')"/>
 <t t-set="somap" t-value="dict([(o.name, o) for o in request.env['sale.order'].sudo().search([('name','in',[((s.name or '').strip().split() or [''])[0] for s in slots])])])"/>
+<t t-set="bimap" t-value="dict([(p.origin, p.x_camion_id.name) for p in request.env['stock.picking'].sudo().search([('origin','in',list(somap.keys())),('x_camion_id','!=',False)])])"/>
 <t t-set="leaves" t-value="request.env['resource.calendar.leaves'].sudo().search([('resource_id','!=',False),('date_from','&lt;',su + datetime.timedelta(days=1)),('date_to','&gt;',su)])"/>
 <t t-set="qsoc" t-value="('&amp;soc=%s' % soc) if soc != 'protec' else ''"/>
 
@@ -134,6 +134,7 @@
           <div t-if="so and so.x_studio_interlocuteur_1" class="mc-row" t-out="'👤 ' + so.x_studio_interlocuteur_1[:80]"/>
           <div t-if="s.partner_phone" class="mc-row">📞 <a t-att-href="'tel:' + s.partner_phone.replace(' ', '')" t-out="s.partner_phone"/></div>
           <div t-if="so and so.x_studio_lieu_dintervention_1" class="mc-row" t-out="'🛠 ' + so.x_studio_lieu_dintervention_1[:80]"/>
+          <div t-if="so and bimap.get(so.name)" class="mc-row" t-out="'🚚 ' + bimap.get(so.name)"/>
           <div t-if="s.name" class="mc-ref" t-out="(s.name or '')[:36]"/>
         </div>
       </div>

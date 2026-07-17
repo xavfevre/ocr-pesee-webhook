@@ -412,11 +412,22 @@ def ma_tournee():
                 fields=["name", "x_studio_lieu_dintervention_2",
                         "x_studio_interlocuteur_1", "x_studio_lieu_dintervention_1"])
             somap = {o["name"]: o for o in sos}
+        # camion renseigné sur le BI lié (origine = référence commande)
+        bimap = {}
+        if refs:
+            try:
+                picks = x(models, uid, "stock.picking", "search_read",
+                          [["origin", "in", refs], ["x_camion_id", "!=", False]],
+                          fields=["origin", "x_camion_id"])
+                bimap = {p["origin"]: p["x_camion_id"][1] for p in picks}
+            except Exception:
+                pass
         for c in cards:
             so = somap.get(c["ref"].split()[0]) if c["ref"] else None
             c["lieu"] = (so or {}).get("x_studio_lieu_dintervention_2") or ""
             c["inter"] = (so or {}).get("x_studio_interlocuteur_1") or ""
             c["objet"] = (so or {}).get("x_studio_lieu_dintervention_1") or ""
+            c["camion"] = bimap.get(c["ref"].split()[0], "") if c["ref"] else ""
 
         # Toujours afficher aujourd'hui même vide
         all_days = sorted(set(by_day.keys()) | {today.isoformat()})

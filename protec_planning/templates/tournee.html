@@ -105,6 +105,9 @@
         {% if c.objet %}
         <div class="m-row"><span class="ico">🛠</span>{{ c.objet }}</div>
         {% endif %}
+        {% if c.camion %}
+        <div class="m-row"><span class="ico">🚚</span><b>{{ c.camion }}</b></div>
+        {% endif %}
         {% if c.tel %}
         <div class="m-row"><span class="ico">📞</span><a href="tel:{{ c.tel | replace(' ', '') }}">{{ c.tel }}</a></div>
         {% endif %}
