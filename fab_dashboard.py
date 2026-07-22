@@ -136,7 +136,7 @@ def build_doc(counts):
 
     # volume à programmer par pierre (couleur officielle de la pierre)
     r = 8
-    cells["A%d" % r] = "🪨 VOLUME À PROGRAMMER PAR PIERRE  ·  OF non terminés (toutes commandes)"
+    cells["A%d" % r] = "🪨 RESTE À PRODUIRE PAR PIERRE  ·  tous les OF non terminés : non planifiés + à programmer + programmés + tranches + production hors commandes"
     styles["A%d:%s%d" % (r, col(SPAN), r)] = "sect"; merges.append("A%d:%s%d" % (r, col(SPAN), r))
     rows[str(r - 1)] = {"size": 26}
     rows["8"] = {"size": 20}; rows["9"] = {"size": 42}; rows["10"] = {"size": 16}
@@ -144,9 +144,9 @@ def build_doc(counts):
     vcells = []
     for i, ((nm, acc, cid), (c0, sp)) in enumerate(zip(FAMS, card_pos)):
         kpi(c0, sp, nm, '=IFERROR(PIVOT.VALUE(%d,"x_studio_vol_total"),0)' % (i + 4), acc, "m3",
-            "m³ restants", r0=9)
+            "m³ à produire", r0=9)
         vcells.append("%s10" % col(c0 + 1))
-    kpi(8, 2, "TOTAL", "=" + "+".join(vcells), "teal", "m3", "m³ restants · toutes pierres", r0=9)
+    kpi(8, 2, "TOTAL", "=" + "+".join(vcells), "teal", "m3", "m³ à produire · toutes pierres", r0=9)
 
     def list_block(band_row, txt, list_id, nrows):
         rng = "A%d:%s%d" % (band_row, col(SPAN), band_row)
