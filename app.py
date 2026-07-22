@@ -500,7 +500,9 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .acts2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px;}
 .ph{position:relative;text-align:center;border-radius:10px;padding:10px 4px;font-weight:800;font-size:13px;cursor:pointer;border:2px solid #01666B;color:#01666B;background:#fff;overflow:hidden;}
 .ph.done{background:#dcfce7;border-color:#16a34a;color:#166534;}
-.ph.busy{opacity:.6;}
+.ph.busy{border-style:dashed;animation:phpulse 1s ease-in-out infinite;}
+@keyframes phpulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+.ph.fail{background:#fee2e2;border-color:#b91c1c;color:#991b1b;}
 .ph input{position:absolute;inset:0;opacity:0;}
 .ph.scan{display:block;margin-top:11px;font-size:16px;padding:15px;background:#01666B;color:#fff;border-color:#01666B;}
 .ph.scan.done{background:#dcfce7;color:#166534;border-color:#16a34a;}
@@ -513,21 +515,55 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 </style></head><body><div class="wrap">"""
 
 _TOURNEE_JS = """<div id="toast" class="toast"></div><script>
-function toast(m,ok){var t=document.getElementById('toast');t.textContent=m;t.style.background=ok?'#166534':'#b91c1c';t.className='toast show';setTimeout(function(){t.className='toast';},2600);}
+function toast(m,ok){var t=document.getElementById('toast');t.textContent=m;t.style.background=ok?'#166534':'#b91c1c';t.className='toast show';setTimeout(function(){t.className='toast';},4500);}
+function setTxt(lbl,t){lbl.firstChild.textContent=t;}
+function shrink(file,cb){
+  var url=URL.createObjectURL(file); var img=new Image();
+  img.onload=function(){
+    try{
+      var w=img.width,h=img.height,r=Math.min(1,1600/Math.max(w,h));
+      var cv=document.createElement('canvas'); cv.width=Math.round(w*r); cv.height=Math.round(h*r);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      URL.revokeObjectURL(url); cb(cv.toDataURL('image/jpeg',0.82));
+    }catch(e){ URL.revokeObjectURL(url); rawRead(file,cb); }
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url); rawRead(file,cb); };
+  img.src=url;
+}
+function rawRead(file,cb){var rd=new FileReader(); rd.onload=function(){cb(rd.result);}; rd.readAsDataURL(file);}
+function sendUp(lbl,payload,attempt){
+  var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var to=ctl?setTimeout(function(){ctl.abort();},45000):null;
+  fetch('/tournee/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload),signal:ctl?ctl.signal:undefined})
+  .then(function(x){return x.json();}).then(function(d){
+    if(to){clearTimeout(to);}
+    if(d.ok){
+      lbl.classList.remove('busy'); lbl.classList.remove('fail'); lbl.classList.add('done');
+      setTxt(lbl,'\u2713 Envoy\u00e9e \u2014 bien re\u00e7ue');
+      toast('\u2705 Photo bien re\u00e7ue au bureau',true);
+      if(navigator.vibrate){navigator.vibrate(200);}
+    } else { upFail(lbl,payload,attempt,d.error||'?'); }
+  }).catch(function(){ if(to){clearTimeout(to);} upFail(lbl,payload,attempt,'r\u00e9seau'); });
+}
+function upFail(lbl,payload,attempt,err){
+  if(attempt<3){
+    setTxt(lbl,'\u23f3 Nouvel essai '+(attempt+1)+'/3\u2026');
+    setTimeout(function(){sendUp(lbl,payload,attempt+1);},1800*attempt);
+    return;
+  }
+  lbl.classList.remove('busy'); lbl.classList.add('fail');
+  setTxt(lbl,'\u274c \u00c9chec \u2014 touchez pour renvoyer');
+  toast('\u274c Envoi impossible ('+err+') \u2014 r\u00e9essayez',false);
+  if(navigator.vibrate){navigator.vibrate([120,90,120]);}
+}
 function up(inp,tid,kind,tok){
   var f=inp.files&&inp.files[0]; if(!f){return;}
-  var lbl=inp.parentNode; lbl.classList.add('busy'); var old=lbl.getAttribute('data-t')||lbl.firstChild.textContent;
-  var r=new FileReader();
-  r.onload=function(){
-    fetch('/tournee/upload',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({task_id:tid,kind:kind,token:tok,image:r.result})})
-    .then(function(x){return x.json();}).then(function(d){
-      lbl.classList.remove('busy');
-      if(d.ok){lbl.classList.add('done'); toast('Photo enregistrée ✓',true);}
-      else{toast('Erreur: '+(d.error||'?'),false);}
-    }).catch(function(e){lbl.classList.remove('busy'); toast('Erreur réseau',false);});
-  };
-  r.readAsDataURL(f); inp.value='';
+  var lbl=inp.parentNode;
+  lbl.classList.remove('fail'); lbl.classList.remove('done'); lbl.classList.add('busy');
+  setTxt(lbl,'\u23f3 Envoi en cours\u2026');
+  shrink(f,function(dataUrl){ sendUp(lbl,{task_id:tid,kind:kind,token:tok,image:dataUrl},1); });
+  inp.value='';
 }
 (function(){
   var blocks = Array.prototype.slice.call(document.querySelectorAll('.dayblock'));
