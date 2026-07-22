@@ -21,8 +21,8 @@ ACC = {"teal": ("#01666B", "#E4F1F1"), "green": ("#177245", "#E1F3E7"),
 # couleurs officielles des pierres (product.category.x_studio_couleur_hex)
 STONES = {"tuf": "#58A2F0", "hai": "#26CE38", "mig": "#F3B353",
           "ric": "#11F6E3", "sir": "#FEE829", "ter": "#F617F6"}
-FAMS = [("TUFFEAU", "tuf", 12), ("HAIMS", "hai", 7), ("MIGNE", "mig", 8),
-        ("TERVOUX", "ter", 11), ("RICHEMONT", "ric", 9), ("SIREUIL", "sir", 10)]
+FAMS = [("TUFFEAU", "tuf", [12, 77]), ("HAIMS", "hai", [7]), ("MIGNE", "mig", [8]),
+        ("TERVOUX", "ter", [11]), ("RICHEMONT", "ric", [9]), ("SIREUIL", "sir", [10])]
 
 FORMATS = {"m3": "#,##0.00", "num": "#,##0", "d": "dd/mm/yyyy", "hide": ";;;"}
 
@@ -101,7 +101,7 @@ def _pivots():
                           "measures": [{"id": "x_studio_vol_total", "fieldName": "x_studio_vol_total",
                                         "aggregator": "sum", "userDefinedName": "m³"}],
                           "domain": ["&", "&", ["state", "in", ["draft", "confirmed", "progress", "to_close"]],
-                                     ["company_id", "=", 1], ["x_studio_catgorie", "child_of", [cid]]],
+                                     ["company_id", "=", 1], ["x_studio_catgorie", "child_of", cid]],
                           "context": {}, "sortedColumn": None, "fieldMatching": {}}
     return pivots
 
@@ -232,7 +232,7 @@ def compute_counts(call_kw):
             g = call_kw("mrp.production", "read_group",
                         [["&", "&", "&", ["origin", "in", names],
                           ["state", "in", ["draft", "confirmed", "progress", "to_close"]],
-                          ["company_id", "=", 1], ["x_studio_catgorie", "child_of", [cid]]],
+                          ["company_id", "=", 1], ["x_studio_catgorie", "child_of", cid]],
                          ["x_studio_vol_total:sum"], []], {"lazy": False})
             ap_fam[acc] = round((g[0]["x_studio_vol_total"] or 0.0) if g else 0.0, 2)
         else:
