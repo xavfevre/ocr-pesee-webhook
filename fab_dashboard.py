@@ -72,6 +72,10 @@ def _styles():
                                "align": "center", "verticalAlign": "middle"}
         styles["kv_%s" % n] = {"bold": True, "fontSize": 20, "textColor": dk, "fillColor": lt,
                                "align": "center", "verticalAlign": "middle"}
+        styles["kp_%s" % n] = {"bold": True, "fontSize": 11, "textColor": dk, "fillColor": lt,
+                               "align": "center", "verticalAlign": "middle"}
+    styles["kp_teal"] = {"bold": True, "fontSize": 11, "textColor": "#01666B", "fillColor": "#E4F1F1",
+                         "align": "center", "verticalAlign": "middle"}
     return styles
 
 
@@ -141,12 +145,25 @@ def build_doc(counts):
     rows[str(r - 1)] = {"size": 26}
     rows["8"] = {"size": 20}; rows["9"] = {"size": 42}; rows["10"] = {"size": 16}
     card_pos = [(0, 2), (2, 2), (4, 1), (5, 1), (6, 1), (7, 1)]
+    rows["11"] = {"size": 22}
+    ap_fam = counts.get("ap_fam", {})
+
+    def frnum(v):
+        return ("%.2f" % v).replace(".", ",")
+
     vcells = []
     for i, ((nm, acc, cid), (c0, sp)) in enumerate(zip(FAMS, card_pos)):
         kpi(c0, sp, nm, '=IFERROR(PIVOT.VALUE(%d,"x_studio_vol_total"),0)' % (i + 4), acc, "m3",
             "m³ à produire", r0=9)
         vcells.append("%s10" % col(c0 + 1))
+        rng = "%s12:%s12" % (col(c0 + 1), col(c0 + sp))
+        cells["%s12" % col(c0 + 1)] = "à prog. : %s m³" % frnum(ap_fam.get(acc, 0.0))
+        styles[rng] = "kp_%s" % acc
+        if sp > 1:
+            merges.append(rng)
     kpi(8, 2, "TOTAL", "=" + "+".join(vcells), "teal", "m3", "m³ à produire · toutes pierres", r0=9)
+    cells["I12"] = ('="à programmer : "&TEXT(IFERROR(PIVOT.VALUE(2,"x_studio_vol_reste"),0),"#,##0.00")&" m³"')
+    styles["I12:J12"] = "kp_teal"; merges.append("I12:J12")
 
     def list_block(band_row, txt, list_id, nrows):
         rng = "A%d:%s%d" % (band_row, col(SPAN), band_row)
@@ -170,7 +187,7 @@ def build_doc(counts):
                              "style": {"fillColor": "#EAF1F7"}}})
         return hr + nrows
 
-    end1 = list_block(13, "🔴 COMMANDES NON PLANIFIÉES  ·  aucun OT affecté sur au moins un OF",
+    end1 = list_block(14, "🔴 COMMANDES NON PLANIFIÉES  ·  aucun OT affecté sur au moins un OF",
                       "1", reserve(counts["np"]))
     end2 = list_block(end1 + 2, "🟠 COMMANDES À PROGRAMMER  ·  OT affectés mais sans date de passage",
                       "2", reserve(counts["ap"]))
@@ -205,7 +222,23 @@ def build_doc(counts):
 def compute_counts(call_kw):
     def n(dom_prefix):
         return call_kw("sale.order", "search_count", [dom_prefix], {})
-    return {"np": n(["&"] + DOM_NP), "ap": n(DOM_AP), "pr": n(DOM_PR), "tr": n(DOM_TR)}
+    counts = {"np": n(["&"] + DOM_NP), "ap": n(DOM_AP), "pr": n(DOM_PR), "tr": n(DOM_TR)}
+    # ventilation par pierre du volume des commandes « à programmer » (recalculée à chaque rebuild)
+    orders = call_kw("sale.order", "search_read", [DOM_AP], {"fields": ["name"], "limit": 1000})
+    names = [o["name"] for o in orders]
+    ap_fam = {}
+    for nm, acc, cid in FAMS:
+        if names:
+            g = call_kw("mrp.production", "read_group",
+                        [["&", "&", "&", ["origin", "in", names],
+                          ["state", "in", ["draft", "confirmed", "progress", "to_close"]],
+                          ["company_id", "=", 1], ["x_studio_catgorie", "child_of", [cid]]],
+                         ["x_studio_vol_total:sum"], []], {"lazy": False})
+            ap_fam[acc] = round((g[0]["x_studio_vol_total"] or 0.0) if g else 0.0, 2)
+        else:
+            ap_fam[acc] = 0.0
+    counts["ap_fam"] = ap_fam
+    return counts
 
 
 def rebuild(call_kw):
