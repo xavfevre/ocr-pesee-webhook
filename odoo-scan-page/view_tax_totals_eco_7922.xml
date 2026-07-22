@@ -1,0 +1,5 @@
+<data inherit_id="account.document_tax_totals_template">
+  <xpath expr="//tr[hasclass('o_taxes')]" position="attributes">
+    <attribute name="t-if">not ('Eco Contribution' in (tax_group['group_name'] or '') and not tax_group['tax_amount_currency'])</attribute>
+  </xpath>
+</data>
