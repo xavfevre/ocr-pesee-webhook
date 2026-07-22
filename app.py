@@ -831,6 +831,50 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# ─── Tableau de bord « Fabrication — Commandes en cours » ────────────────────
+# Les tableaux du tableur ont des réserves de lignes fixes ; on redimensionne le
+# document sur le nombre réel de commandes (endpoint manuel + recalage nocturne).
+import threading
+import time as _time
+
+import fab_dashboard
+
+
+def _fab_dash_call_kw(models, uid):
+    def call_kw(model, method, args, kwargs=None):
+        return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, method, args, kwargs or {})
+    return call_kw
+
+
+@app.route("/rebuild-fab-dashboard", methods=["POST"])
+@require_secret
+def rebuild_fab_dashboard():
+    models, uid = odoo_connect()
+    counts = fab_dashboard.rebuild(_fab_dash_call_kw(models, uid))
+    app.logger.info(f"fab-dashboard redimensionné: {counts}")
+    return jsonify({"ok": True, "counts": counts})
+
+
+def _fab_dash_nightly():
+    while True:
+        now = datetime.utcnow()
+        nxt = now.replace(hour=3, minute=40, second=0, microsecond=0)
+        if nxt <= now:
+            from datetime import timedelta
+            nxt = nxt + timedelta(days=1)
+        _time.sleep(max((nxt - now).total_seconds(), 60))
+        try:
+            models, uid = odoo_connect()
+            counts = fab_dashboard.rebuild(_fab_dash_call_kw(models, uid))
+            app.logger.info(f"fab-dashboard recalage nocturne: {counts}")
+        except Exception as e:
+            app.logger.warning(f"fab-dashboard recalage nocturne échoué: {e}")
+
+
+if ODOO_URL and ODOO_PASSWORD:
+    threading.Thread(target=_fab_dash_nightly, daemon=True).start()
+
+
 # ─── PROTEC : planning chauffeur + Ma tournée + fiche de fin de travaux ──────
 # Monté sous /protec — voir protec_planning/README.md
 # (env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET)
