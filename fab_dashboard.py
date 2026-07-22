@@ -161,7 +161,7 @@ def build_doc(counts):
     rows["12"] = {"size": 26}
     rows["13"] = {"size": 20}; rows["14"] = {"size": 42}; rows["15"] = {"size": 16}
     for i, ((nm, acc, cid), (c0, sp)) in enumerate(zip(FAMS, card_pos)):
-        kpi(c0, sp, nm, ap_fam.get(acc, 0.0), acc, "m3", "m³ à programmer", r0=14)
+        kpi(c0, sp, nm, "%s" % ap_fam.get(acc, 0.0), acc, "m3", "m³ à programmer", r0=14)
     kpi(8, 2, "TOTAL", '=IFERROR(PIVOT.VALUE(2,"x_studio_vol_reste"),0)', "amber", "m3",
         "m³ à programmer · temps réel", r0=14)
 
