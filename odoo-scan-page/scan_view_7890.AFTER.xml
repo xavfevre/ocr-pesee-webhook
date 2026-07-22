@@ -71,6 +71,7 @@
         <div id="colis-mesure" class="scan-colis-mesure"/>
         <div id="colis-zone" class="scan-colis-zone"/>
         <button id="btn-colis-nav" style="margin-top:10px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#334155;color:#e2e8f0;">📦 Colis ouverts…</button>
+        <button id="btn-colis-print" style="margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;">🖨 Bon de colisage</button>
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
@@ -549,6 +550,11 @@
     }).catch(function(e){ navList.innerHTML='&lt;div style="color:#f87171;padding:8px;"&gt;Erreur : '+e.message+'&lt;/div&gt;'; });
   }
   document.getElementById('btn-colis-nav').addEventListener('click', openNav);
+  document.getElementById('btn-colis-print').addEventListener('click', function(){
+    if(!colisActif){ setRes('⚠️ Aucun colis actif — scannez ou choisissez un colis d\u2019abord'); beep(false); return; }
+    window.open('/report/pdf/maquignon.report_bon_colisage/'+colisActif, '_blank');
+    input.focus();
+  });
   document.getElementById('nav-cancel').addEventListener('click', function(){ navPop.style.display='none'; input.focus(); });
   navSrch.addEventListener('input', navRender);
   navSrch.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var v=(navSrch.value||'').trim(); if(v){ navPop.style.display='none'; doScanRaw(v).then(function(){ input.focus(); }); } } });
