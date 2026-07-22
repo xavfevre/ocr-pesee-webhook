@@ -330,6 +330,8 @@
           var blocks = Array.prototype.slice.call(document.querySelectorAll('.vo-dayblock'));
           var pop=document.getElementById('vo-colis-pop'); var curOf=0; var curBtn=null;
           var lastColis=null; try{ lastColis=JSON.parse(localStorage.getItem('vo_last_colis')||'null'); }catch(e){}
+          try{ var _dcH=document.getElementById('vo-colis-data'); var _opH=JSON.parse((_dcH&amp;&amp;_dcH.getAttribute('data-colis'))||'[]');
+            if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opH.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
           function saveLast(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
           function assign(ofid, cid, cname, btn, after){
@@ -337,7 +339,9 @@
               body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
             }).then(function(r){return r.json();}).then(function(d){
               if(after){ after(); }
-              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+              if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
+              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
+              alert('\u00c9chec : '+_m); return; }
               if(cid){ saveLast(cid,cname); }
               markDone(btn,cname);
               if(pop){ pop.style.display='none'; }
@@ -346,7 +350,7 @@
           document.querySelectorAll('.vo-addcolis').forEach(function(b){
             b.onclick=function(){ curOf=parseInt(b.getAttribute('data-ofid')); curBtn=b; if(pop){ pop.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchH(); setTimeout(function(){ s.focus(); },80); } } };
             if(lastColis &amp;&amp; lastColis.id){
-              var q=document.createElement('button'); q.type='button'; q.className='btn btn-sm btn-primary'; q.style.cssText='font-weight:800;margin-left:6px;';
+              var q=document.createElement('button'); q.type='button'; q.className='vo-lastq btn btn-sm btn-primary'; q.style.cssText='font-weight:800;margin-left:6px;';
               q.textContent='⚡ '+lastColis.name;
               q.onclick=function(){ q.disabled=true; assign(parseInt(b.getAttribute('data-ofid')), lastColis.id, lastColis.name, b, function(){ q.disabled=false; }); };
               b.after(q);
@@ -473,13 +477,17 @@ var dataC=document.getElementById('vo-colis-data');
         function bd(id,m,cls,txt){ return '&lt;button type="button" class="vo-act btn '+cls+'" data-id="'+id+'" data-m="'+m+'"&gt;'+txt+'&lt;/button&gt;'; }
         var popC=document.getElementById('vo-colis-pop'); var curOfP=0; var curCardP=null;
         var lastColis=null; try{ lastColis=JSON.parse(localStorage.getItem('vo_last_colis')||'null'); }catch(e){}
+        try{ var _dcP=document.getElementById('vo-colis-data'); var _opP=JSON.parse((_dcP&amp;&amp;_dcP.getAttribute('data-colis'))||'[]');
+            if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opP.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
         function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
         function assignC(ofid, cid, cname, card, after){
           fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
           }).then(function(r){return r.json();}).then(function(d){
             if(after){ after(); }
-            if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
+              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
+              alert('\u00c9chec : '+_m); return; }
             if(cid){ saveLastC(cid,cname); }
             if(popC){ popC.style.display='none'; }
             if(card){
