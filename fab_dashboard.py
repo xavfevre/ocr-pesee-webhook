@@ -145,25 +145,25 @@ def build_doc(counts):
     rows[str(r - 1)] = {"size": 26}
     rows["8"] = {"size": 20}; rows["9"] = {"size": 42}; rows["10"] = {"size": 16}
     card_pos = [(0, 2), (2, 2), (4, 1), (5, 1), (6, 1), (7, 1)]
-    rows["11"] = {"size": 22}
     ap_fam = counts.get("ap_fam", {})
-
-    def frnum(v):
-        return ("%.2f" % v).replace(".", ",")
-
     vcells = []
     for i, ((nm, acc, cid), (c0, sp)) in enumerate(zip(FAMS, card_pos)):
         kpi(c0, sp, nm, '=IFERROR(PIVOT.VALUE(%d,"x_studio_vol_total"),0)' % (i + 4), acc, "m3",
             "m³ à produire", r0=9)
         vcells.append("%s10" % col(c0 + 1))
-        rng = "%s12:%s12" % (col(c0 + 1), col(c0 + sp))
-        cells["%s12" % col(c0 + 1)] = "à prog. : %s m³" % frnum(ap_fam.get(acc, 0.0))
-        styles[rng] = "kp_%s" % acc
-        if sp > 1:
-            merges.append(rng)
     kpi(8, 2, "TOTAL", "=" + "+".join(vcells), "teal", "m3", "m³ à produire · toutes pierres", r0=9)
-    cells["I12"] = ('="à programmer : "&TEXT(IFERROR(PIVOT.VALUE(2,"x_studio_vol_reste"),0),"#,##0.00")&" m³"')
-    styles["I12:J12"] = "kp_teal"; merges.append("I12:J12")
+
+    # section dédiée : ventilation par pierre du bloc « à programmer »
+    r = 13
+    cells["A%d" % r] = ("🟠 À PROGRAMMER PAR PIERRE  ·  ventilation des commandes « OT affectés sans date » "
+                        "(recalculée à chaque recalage)")
+    styles["A%d:%s%d" % (r, col(SPAN), r)] = "sect"; merges.append("A%d:%s%d" % (r, col(SPAN), r))
+    rows["12"] = {"size": 26}
+    rows["13"] = {"size": 20}; rows["14"] = {"size": 42}; rows["15"] = {"size": 16}
+    for i, ((nm, acc, cid), (c0, sp)) in enumerate(zip(FAMS, card_pos)):
+        kpi(c0, sp, nm, ap_fam.get(acc, 0.0), acc, "m3", "m³ à programmer", r0=14)
+    kpi(8, 2, "TOTAL", '=IFERROR(PIVOT.VALUE(2,"x_studio_vol_reste"),0)', "amber", "m3",
+        "m³ à programmer · temps réel", r0=14)
 
     def list_block(band_row, txt, list_id, nrows):
         rng = "A%d:%s%d" % (band_row, col(SPAN), band_row)
@@ -187,7 +187,7 @@ def build_doc(counts):
                              "style": {"fillColor": "#EAF1F7"}}})
         return hr + nrows
 
-    end1 = list_block(14, "🔴 COMMANDES NON PLANIFIÉES  ·  aucun OT affecté sur au moins un OF",
+    end1 = list_block(18, "🔴 COMMANDES NON PLANIFIÉES  ·  aucun OT affecté sur au moins un OF",
                       "1", reserve(counts["np"]))
     end2 = list_block(end1 + 2, "🟠 COMMANDES À PROGRAMMER  ·  OT affectés mais sans date de passage",
                       "2", reserve(counts["ap"]))
