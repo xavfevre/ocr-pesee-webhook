@@ -58,9 +58,9 @@
             </div>
           </div>
           <style>
-            .colis-table td, .colis-table th { padding: 1.5px 4px !important; line-height: 1.15; }
+            .colis-table td, .colis-table th { padding: 2.5px 5px !important; line-height: 1.25; }
           </style>
-          <table class="table table-sm o_main_table colis-table" t-if="whole_ofs or rep_lines" style="font-size:8.5pt;margin-bottom:0;">
+          <table class="table table-sm o_main_table colis-table" t-if="whole_ofs or rep_lines" style="font-size:9.5pt;margin-bottom:0;">
             <thead><tr>
               <th style="width:13%;">OF</th><th style="width:11%;">Commande</th><th style="width:13%;">Réf. Pierre</th><th style="width:27%;">Désignation</th><th style="width:12%;">Prépal.</th><th class="text-end" style="width:10%;">Pièces</th><th style="width:14%;">Dimensions</th>
             </tr></thead>
