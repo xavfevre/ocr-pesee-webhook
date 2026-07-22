@@ -21,9 +21,9 @@
           <t t-set="_p1" t-value="[pal_by_ord.setdefault(x.origin, set()).add(x.x_studio_palette) for x in all_ofs if x.x_studio_palette]"/>
           <div class="row mb-2" t-if="orders">
             <t t-foreach="orders" t-as="so">
-              <div t-attf-class="{{'col-6' if len(orders) &gt; 1 else 'col-12'}} mb-2" style="font-size:13px;">
+              <div t-attf-class="{{'col-6' if len(orders) &gt; 1 else 'col-12'}} mb-2" style="font-size:15px;">
                 <div style="border:1.5px solid #94a3b8;border-radius:8px;padding:7px 12px;">
-                  <div style="font-size:14px;"><strong>Commande <t t-out="so.name"/></strong><t t-if="so.date_order"> du <t t-out="so.date_order.strftime('%d/%m/%Y')"/></t></div>
+                  <div style="font-size:17px;"><strong>Commande <t t-out="so.name"/></strong><t t-if="so.date_order"> du <t t-out="so.date_order.strftime('%d/%m/%Y')"/></t></div>
                   <div t-if="so.client_order_ref"><strong>Objet / Bon de commande :</strong> <span t-out="so.client_order_ref"/></div>
                   <div t-if="pal_by_ord.get(so.name)"><strong>Prépalettisation :</strong> <span t-out="', '.join(sorted(pal_by_ord.get(so.name, [])))"/></div>
                   <div><strong>Client :</strong> <span t-out="so.partner_id.commercial_partner_id.name or so.partner_id.name"/></div>
