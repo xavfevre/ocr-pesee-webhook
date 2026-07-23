@@ -20,7 +20,7 @@
           <t t-set="clean_text" t-value="clean_text[end_bracket+1:].strip()"/>
         </t>
       </t>
-      <span t-out="clean_text"/>
+      <span style="white-space:pre-line;" t-out="clean_text"/>
     </t>
     <t t-else="">
       <t t-set="clean_text" t-value="line.name"/>
@@ -30,7 +30,7 @@
           <t t-set="clean_text" t-value="clean_text[end_bracket+1:].strip()"/>
         </t>
       </t>
-      <span t-out="clean_text"/>
+      <span style="white-space:pre-line;" t-out="clean_text"/>
     </t>
     <t t-if="line.x_studio_nom_badge or line.x_studio_num_badge or line.x_studio_ref_chantier or line.x_studio_date_de_distribution">
       <br/>
