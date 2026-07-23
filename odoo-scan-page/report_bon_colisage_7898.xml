@@ -1,0 +1,92 @@
+<t t-name="maquignon.report_bon_colisage">
+  <t t-call="web.html_container">
+    <t t-foreach="docs" t-as="o">
+      <t t-call="web.external_layout">
+        <div class="page">
+          <div class="row mb-3">
+            <div class="col-7">
+              <h2 class="mt-0" style="margin-bottom:4px;">Bon de colisage</h2>
+              <div style="font-size:22px;font-weight:bold;" t-out="o.name"/>
+            </div>
+            <div class="col-5 text-end">
+              <div t-field="o.name" t-options="{'widget':'barcode','width':600,'height':100,'img_style':'width:240px;height:48px;'}"/>
+            </div>
+          </div>
+          <t t-set="whole_ofs" t-value="o.env['mrp.production'].search([('x_studio_colis','=',o.id)])"/>
+          <t t-set="rep_lines" t-value="o.env['x_repartition_palette'].search([('x_studio_colis_id','=',o.id)])"/>
+          <t t-set="all_ofs" t-value="whole_ofs | rep_lines.mapped('x_studio_of_id')"/>
+          <t t-set="ord_names" t-value="sorted(set(all_ofs.mapped('origin')) - {False, ''})"/>
+          <t t-set="orders" t-value="o.env['sale.order'].sudo().search([('name','in',ord_names)])"/>
+          <t t-set="pal_by_ord" t-value="{}"/>
+          <t t-set="_p1" t-value="[pal_by_ord.setdefault(x.origin, set()).add(x.x_studio_palette) for x in all_ofs if x.x_studio_palette]"/>
+          <div class="row mb-2" t-if="orders">
+            <t t-foreach="orders" t-as="so">
+              <div t-attf-class="{{'col-6' if len(orders) &gt; 1 else 'col-12'}} mb-2" style="font-size:15px;">
+                <div style="border:1.5px solid #94a3b8;border-radius:8px;padding:7px 12px;">
+                  <div style="font-size:17px;"><strong>Commande <t t-out="so.name"/></strong><t t-if="so.date_order"> du <t t-out="so.date_order.strftime('%d/%m/%Y')"/></t></div>
+                  <div t-if="so.client_order_ref"><strong>Objet / Bon de commande :</strong> <span t-out="so.client_order_ref"/></div>
+                  <div t-if="pal_by_ord.get(so.name)"><strong>Prépalettisation :</strong> <span t-out="', '.join(sorted(pal_by_ord.get(so.name, [])))"/></div>
+                  <div><strong>Client :</strong> <span t-out="so.partner_id.commercial_partner_id.name or so.partner_id.name"/></div>
+                  <div t-if="so.partner_shipping_id"><strong>Livraison :</strong>
+                    <span t-out="', '.join([p for p in [so.partner_shipping_id.name if so.partner_shipping_id.id != so.partner_id.id else '', so.partner_shipping_id.street or '', so.partner_shipping_id.street2 or '', ((so.partner_shipping_id.zip or '') + ' ' + (so.partner_shipping_id.city or '')).strip()] if p])"/>
+                  </div>
+                </div>
+              </div>
+            </t>
+          </div>
+          <div class="row mb-2" t-if="not orders">
+            <div class="col-6">
+              <strong>Client</strong>
+              <div t-out="o.x_studio_client or '-'"/>
+            </div>
+            <div class="col-6" t-if="o.x_studio_partner_livraison">
+              <strong>Adresse de livraison</strong>
+              <div t-field="o.x_studio_partner_livraison" t-options="{'widget':'contact','no_marker':True}"/>
+            </div>
+          </div>
+          <div class="row mb-3" style="font-size:14px;">
+            <div class="col-3" t-if="o.pack_date"><strong>Date :</strong> <span t-field="o.pack_date"/></div>
+            <div class="col-3" t-if="o.package_type_id"><strong>Type :</strong> <span t-out="o.package_type_id.name"/></div>
+            <div class="col-4" t-if="o.x_studio_zone"><strong>Emplacement :</strong> <span t-out="o.x_studio_zone"/></div>
+          </div>
+          <t t-set="tot_pcs" t-value="sum(int(x.x_studio_nbr or 0) for x in whole_ofs) + sum(int(l.x_studio_qte or 0) for l in rep_lines)"/>
+          <div class="row mb-3">
+            <div class="col-12" style="border-top:1px solid #000;border-bottom:1px solid #000;padding:6px 0;font-size:15px;">
+              <strong>Cubage :</strong> <span t-out="'%.3f' % (o.x_studio_cubage or 0)"/> m³   —
+              <strong>Tonnage :</strong> <span t-out="'%.0f' % (o.x_studio_tonnage or 0)"/> kg (<span t-out="'%.2f' % ((o.x_studio_tonnage or 0)/1000.0)"/> t)   —
+              <strong><t t-out="tot_pcs"/> pièce(s)</strong> · <t t-out="len(whole_ofs) + len(rep_lines)"/> OF
+            </div>
+          </div>
+          <style>
+            .colis-table td, .colis-table th { padding: 2.5px 5px !important; line-height: 1.25; }
+          </style>
+          <table class="table table-sm o_main_table colis-table" t-if="whole_ofs or rep_lines" style="font-size:9.5pt;margin-bottom:0;">
+            <thead><tr>
+              <th style="width:13%;">OF</th><th style="width:11%;">Commande</th><th style="width:13%;">Réf. Pierre</th><th style="width:27%;">Désignation</th><th style="width:12%;">Prépal.</th><th class="text-end" style="width:10%;">Pièces</th><th style="width:14%;">Dimensions</th>
+            </tr></thead>
+            <tbody>
+              <tr t-foreach="whole_ofs" t-as="ofw">
+                <td t-out="ofw.name"/>
+                <td t-out="ofw.origin or ''"/>
+                <td><strong t-out="ofw.x_studio_ref_pierre or ''"/></td>
+                <td t-out="ofw.product_id.display_name"/>
+                <td t-out="ofw.x_studio_palette or ''"/>
+                <td class="text-end"><strong t-out="int(ofw.x_studio_nbr or 0)"/> pcs</td>
+                <td><t t-if="ofw.x_studio_long_m_1"><span t-out="'%.2f' % ofw.x_studio_long_m_1"/></t><t t-if="ofw.x_studio_larg_m_1"> × <span t-out="'%.2f' % ofw.x_studio_larg_m_1"/></t><t t-if="ofw.x_studio_haut_m_1"> × <span t-out="'%.2f' % ofw.x_studio_haut_m_1"/></t><t t-if="ofw.x_studio_long_m_1"> m</t></td>
+              </tr>
+              <tr t-foreach="rep_lines" t-as="ln">
+                <td t-out="ln.x_studio_of_id.name"/>
+                <td t-out="ln.x_studio_of_id.origin or ''"/>
+                <td><strong t-out="ln.x_studio_of_id.x_studio_ref_pierre or ''"/></td>
+                <td t-out="ln.x_studio_of_id.product_id.display_name"/>
+                <td t-out="ln.x_studio_of_id.x_studio_palette or ''"/>
+                <td class="text-end"><strong t-out="ln.x_studio_qte"/> / <span t-out="int(ln.x_studio_of_id.x_studio_nbr or 0)"/> pcs</td>
+                <td><t t-if="ln.x_studio_of_id.x_studio_long_m_1"><span t-out="'%.2f' % ln.x_studio_of_id.x_studio_long_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_larg_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_larg_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_haut_m_1"> × <span t-out="'%.2f' % ln.x_studio_of_id.x_studio_haut_m_1"/></t><t t-if="ln.x_studio_of_id.x_studio_long_m_1"> m</t></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </t>
+    </t>
+  </t>
+</t>

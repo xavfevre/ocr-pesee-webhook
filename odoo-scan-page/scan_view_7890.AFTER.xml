@@ -25,6 +25,7 @@
       .scan-of-list h6{color:#94a3b8;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
       .scan-of-item{font-size:15px;padding:6px 0;border-bottom:1px solid #334155;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px;}
       .of-del{background:#7f1d1d;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:16px;cursor:pointer;line-height:1;}
+      .of-reb{background:#9a3412;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:15px;cursor:pointer;line-height:1;margin-right:5px;}
       .of-del:active{background:#991b1b;}
       .of-main{display:flex;flex-direction:column;gap:1px;text-align:left;flex:1;min-width:0;}
       .of-name{font-size:15px;font-weight:800;color:#e2e8f0;}
@@ -70,6 +71,8 @@
         <div id="colis-name" class="scan-colis-name">—</div>
         <div id="colis-mesure" class="scan-colis-mesure"/>
         <div id="colis-zone" class="scan-colis-zone"/>
+        <button id="btn-colis-nav" style="margin-top:10px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#334155;color:#e2e8f0;">📦 Colis ouverts…</button>
+        <button id="btn-colis-print" style="margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;">🖨 Bon de colisage</button>
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
@@ -130,6 +133,15 @@
       </div>
     </div>
 
+    <div id="nav-pop" class="qte-pop">
+      <div class="qte-card" style="width:540px;max-width:96vw;border-color:#38bdf8;">
+        <h4>📦 Colis ouverts</h4>
+        <div class="qte-sub">Touchez un colis pour le rendre actif · tapez pour filtrer (les colis vides apparaissent en filtrant)</div>
+        <input id="nav-srch" type="text" autocomplete="off" placeholder="Filtrer / n° de colis…" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #38bdf8;font-size:16px;font-weight:700;margin-bottom:8px;"/>
+        <div id="nav-list" style="max-height:58vh;overflow:auto;"/>
+        <div class="qte-actions"><button id="nav-cancel" class="qte-cancel" style="flex:1;">✖ Fermer</button></div>
+      </div>
+    </div>
     <div id="login-pop" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,.88); z-index:9999; align-items:center; justify-content:center;">
       <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:28px 30px; width:340px; box-shadow:0 20px 60px rgba(0,0,0,.5);">
         <div style="font-size:20px; font-weight:800; color:#f1f5f9; margin-bottom:4px;">🔐 Session expirée</div>
@@ -237,18 +249,20 @@
     if(o.x_studio_larg_m_1){ dims.push(fmtN(o.x_studio_larg_m_1)); }
     if(o.x_studio_haut_m_1){ dims.push(fmtN(o.x_studio_haut_m_1)); }
     var meta = [];
+    if(o.x_studio_ref_pierre){ meta.push('◆ ' + esc(o.x_studio_ref_pierre)); }
     if(o.x_studio_nom_du_client){ meta.push(esc(o.x_studio_nom_du_client)); }
     if(dims.length){ meta.push(dims.join(' × ') + ' m'); }
     return meta.join(' · ');
   }
-  function renderItem(o, kind, refId, qtyLabel, qtyClass){
+  function renderItem(o, kind, refId, qtyLabel, qtyClass, ofid, maxq){
     return '&lt;div class="scan-of-item"&gt;'
       +   '&lt;div class="of-main"&gt;&lt;div class="of-name"&gt;🪨 ' + esc(o.name) + '&lt;span class="of-qty ' + qtyClass + '"&gt;' + qtyLabel + '&lt;/span&gt;&lt;/div&gt;'
       +     '&lt;div class="of-meta"&gt;' + metaOf(o) + '&lt;/div&gt;&lt;/div&gt;'
+      +   '&lt;button class="of-reb" data-ofid="' + ofid + '" data-max="' + maxq + '" data-name="' + esc(o.name) + '" title="Déclarer un rebut"&gt;💥&lt;/button&gt;'
       +   '&lt;button class="of-del" data-kind="' + kind + '" data-id="' + refId + '" data-name="' + esc(o.name) + '"&gt;🗑️&lt;/button&gt;'
       + '&lt;/div&gt;';
   }
-  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1'];
+  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1','x_studio_ref_pierre'];
 
   function loadOfs(colisId){
     var box = document.getElementById('of-list');
@@ -264,12 +278,12 @@
         document.getElementById('of-count').textContent = (wholes.length + lines.length);
         var html = '';
         wholes.forEach(function(o){
-          html += renderItem(o, 'whole', o.id, (o.x_studio_nbr || 1) + ' pcs', 'whole');
+          html += renderItem(o, 'whole', o.id, (o.x_studio_nbr || 1) + ' pcs', 'whole', o.id, (o.x_studio_nbr || 1));
         });
         lines.forEach(function(l){
           var o = omap[l.x_studio_of_id[0]] || {name: l.x_studio_of_id[1]};
           var tot = o.x_studio_nbr || '?';
-          html += renderItem(o, 'line', l.id, '✂️ ' + l.x_studio_qte + '/' + tot + ' pcs', 'part');
+          html += renderItem(o, 'line', l.id, '✂️ ' + l.x_studio_qte + '/' + tot + ' pcs', 'part', l.x_studio_of_id[0], (l.x_studio_qte || 1));
         });
         var itemsBox = document.getElementById('of-items');
         itemsBox.innerHTML = html || '&lt;div style="color:#64748b;font-size:14px;"&gt;Aucun OF pour le moment&lt;/div&gt;';
@@ -277,6 +291,20 @@
           btn.addEventListener('click', function(){
             var kind = btn.getAttribute('data-kind'), id = parseInt(btn.getAttribute('data-id'));
             if(kind === 'line'){ removeLine(id); } else { removeOf(id, btn.getAttribute('data-name')); }
+          });
+        });
+        itemsBox.querySelectorAll('.of-reb').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var mx = parseInt(btn.getAttribute('data-max')) || 1;
+            var ofid = parseInt(btn.getAttribute('data-ofid'));
+            var q = parseInt(prompt('💥 Rebut sur ' + btn.getAttribute('data-name') + '\nNombre de pierres cassées (max ' + mx + ') :', '1')) || 0;
+            if(q &lt; 1 || q &gt; mx){ return; }
+            var m = prompt('Motif du rebut :', 'Casse mise en palette') || '';
+            if(m.replace(/\s/g,'') === ''){ return; }
+            rpc('ir.actions.server','run',[[1987]],{context:{active_model:'mrp.production', active_ids:[ofid], active_id:ofid, rebut_n:q, rebut_motif:m}})
+              .then(function(res){ setRes('💥 Rebut enregistré — OF relancé : ' + ((res &amp;&amp; res.new_of) || '')); beep(true); return refresh(); })
+              .then(function(){ input.focus(); })
+              .catch(function(e){ alert('Erreur : ' + e.message); });
           });
         });
         box.style.display='';
@@ -479,6 +507,73 @@
   for(var zi=0; zi&lt;zbtns.length; zi++){
     zbtns[zi].addEventListener('click', function(){ setZone(this.getAttribute('data-zone')); });
   }
+
+  var navPop=document.getElementById('nav-pop'), navList=document.getElementById('nav-list'), navSrch=document.getElementById('nav-srch');
+  var navData=[];
+  function navRender(){
+    var f=(navSrch.value||'').trim().toLowerCase();
+    var rows=navData.filter(function(c){ return !f || (c.name+' '+(c.m||'')).toLowerCase().indexOf(f)!==-1; });
+    if(!f){ rows=rows.filter(function(c){ return c.n&gt;0 || c.id===colisActif; }); }
+    rows=rows.slice(0,40);
+    navList.innerHTML=rows.map(function(c){
+      var cur=(c.id===colisActif);
+      return '&lt;button type="button" class="nav-row" data-name="'+c.name+'" style="display:block;width:100%;text-align:left;border:none;border-radius:10px;padding:12px;margin-bottom:6px;font-weight:800;font-size:15px;cursor:pointer;background:'+(cur?'#075985':'#1e293b')+';color:#e2e8f0;"&gt;'
+        +'&lt;span style="display:flex;justify-content:space-between;gap:8px;"&gt;&lt;span&gt;'+(cur?'▶ ':'')+c.name+'&lt;/span&gt;&lt;span style="color:#93c5fd;font-weight:700;white-space:nowrap;"&gt;'+c.n+' OF · '+c.cub+' m³ · '+c.ton+' kg&lt;/span&gt;&lt;/span&gt;'
+        +(c.m?'&lt;span style="display:block;color:#5eead4;font-weight:700;font-size:13px;margin-top:3px;"&gt;'+c.m+'&lt;/span&gt;':'')+'&lt;/button&gt;';
+    }).join('') || '&lt;div style="color:#64748b;padding:8px;"&gt;Aucun colis ouvert ne correspond&lt;/div&gt;';
+    navList.querySelectorAll('.nav-row').forEach(function(b){
+      b.addEventListener('click', function(){ navPop.style.display='none'; doScanRaw(b.getAttribute('data-name')).then(function(){ input.focus(); }); });
+    });
+  }
+  function openNav(){
+    navPop.style.display='flex'; navSrch.value='';
+    navList.innerHTML='&lt;div style="color:#94a3b8;padding:8px;"&gt;Chargement…&lt;/div&gt;';
+    Promise.all([
+      rpc('stock.package','search_read',[[['x_studio_cloturee','=',false]],['name','x_studio_cubage','x_studio_tonnage']],{limit:300,order:'write_date desc'}),
+      rpc('mrp.production','search_read',[[['x_studio_colis','!=',false],['x_studio_colis.x_studio_cloturee','=',false]],['x_studio_colis','x_studio_nom_du_client','x_studio_ref_commande_client','x_studio_palette']],{limit:3000}),
+      rpc('x_repartition_palette','search_read',[[['x_studio_colis_id','!=',false],['x_studio_colis_id.x_studio_cloturee','=',false]],['x_studio_of_id','x_studio_colis_id']],{limit:2000})
+    ]).then(function(res){
+      var cnt={}, meta={};
+      function esc(t){ return String(t).replace(/&amp;/g,'&amp;amp;').replace(/&lt;/g,'&amp;lt;').replace(/&gt;/g,'&amp;gt;'); }
+      function addMeta(cid,o){
+        if(!meta[cid]){ meta[cid]={cl:{},rf:{},pa:{}}; }
+        if(o.x_studio_nom_du_client){ meta[cid].cl[o.x_studio_nom_du_client]=1; }
+        if(o.x_studio_ref_commande_client){ meta[cid].rf[o.x_studio_ref_commande_client]=1; }
+        if(o.x_studio_palette){ meta[cid].pa[o.x_studio_palette]=1; }
+      }
+      res[1].forEach(function(o){ if(o.x_studio_colis){ var cid=o.x_studio_colis[0]; cnt[cid]=(cnt[cid]||0)+1; addMeta(cid,o); } });
+      var repOf={};
+      res[2].forEach(function(r){ if(r.x_studio_of_id &amp;&amp; r.x_studio_colis_id){ var cid=r.x_studio_colis_id[0]; cnt[cid]=(cnt[cid]||0)+1;
+        var oid=r.x_studio_of_id[0]; if(!repOf[oid]){ repOf[oid]=[]; } repOf[oid].push(cid); } });
+      var oids=Object.keys(repOf).map(Number);
+      var p2 = oids.length ? rpc('mrp.production','read',[oids,['x_studio_nom_du_client','x_studio_ref_commande_client','x_studio_palette']]) : Promise.resolve([]);
+      p2.then(function(ofs){
+        ofs.forEach(function(o){ (repOf[o.id]||[]).forEach(function(cid){ addMeta(cid,o); }); });
+        navData=res[0].map(function(pk){
+          var mm=meta[pk.id], parts=[];
+          if(mm){
+            var cl=Object.keys(mm.cl).sort(), rf=Object.keys(mm.rf).sort(), pa=Object.keys(mm.pa).sort();
+            if(cl.length){ parts.push('👤 '+esc(cl.join(', '))); }
+            if(rf.length){ parts.push('📄 '+esc(rf.join(', '))); }
+            if(pa.length){ parts.push('🔢 '+esc(pa.join(', '))); }
+          }
+          return {id:pk.id,name:pk.name,n:cnt[pk.id]||0,
+            cub:Math.round((pk.x_studio_cubage||0)*100)/100, ton:Math.round(pk.x_studio_tonnage||0), m:parts.join('  ·  ')};
+        });
+        navRender();
+        setTimeout(function(){ navSrch.focus(); },60);
+      });
+    }).catch(function(e){ navList.innerHTML='&lt;div style="color:#f87171;padding:8px;"&gt;Erreur : '+e.message+'&lt;/div&gt;'; });
+  }
+  document.getElementById('btn-colis-nav').addEventListener('click', openNav);
+  document.getElementById('btn-colis-print').addEventListener('click', function(){
+    if(!colisActif){ setRes('⚠️ Aucun colis actif — scannez ou choisissez un colis d\u2019abord'); beep(false); return; }
+    window.open('/report/pdf/maquignon.report_bon_colisage/'+colisActif, '_blank');
+    input.focus();
+  });
+  document.getElementById('nav-cancel').addEventListener('click', function(){ navPop.style.display='none'; input.focus(); });
+  navSrch.addEventListener('input', navRender);
+  navSrch.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var v=(navSrch.value||'').trim(); if(v){ navPop.style.display='none'; doScanRaw(v).then(function(){ input.focus(); }); } } });
 
   rpc('ir.actions.server','search',[[['name','=','Relocaliser palette (emplacement)']]]).then(function(r){ RELOC = (r &amp;&amp; r[0]) || null; }).catch(function(){});
   rpc('x_poste_de_scan','write',[[POSTE],{x_studio_rsultat:false}]).then(refresh).catch(refresh);

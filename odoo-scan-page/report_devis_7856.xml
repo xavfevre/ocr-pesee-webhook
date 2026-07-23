@@ -1,0 +1,143 @@
+<data>
+  <xpath expr="//t[@t-set='lines_to_report']" position="after">
+    <t t-set="show_ref_pierre" t-value="any(l.x_studio_ref_pierre for l in lines_to_report)"/>
+    <t t-set="show_nbr" t-value="any(l.x_studio_nbr for l in lines_to_report)"/>
+    <t t-set="show_poids" t-value="any(l.x_studio_poids for l in lines_to_report)"/>
+  </xpath>
+  <xpath expr="//th[@name='th_description']" position="after">
+    <th name="th_ref" t-if="show_ref_pierre" class="text-end text-nowrap">Ref. Pierre</th>
+    <th name="th_nbr" t-if="show_nbr" class="text-end text-nowrap">Nbr.</th>
+  </xpath>
+  <xpath expr="//th[@name='th_quantity']" position="after">
+    <th name="th_poids" t-if="show_poids" class="text-end text-nowrap">Poids</th>
+  </xpath>
+  <xpath expr="//td[@name='td_product_name']/span[@t-field='line.name']" position="replace">
+    <t t-if="line.x_studio_libell_client">
+      <t t-set="clean_text" t-value="line.x_studio_libell_client"/>
+      <t t-if="clean_text and clean_text.startswith('[')">
+        <t t-set="end_bracket" t-value="clean_text.find(']')"/>
+        <t t-if="end_bracket &gt;= 0">
+          <t t-set="clean_text" t-value="clean_text[end_bracket+1:].strip()"/>
+        </t>
+      </t>
+      <span style="white-space:pre-line;" t-out="clean_text"/>
+    </t>
+    <t t-else="">
+      <t t-set="clean_text" t-value="line.name"/>
+      <t t-if="clean_text and clean_text.startswith('[')">
+        <t t-set="end_bracket" t-value="clean_text.find(']')"/>
+        <t t-if="end_bracket &gt;= 0">
+          <t t-set="clean_text" t-value="clean_text[end_bracket+1:].strip()"/>
+        </t>
+      </t>
+      <span style="white-space:pre-line;" t-out="clean_text"/>
+    </t>
+    <t t-if="line.x_studio_nom_badge or line.x_studio_num_badge or line.x_studio_ref_chantier or line.x_studio_date_de_distribution">
+      <br/>
+      <t t-if="line.x_studio_nom_badge">Badge : <span t-field="line.x_studio_nom_badge"/></t>
+      <t t-if="line.x_studio_num_badge"> (<span t-field="line.x_studio_num_badge"/>)</t>
+      <t t-if="line.x_studio_date_de_distribution"> - BL du <span t-field="line.x_studio_date_de_distribution" t-options="{'widget': 'date'}"/></t>
+      <t t-if="line.x_studio_ref_chantier">, Chantier <span t-field="line.x_studio_ref_chantier"/></t>
+    </t>
+    <t t-if="line.x_studio_larg or line.x_studio_long or line.x_studio_epais or line.x_studio_surf or line.x_studio_vol">
+      <br/>
+      <span style="font-size:0.9em;">
+        <t t-if="line.x_studio_long or line.x_studio_larg or line.x_studio_epais">
+          (<t t-if="line.x_studio_long">Long : <span t-field="line.x_studio_long" t-options="{'precision': 3}"/></t><t t-if="line.x_studio_long and (line.x_studio_larg or line.x_studio_epais)"> / </t><t t-if="line.x_studio_larg">Larg : <span t-field="line.x_studio_larg" t-options="{'precision': 3}"/></t><t t-if="line.x_studio_larg and line.x_studio_epais"> / </t><t t-if="line.x_studio_epais">Haut : <span t-field="line.x_studio_epais" t-options="{'precision': 3}"/></t>)
+        </t>
+        <t t-if="line.x_studio_surf or line.x_studio_vol">
+          <t t-if="line.x_studio_long or line.x_studio_larg or line.x_studio_epais"><br/></t>
+          (<t t-if="line.x_studio_surf">Surf : <span t-field="line.x_studio_surf" t-options="{'precision': 3}"/></t><t t-if="line.x_studio_surf and line.x_studio_vol"> / </t><t t-if="line.x_studio_vol">Vol : <span t-field="line.x_studio_vol" t-options="{'precision': 3}"/></t>)
+        </t>
+      </span>
+    </t>
+  </xpath>
+  <xpath expr="//td[@name='td_product_name']" position="after">
+    <td name="td_ref_pierre" t-if="show_ref_pierre" class="text-end text-nowrap">
+      <span t-field="line.x_studio_ref_pierre"/>
+    </td>
+    <td name="td_nbr" t-if="show_nbr" class="text-end text-nowrap">
+      <t t-if="line.x_studio_nbr != 0"><span t-field="line.x_studio_nbr"/></t>
+      <t t-else="">-</t>
+    </td>
+  </xpath>
+  <xpath expr="//td[@name='td_product_quantity']/span[@t-field='line.product_uom_id']" position="replace">
+    <t t-if="line.x_studio_udf"><span t-field="line.x_studio_udf"/></t>
+    <t t-else=""><span t-field="line.product_uom_id">unités</span></t>
+  </xpath>
+  <xpath expr="//td[@name='td_product_quantity']" position="after">
+    <td name="td_poids" t-if="show_poids" class="text-end">
+      <t t-if="line.x_studio_poids"><span t-esc="round(line.x_studio_poids, 2)"/> kg</t>
+      <t t-else=""><span>-</span></t>
+    </td>
+  </xpath>
+  <xpath expr="//t[@t-set='address']/div[@t-field='doc.partner_id']" position="before">
+    <div t-if="doc.partner_id.x_studio_civilit_type_socit">
+      <span t-field="doc.partner_id.x_studio_civilit_type_socit"/>
+    </div>
+  </xpath>
+  <xpath expr="//t[@t-set='address']/div[@t-field='doc.partner_id']" position="after">
+    <div t-if="doc.partner_id.phone"><i class="fa fa-phone"/> <span t-field="doc.partner_id.phone"/></div>
+    <div t-if="doc.partner_id.email"><i class="fa fa-envelope"/> <span t-field="doc.partner_id.email"/></div>
+  </xpath>
+  <xpath expr="//div[@name='so_total_summary']" position="before">
+    <t t-set="total_volume" t-value="0"/>
+    <t t-set="total_poids" t-value="0"/>
+    <t t-foreach="lines_to_report" t-as="line">
+      <t t-if="not line.display_type">
+        <t t-set="total_volume" t-value="total_volume + (line.x_studio_vol or 0)"/>
+        <t t-set="total_poids" t-value="total_poids + (line.x_studio_poids or 0)"/>
+      </t>
+    </t>
+  </xpath>
+  <xpath expr="//div[@name='so_total_summary']//table[hasclass('o_total_table')]/t[@t-call='sale.document_tax_totals']" position="before">
+    <tr t-if="total_volume &gt; 0" class="border-black">
+      <td><strong>Volume total</strong></td>
+      <td class="text-end"><span t-esc="round(total_volume, 3)"/> m³</td>
+    </tr>
+    <tr t-if="total_poids &gt; 0" class="border-black">
+      <td><strong>Poids total</strong></td>
+      <td class="text-end"><span t-esc="round(total_poids, 2)"/> kg</td>
+    </tr>
+  </xpath>
+  <!-- Maquignon: police 11px (uniformiser avec la facture) -->
+  <xpath expr="//div[@id='informations']" position="attributes"><attribute name="style">font-size: 11px;</attribute></xpath>
+  <xpath expr="//table[hasclass('o_main_table')]" position="attributes"><attribute name="style">font-size: 11px;</attribute></xpath>
+  <xpath expr="//table[hasclass('o_total_table')]" position="attributes"><attribute name="style">font-size: 11px; line-height: 1.9;</attribute><attribute name="class" add="avoid-page-break-inside" separator=" "/></xpath>
+  <!-- Maquignon: colspan du sous-total de section (colonnes Ref/Nbr/Poids) -->
+  <xpath expr="//t[@t-set='section_name_colspan']" position="attributes"><attribute name="t-value">3 + (1 if display_discount else 0) + (1 if display_taxes else 0) + (1 if show_ref_pierre else 0) + (1 if show_nbr else 0) + (1 if show_poids else 0)</attribute></xpath>
+  <xpath expr="//table[hasclass('o_main_table')]/thead" position="attributes"><attribute name="style">display: table-header-group;</attribute></xpath>
+  <!-- Maquignon: espace entre le bloc totaux et la note (IBAN/BIC) -->
+  <xpath expr="//span[@name='order_note']/parent::div" position="attributes"><attribute name="style">margin-top: 16px;</attribute></xpath>
+  <!-- Maquignon: Recapitulatif par produit (comme la facture) -->
+  <xpath expr="//div[@id='total']/div" position="before">
+    <div class="col-6 pe-4" style="float:left;width:50%;">
+      <t t-set="recap_lines" t-value="doc.order_line.filtered(lambda l: l.product_id and not l.display_type)"/>
+      <t t-if="recap_lines">
+        <table class="table table-borderless product-recap-table" style="font-size: 11px;">
+          <thead><tr style="background-color: #f8f9fa;">
+            <th class="text-start"><strong>Récapitulatif par produit</strong></th>
+            <th class="text-end"><strong>Quantité totale</strong></th>
+          </tr></thead>
+          <tbody>
+            <t t-set="recap_keys" t-value="list(set([(l.product_id.id, l.x_studio_udf or l.product_uom_id.name) for l in recap_lines]))"/>
+            <t t-foreach="recap_keys" t-as="rk">
+              <t t-set="rk_match" t-value="recap_lines.filtered(lambda l: l.product_id.id == rk[0] and (l.x_studio_udf or l.product_uom_id.name) == rk[1])"/>
+              <t t-set="rk_qty" t-value="sum(rk_match.mapped('product_uom_qty'))"/>
+              <tr>
+                <td t-out="rk_match[0].product_id.display_name">Produit</td>
+                <td class="text-end text-nowrap"><span t-out="'%.3f' % rk_qty">0.000</span> <span t-out="rk[1]" class="ms-1">Unité</span></td>
+              </tr>
+            </t>
+          </tbody>
+        </table>
+      </t>
+    </div>
+  </xpath>
+  <!-- Maquignon: totaux en col-6 sans ms-auto (cote a cote avec le recap) -->
+  <xpath expr="//table[hasclass('o_total_table')]/parent::div" position="attributes"><attribute name="t-attf-class">col-6</attribute><attribute name="style">float:right;width:50%;</attribute></xpath>
+  <!-- Maquignon: espace au-dessus du bloc recap/totaux (decoller des lignes) -->
+  <xpath expr="//div[@id='total']" position="attributes"><attribute name="class">row mt-3</attribute></xpath>
+  <!-- Maquignon: entete colonne TAXES (au lieu de TVA) -->
+  <xpath expr="//th[@name='th_taxes']/span" position="replace"><span t-translation="off">TAXES</span></xpath>
+</data>
