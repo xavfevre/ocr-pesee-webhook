@@ -122,6 +122,29 @@
             <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
           </div>
         </div>
+        <div id="vo-rebut-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:10600;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;max-width:430px;width:94vw;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong style="font-size:17px;">💥 Déclarer un rebut</strong>
+              <button type="button" class="vo-reb-close btn btn-sm btn-outline-secondary">✕</button>
+            </div>
+            <div id="vo-reb-of" style="font-weight:800;color:#0f172a;margin-bottom:8px;">—</div>
+            <div style="font-weight:700;color:#475569;font-size:13px;">Nombre de pierres au rebut</div>
+            <div class="d-flex gap-1 my-1 align-items-center">
+              <input id="vo-reb-qty" type="number" min="1" value="1" class="form-control" style="max-width:110px;font-weight:800;font-size:18px;"/>
+              <button type="button" id="vo-reb-all" class="btn btn-outline-secondary" style="font-weight:800;">Toutes</button>
+            </div>
+            <div style="font-weight:700;color:#475569;font-size:13px;margin-top:8px;">Motif</div>
+            <div class="d-flex flex-wrap gap-1 my-1">
+              <button type="button" class="vo-reb-motif vo-chip">Casse fabrication</button>
+              <button type="button" class="vo-reb-motif vo-chip">Casse manutention</button>
+              <button type="button" class="vo-reb-motif vo-chip">Palette tombée</button>
+              <button type="button" class="vo-reb-motif vo-chip">Défaut pierre</button>
+            </div>
+            <input id="vo-reb-autre" type="text" class="form-control mb-2" placeholder="Autre motif / précision…"/>
+            <button type="button" id="vo-reb-go" class="btn btn-danger w-100" style="font-weight:800;font-size:16px;">💥 Valider le rebut → relancer l'OF</button>
+          </div>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -168,6 +191,7 @@
                       <span t-if="of.x_studio_colis" class="vo-pal">📦 <t t-esc="of.x_studio_colis.name"/></span>
                       <button t-elif="of.state == 'done'" type="button" class="vo-addcolis btn btn-sm btn-outline-primary" t-att-data-ofid="of.id" style="font-weight:800;">📦 Mettre au colis</button>
                       <span t-else="" style="font-size:11.5px;color:#94a3b8;">OF non clôturé — colisage impossible</span>
+                      <button type="button" class="vo-rebut btn btn-sm btn-outline-danger" t-att-data-ofid="of.id" t-att-data-of="of.name or ''" t-att-data-nbr="of.x_studio_nbr or 1" style="font-weight:800;margin-left:6px;">💥 Rebut</button>
                     </div>
                     <div t-if="of.x_studio_nom_du_client" class="vo-cli">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>
                     <div style="font-size:12px;"><strong t-esc="of.name"/><t t-if="of.origin"> · BC <t t-esc="of.origin"/></t></div>
@@ -335,6 +359,46 @@
         window.location.href = '/vue-operateur' + (v ? ('?op=' + encodeURIComponent(v) + h) : '');
       }
       (function(){
+        var rebOfId=0, rebMax=1;
+        var rebPop=document.getElementById('vo-rebut-pop');
+        function openReb(ofid, ofname, nbr){
+          rebOfId=ofid; rebMax=parseInt(nbr)||1;
+          var t=document.getElementById('vo-reb-of'); if(t){ t.textContent=ofname+' — '+rebMax+' pierre(s) au total'; }
+          var q=document.getElementById('vo-reb-qty'); if(q){ q.value=1; q.max=rebMax; }
+          var a=document.getElementById('vo-reb-autre'); if(a){ a.value=''; }
+          document.querySelectorAll('.vo-reb-motif').forEach(function(c){ c.classList.remove('on'); });
+          if(rebPop){ rebPop.style.display='flex'; }
+        }
+        window.voOpenReb=openReb;
+        if(rebPop){
+          document.querySelectorAll('.vo-reb-close').forEach(function(b){ b.onclick=function(){ rebPop.style.display='none'; }; });
+          document.querySelectorAll('.vo-reb-motif').forEach(function(c){
+            c.onclick=function(){ document.querySelectorAll('.vo-reb-motif').forEach(function(x){ x.classList.remove('on'); }); c.classList.add('on'); };
+          });
+          var ball=document.getElementById('vo-reb-all');
+          if(ball){ ball.onclick=function(){ var q=document.getElementById('vo-reb-qty'); if(q){ q.value=rebMax; } }; }
+          var bgo=document.getElementById('vo-reb-go');
+          if(bgo){ bgo.onclick=function(){
+            var q=parseInt((document.getElementById('vo-reb-qty')||{}).value)||0;
+            if(q&lt;1 || q&gt;rebMax){ alert('Nombre de pierres invalide (1 à '+rebMax+')'); return; }
+            var m=''; var sel=document.querySelector('.vo-reb-motif.on'); if(sel){ m=sel.textContent; }
+            var au=(document.getElementById('vo-reb-autre')||{}).value||''; if(au.replace(/\s/g,'')!==''){ m=(m?m+' — ':'')+au; }
+            if(!m){ alert('Choisissez un motif'); return; }
+            bgo.disabled=true;
+            fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1987]],kwargs:{context:{active_model:'mrp.production',active_ids:[rebOfId],active_id:rebOfId,rebut_n:q,rebut_motif:m}}}})
+            }).then(function(r){return r.json();}).then(function(d){
+              bgo.disabled=false;
+              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+              var nn=(d.result &amp;&amp; d.result.new_of)||'';
+              alert('💥 Rebut enregistré — OF relancé : '+nn);
+              location.reload();
+            }).catch(function(e){ bgo.disabled=false; alert('Échec : '+e); });
+          }; }
+          document.querySelectorAll('.vo-rebut').forEach(function(b){
+            b.onclick=function(){ openReb(parseInt(b.getAttribute('data-ofid')), b.getAttribute('data-of')||'OF', b.getAttribute('data-nbr')||1); };
+          });
+        }
         var params = new URLSearchParams(window.location.search);
         var op = params.get('op');
         if(op){ try{ localStorage.setItem('vo_op', op); }catch(e){} }
@@ -588,8 +652,10 @@ var dataC=document.getElementById('vo-colis-data');
               ch=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis&lt;/button&gt;';
               if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
             }
-            acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch;
+            acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch+' &lt;button type="button" class="vo-rebut2 btn btn-outline-danger" style="font-weight:800;"&gt;💥 Rebut&lt;/button&gt;';
             bindColis(acts, card);
+            var rb=acts.querySelector('.vo-rebut2');
+            if(rb){ rb.onclick=function(){ window.voOpenReb(parseInt(card.getAttribute('data-ofid')), card.getAttribute('data-of')||'OF', card.getAttribute('data-nbr')||1); }; }
           }
           else if(st==='progress'){ badge.innerHTML='&lt;span class="badge text-bg-success"&gt;▶ En cours&lt;/span&gt;'; acts.innerHTML=bd(id,'button_pending','btn-warning','⏸ Pause')+bd(id,'button_finish','btn-success','✓ Terminer'); }
           else if(st==='blocked'){ badge.innerHTML='&lt;span class="badge text-bg-danger"&gt;⛔ Bloquée&lt;/span&gt;'; acts.innerHTML=''; }

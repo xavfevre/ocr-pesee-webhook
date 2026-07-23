@@ -25,6 +25,7 @@
       .scan-of-list h6{color:#94a3b8;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
       .scan-of-item{font-size:15px;padding:6px 0;border-bottom:1px solid #334155;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px;}
       .of-del{background:#7f1d1d;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:16px;cursor:pointer;line-height:1;}
+      .of-reb{background:#9a3412;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:15px;cursor:pointer;line-height:1;margin-right:5px;}
       .of-del:active{background:#991b1b;}
       .of-main{display:flex;flex-direction:column;gap:1px;text-align:left;flex:1;min-width:0;}
       .of-name{font-size:15px;font-weight:800;color:#e2e8f0;}
@@ -253,10 +254,11 @@
     if(dims.length){ meta.push(dims.join(' × ') + ' m'); }
     return meta.join(' · ');
   }
-  function renderItem(o, kind, refId, qtyLabel, qtyClass){
+  function renderItem(o, kind, refId, qtyLabel, qtyClass, ofid, maxq){
     return '&lt;div class="scan-of-item"&gt;'
       +   '&lt;div class="of-main"&gt;&lt;div class="of-name"&gt;🪨 ' + esc(o.name) + '&lt;span class="of-qty ' + qtyClass + '"&gt;' + qtyLabel + '&lt;/span&gt;&lt;/div&gt;'
       +     '&lt;div class="of-meta"&gt;' + metaOf(o) + '&lt;/div&gt;&lt;/div&gt;'
+      +   '&lt;button class="of-reb" data-ofid="' + ofid + '" data-max="' + maxq + '" data-name="' + esc(o.name) + '" title="Déclarer un rebut"&gt;💥&lt;/button&gt;'
       +   '&lt;button class="of-del" data-kind="' + kind + '" data-id="' + refId + '" data-name="' + esc(o.name) + '"&gt;🗑️&lt;/button&gt;'
       + '&lt;/div&gt;';
   }
@@ -276,12 +278,12 @@
         document.getElementById('of-count').textContent = (wholes.length + lines.length);
         var html = '';
         wholes.forEach(function(o){
-          html += renderItem(o, 'whole', o.id, (o.x_studio_nbr || 1) + ' pcs', 'whole');
+          html += renderItem(o, 'whole', o.id, (o.x_studio_nbr || 1) + ' pcs', 'whole', o.id, (o.x_studio_nbr || 1));
         });
         lines.forEach(function(l){
           var o = omap[l.x_studio_of_id[0]] || {name: l.x_studio_of_id[1]};
           var tot = o.x_studio_nbr || '?';
-          html += renderItem(o, 'line', l.id, '✂️ ' + l.x_studio_qte + '/' + tot + ' pcs', 'part');
+          html += renderItem(o, 'line', l.id, '✂️ ' + l.x_studio_qte + '/' + tot + ' pcs', 'part', l.x_studio_of_id[0], (l.x_studio_qte || 1));
         });
         var itemsBox = document.getElementById('of-items');
         itemsBox.innerHTML = html || '&lt;div style="color:#64748b;font-size:14px;"&gt;Aucun OF pour le moment&lt;/div&gt;';
@@ -289,6 +291,20 @@
           btn.addEventListener('click', function(){
             var kind = btn.getAttribute('data-kind'), id = parseInt(btn.getAttribute('data-id'));
             if(kind === 'line'){ removeLine(id); } else { removeOf(id, btn.getAttribute('data-name')); }
+          });
+        });
+        itemsBox.querySelectorAll('.of-reb').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var mx = parseInt(btn.getAttribute('data-max')) || 1;
+            var ofid = parseInt(btn.getAttribute('data-ofid'));
+            var q = parseInt(prompt('💥 Rebut sur ' + btn.getAttribute('data-name') + '\nNombre de pierres cassées (max ' + mx + ') :', '1')) || 0;
+            if(q &lt; 1 || q &gt; mx){ return; }
+            var m = prompt('Motif du rebut :', 'Casse mise en palette') || '';
+            if(m.replace(/\s/g,'') === ''){ return; }
+            rpc('ir.actions.server','run',[[1987]],{context:{active_model:'mrp.production', active_ids:[ofid], active_id:ofid, rebut_n:q, rebut_motif:m}})
+              .then(function(res){ setRes('💥 Rebut enregistré — OF relancé : ' + ((res &amp;&amp; res.new_of) || '')); beep(true); return refresh(); })
+              .then(function(){ input.focus(); })
+              .catch(function(e){ alert('Erreur : ' + e.message); });
           });
         });
         box.style.display='';
