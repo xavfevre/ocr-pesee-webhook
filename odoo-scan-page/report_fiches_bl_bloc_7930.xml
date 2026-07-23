@@ -1,0 +1,47 @@
+<t t-name="maquignon.report_fiches_bl_bloc">
+  <t t-call="web.html_container">
+    <t t-foreach="docs" t-as="bl">
+      <t t-foreach="bl.x_studio_bloc_ids" t-as="o">
+        <t t-call="web.external_layout">
+          <div class="page">
+            <div class="row mb-3">
+              <div class="col-6">
+                <h2 style="margin-bottom:2px;">Fiche bloc</h2>
+                <div style="font-size:30px;font-weight:900;" t-out="o.x_name"/>
+                <div t-if="o.x_studio_num_carriere" style="font-size:16px;font-weight:700;color:#475569;">N° carrière : <t t-out="o.x_studio_num_carriere"/></div>
+              </div>
+              <div class="col-6 text-end">
+                <div t-field="o.x_name" t-options="{'widget':'barcode','width':600,'height':140,'img_style':'width:300px;height:70px;'}"/>
+              </div>
+            </div>
+            <div class="row mb-2" style="font-size:15px;">
+              <div class="col-6">
+                <div style="border:1.5px solid #94a3b8;border-radius:8px;padding:8px 12px;">
+                  <div style="font-size:17px;"><strong>Pierre :</strong> <t t-out="o.x_studio_pierre.display_name or '-'"/></div>
+                  <div t-if="o.x_studio_qualite"><strong>Qualité / banc :</strong> <t t-out="o.x_studio_qualite"/></div>
+                  <div t-if="o.x_studio_emplacement"><strong>Emplacement parc :</strong> <t t-out="o.x_studio_emplacement"/></div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div style="border:1.5px solid #94a3b8;border-radius:8px;padding:8px 12px;">
+                  <div t-if="o.x_studio_fournisseur"><strong>Fournisseur :</strong> <t t-out="o.x_studio_fournisseur.name"/></div>
+                  <div t-if="o.x_studio_bl_fournisseur"><strong>BL :</strong> <t t-out="o.x_studio_bl_fournisseur"/><t t-if="o.x_studio_facture_fournisseur"> · <strong>Facture :</strong> <t t-out="o.x_studio_facture_fournisseur"/></t></div>
+                  <div t-if="o.x_studio_date_reception"><strong>Reçu le :</strong> <t t-out="o.x_studio_date_reception.strftime('%d/%m/%Y')"/></div>
+                </div>
+              </div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-12" style="border-top:2px solid #000;border-bottom:2px solid #000;padding:8px 0;font-size:18px;text-align:center;">
+                <strong>CAPABLE :</strong>
+                <t t-if="o.x_studio_long_cap"><t t-out="'%.2f' % o.x_studio_long_cap"/> × <t t-out="'%.2f' % (o.x_studio_larg_cap or 0)"/> × <t t-out="'%.2f' % (o.x_studio_haut_cap or 0)"/> m — </t>
+                <strong style="font-size:22px;"><t t-out="'%.3f' % (o.x_studio_vol_capable or 0)"/> m³</strong>
+                <t t-if="o.x_studio_tonnage"> · <t t-out="'%.1f' % o.x_studio_tonnage"/> t</t>
+              </div>
+            </div>
+            <div t-if="o.x_studio_notes" class="row"><div class="col-12" style="font-size:13px;white-space:pre-line;background:#FEF9C3;border:1px solid #FDE68A;border-radius:8px;padding:8px 12px;"><strong>Notes :</strong> <t t-out="o.x_studio_notes"/></div></div>
+          </div>
+        </t>
+      </t>
+    </t>
+  </t>
+</t>
