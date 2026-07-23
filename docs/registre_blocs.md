@@ -37,3 +37,20 @@ Les BL fournisseurs étant souvent manuscrits, la saisie se fait par le menu
   par bloc, en un seul PDF, à agrafer sur les blocs au parc.
 Vérifié avec la facture Francepierre FCM2026X0019 : blocs 22443/22444 → volumes
 3,460 / 3,451 m³ et coûts identiques à la facture.
+
+## Scan du bloc à la tablette (TSH2300 / sciage primaire) — ajouté le 23/07/2026
+Sur « Ma production », les cartes dont l'opération est un **Sciage Primaire**
+(TSH2300, Chauvet, Benetti) portent un bouton **« 🪨 Scanner le bloc »** :
+scan du code-barre de la fiche bloc (ou saisie du n° BLC / n° carrière / pierre,
+liste des blocs au parc et en sciage filtrable). Action serveur 1996
+« Tablette : lier le bloc à l'OF » (résolution BLC → n° carrière → ilike,
+refus des blocs au rebut). Une fois lié, le bouton affiche le n° du bloc
+(re-cliquable pour changer) et le bloc passe « En sciage » puis « Débité »
+avec rendement automatique (automatisation 81).
+
+## Correctif au passage
+L'action 1910 « OF terminé quand tous les OT sont faits » terminait aussi les
+OF **en cours d'annulation** (OT annulés comptés comme faits → production
+fantôme, cf. incident WH/OF/08520). Garde-fou ajouté : ne termine que si tous
+les OT sont strictement « done » et aucun annulé. Vérifié : annuler un OF le
+laisse bien en « Annulé ».
