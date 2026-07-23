@@ -295,7 +295,7 @@
             <t t-foreach="sites_op" t-as="sv"><span class="vo-chip chip-site" t-att-data-val="sv">📍 <t t-esc="{'atelier': 'Atelier', 'usine': 'Usine'}.get(sv, sv)"/></span></t>
           </div>
         </t>
-        <t t-if="len(machines_op) &gt; 1">
+        <t t-if="machines_op">
           <div class="vo-chips"><span class="vo-lbl">Machines</span>
             <t t-foreach="machines_op" t-as="mc"><span class="vo-chip chip-mac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t>
           </div>
