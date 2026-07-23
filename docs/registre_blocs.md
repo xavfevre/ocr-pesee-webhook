@@ -23,3 +23,17 @@ Modèle Odoo manuel `x_bloc` (menu **Fabrication → Blocs de pierre**), créé 
 - Tablette TSH2300 : scanner le code-barre du bloc au démarrage du sciage pour lier l'OF.
 - OCR des factures fournisseurs de blocs pour créer les fiches automatiquement.
 - Tableau de bord « Rendement blocs » (par pierre, par fournisseur).
+
+## Saisie manuelle des BL (Céline) — ajouté le 23/07/2026
+Les BL fournisseurs étant souvent manuscrits, la saisie se fait par le menu
+**Fabrication → Réceptions de blocs (BL)** (modèle `x_bl_bloc`, id 2687) :
+- l'en-tête (n° du BL, fournisseur, date, facture, pierre, qualité, prix €/m³,
+  emplacement) se saisit une seule fois ;
+- les blocs s'enchaînent en lignes (n° carrière + 3 dimensions capables + tonnage) ;
+- les infos d'en-tête se recopient automatiquement sur chaque ligne (action 1993 /
+  automatisation « BL blocs : propagation en-tête », + héritage à la création via
+  l'action 1988), volume et coût calculés ;
+- **Imprimer → Fiches blocs (toutes)** (rapport 1995) sort une fiche code-barre
+  par bloc, en un seul PDF, à agrafer sur les blocs au parc.
+Vérifié avec la facture Francepierre FCM2026X0019 : blocs 22443/22444 → volumes
+3,460 / 3,451 m³ et coûts identiques à la facture.
