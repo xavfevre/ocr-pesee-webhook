@@ -155,7 +155,12 @@
     <script>
 
 (function(){
-  var POSTE = 1;
+  var _qp = new URLSearchParams(window.location.search);
+  var POSTE = parseInt(_qp.get('poste')) || 1;
+  var SITE_LBL = (POSTE === 2) ? 'USINE' : 'ATELIER';
+  var _h = document.querySelector('.scan-h');
+  if(_h){ _h.textContent = '📦 Poste de scan — ' + SITE_LBL + ' — Colis / OF'; }
+  document.title = 'Poste de scan ' + SITE_LBL + ' | Maquignon';
   var input  = document.getElementById('scan-input');
   var resEl  = document.getElementById('scan-res');
   var colisEl= document.getElementById('colis-name');

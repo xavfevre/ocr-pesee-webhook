@@ -89,6 +89,7 @@
         <t t-set="_m3" t-value="[cm_pa.setdefault(ci, set()).add(o.x_studio_palette) for o, ci in colis_pairs if o.x_studio_palette]"/>
         <t t-set="colis_meta" t-value="dict((c.id, ' · '.join([x for x in [', '.join(sorted(cm_cl.get(c.id, []))), ', '.join(sorted(cm_rf.get(c.id, []))), ', '.join(sorted(cm_pa.get(c.id, [])))] if x]).replace('&quot;',' ')) for c in colis_ouverts)"/>
         <t t-set="hmach" t-value="sorted(set(w.workcenter_id.name for w in dones if w.workcenter_id))"/>
+        <t t-set="hsit" t-value="sorted(set(w.workcenter_id.x_studio_site for w in dones if w.workcenter_id and w.workcenter_id.x_studio_site))"/>
         <t t-set="hcli" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in dones if w.production_id.x_studio_nom_du_client))"/>
         <t t-set="hrefs" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in dones if w.production_id.x_studio_ref_commande_client))"/>
         <t t-set="hpals" t-value="sorted(set(w.production_id.x_studio_palette for w in dones if w.production_id.x_studio_palette))"/>
@@ -100,6 +101,7 @@
         </div>
         <p class="text-muted mb-2"><strong id="vo-hn"><t t-esc="len(dones)"/></strong> opération(s) terminée(s) sur <t t-esc="histj"/> jours</p>
         <t t-if="dones">
+          <t t-if="len(hsit) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Site</span><t t-foreach="hsit" t-as="sv"><span class="vo-chip chip-hsit" t-att-data-val="sv">📍 <t t-esc="{'atelier': 'Atelier', 'usine': 'Usine'}.get(sv, sv)"/></span></t></div></t>
           <t t-if="len(hmach) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Machines</span><t t-foreach="hmach" t-as="mc"><span class="vo-chip chip-hmac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t></div></t>
           <t t-if="len(hcli) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Clients</span><t t-foreach="hcli" t-as="cl"><span class="vo-chip chip-hcli" t-att-data-val="cl"><t t-esc="cl"/></span></t></div></t>
           <t t-if="len(hrefs) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Réf. cde</span><t t-foreach="hrefs" t-as="rf"><span class="vo-chip chip-href" t-att-data-val="rf" t-att-title="rf"><t t-esc="rf"/></span></t></div></t>
@@ -179,7 +181,7 @@
               <t t-set="col" t-value="rawcol or '#9AA0A6'"/>
               <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
               <t t-set="htxt" t-value="'#1a1a1a' if lum &gt; 150 else '#ffffff'"/>
-              <div class="vo-card" t-attf-style="border-left-color:{{col}};" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-colis="of.x_studio_colis.name or ''">
+              <div class="vo-card" t-attf-style="border-left-color:{{col}};" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-colis="of.x_studio_colis.name or ''">
                 <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
                   <span><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
                   <span><t t-esc="pierre"/></span>
@@ -263,6 +265,7 @@
         </div>
         <t t-set="clients_op" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in ots if w.production_id.x_studio_nom_du_client))"/>
         <t t-set="machines_op" t-value="sorted(set(w.workcenter_id.name for w in ots if w.workcenter_id))"/>
+        <t t-set="sites_op" t-value="sorted(set(w.workcenter_id.x_studio_site for w in ots if w.workcenter_id and w.workcenter_id.x_studio_site))"/>
         <t t-set="refs_op" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in ots if w.production_id.x_studio_ref_commande_client))"/>
         <t t-set="palettes_op" t-value="sorted(set(w.production_id.x_studio_palette for w in ots if w.production_id.x_studio_palette))"/>
         <t t-set="todo_n" t-value="len(ots.filtered(lambda w: w.state != 'done'))"/>
@@ -275,6 +278,11 @@
           <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕ Dimensions</button>
           <span class="vo-lbl" style="text-transform:none;letter-spacing:0;">pierres qui tiennent dans ce gabarit, peu importe l’orientation</span>
         </div>
+        <t t-if="len(sites_op) &gt; 1">
+          <div class="vo-chips"><span class="vo-lbl">Site</span>
+            <t t-foreach="sites_op" t-as="sv"><span class="vo-chip chip-site" t-att-data-val="sv">📍 <t t-esc="{'atelier': 'Atelier', 'usine': 'Usine'}.get(sv, sv)"/></span></t>
+          </div>
+        </t>
         <t t-if="len(machines_op) &gt; 1">
           <div class="vo-chips"><span class="vo-lbl">Machines</span>
             <t t-foreach="machines_op" t-as="mc"><span class="vo-chip chip-mac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t>
@@ -314,7 +322,7 @@
           <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
           <t t-set="htxt" t-value="'#1a1a1a' if lum &gt; 150 else '#ffffff'"/>
           <t t-set="plans" t-value="all_plans.filtered(lambda a: a.res_id == of.id)"/>
-          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'">
+          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
               <span><t t-esc="pierre"/></span>
@@ -493,17 +501,18 @@ var dataC=document.getElementById('vo-colis-data');
             };
           });
           if(!blocks.length){ return; }
-          var selHC={}, selHR={}, selHM={}, selHP={}, selHK={};
+          var selHC={}, selHR={}, selHM={}, selHP={}, selHK={}, selHS={};
           function hOk(sel, card, attr){ var k=Object.keys(sel); return k.length===0 || !!sel[card.getAttribute(attr)||'']; }
-          function hMatch(c){ return hOk(selHC,c,'data-client') &amp;&amp; hOk(selHR,c,'data-ref') &amp;&amp; hOk(selHM,c,'data-machine') &amp;&amp; hOk(selHP,c,'data-palette') &amp;&amp; hOk(selHK,c,'data-colis'); }
+          function hMatch(c){ return hOk(selHC,c,'data-client') &amp;&amp; hOk(selHR,c,'data-ref') &amp;&amp; hOk(selHM,c,'data-machine') &amp;&amp; hOk(selHP,c,'data-palette') &amp;&amp; hOk(selHK,c,'data-colis') &amp;&amp; hOk(selHS,c,'data-site'); }
           var idx = 0;
           for(var i=0;i&lt;blocks.length;i++){ if(blocks[i].getAttribute('data-today')==='1'){ idx=i; break; } }
           var lbl=document.getElementById('vd-lbl'), prev=document.getElementById('vd-prev'), next=document.getElementById('vd-next');
           function nextVis(from,dir){ var i=from+dir; while(i&gt;=0 &amp;&amp; i&lt;blocks.length){ if(blocks[i].getAttribute('data-vis')!=='0'){ return i; } i+=dir; } return -1; }
           function refreshChips(){
             var b=blocks[idx];
-            var pm={}, pc={}, pr={}, pp={}, pk={};
+            var pm={}, pc={}, pr={}, pp={}, pk={}, ps={};
             b.querySelectorAll('.vo-card').forEach(function(card){
+              ps[card.getAttribute('data-site')||'']=1;
               pm[card.getAttribute('data-machine')||'']=1;
               pc[card.getAttribute('data-client')||'']=1;
               pr[card.getAttribute('data-ref')||'']=1;
@@ -516,7 +525,7 @@ var dataC=document.getElementById('vo-colis-data');
                 ch.style.display = (present[v] || sel[v]) ? '' : 'none';
               });
             }
-            upd('.chip-hmac',pm,selHM); upd('.chip-hcli',pc,selHC); upd('.chip-href',pr,selHR); upd('.chip-hpal',pp,selHP); upd('.chip-hcol',pk,selHK);
+            upd('.chip-hmac',pm,selHM); upd('.chip-hcli',pc,selHC); upd('.chip-href',pr,selHR); upd('.chip-hpal',pp,selHP); upd('.chip-hcol',pk,selHK); upd('.chip-hsit',ps,selHS);
             document.querySelectorAll('.vo-hrow').forEach(function(row){
               var any=false;
               row.querySelectorAll('.vo-chip').forEach(function(ch){ if(ch.style.display!=='none'){ any=true; } });
@@ -547,7 +556,7 @@ var dataC=document.getElementById('vo-colis-data');
               ch.onclick=function(){ var v=ch.getAttribute('data-val'); if(sel[v]){ delete sel[v]; ch.classList.remove('on'); } else { sel[v]=1; ch.classList.add('on'); } applyH(); };
             });
           }
-          chipH(selHM,'.chip-hmac'); chipH(selHC,'.chip-hcli'); chipH(selHR,'.chip-href'); chipH(selHP,'.chip-hpal'); chipH(selHK,'.chip-hcol');
+          chipH(selHM,'.chip-hmac'); chipH(selHC,'.chip-hcli'); chipH(selHR,'.chip-href'); chipH(selHP,'.chip-hpal'); chipH(selHK,'.chip-hcol'); chipH(selHS,'.chip-hsit');
           if(prev){ prev.onclick=function(){ var j=nextVis(idx,1); if(j!==-1){ idx=j; show(); } }; }
           if(next){ next.onclick=function(){ var j=nextVis(idx,-1); if(j!==-1){ idx=j; show(); } }; }
           applyH();
@@ -716,11 +725,11 @@ var dataC=document.getElementById('vo-colis-data');
         }
         document.querySelectorAll('.vo-card').forEach(function(c){ render(c); renderP(c); });
 
-        var selC={}, selR={}, selM={}, selP={}, dimQ=['','',''];
+        var selC={}, selR={}, selM={}, selP={}, selS={}, dimQ=['','',''];
         var VOP = new URLSearchParams(location.search).get('op') || '';
         var FKEY = 'vo_filters_' + VOP;
         function saveF(){
-          try{ localStorage.setItem(FKEY, JSON.stringify({c:Object.keys(selC), r:Object.keys(selR), m:Object.keys(selM), p:Object.keys(selP), d:dimQ})); }catch(e){}
+          try{ localStorage.setItem(FKEY, JSON.stringify({c:Object.keys(selC), r:Object.keys(selR), m:Object.keys(selM), p:Object.keys(selP), s:Object.keys(selS), d:dimQ})); }catch(e){}
         }
         function restoreF(){
           var s=null; try{ s=JSON.parse(localStorage.getItem(FKEY)||'null'); }catch(e){}
@@ -731,17 +740,18 @@ var dataC=document.getElementById('vo-colis-data');
               var v=ch.getAttribute('data-val'); if(set[v]){ sel[v]=1; ch.classList.add('on'); }
             });
           }
-          rest(s.c, selC, '.chip-cli'); rest(s.r, selR, '.chip-ref'); rest(s.m, selM, '.chip-mac'); rest(s.p, selP, '.chip-pal');
+          rest(s.c, selC, '.chip-cli'); rest(s.r, selR, '.chip-ref'); rest(s.m, selM, '.chip-mac'); rest(s.p, selP, '.chip-pal'); rest(s.s, selS, '.chip-site');
           if(s.d){ dimQ=[s.d[0]||'', s.d[1]||'', s.d[2]||'']; dimIns.forEach(function(inp,i){ if(inp){ inp.value=dimQ[i]; } });
             if(dimX){ dimX.style.display=(dimQ[0]||dimQ[1]||dimQ[2])?'':'none'; } }
         }
         function apply(){
           document.querySelectorAll('.vo-card').forEach(function(c){
-            var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'', mc=c.getAttribute('data-machine')||'', pa=c.getAttribute('data-palette')||'';
-            var kc=Object.keys(selC), kr=Object.keys(selR), km=Object.keys(selM), kp=Object.keys(selP);
+            var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'', mc=c.getAttribute('data-machine')||'', pa=c.getAttribute('data-palette')||'', sv=c.getAttribute('data-site')||'';
+            var kc=Object.keys(selC), kr=Object.keys(selR), km=Object.keys(selM), kp=Object.keys(selP), ks=Object.keys(selS);
             var okC = kc.length===0 || selC[cl];
             var okR = kr.length===0 || selR[rf];
             var okM = km.length===0 || selM[mc];
+            var okS = ks.length===0 || selS[sv];
             var okP = kp.length===0 || selP[pa];
             var okD = true;
             var cons = dimQ.map(function(v){ var f = parseFloat(v); return isNaN(f) ? null : f; })
@@ -758,7 +768,7 @@ var dataC=document.getElementById('vo-colis-data');
               }
               if(!pd.length){ okD = false; }
             }
-            c.style.display = (okC &amp;&amp; okR &amp;&amp; okM &amp;&amp; okP &amp;&amp; okD) ? '' : 'none';
+            c.style.display = (okC &amp;&amp; okR &amp;&amp; okM &amp;&amp; okP &amp;&amp; okD &amp;&amp; okS) ? '' : 'none';
           });
           updateCount();
         }
@@ -782,7 +792,7 @@ var dataC=document.getElementById('vo-colis-data');
             };
           });
         }
-        chip(selC, '.chip-cli'); chip(selR, '.chip-ref'); chip(selM, '.chip-mac'); chip(selP, '.chip-pal');
+        chip(selC, '.chip-cli'); chip(selR, '.chip-ref'); chip(selM, '.chip-mac'); chip(selP, '.chip-pal'); chip(selS, '.chip-site');
         restoreF();
         var SKEY='vo_sort_'+VOP;
         function applySort(){
