@@ -147,13 +147,22 @@
             <button type="button" id="vo-reb-go" class="btn btn-danger w-100" style="font-weight:800;font-size:16px;">💥 Valider le rebut → relancer l'OF</button>
           </div>
         </div>
+        <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
+          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+          <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
+          <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
+          <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <strong style="font-size:17px;">📦 Choisir le colis</strong>
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
-            <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+            <div class="d-flex gap-1 mb-2">
+              <input id="vo-colis-search" type="text" class="form-control" placeholder="Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+              <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
+            </div>
             <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, '')) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
@@ -254,13 +263,22 @@
             <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
           </div>
         </div>
+        <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
+          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+          <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
+          <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
+          <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <strong style="font-size:17px;">📦 Choisir le colis</strong>
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
-            <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+            <div class="d-flex gap-1 mb-2">
+              <input id="vo-colis-search" type="text" class="form-control" placeholder="Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+              <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
+            </div>
             <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, '')) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
@@ -470,6 +488,58 @@
             b.onclick=function(){ openReb(parseInt(b.getAttribute('data-ofid')), b.getAttribute('data-of')||'OF', b.getAttribute('data-nbr')||1); };
           });
         }
+        var camPop=document.getElementById('vo-cam-pop'), camVid=document.getElementById('vo-cam-video'), camMsg=document.getElementById('vo-cam-msg');
+        var camStream=null, camTimer=null;
+        function camStop(){
+          if(camTimer){ clearInterval(camTimer); camTimer=null; }
+          if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); camStream=null; }
+          if(camVid){ camVid.srcObject=null; }
+          if(camPop){ camPop.style.display='none'; }
+        }
+        function camOpen(onCode){
+          if(!camPop){ return; }
+          if(!window.BarcodeDetector){ alert('Scanner caméra non supporté par ce navigateur — utilisez la douchette ou tapez le numéro.'); return; }
+          if(!(navigator.mediaDevices &amp;&amp; navigator.mediaDevices.getUserMedia)){ alert('Caméra indisponible sur cet appareil.'); return; }
+          camPop.style.display='block';
+          if(camMsg){ camMsg.textContent='Visez le code-barre de la palette…'; }
+          navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}}).then(function(st){
+            camStream=st; camVid.srcObject=st;
+            return camVid.play();
+          }).then(function(){
+            var det;
+            try{ det=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','itf','qr_code']}); }
+            catch(e){ det=new BarcodeDetector(); }
+            var busy=false;
+            camTimer=setInterval(function(){
+              if(busy || !camStream || camVid.readyState &lt; 2){ return; }
+              busy=true;
+              det.detect(camVid).then(function(codes){
+                busy=false;
+                var v='';
+                for(var ci=0; ci&lt;codes.length; ci++){ if(codes[ci].rawValue &amp;&amp; codes[ci].rawValue.trim()){ v=codes[ci].rawValue.trim(); break; } }
+                if(!v){ return; }
+                camStop();
+                try{ if(navigator.vibrate){ navigator.vibrate(90); } }catch(e){}
+                onCode(v);
+              }).catch(function(){ busy=false; });
+            }, 220);
+          }).catch(function(err){
+            camStop();
+            alert('Caméra inaccessible : ' + ((err &amp;&amp; err.message) || err) + '\nAutorisez l’accès caméra pour ce site dans les réglages du navigateur.');
+          });
+        }
+        var camCloseB=document.getElementById('vo-cam-close');
+        if(camCloseB){ camCloseB.onclick=camStop; }
+        var camBtnB=document.getElementById('vo-cam-btn');
+        if(camBtnB){ camBtnB.onclick=function(){
+          camOpen(function(v){
+            var s=document.getElementById('vo-colis-search');
+            if(!s){ return; }
+            s.value=v;
+            s.dispatchEvent(new Event('input',{bubbles:true}));
+            s.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+          });
+        }; }
         var params = new URLSearchParams(window.location.search);
         var op = params.get('op');
         if(op){ try{ localStorage.setItem('vo_op', op); }catch(e){} }
