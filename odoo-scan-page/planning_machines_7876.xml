@@ -25,7 +25,7 @@
         <t t-set="board" t-value="request.httprequest.args.get('board') or 'complet'"/>
         <t t-set="board_label" t-value="{'complet': 'complet', 'secondaire': 'sciage secondaire', 'primaire': 'sciage primaire', 'atelier': 'Atelier', 'usine': 'Usine'}.get(board, board)"/>
         <t t-if="board == 'secondaire'">
-          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse([18, 6, 7, 8, 5, 9, 12, 19])"/>
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse([18, 6, 7, 8, 5, 9, 22, 12, 19])"/>
           <t t-set="type_kw" t-value="['secondaire', 'taille']"/>
           <t t-set="type_dom" t-value="['|', ('name', 'ilike', 'secondaire'), ('name', 'ilike', 'taille')]"/>
         </t>
