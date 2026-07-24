@@ -217,7 +217,7 @@
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         {% for i in [1, 2, 3, 4] %}
         <div>
-          <input type="file" accept="image/*" capture="environment" id="pf{{ i }}"
+          <input type="file" accept="image/*" id="pf{{ i }}"
                  style="display:none;" onchange="loadPhoto({{ i }})"/>
           <input type="hidden" name="photo_{{ i }}" id="ph{{ i }}"
                  value="{{ 'KEEP' if has['p' ~ i] else '' }}"/>
@@ -279,27 +279,44 @@ function showTab(id, btn) {
 }
 
 // Photos : recadrage à 1280px max, JPEG 80%
+function photoFail(i, msg) {
+  var lbl = document.getElementById('pl' + i);
+  lbl.textContent = '⚠️ ' + msg;
+  lbl.style.background = '#fff3cd';
+  document.getElementById('pf' + i).value = '';
+}
 function loadPhoto(i) {
-  var f = document.getElementById('pf' + i).files[0];
+  var inp = document.getElementById('pf' + i);
+  var f = inp.files[0];
   if (!f) return;
-  var r = new FileReader();
-  r.onload = function () {
-    var img = new Image();
-    img.onload = function () {
-      var mx = 1280, w = img.width, h = img.height;
+  var lbl = document.getElementById('pl' + i);
+  lbl.textContent = '⏳ Traitement…';
+  var u = URL.createObjectURL(f);
+  var img = new Image();
+  img.onerror = function () {
+    URL.revokeObjectURL(u);
+    photoFail(i, 'Format non pris en charge — reprenez la photo avec l\'appareil');
+  };
+  img.onload = function () {
+    try {
+      var mx = 1280, w = img.naturalWidth, h = img.naturalHeight;
       if (w > mx || h > mx) { var k = Math.min(mx / w, mx / h); w = Math.round(w * k); h = Math.round(h * k); }
       var c = document.createElement('canvas');
       c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       var d = c.toDataURL('image/jpeg', 0.8);
+      URL.revokeObjectURL(u);
+      if (!d || d.length < 100) { photoFail(i, 'Échec du traitement — réessayez'); return; }
       document.getElementById('ph' + i).value = d;
-      var lbl = document.getElementById('pl' + i);
       lbl.style.background = '#e6f7ee';
       lbl.innerHTML = '<img src="' + d + '" style="max-width:100%; max-height:86px; border-radius:8px;"/>';
-    };
-    img.src = r.result;
+      saveDraft();
+    } catch (e) {
+      URL.revokeObjectURL(u);
+      photoFail(i, 'Échec du traitement — réessayez');
+    }
   };
-  r.readAsDataURL(f);
+  img.src = u;
 }
 
 // Signature : pavé tactile
@@ -332,6 +349,50 @@ function clearSig() {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('{{ BASE }}/sw.js').catch(function () {});
 }
+// ── Brouillon local : survit au rechargement d'onglet (iOS pendant la photo) ─
+var DKEY = 'fdt_draft_{{ slot_id }}';
+var JUST_SAVED = {{ '1' if ok else '0' }};
+function saveDraft() {
+  var data = {};
+  document.querySelectorAll('form input[type=text], form input[type=time], form textarea, form select').forEach(function (el) {
+    if (el.name) { data[el.name] = el.value; }
+  });
+  for (var i = 1; i <= 4; i++) {
+    var v = document.getElementById('ph' + i).value;
+    if (v && v.indexOf('data:') === 0) { data['photo_' + i] = v; }
+  }
+  try { localStorage.setItem(DKEY, JSON.stringify(data)); }
+  catch (e) {  // quota plein : on garde au moins les champs texte
+    for (var j = 1; j <= 4; j++) { delete data['photo_' + j]; }
+    try { localStorage.setItem(DKEY, JSON.stringify(data)); } catch (e2) {}
+  }
+}
+function clearDraft() { try { localStorage.removeItem(DKEY); } catch (e) {} }
+function restoreDraft() {
+  var raw = null;
+  try { raw = localStorage.getItem(DKEY); } catch (e) {}
+  if (!raw) { return; }
+  try {
+    var data = JSON.parse(raw);
+    Object.keys(data).forEach(function (k) {
+      if (!data[k] || k === 'save_mode' || k === 'signature') { return; }
+      if (k.indexOf('photo_') === 0) {
+        var i = k.split('_')[1];
+        document.getElementById('ph' + i).value = data[k];
+        var lbl = document.getElementById('pl' + i);
+        lbl.style.background = '#e6f7ee';
+        lbl.innerHTML = '<img src="' + data[k] + '" style="max-width:100%; max-height:86px; border-radius:8px;"/>';
+        return;
+      }
+      var el = document.querySelector('form [name="' + k + '"]');
+      if (el) { el.value = data[k]; }
+    });
+  } catch (e) {}
+}
+if (JUST_SAVED) { clearDraft(); } else { restoreDraft(); }
+document.querySelector('form').addEventListener('input', saveDraft);
+document.querySelector('form').addEventListener('change', saveDraft);
+
 document.querySelector('form').addEventListener('submit', function (ev) {
   ev.preventDefault();
   if (drawn) { document.getElementById('sigdata').value = pad.toDataURL('image/png'); }
@@ -343,6 +404,7 @@ document.querySelector('form').addEventListener('submit', function (ev) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
     .then(function (r) {
       if (!r.ok) throw 0;
+      clearDraft();
       window.location.href = r.url || window.location.href;
     })
     .catch(function () {
@@ -350,6 +412,7 @@ document.querySelector('form').addEventListener('submit', function (ev) {
         var q = JSON.parse(localStorage.getItem('fdtq') || '[]');
         q.push({ u: form.action, b: body, t: Date.now() });
         localStorage.setItem('fdtq', JSON.stringify(q));
+        clearDraft();
         alert('📡 Pas de réseau : la fiche est enregistrée sur le téléphone et sera envoyée automatiquement au retour de la connexion.');
         history.back();
       } catch (e) {
