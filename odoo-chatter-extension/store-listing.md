@@ -25,6 +25,8 @@
 >
 > Fonctionne sur toutes les bases Odoo : Odoo Online (*.odoo.com), Odoo.sh et domaines personnalisés. L'extension détecte automatiquement les sites Odoo et reste inactive partout ailleurs.
 >
+> Compatibilité : Odoo 14 à 19, éditions Community et Enterprise (le chatter fait partie du module mail, commun aux deux). Navigateurs à base Chromium : Chrome, Edge, Brave, Opera.
+>
 > 100 % CSS : l'extension ne modifie que la mise en page, jamais vos données Odoo. Aucune donnée collectée.
 >
 > ---
