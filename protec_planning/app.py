@@ -730,11 +730,13 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
         html.append(f"<h3 style='{H2}'>MATIÈRES ÉVACUÉES — TRAÇABILITÉ</h3>")
         html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
         html.append(f"<tr><th style='{th}'>Déchet</th><th style='{th};width:100px;'>Volume (m³)</th>"
-                    f"<th style='{th}'>Destination de traitement</th></tr>")
+                    f"<th style='{th}'>Destination de traitement</th>"
+                    f"<th style='{th};width:120px;'>Tps dépotage (h)</th></tr>")
         for code, v in rows_d.items():
             html.append(f"<tr><td style='{td}'>{labels_d.get(code, _labelize(code))}</td>"
                         f"<td style='{td}'>{E(v.get('volume',''))}</td>"
-                        f"<td style='{td}'>{E(v.get('destination',''))}</td></tr>")
+                        f"<td style='{td}'>{E(v.get('destination',''))}</td>"
+                        f"<td style='{td}'>{E(v.get('temps',''))}</td></tr>")
         html.append("</table>")
 
     if commentaires or prochain:
