@@ -113,7 +113,7 @@ DECHETS = [
 ]
 # Destinations possibles des déchets (liste déroulante de la fiche)
 DESTINATIONS = ["Assainissement", "Châtellerault", "Chinon",
-                "Dépotage sur place", "Loches", "Saché"]
+                "Dépotage sur place", "Loches", "Metha Ingrandes", "Saché"]
 
 @bp.app_context_processor
 def inject_base():
