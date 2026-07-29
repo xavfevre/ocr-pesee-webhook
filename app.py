@@ -890,6 +890,37 @@ def rebuild_fab_dashboard():
     return jsonify({"ok": True, "counts": counts})
 
 
+# ─── EXPORT PAIE DES HEURES SALARIÉS ─────────────────────────────────────────
+# /export-heures?mois=YYYY-MM&comp=all|<id société>&k=<clé>
+# La clé est stockée dans Odoo (ir.config_parameter maquignon.heures_export_key),
+# jamais dans le code ; la page /heures-admin génère le lien complet.
+import export_heures
+
+
+@app.route("/export-heures", methods=["GET"])
+def export_heures_route():
+    mois = (request.args.get("mois") or "").strip()
+    comp = (request.args.get("comp") or "all").strip()
+    key = (request.args.get("k") or "").strip()
+    if not re.match(r"^\d{4}-\d{2}$", mois):
+        return jsonify({"error": "mois attendu au format YYYY-MM"}), 400
+    models, uid = odoo_connect()
+
+    def call(model, method, *args, **kw):
+        return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, method, list(args), kw)
+
+    ref = call("ir.config_parameter", "get_param", ["maquignon.heures_export_key"])
+    if not ref or not hmac.compare_digest(key, str(ref)):
+        return jsonify({"error": "clé invalide"}), 403
+    data = export_heures.build(call, mois, comp)
+    from flask import Response
+    return Response(
+        data,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=HEURES_{mois}.xlsx"},
+    )
+
+
 def _fab_dash_nightly():
     while True:
         now = datetime.utcnow()

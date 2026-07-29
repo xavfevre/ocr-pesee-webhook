@@ -1,0 +1,191 @@
+<t t-name="website.mes_heures">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f1f5f9;}
+      .mh-wrap{max-width:640px;margin:0 auto;padding:12px;}
+      .mh-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+      .mh-emp{font-size:20px;font-weight:800;color:#0f172a;}
+      .mh-nav{display:flex;gap:6px;align-items:center;}
+      .mh-nav a{border:1px solid #cbd5e1;border-radius:10px;padding:8px 14px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;}
+      .mh-week{font-weight:800;color:#334155;font-size:15px;}
+      .mh-tot{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 14px;display:flex;gap:18px;justify-content:center;font-weight:800;font-size:15px;margin-bottom:10px;flex-wrap:wrap;}
+      .mh-tot b{color:#5eead4;}
+      .mh-day{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px;margin-bottom:10px;border-left:6px solid #cbd5e1;}
+      .mh-day.t-travail{border-left-color:#16a34a;}
+      .mh-day.t-cp{border-left-color:#f59e0b;}
+      .mh-day.t-maladie{border-left-color:#dc2626;}
+      .mh-day.t-ferie{border-left-color:#7c3aed;}
+      .mh-day.t-absence{border-left-color:#ef4444;}
+      .mh-day.t-recup{border-left-color:#0ea5e9;}
+      .mh-day.t-repos{border-left-color:#94a3b8;}
+      .mh-dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+      .mh-dname{font-size:16px;font-weight:900;color:#0f172a;text-transform:capitalize;}
+      .mh-state{font-size:13.5px;font-weight:800;color:#475569;}
+      .mh-theo{font-size:12px;color:#94a3b8;font-weight:600;}
+      .mh-btns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 6px;}
+      .mh-b{border:none;border-radius:10px;padding:9px 12px;font-weight:800;font-size:13.5px;cursor:pointer;}
+      .mh-b-ok{background:#16a34a;color:#fff;}
+      .mh-b-cp{background:#fef3c7;color:#92400e;}
+      .mh-b-mal{background:#fee2e2;color:#991b1b;}
+      .mh-b-fer{background:#ede9fe;color:#5b21b6;}
+      .mh-b-abs{background:#fecaca;color:#7f1d1d;}
+      .mh-b-rec{background:#e0f2fe;color:#075985;}
+      .mh-times{display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 8px;align-items:center;margin-top:4px;}
+      .mh-times label{font-size:12.5px;font-weight:800;color:#64748b;}
+      .mh-times input{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-size:15px;font-weight:700;width:100%;}
+      .mh-save{margin-top:7px;width:100%;border:none;border-radius:10px;padding:10px;background:#1d4ed8;color:#fff;font-weight:900;font-size:15px;cursor:pointer;}
+      .mh-pick{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;}
+      .mh-pick a{display:inline-block;margin:3px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;color:#0f172a;}
+      .mh-soc{font-weight:900;color:#334155;margin:10px 0 4px;font-size:14px;text-transform:uppercase;}
+    </style>
+    <div class="mh-wrap">
+      <t t-set="empp" t-value="request.params.get('emp')"/>
+      <t t-if="not empp">
+        <h3 style="font-weight:300;">🕐 Mes heures — qui êtes-vous ?</h3>
+        <div class="mh-pick">
+          <t t-set="allemps" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
+          <t t-set="lastc" t-value="0"/>
+          <t t-foreach="allemps" t-as="e">
+            <t t-if="e.company_id.id != lastc">
+              <div class="mh-soc" t-esc="e.company_id.name"/>
+              <t t-set="lastc" t-value="e.company_id.id"/>
+            </t>
+            <a t-attf-href="/mes-heures?emp={{e.id}}" t-esc="e.name"/>
+          </t>
+        </div>
+      </t>
+      <t t-else="">
+        <t t-set="emp" t-value="request.env['hr.employee'].sudo().browse(int(empp))"/>
+        <t t-set="semp" t-value="request.params.get('sem')"/>
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
+        <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
+        <t t-set="cal" t-value="emp.resource_calendar_id"/>
+        <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
+        <t t-set="saisies" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]))"/>
+        <div class="mh-head">
+          <div>
+            <div class="mh-emp">🕐 <t t-esc="emp.name"/></div>
+            <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/> · <a t-attf-href="/mes-heures">changer</a></div>
+          </div>
+          <div class="mh-nav">
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
+            <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+          </div>
+        </div>
+        <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
+        <t t-foreach="range(7)" t-as="i">
+          <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
+          <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
+          <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]"/>
+          <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period in ('afternoon',) and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]"/>
+          <t t-set="tmd" t-value="min([a.hour_from for a in morn]) if morn else 0"/>
+          <t t-set="tmf" t-value="max([a.hour_to for a in morn]) if morn else 0"/>
+          <t t-set="tad" t-value="min([a.hour_from for a in aft]) if aft else 0"/>
+          <t t-set="taf" t-value="max([a.hour_to for a in aft]) if aft else 0"/>
+          <t t-set="theo" t-value="(tmf - tmd) + (taf - tad)"/>
+          <t t-set="s" t-value="saisies.get(dstr)"/>
+          <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
+          <div t-attf-class="mh-day t-{{s and s.x_type or 'vide'}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % theo"
+               t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)"
+               t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-type="s and s.x_type or ''">
+            <div class="mh-dh">
+              <span class="mh-dname"><t t-esc="jours[i]"/> <t t-esc="d.strftime('%d/%m')"/></span>
+              <span class="mh-state" t-att-data-role="'state'">
+                <t t-if="s">
+                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h</t>
+                  <t t-elif="s.x_type == 'cp'">🏖 Congés</t>
+                  <t t-elif="s.x_type == 'maladie'">🤒 Maladie</t>
+                  <t t-elif="s.x_type == 'ferie'">🎉 Férié</t>
+                  <t t-elif="s.x_type == 'absence'">⛔ Absence</t>
+                  <t t-elif="s.x_type == 'recup'">🔄 Récup</t>
+                  <t t-else="">💤 Repos</t>
+                </t>
+                <t t-else="">—</t>
+              </span>
+            </div>
+            <div class="mh-theo" t-if="theo &gt; 0">Horaire habituel : <t t-esc="fmt(tmd)"/>-<t t-esc="fmt(tmf)"/><t t-if="taf"> / <t t-esc="fmt(tad)"/>-<t t-esc="fmt(taf)"/></t> (<t t-esc="'%.2f' % theo"/> h)</div>
+            <div class="mh-theo" t-else="">Pas d'horaire prévu ce jour</div>
+            <div class="mh-btns">
+              <button type="button" class="mh-b mh-b-ok" data-act="normal" t-if="theo &gt; 0">✓ Journée normale</button>
+              <button type="button" class="mh-b mh-b-cp" data-act="cp">CP</button>
+              <button type="button" class="mh-b mh-b-mal" data-act="maladie">Maladie</button>
+              <button type="button" class="mh-b mh-b-fer" data-act="ferie">Férié</button>
+              <button type="button" class="mh-b mh-b-abs" data-act="absence">Absent</button>
+              <button type="button" class="mh-b mh-b-rec" data-act="recup">Récup</button>
+            </div>
+            <div class="mh-times">
+              <label>Matin</label>
+              <input type="time" data-f="m_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_deb) or ''"/>
+              <input type="time" data-f="m_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_fin) or ''"/>
+              <label>Ap.-midi</label>
+              <input type="time" data-f="am_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_deb) or ''"/>
+              <input type="time" data-f="am_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_fin) or ''"/>
+            </div>
+            <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
+          </div>
+        </t>
+        <div t-att-data-emp="emp.id" id="mh-data" style="display:none;"/>
+        <script>
+(function(){
+  var EMP = parseInt(document.getElementById('mh-data').getAttribute('data-emp'));
+  try{ localStorage.setItem('mh_emp', EMP); }catch(e){}
+  function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
+  function fromDec(h){ if(!h){ return ''; } var H=Math.floor(h), M=Math.round((h-H)*60); return ('0'+H).slice(-2)+':'+('0'+M).slice(-2); }
+  var LBL = {travail:'✓', cp:'🏖 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
+  function totals(){
+    var eff=0, theo=0;
+    document.querySelectorAll('.mh-day').forEach(function(c){
+      theo += parseFloat(c.getAttribute('data-theo')||0);
+      if(c.getAttribute('data-type')==='travail'){ eff += parseFloat(c.getAttribute('data-heures')||0); }
+    });
+    document.getElementById('mh-t-eff').textContent = eff.toFixed(2)+' h';
+    document.getElementById('mh-t-theo').textContent = theo.toFixed(2)+' h';
+    var hs = eff-theo;
+    document.getElementById('mh-t-hs').textContent = (hs&gt;=0?'+':'')+hs.toFixed(2)+' h';
+  }
+  totals();
+  function save(card, typ, md, mf, ad, af){
+    var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_date:card.getAttribute('data-date'), hj_type:typ,
+               hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af};
+    card.style.opacity = .5;
+    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2012]],kwargs:{context:ctx}}})
+    }).then(function(r){return r.json();}).then(function(d){
+      card.style.opacity = 1;
+      if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+      var res = d.result || {};
+      card.setAttribute('data-type', typ);
+      card.setAttribute('data-heures', res.heures || 0);
+      card.className = 'mh-day t-'+typ;
+      var st = card.querySelector('[data-role="state"]');
+      st.textContent = (typ==='travail') ? ('✓ '+(res.heures||0).toFixed(2)+' h') : LBL[typ];
+      if(typ !== 'travail'){ card.querySelectorAll('.mh-times input').forEach(function(i){ i.value=''; }); }
+      totals();
+      if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
+    }).catch(function(e){ card.style.opacity = 1; alert('Échec réseau'); });
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('.mh-b, .mh-save'); if(!b){ return; }
+    var card = b.closest('.mh-day'); var act = b.getAttribute('data-act');
+    var inp = {};
+    card.querySelectorAll('.mh-times input').forEach(function(i){ inp[i.getAttribute('data-f')] = i; });
+    if(act === 'normal'){
+      inp.m_deb.value = card.getAttribute('data-tmd'); inp.m_fin.value = card.getAttribute('data-tmf');
+      inp.am_deb.value = card.getAttribute('data-tad'); inp.am_fin.value = card.getAttribute('data-taf');
+      save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
+    } else if(act === 'save'){
+      save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
+    } else {
+      save(card, act, 0, 0, 0, 0);
+    }
+  });
+})();
+        </script>
+      </t>
+    </div>
+  </t>
+</t>
