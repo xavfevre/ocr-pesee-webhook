@@ -367,7 +367,7 @@
                 <div t-if="of.x_studio_ref_commande_client" class="vo-ref">📄 Réf cde : <t t-esc="of.x_studio_ref_commande_client"/></div>
                 <div t-if="of.x_studio_palette" class="vo-pal">🟪 <t t-esc="of.x_studio_palette"/></div>
                 <div class="vo-noterow" style="margin:4px 0;">
-                  <input type="text" class="vo-noteinp" t-att-value="of.x_note_atelier or ''" placeholder="💬 Note pour la mise en palette…" autocomplete="off" style="width:100%;font-size:14px;font-weight:700;color:#713f12;background:#fef9c3;border:1.5px solid #fde047;border-radius:8px;padding:6px 10px;outline:none;"/>
+                  <input type="text" class="vo-noteinp" t-att-value="of.x_note_atelier or ''" placeholder="💬 Note" autocomplete="off" style="width:100%;font-size:14px;font-weight:700;color:#713f12;background:#fef9c3;border:1.5px solid #fde047;border-radius:8px;padding:6px 10px;outline:none;"/>
                 </div>
                 <div t-if="plans" style="margin:4px 0;">
                   <t t-foreach="plans" t-as="pl">
