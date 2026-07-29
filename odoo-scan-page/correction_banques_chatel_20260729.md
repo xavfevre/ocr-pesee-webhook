@@ -133,3 +133,21 @@ Pointage Odoo contre les ancres papier (30/04 : 84 815,03 · 31/05 : 91 068,86 �
   banque ; remise CB 84,58 du 30/06 comptée au 01/07 ; 2 frais de 0,23 datés
   30/04 côté flux / 01/05 côté banque).
 Total re-vérifié : 46 824,52 ✓ aux ancres près ±décalages identifiés.
+
+## Lettrage « catégories sûres » (29/07, demande utilisateur)
+- **151 frais bancaires** (FRAIS/Fr remise/Fr Vir inst/Cotis/locations TPE-PPAD,
+  −612,15 € au total sur la période non pointée) → contrepartie 627
+  « Autres frais et commissions » (compte 3154, TTC — TVA des locations TPE à
+  affiner par la comptable si souhaité).
+- **11 paires dépôts GAB ↔ « Remise en banque » caisse** lettrées entre elles
+  au compte d'attente (montants exacts, ≤8 jours d'écart).
+- **5 virements internes Banque Pop → BNP Chatel** (5×1 600 €) lettrés au
+  compte d'attente contre les réceptions BNP.
+Compteurs après : Banque Pop 989→822 · BNP 26→21 · Caisse 32→27. Soldes
+re-vérifiés inchangés (46 824,52 / 31 140,97 / 119,86).
+
+**Volontairement laissé à la comptable** (pas de contrepartie certaine) :
+226 remises CB antérieures au 03/04 (avant le flux CB à l'encaissement,
++83 214,88), chèques/LCR (rapprochement pièce à pièce), prélèvements
+fournisseurs (factures d'achat), virements clients (imputation par facture),
+24 dépôts GAB antérieurs à la caisse POS.
