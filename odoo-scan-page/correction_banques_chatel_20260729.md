@@ -67,3 +67,18 @@ manuelle** id 6176 du 05/05/2026 (+1 390,00, « Régularisation coupure de
 synchronisation — à détailler ») et l'OD/26-27/07/0003 supprimée. GL inchangé
 (46 824,52 ✓), vignette désormais à **46 824,52 €** ✓. La contrepartie de la
 ligne 6176 reste en compte d'attente jusqu'à qualification par la comptable.
+
+## Caisse (journal 42, compte 4822) — corrigée le 29/07
+GL à **−2 200,64 €** (impossible physiquement) alors que la chaîne des fonds de
+caisse POS est parfaitement continue — tiroir compté **119,86 €** au 28/07.
+Écart total 2 320,50 €, entièrement expliqué :
+1. **Pertes d'écart fictives du 06/05** (clôtures POS/00066 et 00067 +20 €) :
+   2 097,20 € passés en charges alors que « attendu = compté » (aucune perte
+   réelle, l'argent est resté dans le tiroir et a servi de fond aux sessions
+   suivantes). → OD 12748 (annulation, contre 658 Sundry operating charges).
+2. **Fond de caisse initial 122,60 €** jamais comptabilisé à l'ouverture du POS
+   (avril). → OD 12749 (contre compte d'attente, origine à qualifier).
+3. Résidu d'avril 100,70 € (écarts de comptage chaotiques d'avril).
+   → OD 12750 (contre 658).
+Résultat : **caisse = 119,86 € = inventaire physique** ✓ (testé sur base de
+test avant prod). Impact P&L : +2 197,90 € de charges annulées sur 2026.
