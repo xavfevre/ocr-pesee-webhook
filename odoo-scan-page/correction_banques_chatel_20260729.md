@@ -58,3 +58,12 @@ testés sur testmaq290726 avant la prod) :
   faisant double emploi avec les remises désormais pointées (avril).
 - Soldes bancaires inchangés et re-vérifiés : Banque Populaire 46 824,52 € ✓,
   BNP 31 140,97 € ✓, ancien compte « Bank » 0,00 € ✓. Aucune pièce en brouillon.
+
+## Ajustement affichage vignette (29/07, suite)
+La vignette « Banque Pop » du tableau de bord comptable calcule son solde à
+partir des seules lignes de relevé — l'OD « écart 1 390 € » (comptable) n'y
+apparaissait pas (vignette à 45 434,52). Remplacée par une **ligne de relevé
+manuelle** id 6176 du 05/05/2026 (+1 390,00, « Régularisation coupure de
+synchronisation — à détailler ») et l'OD/26-27/07/0003 supprimée. GL inchangé
+(46 824,52 ✓), vignette désormais à **46 824,52 €** ✓. La contrepartie de la
+ligne 6176 reste en compte d'attente jusqu'à qualification par la comptable.
