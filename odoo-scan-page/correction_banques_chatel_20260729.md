@@ -118,3 +118,18 @@ Caisse 119,86 ✓ · BNP 31 140,97 ✓.
   8 remises des 23–28/07 (fonctionnement normal) ; solde 4819 inchangé
   (−5 618,14, résiduel documenté plus haut). La comptable peut désormais
   travailler ce compte dans le widget de lettrage.
+
+## Écart de 1 390 € résolu via les relevés papier n°4 et n°5 (29/07)
+Pointage Odoo contre les ancres papier (30/04 : 84 815,03 · 31/05 : 91 068,86 ·
+30/06 : 51 757,29) :
+- **+700,00** manquant : « VRST GAB 23/05 SAC549016 DEPOT CHATELLERAULT »
+  jamais importé par la synchro → ligne 6180 créée (c'est la remise d'espèces
+  de −700,00 sortie de la caisse le 23/05 — les deux jambes sont en compte
+  d'attente et peuvent se lettrer entre elles).
+- **+690,00** manquant AVANT le 30/04 → ligne 6176 ré-ajustée (690,00 au
+  30/04) ; le détail exact demande le relevé papier n°3 (avril) — probablement
+  aussi un dépôt GAB.
+- Le reste = décalages de dates sans impact (GAB 30/05 compté au 01/06 par la
+  banque ; remise CB 84,58 du 30/06 comptée au 01/07 ; 2 frais de 0,23 datés
+  30/04 côté flux / 01/05 côté banque).
+Total re-vérifié : 46 824,52 ✓ aux ancres près ±décalages identifiés.

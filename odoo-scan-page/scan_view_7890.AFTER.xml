@@ -109,6 +109,7 @@
       <div class="qte-card">
         <h4>✂️ Combien sur cette palette ?</h4>
         <div id="qte-of" class="qte-of">—</div>
+        <div id="qte-note" style="display:none;background:#854d0e;color:#fef9c3;border-radius:8px;padding:6px 10px;margin:4px 0 6px;font-weight:800;font-size:15px;text-align:center;"/>
         <div class="qte-sub">Tapez le nombre, ou scannez la suite pour tout mettre</div>
         <div id="qte-disp" class="qte-disp def">0</div>
         <div class="qte-maxl">max <span id="qte-max">0</span> pièces</div>
@@ -264,7 +265,11 @@
     if(o.x_studio_ref_pierre){ meta.push('◆ ' + esc(o.x_studio_ref_pierre)); }
     if(o.x_studio_nom_du_client){ meta.push(esc(o.x_studio_nom_du_client)); }
     if(dims.length){ meta.push(dims.join(' × ') + ' m'); }
-    return meta.join(' · ');
+    var out = meta.join(' · ');
+    if(o.x_note_atelier){
+      out += '&lt;div style="background:#854d0e;color:#fef9c3;border-radius:6px;padding:1px 7px;margin-top:2px;display:inline-block;font-weight:800;"&gt;💬 ' + esc(o.x_note_atelier) + '&lt;/div&gt;';
+    }
+    return out;
   }
   function renderItem(o, kind, refId, qtyLabel, qtyClass, ofid, maxq){
     return '&lt;div class="scan-of-item"&gt;'
@@ -274,7 +279,7 @@
       +   '&lt;button class="of-del" data-kind="' + kind + '" data-id="' + refId + '" data-name="' + esc(o.name) + '"&gt;🗑️&lt;/button&gt;'
       + '&lt;/div&gt;';
   }
-  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1','x_studio_ref_pierre'];
+  var FIELDS = ['name','x_studio_nom_du_client','x_studio_nbr','x_studio_long_m_1','x_studio_larg_m_1','x_studio_haut_m_1','x_studio_ref_pierre','x_note_atelier'];
 
   function loadOfs(colisId){
     var box = document.getElementById('of-list');
@@ -391,6 +396,8 @@
   function openPop(p){
     pending = p; qteStr='';
     popOf.textContent = p.name;
+    var qn = document.getElementById('qte-note');
+    if(qn){ qn.textContent = p.note ? ('💬 ' + p.note) : ''; qn.style.display = p.note ? '' : 'none'; }
     popMax.textContent = p.remaining;
     updateDisp();
     pop.style.display='flex';
@@ -475,7 +482,7 @@
     if(up.indexOf('ZONE')===0){ setZone(val); return; }
     if(up.indexOf('PACK')===0){ doScanRaw(val); return; }
     if(colisLocked){ setRes('🔒 Palette clôturée — scannez une autre palette'); beep(false); return; }
-    rpc('mrp.production','search_read',[[['name','in',[val, up]]],['id','name','x_studio_nbr','state','x_studio_colis']],{limit:1}).then(function(rows){
+    rpc('mrp.production','search_read',[[['name','in',[val, up]]],['id','name','x_studio_nbr','state','x_studio_colis','x_note_atelier']],{limit:1}).then(function(rows){
       if(!rows.length){ return doScanRaw(val); }
       var o = rows[0];
       if(!colisActif){ return doScanRaw(val); }
@@ -487,7 +494,7 @@
         var placed=0; ls.forEach(function(l){ placed += l.x_studio_qte; });
         var remaining = total - placed;
         if(remaining &lt;= 0){ setRes('ℹ️ ' + o.name + ' déjà entièrement réparti (' + total + ')'); beep(false); return; }
-        openPop({id:o.id, name:o.name, total:total, remaining:remaining, hasLines: placed&gt;0});
+        openPop({id:o.id, name:o.name, total:total, remaining:remaining, hasLines: placed&gt;0, note:o.x_note_atelier});
         beep(true);
       });
     }).catch(function(e){ setRes('⚠️ Erreur : ' + e.message); });
