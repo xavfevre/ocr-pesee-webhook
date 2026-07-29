@@ -5,6 +5,10 @@
       #wrapwrap &gt; main {padding-top:0 !important;}
       body{background:#f1f5f9;}
       .mh-wrap{max-width:640px;margin:0 auto;padding:12px;}
+      .mh-brand{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+      .mh-brand img{height:52px;max-width:170px;object-fit:contain;}
+      .mh-brand .t{font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;}
+      .mh-brand .n{font-size:21px;font-weight:900;color:#0f172a;line-height:1.15;}
       .mh-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
       .mh-emp{font-size:20px;font-weight:800;color:#0f172a;}
       .mh-nav{display:flex;gap:6px;align-items:center;}
@@ -47,6 +51,7 @@
       <t t-set="valid" t-value="bool(empok and empok.exists() and tok and empok.x_heures_token and tok == empok.x_heures_token)"/>
       <t t-if="not valid">
         <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;box-shadow:0 1px 4px rgba(0,0,0,.08);">
+          <img src="/web/image/res.company/1/logo" alt="Maquignon" style="height:64px;max-width:220px;object-fit:contain;margin-bottom:12px;"/>
           <div style="font-size:44px;">🔒</div>
           <h4 style="font-weight:800;">Lien personnel requis</h4>
           <div style="color:#64748b;">Cette page s'ouvre uniquement avec votre lien personnel.<br/>Demandez-le à votre responsable ou à la comptabilité.</div>
@@ -61,9 +66,15 @@
         <t t-set="cal" t-value="emp.resource_calendar_id"/>
         <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
         <t t-set="saisies" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]))"/>
+        <div class="mh-brand">
+          <img t-attf-src="/web/image/res.company/{{emp.company_id.id}}/logo" t-att-alt="emp.company_id.name"/>
+          <div>
+            <div class="t">Feuille d'heures</div>
+            <div class="n" t-esc="emp.name"/>
+          </div>
+        </div>
         <div class="mh-head">
           <div>
-            <div class="mh-emp">🕐 <t t-esc="emp.name"/></div>
             <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/></div>
           </div>
           <div class="mh-nav">
