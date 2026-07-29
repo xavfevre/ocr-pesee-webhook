@@ -37,7 +37,7 @@ function ocxApply() {
 
 function ocxSave(patch) {
   ocxSettings = { ...ocxSettings, ...patch };
-  chrome.storage.sync.set(patch);
+  chrome.storage.local.set(patch);
   ocxApply();
 }
 
@@ -101,7 +101,7 @@ function ocxObserve() {
 /* Tout changement fait depuis le popup (ou un autre onglet) est appliqué
  * immédiatement, quel que soit le domaine de la page. */
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== "sync") return;
+  if (area !== "local") return;
   const patch = {};
   for (const [key, { newValue }] of Object.entries(changes)) {
     if (key in OCX_DEFAULTS) patch[key] = newValue;
@@ -156,7 +156,7 @@ function ocxBoot() {
   }, 1000);
 }
 
-chrome.storage.sync.get(OCX_DEFAULTS, (stored) => {
+chrome.storage.local.get(OCX_DEFAULTS, (stored) => {
   ocxSettings = { ...OCX_DEFAULTS, ...stored };
   if (document.body) {
     ocxBoot();

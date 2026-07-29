@@ -26,10 +26,10 @@ function refreshWidthRow(chatter) {
 async function save(patch) {
   // Les scripts de contenu écoutent chrome.storage.onChanged :
   // l'application est immédiate dans tous les onglets Odoo ouverts.
-  await chrome.storage.sync.set(patch);
+  await chrome.storage.local.set(patch);
 }
 
-chrome.storage.sync.get(DEFAULTS, (s) => {
+chrome.storage.local.get(DEFAULTS, (s) => {
   $fullwidth.checked = s.fullwidth;
   $fab.checked = s.fab;
   $width.value = s.chatterWidth;
@@ -100,7 +100,7 @@ chrome.runtime.sendMessage({ type: "ocx-get-status" }, (status) => {
   refreshPremiumUI(status);
   // Recharger l'état réel de la case une fois le statut connu
   if (status && status.premium) {
-    chrome.storage.sync.get(DEFAULTS, (s) => {
+    chrome.storage.local.get(DEFAULTS, (s) => {
       $fullwidth.checked = s.fullwidth;
     });
   }

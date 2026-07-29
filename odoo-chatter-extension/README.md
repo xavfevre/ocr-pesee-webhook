@@ -15,8 +15,12 @@ Extension Chrome (Manifest V3) pour **Odoo Online** :
   - `Alt + Maj + C` : basculer le chatter (côté → en bas → masqué) ;
   - `Alt + Maj + F` : activer/désactiver la pleine largeur.
 
-Les réglages sont synchronisés via le compte Chrome (`chrome.storage.sync`)
-et s'appliquent immédiatement à tous les onglets Odoo ouverts.
+Les réglages sont enregistrés localement (`chrome.storage.local`) et
+s'appliquent immédiatement à tous les onglets Odoo ouverts. Ce stockage
+local persiste sur le poste indépendamment de la synchronisation du
+navigateur, ce qui évite toute perte de réglages liée à une politique
+d'entreprise désactivant la synchronisation (fréquent sur les postes
+professionnels).
 
 ## Installation (mode développeur)
 

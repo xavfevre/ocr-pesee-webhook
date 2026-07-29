@@ -45,7 +45,7 @@
 
 **Justification de la permission `storage`** :
 
-> Enregistre les préférences d'affichage de l'utilisateur (pleine largeur activée ou non, position et largeur du chatter, bouton flottant) via chrome.storage.sync afin de les retrouver sur tous ses postes.
+> Enregistre les préférences d'affichage de l'utilisateur (pleine largeur activée ou non, position et largeur du chatter, bouton flottant) via chrome.storage.local, afin qu'elles persistent de façon fiable sur le poste, y compris quand la synchronisation du navigateur est désactivée par une politique d'entreprise.
 
 **Justification des host permissions (`https://*/*`)** :
 
