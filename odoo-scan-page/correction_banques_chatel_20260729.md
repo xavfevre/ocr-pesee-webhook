@@ -41,3 +41,20 @@ testés sur testmaq290726 avant la prod) :
   d'être pointées sur 51121000. Les lettrer (le modèle 35 les propose
   automatiquement) ramènera l'encours au réel (remises des derniers jours).
 - Qualifier l'écart de 1 390,00 € posé au compte d'attente.
+
+## Pointage en masse des remises CB (fait le 29/07, validé sur base de test)
+- **186 lignes de relevé « REMISE CB »** (03/04 → 28/07) repointées du compte
+  d'attente vers 51121000 CB à l'encaissement, avec **éclatement
+  brut/commission lu dans le libellé** (« BRUT x - COM y ») : le brut solde
+  l'encaissement, la commission (566,25 € au total) part au 627 « Autres frais
+  et commissions sur prestations » (compte 3154).
+- Les 30 remises d'avril avaient leur jambe banque sur l'ancien compte
+  « Bank » : jambe déplacée vers 512 Banque Populaire ligne à ligne, et l'OD de
+  reclassement agrégée réduite d'autant (61 088,89 → **35 209,15**, OD/26-27/07/0002).
+- Résultat : CB à l'encaissement passe de **112 445,02 € à −5 618,14 €**.
+  Ce solde créditeur résiduel est à qualifier par la comptable — composants
+  identifiés : clôtures de caisse créditant le compte (2 483,67 + 857,30),
+  une facture client (1 152,10), reliquat ~1 125 ; probablement des crédits
+  faisant double emploi avec les remises désormais pointées (avril).
+- Soldes bancaires inchangés et re-vérifiés : Banque Populaire 46 824,52 € ✓,
+  BNP 31 140,97 € ✓, ancien compte « Bank » 0,00 € ✓. Aucune pièce en brouillon.
