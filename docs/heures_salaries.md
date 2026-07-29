@@ -51,3 +51,18 @@
   de travail. Tout salarié à horaire particulier doit avoir son calendrier.
 - Évolutions possibles : jours fériés automatiques, verrouillage du mois après
   export, signature salarié.
+
+## Raccourcis dans le module Employés (29/07)
+Menu **Employés → Heures & congés** :
+- 🗓 Tableau des heures (web) → /heures-admin (clé incluse dans l'action URL)
+- 📅 Planning RH (web) → /planning-rh
+- Saisies des heures → liste x_heures_jour (filtres travail/congés/maladie,
+  regroupements, totaux)
+- Demandes de congés → liste x_demande_conge (filtre « En attente »)
+
+Sur la **fiche employé** (menu ⚙ Actions, fiche ou liste) :
+« 🕐 Ouvrir sa page heures » → ouvre /mes-heures avec le lien signé du salarié
+(pratique pour vérifier ou récupérer son lien personnel).
+
+Note : si la clé responsables (`maquignon.rh_admin_key`) est régénérée un
+jour, mettre à jour l'URL des deux actions du menu.
