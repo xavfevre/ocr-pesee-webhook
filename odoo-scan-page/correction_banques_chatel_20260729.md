@@ -82,3 +82,10 @@ caisse POS est parfaitement continue — tiroir compté **119,86 €** au 28/07.
    → OD 12750 (contre 658).
 Résultat : **caisse = 119,86 € = inventaire physique** ✓ (testé sur base de
 test avant prod). Impact P&L : +2 197,90 € de charges annulées sur 2026.
+
+### Ajustement affichage vignette Caisse (même mécanique que Banque Pop)
+Les OD 12748/12749/12750 étaient invisibles de la vignette (calculée sur les
+transactions du journal de caisse). Remplacées par trois **transactions de
+caisse** du 29/07 (lignes 6177/6178/6179 : +2 097,20 contrepartie 658,
++122,60 en compte d'attente, +100,70 contrepartie 658) et les OD supprimées.
+GL inchangé : caisse **119,86 €** ✓, vignette **119,86 €** ✓.
