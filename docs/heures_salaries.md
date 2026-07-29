@@ -66,3 +66,11 @@ Sur la **fiche employé** (menu ⚙ Actions, fiche ou liste) :
 
 Note : si la clé responsables (`maquignon.rh_admin_key`) est régénérée un
 jour, mettre à jour l'URL des deux actions du menu.
+
+## Page de distribution des liens (29/07)
+**`/heures-liens?k=<clé>`** (Charlotte) : tous les liens personnels groupés par
+société, avec 📋 Copier, 💬 WhatsApp et ✉️ Email pré-rédigés (« voici votre
+lien personnel… strictement personnel »), et **♻️ régénération du lien** d'un
+salarié (action 2020, clé requise — l'ancien lien devient invalide).
+Accessible depuis la barre de /heures-admin. Rend obsolète le fichier texte
+de distribution : la page est toujours à jour (nouveaux salariés compris).

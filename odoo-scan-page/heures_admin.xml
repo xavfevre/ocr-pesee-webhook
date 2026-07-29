@@ -65,6 +65,7 @@
           <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">Cette semaine</a>
           <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">suiv. ▶</a>
           <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}" style="background:#0f172a;color:#fff;">📅 Planning</a>
+          <a t-attf-href="/heures-liens?k={{kk}}" style="background:#0f172a;color:#fff;">🔗 Liens salariés</a>
         </div>
       </div>
       <div class="ha-comp" style="margin-bottom:10px;">
