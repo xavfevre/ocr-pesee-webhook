@@ -147,19 +147,6 @@
             <button type="button" id="vo-reb-go" class="btn btn-danger w-100" style="font-weight:800;font-size:16px;">💥 Valider le rebut → relancer l'OF</button>
           </div>
         </div>
-        <div id="vo-note-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:1000;align-items:center;justify-content:center;">
-          <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.35);">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <strong style="font-size:17px;">📝 Note atelier — <span id="vo-note-of"/></strong>
-              <button type="button" class="vo-note-close btn btn-sm btn-outline-secondary">✕</button>
-            </div>
-            <textarea id="vo-note-txt" class="form-control mb-2" rows="3" style="font-size:16px;" placeholder="Ex : pierre recollée, attention au sens de pose, à emballer à part…"/>
-            <div class="d-flex gap-2">
-              <button type="button" id="vo-note-save" class="btn btn-primary flex-grow-1" style="font-weight:800;">💾 Enregistrer</button>
-              <button type="button" id="vo-note-clear" class="btn btn-outline-danger" style="font-weight:700;">🗑 Effacer</button>
-            </div>
-          </div>
-        </div>
         <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
           <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
           <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
@@ -276,19 +263,6 @@
             <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
           </div>
         </div>
-        <div id="vo-note-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:1000;align-items:center;justify-content:center;">
-          <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.35);">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <strong style="font-size:17px;">📝 Note atelier — <span id="vo-note-of"/></strong>
-              <button type="button" class="vo-note-close btn btn-sm btn-outline-secondary">✕</button>
-            </div>
-            <textarea id="vo-note-txt" class="form-control mb-2" rows="3" style="font-size:16px;" placeholder="Ex : pierre recollée, attention au sens de pose, à emballer à part…"/>
-            <div class="d-flex gap-2">
-              <button type="button" id="vo-note-save" class="btn btn-primary flex-grow-1" style="font-weight:800;">💾 Enregistrer</button>
-              <button type="button" id="vo-note-clear" class="btn btn-outline-danger" style="font-weight:700;">🗑 Effacer</button>
-            </div>
-          </div>
-        </div>
         <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
           <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
           <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
@@ -392,9 +366,8 @@
                 </div>
                 <div t-if="of.x_studio_ref_commande_client" class="vo-ref">📄 Réf cde : <t t-esc="of.x_studio_ref_commande_client"/></div>
                 <div t-if="of.x_studio_palette" class="vo-pal">🟪 <t t-esc="of.x_studio_palette"/></div>
-                <div class="vo-noterow" style="margin:3px 0;">
-                  <span class="vo-notetxt" t-attf-style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:1px 7px;font-size:12.5px;font-weight:700;color:#713f12;{{'' if of.x_note_atelier else 'display:none;'}}">💬 <t t-esc="of.x_note_atelier or ''"/></span>
-                  <button type="button" class="vo-notebtn btn btn-sm btn-outline-secondary" t-att-data-ofid="of.id" t-att-data-of="of.name" style="padding:0 8px;font-size:12px;font-weight:700;" title="Ajouter / modifier la note atelier">📝 Note</button>
+                <div class="vo-noterow" style="margin:4px 0;">
+                  <input type="text" class="vo-noteinp" t-att-value="of.x_note_atelier or ''" placeholder="💬 Note pour la mise en palette…" autocomplete="off" style="width:100%;font-size:14px;font-weight:700;color:#713f12;background:#fef9c3;border:1.5px solid #fde047;border-radius:8px;padding:6px 10px;outline:none;"/>
                 </div>
                 <div t-if="plans" style="margin:4px 0;">
                   <t t-foreach="plans" t-as="pl">
@@ -518,38 +491,30 @@
             b.onclick=function(){ openReb(parseInt(b.getAttribute('data-ofid')), b.getAttribute('data-of')||'OF', b.getAttribute('data-nbr')||1); };
           });
         }
-        var notePop=document.getElementById('vo-note-pop'), noteTxt=document.getElementById('vo-note-txt'), noteOfEl=document.getElementById('vo-note-of');
-        var noteOfId=0, noteCard=null;
-        function noteClose(){ if(notePop){ notePop.style.display='none'; } noteOfId=0; noteCard=null; }
-        function noteSave(val){
-          if(!noteOfId){ return; }
-          var ofid=noteOfId, card=noteCard;
+        function noteSave(inp){
+          var card=inp.closest('.vo-card'); if(!card){ return; }
+          var ofid=parseInt(card.getAttribute('data-ofid')); if(!ofid){ return; }
+          var val=(inp.value||'').trim();
+          if(val === (card.getAttribute('data-note')||'').trim()){ return; }
+          inp.style.borderColor='#94a3b8';
           fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2011]],kwargs:{context:{active_model:'mrp.production',active_ids:[ofid],active_id:ofid,note_atelier:val}}}})
           }).then(function(r){return r.json();}).then(function(d){
-            if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            if(d.error){ inp.style.borderColor='#dc2626'; alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
             document.querySelectorAll('.vo-card').forEach(function(c){
               if(parseInt(c.getAttribute('data-ofid'))!==ofid){ return; }
               c.setAttribute('data-note', val);
-              var sp=c.querySelector('.vo-notetxt');
-              if(sp){ sp.textContent = val ? ('💬 ' + val) : ''; sp.style.display = val ? '' : 'none'; }
+              var i2=c.querySelector('.vo-noteinp'); if(i2 &amp;&amp; i2!==inp){ i2.value=val; }
             });
-            noteClose();
-          }).catch(function(e){ alert('Échec : '+e); });
+            inp.style.borderColor='#16a34a';
+            setTimeout(function(){ inp.style.borderColor='#fde047'; }, 1400);
+          }).catch(function(e){ inp.style.borderColor='#dc2626'; });
         }
-        document.addEventListener('click', function(e){
-          var b=e.target.closest('.vo-notebtn');
-          if(b){
-            noteOfId=parseInt(b.getAttribute('data-ofid'));
-            noteCard=b.closest('.vo-card');
-            if(noteOfEl){ noteOfEl.textContent=b.getAttribute('data-of')||''; }
-            if(noteTxt){ noteTxt.value=(noteCard &amp;&amp; noteCard.getAttribute('data-note'))||''; }
-            if(notePop){ notePop.style.display='flex'; setTimeout(function(){ if(noteTxt){ noteTxt.focus(); } },80); }
-            return;
-          }
-          if(e.target.closest('.vo-note-close')){ noteClose(); return; }
-          if(e.target.id==='vo-note-save'){ noteSave((noteTxt &amp;&amp; noteTxt.value || '').trim()); return; }
-          if(e.target.id==='vo-note-clear'){ noteSave(''); return; }
+        document.addEventListener('keydown', function(e){
+          if(e.target &amp;&amp; e.target.classList &amp;&amp; e.target.classList.contains('vo-noteinp') &amp;&amp; e.key==='Enter'){ e.preventDefault(); e.target.blur(); }
+        });
+        document.addEventListener('focusout', function(e){
+          if(e.target &amp;&amp; e.target.classList &amp;&amp; e.target.classList.contains('vo-noteinp')){ noteSave(e.target); }
         });
         var camPop=document.getElementById('vo-cam-pop'), camVid=document.getElementById('vo-cam-video'), camMsg=document.getElementById('vo-cam-msg');
         var camStream=null, camTimer=null;
