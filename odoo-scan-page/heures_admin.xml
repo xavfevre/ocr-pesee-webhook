@@ -35,6 +35,17 @@
       .ha-export{background:#1d4ed8;color:#fff;border-radius:9px;padding:8px 14px;font-weight:800;text-decoration:none;}
     </style>
     <div class="ha-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-else=""><t t-set="_gate" t-value="1"/></t>
+      <t t-if="_gate">
       <t t-set="today" t-value="datetime.date.today()"/>
       <t t-set="semp" t-value="request.params.get('sem')"/>
       <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
@@ -50,15 +61,16 @@
       <div class="ha-head">
         <h4 style="font-weight:300;margin:0;">🗓 Heures salariés — <b>semaine <t t-esc="monday.isocalendar()[1]"/></b> (<t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="dfin.strftime('%d/%m')"/>)</h4>
         <div class="ha-nav">
-          <a t-attf-href="/heures-admin?comp={{compp}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀ préc.</a>
-          <a t-attf-href="/heures-admin?comp={{compp}}">Cette semaine</a>
-          <a t-attf-href="/heures-admin?comp={{compp}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">suiv. ▶</a>
+          <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀ préc.</a>
+          <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">Cette semaine</a>
+          <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">suiv. ▶</a>
+          <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}" style="background:#0f172a;color:#fff;">📅 Planning</a>
         </div>
       </div>
       <div class="ha-comp" style="margin-bottom:10px;">
-        <a t-att-class="'on' if compp == 'all' else ''" t-attf-href="/heures-admin?sem={{monday.strftime('%Y-%m-%d')}}">Toutes</a>
+        <a t-att-class="'on' if compp == 'all' else ''" t-attf-href="/heures-admin?k={{kk}}&amp;sem={{monday.strftime('%Y-%m-%d')}}">Toutes</a>
         <t t-foreach="request.env['res.company'].sudo().search([])" t-as="co">
-          <a t-att-class="'on' if compp == str(co.id) else ''" t-attf-href="/heures-admin?comp={{co.id}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" t-esc="co.name"/>
+          <a t-att-class="'on' if compp == str(co.id) else ''" t-attf-href="/heures-admin?k={{kk}}&amp;comp={{co.id}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" t-esc="co.name"/>
         </t>
         <t t-set="xk" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_key') or ''"/>
         <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
@@ -78,7 +90,7 @@
           <t t-set="wtot" t-value="0.0"/>
           <t t-set="wtheo" t-value="0.0"/>
           <tr t-att-data-emp="e.id" t-att-data-name="e.name">
-            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/></td>
+            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button></td>
             <t t-foreach="range(7)" t-as="i">
               <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
               <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
@@ -120,7 +132,9 @@
           </tr>
         </t>
       </table>
-      <div style="color:#64748b;font-size:12.5px;margin-top:8px;">Cliquez sur une case pour saisir/corriger · <b>⚡</b> remplit les jours ouvrés vides de la semaine avec l'horaire habituel · <b>!</b> = jour ouvré passé sans saisie · Export paie = un fichier Excel par salarié (blocs hebdomadaires, HS, CP, maladie).</div>
+      <div style="color:#64748b;font-size:12.5px;margin-top:8px;">Cliquez sur une case pour saisir/corriger · <b>⚡</b> remplit les jours ouvrés vides de la semaine avec l'horaire habituel · <b>!</b> = jour ouvré passé sans saisie · <b>🔗</b> copie le lien personnel du salarié (à lui envoyer par SMS/WhatsApp) · Export paie = un classeur Excel, un onglet par salarié.</div>
+      </t>
+      <div id="ha-k" t-att-data-k="kk" style="display:none;"/>
     </div>
     <div id="ha-pop" class="ha-pop">
       <div class="ha-card">
@@ -147,10 +161,19 @@
     <script>
 (function(){
   var pop=document.getElementById('ha-pop'), curCell=null, curEmp=0;
+  var KK = (document.getElementById('ha-k') &amp;&amp; document.getElementById('ha-k').getAttribute('data-k')) || '';
+  document.addEventListener('click', function(e){
+    var cp = e.target.closest('.ha-copy'); if(!cp){ return; }
+    var lk = cp.getAttribute('data-link');
+    (navigator.clipboard ? navigator.clipboard.writeText(lk) : Promise.reject()).then(function(){
+      cp.textContent = '✓';
+      setTimeout(function(){ cp.textContent = '🔗'; }, 1200);
+    }).catch(function(){ prompt('Lien personnel du salarié :', lk); });
+  });
   function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
   function rpcSave(emp, date, typ, md, mf, ad, af, done){
     fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2012]],kwargs:{context:{active_model:'x_heures_jour',hj_emp:emp,hj_date:date,hj_type:typ,hj_m_deb:md,hj_m_fin:mf,hj_am_deb:ad,hj_am_fin:af}}}})
+      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2012]],kwargs:{context:{active_model:'x_heures_jour',hj_emp:emp,hj_k:KK,hj_date:date,hj_type:typ,hj_m_deb:md,hj_m_fin:mf,hj_am_deb:ad,hj_am_fin:af}}}})
     }).then(function(r){return r.json();}).then(function(d){
       if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
       done(d.result||{});

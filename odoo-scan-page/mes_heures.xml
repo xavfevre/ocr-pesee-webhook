@@ -42,22 +42,18 @@
     </style>
     <div class="mh-wrap">
       <t t-set="empp" t-value="request.params.get('emp')"/>
-      <t t-if="not empp">
-        <h3 style="font-weight:300;">🕐 Mes heures — qui êtes-vous ?</h3>
-        <div class="mh-pick">
-          <t t-set="allemps" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
-          <t t-set="lastc" t-value="0"/>
-          <t t-foreach="allemps" t-as="e">
-            <t t-if="e.company_id.id != lastc">
-              <div class="mh-soc" t-esc="e.company_id.name"/>
-              <t t-set="lastc" t-value="e.company_id.id"/>
-            </t>
-            <a t-attf-href="/mes-heures?emp={{e.id}}" t-esc="e.name"/>
-          </t>
+      <t t-set="tok" t-value="(request.params.get('t') or '').strip()"/>
+      <t t-set="empok" t-value="request.env['hr.employee'].sudo().browse(int(empp)) if (empp and empp.isdigit()) else None"/>
+      <t t-set="valid" t-value="bool(empok and empok.exists() and tok and empok.x_heures_token and tok == empok.x_heures_token)"/>
+      <t t-if="not valid">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;box-shadow:0 1px 4px rgba(0,0,0,.08);">
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Lien personnel requis</h4>
+          <div style="color:#64748b;">Cette page s'ouvre uniquement avec votre lien personnel.<br/>Demandez-le à votre responsable ou à la comptabilité.</div>
         </div>
       </t>
       <t t-else="">
-        <t t-set="emp" t-value="request.env['hr.employee'].sudo().browse(int(empp))"/>
+        <t t-set="emp" t-value="empok"/>
         <t t-set="semp" t-value="request.params.get('sem')"/>
         <t t-set="today" t-value="datetime.date.today()"/>
         <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
@@ -68,12 +64,12 @@
         <div class="mh-head">
           <div>
             <div class="mh-emp">🕐 <t t-esc="emp.name"/></div>
-            <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/> · <a t-attf-href="/mes-heures">changer</a></div>
+            <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/></div>
           </div>
           <div class="mh-nav">
-            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
             <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
-            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
           </div>
         </div>
         <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
@@ -128,11 +124,41 @@
             <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
           </div>
         </t>
-        <div t-att-data-emp="emp.id" id="mh-data" style="display:none;"/>
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🏖 Demander des congés</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Du</label>
+            <input type="date" id="mh-dc-du" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Au</label>
+            <input type="date" id="mh-dc-au" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Type</label>
+            <select id="mh-dc-type" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;">
+              <option value="cp">Congés payés</option>
+              <option value="recup">Récupération</option>
+              <option value="sans_solde">Sans solde</option>
+            </select>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Motif</label>
+            <input type="text" id="mh-dc-motif" placeholder="facultatif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+          </div>
+          <button type="button" id="mh-dc-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#f59e0b;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">📨 Envoyer la demande</button>
+          <t t-set="dems" t-value="request.env['x_demande_conge'].sudo().search([('x_employee_id','=',emp.id)], order='id desc', limit=6)"/>
+          <div t-if="dems" style="margin-top:10px;">
+            <div style="font-weight:800;color:#64748b;font-size:12.5px;margin-bottom:4px;">MES DEMANDES</div>
+            <t t-foreach="dems" t-as="dc">
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:5px 0;border-top:1px solid #f1f5f9;">
+                <span><b><t t-esc="dc.x_du.strftime('%d/%m')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></b> · <t t-esc="dict([('cp','CP'),('recup','Récup'),('sans_solde','Sans solde')]).get(dc.x_type, dc.x_type)"/><t t-if="dc.x_motif"> · <t t-esc="dc.x_motif"/></t></span>
+                <span t-if="dc.x_statut == 'attente'" style="color:#b45309;font-weight:800;">⏳ En attente</span>
+                <span t-elif="dc.x_statut == 'approuve'" style="color:#15803d;font-weight:800;">✓ Approuvé</span>
+                <span t-else="" style="color:#b91c1c;font-weight:800;" t-att-title="dc.x_reponse or ''">✗ Refusé</span>
+              </div>
+            </t>
+          </div>
+        </div>
+        <div t-att-data-emp="emp.id" t-att-data-tok="tok" id="mh-data" style="display:none;"/>
         <script>
 (function(){
   var EMP = parseInt(document.getElementById('mh-data').getAttribute('data-emp'));
-  try{ localStorage.setItem('mh_emp', EMP); }catch(e){}
+  var TOK = document.getElementById('mh-data').getAttribute('data-tok');
   function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
   function fromDec(h){ if(!h){ return ''; } var H=Math.floor(h), M=Math.round((h-H)*60); return ('0'+H).slice(-2)+':'+('0'+M).slice(-2); }
   var LBL = {travail:'✓', cp:'🏖 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
@@ -149,7 +175,7 @@
   }
   totals();
   function save(card, typ, md, mf, ad, af){
-    var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_date:card.getAttribute('data-date'), hj_type:typ,
+    var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_token:TOK, hj_date:card.getAttribute('data-date'), hj_type:typ,
                hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af};
     card.style.opacity = .5;
     fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -183,6 +209,20 @@
       save(card, act, 0, 0, 0, 0);
     }
   });
+  var dcgo = document.getElementById('mh-dc-go');
+  if(dcgo){ dcgo.addEventListener('click', function(){
+    var du = document.getElementById('mh-dc-du').value, au = document.getElementById('mh-dc-au').value;
+    if(!du || !au || du &gt; au){ alert('Choisissez des dates valides (Du ≤ Au).'); return; }
+    dcgo.disabled = true;
+    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2013]],kwargs:{context:{active_model:'x_demande_conge',dc_emp:EMP,dc_token:TOK,dc_du:du,dc_au:au,dc_type:document.getElementById('mh-dc-type').value,dc_motif:document.getElementById('mh-dc-motif').value}}}})
+    }).then(function(r){return r.json();}).then(function(d){
+      dcgo.disabled = false;
+      if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+      alert('✓ Demande envoyée à votre responsable.');
+      location.reload();
+    }).catch(function(){ dcgo.disabled = false; alert('Échec réseau'); });
+  }); }
 })();
         </script>
       </t>

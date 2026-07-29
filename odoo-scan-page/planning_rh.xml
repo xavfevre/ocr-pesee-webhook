@@ -1,0 +1,150 @@
+<t t-name="website.planning_rh">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f8fafc;}
+      .pr-wrap{max-width:1400px;margin:0 auto;padding:12px;}
+      .pr-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+      .pr-nav a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;}
+      .pr-dem{background:#fff7ed;border:1.5px solid #fdba74;border-radius:12px;padding:10px 14px;margin-bottom:10px;}
+      .pr-dem-l{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #fed7aa;flex-wrap:wrap;}
+      .pr-dem-l:first-of-type{border-top:none;}
+      .pr-ok{border:none;border-radius:8px;background:#16a34a;color:#fff;font-weight:800;padding:7px 12px;cursor:pointer;}
+      .pr-no{border:none;border-radius:8px;background:#dc2626;color:#fff;font-weight:800;padding:7px 12px;cursor:pointer;}
+      table.pr{border-collapse:collapse;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:11px;}
+      .pr th{background:#0f172a;color:#e2e8f0;padding:4px 3px;text-align:center;font-size:10.5px;min-width:24px;}
+      .pr th.emp{text-align:left;padding:4px 8px;min-width:170px;}
+      .pr td{border:1px solid #e2e8f0;text-align:center;padding:3px 1px;font-weight:800;height:24px;}
+      .pr td.emp{text-align:left;padding:3px 8px;white-space:nowrap;font-weight:800;}
+      .pr td.soc{background:#e2e8f0;color:#334155;font-weight:900;text-align:left;padding:5px 8px;text-transform:uppercase;font-size:11px;}
+      .d-off{background:#f1f5f9;color:#cbd5e1;}
+      .d-t{background:#dcfce7;color:#14532d;}
+      .d-cp{background:#fbbf24;color:#7c2d12;}
+      .d-mal{background:#f87171;color:#7f1d1d;}
+      .d-fer{background:#c4b5fd;color:#4c1d95;}
+      .d-abs{background:#b91c1c;color:#fff;}
+      .d-rec{background:#7dd3fc;color:#0c4a6e;}
+      .d-rep{background:#e2e8f0;color:#64748b;}
+      .d-pend{outline:2.5px dashed #f59e0b;outline-offset:-2.5px;}
+      .pr-leg{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;font-weight:700;color:#475569;}
+      .pr-leg span{padding:2px 9px;border-radius:6px;}
+      .pr-scroll{overflow-x:auto;}
+    </style>
+    <div class="pr-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-else="">
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="mp" t-value="request.params.get('mois')"/>
+        <t t-set="d1" t-value="datetime.datetime.strptime(mp + '-01', '%Y-%m-%d').date() if mp else today.replace(day=1)"/>
+        <t t-set="d2" t-value="(d1.replace(year=d1.year + 1, month=1, day=1) if d1.month == 12 else d1.replace(month=d1.month + 1, day=1)) - datetime.timedelta(days=1)"/>
+        <t t-set="compp" t-value="request.params.get('comp') or 'all'"/>
+        <t t-set="dom" t-value="[('active','=',True)] if compp == 'all' else [('active','=',True),('company_id','=',int(compp))]"/>
+        <t t-set="emps" t-value="request.env['hr.employee'].sudo().search(dom, order='company_id, name')"/>
+        <t t-set="rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','in',emps.ids),('x_date','&gt;=',d1.strftime('%Y-%m-%d')),('x_date','&lt;=',d2.strftime('%Y-%m-%d'))])"/>
+        <t t-set="sk" t-value="dict(((r.x_employee_id.id, r.x_date.day), r) for r in rows)"/>
+        <t t-set="pend" t-value="request.env['x_demande_conge'].sudo().search([('x_statut','=','attente'),('x_employee_id','in',emps.ids)], order='x_du')"/>
+        <t t-set="nbj" t-value="(d2 - d1).days + 1"/>
+        <t t-set="jl" t-value="['L','M','M','J','V','S','D']"/>
+        <t t-set="typlbl" t-value="{'cp': 'CP', 'recup': 'Récup', 'sans_solde': 'Sans solde'}"/>
+        <div class="pr-head">
+          <h4 style="font-weight:300;margin:0;">📅 Planning RH — <b t-esc="d1.strftime('%B %Y')"/></h4>
+          <div class="pr-nav">
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}&amp;mois={{((d1 - datetime.timedelta(days=1)).replace(day=1)).strftime('%Y-%m')}}">◀</a>
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}">Ce mois</a>
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}&amp;mois={{(d2 + datetime.timedelta(days=1)).strftime('%Y-%m')}}">▶</a>
+            <t t-foreach="request.env['res.company'].sudo().search([])" t-as="co">
+              <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{co.id}}&amp;mois={{d1.strftime('%Y-%m')}}" t-att-style="'background:#0f172a;color:#fff;' if compp == str(co.id) else ''" t-esc="co.name.split(' ')[0]"/>
+            </t>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">🗓 Heures</a>
+          </div>
+        </div>
+        <div t-if="pend" class="pr-dem">
+          <div style="font-weight:900;margin-bottom:4px;">📨 Demandes de congés en attente (<t t-esc="len(pend)"/>)</div>
+          <t t-foreach="pend" t-as="dc">
+            <div class="pr-dem-l">
+              <span><b t-esc="dc.x_employee_id.name"/> · <t t-esc="typlbl.get(dc.x_type, dc.x_type)"/> du <b t-esc="dc.x_du.strftime('%d/%m')"/> au <b t-esc="dc.x_au.strftime('%d/%m/%Y')"/><t t-if="dc.x_motif"> · « <t t-esc="dc.x_motif"/> »</t></span>
+              <span>
+                <button type="button" class="pr-ok" t-att-data-id="dc.id">✓ Approuver</button>
+                <button type="button" class="pr-no" t-att-data-id="dc.id">✗ Refuser</button>
+              </span>
+            </div>
+          </t>
+        </div>
+        <t t-set="pendmap" t-value="dict(((dc.x_employee_id.id, (d1 + datetime.timedelta(days=n)).day), 1) for dc in pend for n in range(nbj) if dc.x_du &lt;= (d1 + datetime.timedelta(days=n)) and (d1 + datetime.timedelta(days=n)) &lt;= dc.x_au)"/>
+        <div class="pr-scroll">
+        <table class="pr">
+          <tr><th class="emp">Salarié</th>
+            <t t-foreach="range(nbj)" t-as="n">
+              <t t-set="dd" t-value="d1 + datetime.timedelta(days=n)"/>
+              <th t-att-style="'background:#334155;' if dd.weekday() &gt;= 5 else ''"><t t-esc="jl[dd.weekday()]"/><br/><t t-esc="dd.day"/></th>
+            </t>
+          </tr>
+          <t t-set="lastc" t-value="0"/>
+          <t t-foreach="emps" t-as="e">
+            <t t-if="e.company_id.id != lastc">
+              <tr><td class="soc" t-att-colspan="nbj + 1" t-esc="e.company_id.name"/></tr>
+              <t t-set="lastc" t-value="e.company_id.id"/>
+            </t>
+            <t t-set="cal" t-value="e.resource_calendar_id"/>
+            <tr>
+              <td class="emp" t-esc="e.name"/>
+              <t t-foreach="range(nbj)" t-as="n">
+                <t t-set="dd" t-value="d1 + datetime.timedelta(days=n)"/>
+                <t t-set="wt" t-value="str((((dd - datetime.timedelta(days=dd.weekday())) - datetime.date(1970,1,5)).days // 7) % 2)"/>
+                <t t-set="theo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(dd.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]) if cal else 0"/>
+                <t t-set="s" t-value="sk.get((e.id, dd.day))"/>
+                <t t-set="cls" t-value="(s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
+                <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-title="e.name + ' ' + dd.strftime('%d/%m')">
+                  <t t-if="s and s.x_type == 'travail'"><t t-esc="('%g' % round(s.x_heures, 1))"/></t>
+                  <t t-elif="s and s.x_type == 'cp'">CP</t>
+                  <t t-elif="s and s.x_type == 'maladie'">M</t>
+                  <t t-elif="s and s.x_type == 'ferie'">F</t>
+                  <t t-elif="s and s.x_type == 'absence'">A</t>
+                  <t t-elif="s and s.x_type == 'recup'">R</t>
+                  <t t-elif="theo &gt; 0"><span style="color:#cbd5e1;" t-esc="('%g' % round(theo, 1))"/></t>
+                </td>
+              </t>
+            </tr>
+          </t>
+        </table>
+        </div>
+        <div class="pr-leg">
+          <span class="d-t">travail (heures saisies)</span>
+          <span style="color:#cbd5e1;border:1px solid #e2e8f0;">théorique (pas encore saisi)</span>
+          <span class="d-cp">CP</span><span class="d-mal">Maladie</span><span class="d-fer">Férié</span>
+          <span class="d-abs">Absence</span><span class="d-rec">Récup</span><span class="d-off">jour non travaillé</span>
+          <span class="d-pend" style="background:#fff;">demande en attente</span>
+        </div>
+        <div id="pr-k" t-att-data-k="kk" style="display:none;"/>
+        <script>
+(function(){
+  var KK = document.getElementById('pr-k').getAttribute('data-k');
+  function repond(id, dec, rep){
+    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2014]],kwargs:{context:{active_model:'x_demande_conge',dc_id:id,dc_decision:dec,dc_reponse:rep,hj_k:KK}}}})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+      location.reload();
+    }).catch(function(){ alert('Échec réseau'); });
+  }
+  document.addEventListener('click', function(e){
+    var ok = e.target.closest('.pr-ok');
+    if(ok){ if(confirm('Approuver cette demande ? Les jours seront inscrits automatiquement.')){ repond(parseInt(ok.getAttribute('data-id')), 'approuve', ''); } return; }
+    var no = e.target.closest('.pr-no');
+    if(no){ var m = prompt('Motif du refus (transmis au salarié) :', ''); if(m !== null){ repond(parseInt(no.getAttribute('data-id')), 'refuse', m); } }
+  });
+})();
+        </script>
+      </t>
+    </div>
+  </t>
+</t>

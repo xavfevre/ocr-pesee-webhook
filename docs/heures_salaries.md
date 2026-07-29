@@ -1,23 +1,40 @@
 # Heures salariés — saisie web & export paie
 
-## Les deux pages (vues website Odoo, déployées)
-- **`/mes-heures`** (salariés, toutes sociétés) : sélecteur au premier accès
-  (mémorisé sur l'appareil), une carte par jour de la semaine pré-remplie avec
-  l'**horaire contractuel du salarié** (son `resource.calendar` Odoo, cycles
-  2 semaines gérés). Boutons : « ✓ Journée normale », CP, Maladie, Férié,
-  Absent, Récup — ou saisie fine des 4 horaires (matin/après-midi).
-  Totaux de semaine (effectué / théorique / écart) en direct.
-- **`/heures-admin`** (Charlotte) : tableau salariés × 7 jours, filtre par
-  société, navigation par semaine. Cases cliquables (popup de saisie),
-  **⚡** remplit les jours ouvrés vides d'une ligne à l'horaire habituel,
-  **!** signale un jour ouvré passé sans saisie. Totaux et écart par salarié.
-  Bouton **⬇ Export paie**.
+## Les pages (vues website Odoo, déployées)
+- **`/mes-heures?emp=<id>&t=<token>`** (salariés, toutes sociétés) : accès
+  **uniquement par lien personnel signé** (token individuel `x_heures_token`
+  sur hr.employee, vérifié aussi côté serveur à chaque sauvegarde) — un
+  salarié ne peut pas voir les heures d'un autre. Une carte par jour de la
+  semaine pré-remplie avec l'**horaire contractuel du salarié** (son
+  `resource.calendar` Odoo, cycles 2 semaines gérés). Boutons : « ✓ Journée
+  normale », CP, Maladie, Férié, Absent, Récup — ou saisie fine des 4
+  horaires. Totaux de semaine en direct. Bloc **« Demander des congés »**
+  (du/au/type/motif) avec suivi du statut de ses demandes.
+- **`/heures-admin?k=<clé>`** (Charlotte, protégée par la clé responsables
+  `maquignon.rh_admin_key`) : tableau salariés × 7 jours, filtre par société,
+  navigation par semaine. Cases cliquables (popup de saisie), **⚡** remplit
+  les jours ouvrés vides à l'horaire habituel, **!** signale un jour ouvré
+  passé sans saisie, **🔗** copie le lien personnel de chaque salarié (pour
+  distribution SMS/WhatsApp). Bouton **⬇ Export paie**.
+- **`/planning-rh?k=<clé>`** (responsables) : planning mensuel salariés ×
+  jours — heures saisies, CP/maladie/férié/absence/récup en couleurs, jours
+  non travaillés grisés, théorique en filigrane sur les jours à venir,
+  demandes de congés en attente surlignées en pointillé. Encart de
+  **validation des demandes** : ✓ Approuver (inscrit automatiquement les
+  jours de congés dans les heures, jours ouvrés du calendrier uniquement)
+  ou ✗ Refuser avec motif (visible par le salarié sur sa page).
 
 ## Données
 - Modèle manuel `x_heures_jour` (unique par salarié+jour) : type de jour,
   4 horaires, heures effectuées, théorique du jour (figé à la saisie), écart.
 - Sauvegarde via l'action serveur **2012** (sudo, upsert, calcul du théorique
-  depuis le calendrier du salarié — parité des semaines façon Odoo).
+  depuis le calendrier du salarié — parité des semaines façon Odoo), qui
+  exige le token du salarié OU la clé responsables.
+- Demandes de congés : modèle `x_demande_conge` (statuts attente/approuvé/
+  refusé), actions **2013** (création, token requis) et **2014** (réponse,
+  clé requise ; l'approbation génère les jours dans x_heures_jour).
+- Les liens personnels et les liens responsables ne sont **jamais commités** :
+  fichier de distribution généré à la demande (tokens en base Odoo).
 
 ## Export paie (logiciel extérieur)
 - Endpoint Render **`/export-heures?mois=YYYY-MM&comp=all|<société>&k=<clé>`**
