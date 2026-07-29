@@ -74,3 +74,13 @@ lien personnel… strictement personnel »), et **♻️ régénération du lien
 salarié (action 2020, clé requise — l'ancien lien devient invalide).
 Accessible depuis la barre de /heures-admin. Rend obsolète le fichier texte
 de distribution : la page est toujours à jour (nouveaux salariés compris).
+
+## Horaires par défaut — éditeur web (29/07)
+**`/heures-horaires?k=<clé>`** (Charlotte) : la semaine type de chaque salarié
+en édition directe (matin/après-midi × 7 jours, « Lundi → mar-ven » pour
+recopier, total h/sem en direct). À l'enregistrement (action 2021, clé
+requise) : création ou mise à jour d'un **calendrier individuel
+« Horaire — Nom »** affecté au salarié — jamais de modification d'un
+calendrier partagé, donc aucun effet de bord sur les autres salariés.
+Les cycles 2 semaines existants sont signalés (l'éditeur enregistre une
+semaine simple). Raccourcis depuis /heures-admin et /heures-liens.

@@ -40,6 +40,7 @@
           <div style="margin-left:auto;">
             <a t-attf-href="/heures-admin?k={{kk}}" class="hl-b" style="background:#e2e8f0;color:#0f172a;">🗓 Heures</a>
             <a t-attf-href="/planning-rh?k={{kk}}" class="hl-b" style="background:#e2e8f0;color:#0f172a;">📅 Planning</a>
+            <a t-attf-href="/heures-horaires?k={{kk}}" class="hl-b" style="background:#e2e8f0;color:#0f172a;">⏰ Horaires</a>
           </div>
         </div>
         <t t-set="emps" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
