@@ -103,3 +103,18 @@ Les deux OD restantes ont été rendues inutiles puis supprimées, en corrigeant
 relevés. Vérifié : Banque Pop 46 824,52 ✓ (vignette idem, opérations
 diverses 0,00) · ancien compte 0,00 ✓ · CB à l'encaissement −5 618,14 ✓ ·
 Caisse 119,86 ✓ · BNP 31 140,97 ✓.
+
+## Lettrage CB à l'encaissement (29/07, « Paiements 1 863,33 » sur la vignette)
+- Cause de fond : le compte 51121000 CB à l'encaissement n'était **pas
+  lettrable** (reconcile=False) — aucun pointage possible, tout s'accumulait
+  depuis avril. Les 1 863,33 € de la vignette = deux paiements « Combiner les
+  paiements PdV Carte » (PBNK1/2026/00009 du 08/04 : 1 776,88 — dont la
+  contre-écriture « Rebascule POS/00041 » du même jour existait — et
+  PBNK1/2026/00047 du 06/05 : 86,45) jamais rapprochés.
+- Correctif : compte passé **lettrable**, puis **lettrage FIFO chronologique
+  des 294 lignes ouvertes** (paiements carte PCB quotidiens, remises brut,
+  rebascules) en un appel. Validé sur base de test avant prod.
+- Résultat : vignette « Paiements » à **0,00 €** ; ne restent ouvertes que les
+  8 remises des 23–28/07 (fonctionnement normal) ; solde 4819 inchangé
+  (−5 618,14, résiduel documenté plus haut). La comptable peut désormais
+  travailler ce compte dans le widget de lettrage.
