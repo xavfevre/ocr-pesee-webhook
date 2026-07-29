@@ -89,3 +89,17 @@ transactions du journal de caisse). Remplacées par trois **transactions de
 caisse** du 29/07 (lignes 6177/6178/6179 : +2 097,20 contrepartie 658,
 +122,60 en compte d'attente, +100,70 contrepartie 658) et les OD supprimées.
 GL inchangé : caisse **119,86 €** ✓, vignette **119,86 €** ✓.
+
+## Suppression des OD Banque Pop (29/07, demande utilisateur)
+Les deux OD restantes ont été rendues inutiles puis supprimées, en corrigeant
+à la source (validé sur base de test avant prod) :
+- **OD annulation cumul cron (116 378,55)** : remplacée par la **suppression
+  des 94 écritures fictives** « Virement CB à encaisser » elles-mêmes
+  (draft + unlink, total contrôlé au centime avant suppression).
+- **OD reclassement (35 209,15)** : remplacée par la **migration ligne à
+  ligne** des 752 jambes de relevés restées sur l'ancien compte « Bank »
+  (3366) vers 512 Banque Populaire (écriture directe groupée).
+État final : plus aucune OD sur la Banque Pop, journal 100 % adossé aux
+relevés. Vérifié : Banque Pop 46 824,52 ✓ (vignette idem, opérations
+diverses 0,00) · ancien compte 0,00 ✓ · CB à l'encaissement −5 618,14 ✓ ·
+Caisse 119,86 ✓ · BNP 31 140,97 ✓.
