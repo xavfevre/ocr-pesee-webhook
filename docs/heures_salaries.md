@@ -121,3 +121,19 @@ explicite au lieu de l'erreur Odoo brute :
 « un de ses congés déjà validés n'est couvert par aucune attribution
 (période close ou attribution manquante). Créez l'attribution correspondante
 dans Congés, puis réessayez. »
+
+## Bug corrigé (30/07) — le lundi n'était pas enregistré
+**Symptôme** : tout horaire saisi via /heures-horaires perdait le lundi ;
+le total affiché (ex. 28 h au lieu de 35 h) était juste — c'est la donnée
+enregistrée qui était amputée.
+
+**Cause** : dans le gabarit, l'attribut `t-att-data-d="i"` n'était pas généré
+pour i = 0 (QWeb omet un attribut dont la valeur est falsy, et 0 l'est). Les
+champs du lundi n'avaient donc pas de `data-d`, le JavaScript ne les trouvait
+pas et envoyait toujours un lundi vide. Corrigé par `t-att-data-d="str(i)"`.
+
+**Réparation des 6 horaires abîmés** (tous saisis avant le correctif) :
+CERBELLE Céline, CHEVALIER Christophe, DESPUJOLS Loïc, GILLARD Loïc,
+GUERIN Frédéric, LANGLOIS Nicolas — lundi restauré à l'identique du mardi,
+ce qui ramène chacun **exactement à ses heures contractuelles** (35 h pour
+Céline, 39 h pour les cinq autres), confirmant l'hypothèse.

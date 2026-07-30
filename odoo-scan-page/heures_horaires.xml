@@ -89,11 +89,11 @@
                       <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and ((a.week_type == wk) if (cal and cal.two_weeks_calendar) else wk == '0')] if cal else []"/>
                       <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'afternoon' and ((a.week_type == wk) if (cal and cal.two_weeks_calendar) else wk == '0')] if cal else []"/>
                       <span class="lbl" t-esc="jours[i]"/>
-                      <input type="time" t-att-data-d="i" data-f="0" t-att-value="fmt(min([a.hour_from for a in morn])) if morn else ''"/>
-                      <input type="time" t-att-data-d="i" data-f="1" t-att-value="fmt(max([a.hour_to for a in morn])) if morn else ''"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="0" t-att-value="fmt(min([a.hour_from for a in morn])) if morn else ''"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="1" t-att-value="fmt(max([a.hour_to for a in morn])) if morn else ''"/>
                       <span class="sep">/</span>
-                      <input type="time" t-att-data-d="i" data-f="2" t-att-value="fmt(min([a.hour_from for a in aft])) if aft else ''"/>
-                      <input type="time" t-att-data-d="i" data-f="3" t-att-value="fmt(max([a.hour_to for a in aft])) if aft else ''"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="2" t-att-value="fmt(min([a.hour_from for a in aft])) if aft else ''"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="3" t-att-value="fmt(max([a.hour_to for a in aft])) if aft else ''"/>
                     </t>
                   </div>
                   <div class="hh-tools">
