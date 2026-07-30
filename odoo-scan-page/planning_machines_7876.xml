@@ -154,12 +154,12 @@
         <div id="pf-board" style="overflow:auto;">
         <div class="d-flex gap-2" style="min-height:100%;width:max-content;">
           <!-- Colonne À planifier (uniquement boards Sciage) -->
-          <t t-if="board != 'complet'">
           <div class="pf-col rounded p-2" data-wc="0" style="background:#FBEAEA;min-width:240px;max-width:240px;min-height:400px;">
             <t t-set="placed_ids" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == day and w.workcenter_id.id in machines.ids).ids"/>
             <t t-set="backlog" t-value="ots.filtered(lambda w: w.state not in ('done', 'cancel') and w.id not in placed_ids)"/>
             <h6 class="text-danger" style="position:sticky;top:0;background:#FBEAEA;z-index:5;padding:6px 0;margin:-6px 0 4px;">⚠ À planifier (<t t-esc="len(backlog)"/>)</h6>
-            <t t-set="blog_ofs" t-value="sorted(set(backlog.mapped('production_id')), key=lambda p: str(p.create_date or ''))"/>
+            <t t-set="blog_full" t-value="sorted(set(backlog.mapped('production_id')), key=lambda p: str(p.create_date or ''))"/>
+            <t t-set="blog_ofs" t-value="blog_full[:60] if board == 'complet' else blog_full"/>
             <t t-foreach="blog_ofs" t-as="bof">
               <t t-set="bof_ws" t-value="backlog.filtered(lambda w: w.production_id.id == bof.id)"/>
               <t t-if="len(bof_ws) &gt; 1">
@@ -172,8 +172,8 @@
                 <t t-foreach="bof_ws" t-as="w"><t t-call="website.planning_machine_card"/></t>
               </t>
             </t>
+            <div t-if="len(blog_full) &gt; len(blog_ofs)" style="font-size:11.5px;color:#991b1b;font-weight:700;padding:6px 2px;">… + <t t-esc="len(blog_full) - len(blog_ofs)"/> autres OF — affinez avec la recherche 🔎 ou ouvrez le board du groupe concerné</div>
           </div>
-          </t>
           <!-- Colonnes machines -->
           <t t-foreach="machines" t-as="wc">
             <t t-set="colbg" t-value="{'prim': '#FDEBD0', 'ate': '#E3F4E4', 'usi': '#DDEBFB'}.get(grp.get(wc.id), '#F4F5F7')"/>
@@ -191,10 +191,10 @@
         <!-- ===== VERSION MOBILE : sections + panneau de déplacement ===== -->
         <div class="d-md-none">
           <t t-foreach="machines" t-as="wc"><span class="pf-target" t-att-data-tid="wc.id" style="display:none;" t-esc="wc.name"/></t>
-          <t t-if="board != 'complet'">
           <div class="p-2 rounded mb-2" style="background:#FBEAEA;">
             <h6 class="text-danger mb-1">⚠ À planifier (<t t-esc="len(backlog)"/>)</h6>
-            <t t-set="mblog_ofs" t-value="sorted(set(backlog.mapped('production_id')), key=lambda p: str(p.create_date or ''))"/>
+            <t t-set="mblog_full" t-value="sorted(set(backlog.mapped('production_id')), key=lambda p: str(p.create_date or ''))"/>
+            <t t-set="mblog_ofs" t-value="mblog_full[:60] if board == 'complet' else mblog_full"/>
             <t t-foreach="mblog_ofs" t-as="bof">
               <t t-set="bof_ws" t-value="backlog.filtered(lambda w: w.production_id.id == bof.id)"/>
               <t t-if="len(bof_ws) &gt; 1">
@@ -207,8 +207,8 @@
                 <t t-foreach="bof_ws" t-as="w"><t t-call="website.planning_machine_card"/></t>
               </t>
             </t>
+            <div t-if="len(mblog_full) &gt; len(mblog_ofs)" style="font-size:11.5px;color:#991b1b;font-weight:700;">… + <t t-esc="len(mblog_full) - len(mblog_ofs)"/> autres OF — affinez avec la recherche 🔎</div>
           </div>
-          </t>
           <t t-foreach="machines" t-as="wc">
             <t t-set="wc_m" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == day and w.workcenter_id.id == wc.id)"/>
             <t t-if="wc_m">
