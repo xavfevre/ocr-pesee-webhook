@@ -6,10 +6,18 @@
   sur hr.employee, vérifié aussi côté serveur à chaque sauvegarde) — un
   salarié ne peut pas voir les heures d'un autre. Une carte par jour de la
   semaine pré-remplie avec l'**horaire contractuel du salarié** (son
-  `resource.calendar` Odoo, cycles 2 semaines gérés). Boutons : « ✓ Journée
-  normale », CP, Maladie, Férié, Absent, Récup — ou saisie fine des 4
-  horaires. Totaux de semaine en direct. Bloc **« Demander des congés »**
-  (du/au/type/motif) avec suivi du statut de ses demandes.
+  `resource.calendar` Odoo, cycles 2 semaines gérés). Le salarié saisit
+  **uniquement ses heures travaillées** : bouton « ✓ Journée normale » (qui
+  pré-remplit l'horaire habituel) ou saisie fine des 4 horaires. Totaux de
+  semaine en direct. Bloc **« Demander des congés »** (du/au/type/motif)
+  avec suivi du statut de ses demandes.
+  **CP / maladie / férié / absence / récup sont réservés au bureau**
+  (Isabelle et Charlotte, via `/heures-admin`) : le salarié les voit sur sa
+  semaine sous forme de bandeau coloré en lecture seule, et les champs
+  horaires + le bouton d'enregistrement disparaissent sur ces journées.
+  Le contrôle est aussi fait **côté serveur** dans l'action 2012 : une
+  requête portant un jeton salarié ne peut poser qu'un type `travail`, et ne
+  peut pas écraser une journée déjà typée par le bureau.
 - **`/heures-admin?k=<clé>`** (Charlotte, protégée par la clé responsables
   `maquignon.rh_admin_key`) : tableau salariés × 7 jours, filtre par société,
   navigation par semaine. Cases cliquables (popup de saisie), **⚡** remplit

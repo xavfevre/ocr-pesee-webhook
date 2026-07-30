@@ -40,6 +40,14 @@
       .mh-times label{font-size:12.5px;font-weight:800;color:#64748b;}
       .mh-times input{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-size:15px;font-weight:700;width:100%;}
       .mh-save{margin-top:7px;width:100%;border:none;border-radius:10px;padding:10px;background:#1d4ed8;color:#fff;font-weight:900;font-size:15px;cursor:pointer;}
+      .mh-lock{margin-top:8px;border-radius:10px;padding:10px 12px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;}
+      .mh-lock small{display:block;font-weight:600;font-size:12px;opacity:.85;margin-top:2px;}
+      .mh-lock.l-cp{background:#fef3c7;color:#92400e;}
+      .mh-lock.l-maladie{background:#fee2e2;color:#991b1b;}
+      .mh-lock.l-ferie{background:#ede9fe;color:#5b21b6;}
+      .mh-lock.l-absence{background:#fecaca;color:#7f1d1d;}
+      .mh-lock.l-recup{background:#e0f2fe;color:#075985;}
+      .mh-lock.l-repos{background:#f1f5f9;color:#475569;}
       .mh-pick{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;}
       .mh-pick a{display:inline-block;margin:3px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;color:#0f172a;}
       .mh-soc{font-weight:900;color:#334155;margin:10px 0 4px;font-size:14px;text-transform:uppercase;}
@@ -84,6 +92,9 @@
           </div>
         </div>
         <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
+        <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
+          ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
+        </div>
         <t t-foreach="range(7)" t-as="i">
           <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
           <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
@@ -96,6 +107,7 @@
           <t t-set="theo" t-value="(tmf - tmd) + (taf - tad)"/>
           <t t-set="s" t-value="saisies.get(dstr)"/>
           <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
+          <t t-set="lock" t-value="s and s.x_type in ('cp', 'maladie', 'ferie', 'absence', 'recup', 'repos')"/>
           <div t-attf-class="mh-day t-{{s and s.x_type or 'vide'}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % theo"
                t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)"
                t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-type="s and s.x_type or ''">
@@ -116,23 +128,41 @@
             </div>
             <div class="mh-theo" t-if="theo &gt; 0">Horaire habituel : <t t-esc="fmt(tmd)"/>-<t t-esc="fmt(tmf)"/><t t-if="taf"> / <t t-esc="fmt(tad)"/>-<t t-esc="fmt(taf)"/></t> (<t t-esc="'%.2f' % theo"/> h)</div>
             <div class="mh-theo" t-else="">Pas d'horaire prévu ce jour</div>
-            <div class="mh-btns">
-              <button type="button" class="mh-b mh-b-ok" data-act="normal" t-if="theo &gt; 0">✓ Journée normale</button>
-              <button type="button" class="mh-b mh-b-cp" data-act="cp">CP</button>
-              <button type="button" class="mh-b mh-b-mal" data-act="maladie">Maladie</button>
-              <button type="button" class="mh-b mh-b-fer" data-act="ferie">Férié</button>
-              <button type="button" class="mh-b mh-b-abs" data-act="absence">Absent</button>
-              <button type="button" class="mh-b mh-b-rec" data-act="recup">Récup</button>
-            </div>
-            <div class="mh-times">
-              <label>Matin</label>
-              <input type="time" data-f="m_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_deb) or ''"/>
-              <input type="time" data-f="m_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_fin) or ''"/>
-              <label>Ap.-midi</label>
-              <input type="time" data-f="am_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_deb) or ''"/>
-              <input type="time" data-f="am_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_fin) or ''"/>
-            </div>
-            <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
+            <t t-if="lock">
+              <div t-attf-class="mh-lock l-{{s.x_type}}">
+                <span style="font-size:20px;">
+                  <t t-if="s.x_type == 'cp'">🏖</t>
+                  <t t-elif="s.x_type == 'maladie'">🤒</t>
+                  <t t-elif="s.x_type == 'ferie'">🎉</t>
+                  <t t-elif="s.x_type == 'absence'">⛔</t>
+                  <t t-elif="s.x_type == 'recup'">🔄</t>
+                  <t t-else="">💤</t>
+                </span>
+                <span>
+                  <t t-if="s.x_type == 'cp'">Congés payés</t>
+                  <t t-elif="s.x_type == 'maladie'">Arrêt maladie</t>
+                  <t t-elif="s.x_type == 'ferie'">Jour férié</t>
+                  <t t-elif="s.x_type == 'absence'">Absence</t>
+                  <t t-elif="s.x_type == 'recup'">Récupération</t>
+                  <t t-else="">Repos</t>
+                  <small>Saisi par la direction — pas d'heures à renseigner. En cas d'erreur, prévenez le bureau.</small>
+                </span>
+              </div>
+            </t>
+            <t t-else="">
+              <div class="mh-btns" t-if="theo &gt; 0">
+                <button type="button" class="mh-b mh-b-ok" data-act="normal">✓ Journée normale</button>
+              </div>
+              <div class="mh-times">
+                <label>Matin</label>
+                <input type="time" data-f="m_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_deb) or ''"/>
+                <input type="time" data-f="m_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_fin) or ''"/>
+                <label>Ap.-midi</label>
+                <input type="time" data-f="am_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_deb) or ''"/>
+                <input type="time" data-f="am_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_fin) or ''"/>
+              </div>
+              <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
+            </t>
           </div>
         </t>
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
@@ -210,15 +240,12 @@
     var card = b.closest('.mh-day'); var act = b.getAttribute('data-act');
     var inp = {};
     card.querySelectorAll('.mh-times input').forEach(function(i){ inp[i.getAttribute('data-f')] = i; });
+    if(!inp.m_deb){ return; }
     if(act === 'normal'){
       inp.m_deb.value = card.getAttribute('data-tmd'); inp.m_fin.value = card.getAttribute('data-tmf');
       inp.am_deb.value = card.getAttribute('data-tad'); inp.am_fin.value = card.getAttribute('data-taf');
-      save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
-    } else if(act === 'save'){
-      save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
-    } else {
-      save(card, act, 0, 0, 0, 0);
-    }
+    } else if(act !== 'save'){ return; }
+    save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
   });
   var dcgo = document.getElementById('mh-dc-go');
   if(dcgo){ dcgo.addEventListener('click', function(){

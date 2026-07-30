@@ -39,6 +39,11 @@ Total : 30 salariés actifs affectés sur 33.
   (Agent de production), tous deux CARRIERE D'HAIMS, n'avaient aucune
   étiquette : classés en **CARRIER** d'après leur poste. Leur étiquette reste
   à ajouter côté RH si vous voulez que les deux champs restent cohérents.
+- **Christophe MAQUIGNON** avait une seconde fiche salarié créée
+  automatiquement sur SAS DISTRI BETON VIENNE le 09/07/2026 (aucune heure,
+  aucun congé, aucun pointage dessus). Elle est **archivée** : il ne reste
+  que la fiche 490 sur CARRIERE D'HAIMS, département CARRIER. DISTRI BETON
+  n'a désormais aucun salarié actif.
 
 ## Fiches laissées sans département (volontairement)
 
@@ -46,7 +51,6 @@ Ce sont des fiches techniques, pas des salariés :
 
 - `CHAUFFEUR Transport` (SARL MAQUIGNON) — fiche générique de transport
 - `Caisse` (CHATEL'GRANULATS)
-- `Christophe MAQUIGNON` (SAS DISTRI BETON VIENNE) — doublon de fiche mandataire
 
 ## Non fait
 
