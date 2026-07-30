@@ -44,3 +44,18 @@ analytiques. Les 4 autres sociétés ont un projet « Interne » avec compte act
 SARL MAQUIGNON, id 32) + projet « Interne » (id 18, tâches Congés / Réunion /
 Formation) et rattachement comme projet interne de la société. C'est la même
 erreur que celle rencontrée sur la page des horaires par défaut.
+
+## 5. Suite de la fusion : lien compte utilisateur
+Après l'archivage de « Chef atelier », **Loïc ne pouvait plus lancer d'ordre
+de travail** : Odoo exige que l'utilisateur soit relié à une fiche salarié
+active de la société (« Vous devez relier cet utilisateur à un employé de
+cette entreprise pour traiter l'ordre de travail »). Le compte *Production*
+(loic@maquignon.com) pointait encore sur la fiche archivée.
+
+Correctif : lien transféré sur **MAQUIGNON Loïc** (494). Vérifié avec ses
+droits réels : lancement et mise en attente d'un OT fonctionnent.
+
+Audit des autres comptes internes au passage : **COLLET Corentin** n'était
+relié à aucune fiche (même symptôme latent) → rattaché à sa fiche 477.
+Restent sans fiche, volontairement : *CHAUFFEUR Transport* (compte partagé,
+relié à sa propre fiche technique) et *Nicolas TARTARIN* (prestataire externe).
