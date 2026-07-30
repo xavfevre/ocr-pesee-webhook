@@ -24,7 +24,7 @@
         <t t-set="next_d" t-value="(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d')"/>
         <t t-set="board" t-value="request.httprequest.args.get('board') or 'complet'"/>
         <t t-set="board_label" t-value="{'complet': 'complet', 'primaire': 'sciage primaire', 'atelier': 'Atelier', 'usine': 'Usine', 'carriere': 'Carrière', 'finition': 'Finition', 'autres': 'Autres postes'}.get(board, board)"/>
-        <t t-set="m_prim" t-value="[1, 4]"/>
+        <t t-set="m_prim" t-value="[1, 4, 20]"/>
         <t t-set="m_ate" t-value="[18, 7, 8, 6, 22, 24]"/>
         <t t-set="m_usi" t-value="[20, 5, 9, 21, 15]"/>
         <t t-set="m_carr" t-value="[3]"/>
@@ -61,10 +61,10 @@
           <t t-set="type_dom" t-value="[('workcenter_id', 'in', machines.ids)]"/>
         </t>
         <t t-else="">
-          <t t-set="m_ordre" t-value="m_prim + [i for i in m_ate if i not in m_fin] + m_usi + m_carr + m_fin"/>
+          <t t-set="m_ordre" t-value="[i for i in m_prim if i not in m_usi] + [i for i in m_ate if i not in m_fin] + m_usi + m_carr + m_fin"/>
           <t t-set="m_autres" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1),('id','not in',m_ordre)], order='name').ids"/>
           <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse(m_ordre + m_autres)"/>
-          <t t-set="grp" t-value="dict([(i, 'prim') for i in m_prim] + [(i, 'ate') for i in m_ate if i not in m_fin] + [(i, 'usi') for i in m_usi] + [(i, 'carr') for i in m_carr] + [(i, 'fin') for i in m_fin])"/>
+          <t t-set="grp" t-value="dict([(i, 'prim') for i in m_prim if i not in m_usi] + [(i, 'ate') for i in m_ate if i not in m_fin] + [(i, 'usi') for i in m_usi] + [(i, 'carr') for i in m_carr] + [(i, 'fin') for i in m_fin])"/>
           <t t-set="type_kw" t-value="[]"/>
           <t t-set="type_dom" t-value="[]"/>
         </t>
