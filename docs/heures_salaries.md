@@ -84,5 +84,11 @@ recopier, total h/sem en direct). À l'enregistrement (action 2021, clé
 requise) : création ou mise à jour d'un **calendrier individuel
 « Horaire — Nom »** affecté au salarié — jamais de modification d'un
 calendrier partagé, donc aucun effet de bord sur les autres salariés.
-Les cycles 2 semaines existants sont signalés (l'éditeur enregistre une
-semaine simple). Raccourcis depuis /heures-admin et /heures-liens.
+**Cycles 2 semaines** : case « Cycle 2 semaines (alternance A / B) » par
+salarié → deux grilles Semaine A / Semaine B, bouton « A → B » pour recopier,
+totaux par semaine + moyenne. L'enregistrement produit un calendrier
+`two_weeks_calendar` avec les lignes de section « Semaine A / Semaine B » et
+les `week_type` 0/1, à l'identique des calendriers Odoo standards ; décocher la
+case repasse le salarié en semaine simple. Odoo applique A ou B selon la parité
+de la semaine, et le pré-remplissage des feuilles d'heures suit automatiquement.
+Raccourcis depuis /heures-admin et /heures-liens.

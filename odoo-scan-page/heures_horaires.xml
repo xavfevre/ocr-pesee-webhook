@@ -68,29 +68,44 @@
               <div>
                 <span class="hh-name" t-esc="e.name"/>
                 <span class="hh-tag" t-esc="cal.name if cal else 'sans horaire'"/>
-                <span t-if="cal and cal.two_weeks_calendar" class="hh-tag two">cycle 2 semaines — semaine A affichée</span>
+                <span t-if="cal and cal.two_weeks_calendar" class="hh-tag two">cycle 2 semaines</span>
                 <div class="hh-sum"><t t-esc="('%g' % round(tot, 2))"/> h/semaine</div>
               </div>
               <button type="button" class="hh-edit">✏️ Modifier</button>
             </div>
             <div class="hh-form">
-              <div class="hh-grid">
-                <span class="lbl"></span><span class="lbl">Matin début</span><span class="lbl">Matin fin</span><span></span><span class="lbl">A-m début</span><span class="lbl">A-m fin</span>
-                <t t-foreach="range(7)" t-as="i">
-                  <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == '0')] if cal else []"/>
-                  <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'afternoon' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == '0')] if cal else []"/>
-                  <span class="lbl" t-esc="jours[i]"/>
-                  <input type="time" t-att-data-d="i" data-f="0" t-att-value="fmt(min([a.hour_from for a in morn])) if morn else ''"/>
-                  <input type="time" t-att-data-d="i" data-f="1" t-att-value="fmt(max([a.hour_to for a in morn])) if morn else ''"/>
-                  <span class="sep">/</span>
-                  <input type="time" t-att-data-d="i" data-f="2" t-att-value="fmt(min([a.hour_from for a in aft])) if aft else ''"/>
-                  <input type="time" t-att-data-d="i" data-f="3" t-att-value="fmt(max([a.hour_to for a in aft])) if aft else ''"/>
-                </t>
-              </div>
+              <label style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:13.5px;color:#334155;margin-bottom:8px;cursor:pointer;">
+                <input type="checkbox" class="hh-two" t-att-checked="'checked' if (cal and cal.two_weeks_calendar) else None" style="width:17px;height:17px;"/>
+                Cycle 2 semaines (alternance A / B)
+              </label>
+              <t t-foreach="['0', '1']" t-as="wk">
+                <div t-attf-class="hh-week hh-week-{{wk}}" t-att-data-wk="wk" t-attf-style="{{'' if (wk == '0' or (cal and cal.two_weeks_calendar)) else 'display:none;'}}">
+                  <div t-attf-class="hh-wlabel wl-{{wk}}" style="font-weight:900;font-size:13px;color:#4338ca;margin:6px 0 4px;">
+                    <t t-if="wk == '0'">📅 Semaine A</t><t t-else="">📅 Semaine B</t>
+                  </div>
+                  <div class="hh-grid">
+                    <span class="lbl"></span><span class="lbl">Matin début</span><span class="lbl">Matin fin</span><span></span><span class="lbl">A-m début</span><span class="lbl">A-m fin</span>
+                    <t t-foreach="range(7)" t-as="i">
+                      <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and ((a.week_type == wk) if (cal and cal.two_weeks_calendar) else wk == '0')] if cal else []"/>
+                      <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'afternoon' and ((a.week_type == wk) if (cal and cal.two_weeks_calendar) else wk == '0')] if cal else []"/>
+                      <span class="lbl" t-esc="jours[i]"/>
+                      <input type="time" t-att-data-d="i" data-f="0" t-att-value="fmt(min([a.hour_from for a in morn])) if morn else ''"/>
+                      <input type="time" t-att-data-d="i" data-f="1" t-att-value="fmt(max([a.hour_to for a in morn])) if morn else ''"/>
+                      <span class="sep">/</span>
+                      <input type="time" t-att-data-d="i" data-f="2" t-att-value="fmt(min([a.hour_from for a in aft])) if aft else ''"/>
+                      <input type="time" t-att-data-d="i" data-f="3" t-att-value="fmt(max([a.hour_to for a in aft])) if aft else ''"/>
+                    </t>
+                  </div>
+                  <div class="hh-tools">
+                    <button type="button" class="hh-b hh-lun" data-act="lundi">Lundi → mar-ven</button>
+                    <button type="button" class="hh-b hh-clear" data-act="clear">Vider cette semaine</button>
+                    <span class="hh-tot" data-role="tot"></span>
+                  </div>
+                </div>
+              </t>
               <div class="hh-tools">
-                <button type="button" class="hh-b hh-lun" data-act="lundi">Lundi → mar-ven</button>
-                <button type="button" class="hh-b hh-clear" data-act="clear">Tout vider</button>
-                <span class="hh-tot" data-role="tot"></span>
+                <button type="button" class="hh-b hh-copyab" data-act="copyab" style="background:#e0e7ff;color:#3730a3;display:none;">A → B</button>
+                <span class="hh-tot" data-role="totgen"></span>
                 <button type="button" class="hh-b hh-save" data-act="save">💾 Enregistrer la semaine type</button>
               </div>
             </div>
@@ -98,70 +113,102 @@
         </t>
         <div class="hh-note">
           ✏️ ouvre la semaine type du salarié : renseignez matin et après-midi pour chaque jour (laissez vide = jour non travaillé, une seule plage = matinée continue).
-          « <b>Lundi → mar-ven</b> » recopie le lundi sur mardi-vendredi. À l'enregistrement, un <b>horaire individuel « Horaire — Nom »</b> est créé (ou mis à jour) et affecté au salarié —
-          les horaires des autres salariés ne sont jamais touchés. Le nouvel horaire sert immédiatement au pré-remplissage de sa feuille d'heures, au calcul des HS et au planning.
+          « <b>Lundi → mar-ven</b> » recopie le lundi sur mardi-vendredi. Cochez « <b>Cycle 2 semaines</b> » pour les horaires alternés : une grille Semaine A et une Semaine B
+          (« <b>A → B</b> » recopie la première dans la seconde) ; Odoo applique automatiquement A ou B selon la parité de la semaine du calendrier.
+          À l'enregistrement, un <b>horaire individuel « Horaire — Nom »</b> est créé (ou mis à jour) et affecté au salarié — les horaires des autres salariés ne sont jamais touchés.
+          Le nouvel horaire sert immédiatement au pré-remplissage de sa feuille d'heures, au calcul des HS et au planning.
         </div>
         <div id="hh-k" t-att-data-k="kk" style="display:none;"/>
         <script>
 (function(){
   var KK = document.getElementById('hh-k').getAttribute('data-k');
   function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
-  function totOf(card){
-    var t = 0;
-    for(var i=0;i&lt;7;i++){
-      var g = get(card, i);
-      t += Math.max(g[1]-g[0], 0) + Math.max(g[3]-g[2], 0);
-    }
-    return t;
-  }
-  function get(card, d){
+  function get(week, d){
     var out = [0,0,0,0];
-    card.querySelectorAll('input[data-d="'+d+'"]').forEach(function(inp){ out[parseInt(inp.getAttribute('data-f'))] = toDec(inp.value); });
+    week.querySelectorAll('input[data-d="'+d+'"]').forEach(function(inp){ out[parseInt(inp.getAttribute('data-f'))] = toDec(inp.value); });
     return out;
   }
-  function refreshTot(card){
-    var el = card.querySelector('[data-role="tot"]');
-    if(el){ el.textContent = 'Total : ' + (Math.round(totOf(card)*100)/100) + ' h/sem'; }
+  function totOf(week){
+    var t = 0;
+    for(var i=0;i&lt;7;i++){ var g = get(week, i); t += Math.max(g[1]-g[0], 0) + Math.max(g[3]-g[2], 0); }
+    return t;
+  }
+  function isTwo(card){ var c = card.querySelector('.hh-two'); return !!(c &amp;&amp; c.checked); }
+  function refresh(card){
+    var two = isTwo(card);
+    var wA = card.querySelector('.hh-week-0'), wB = card.querySelector('.hh-week-1');
+    if(wB){ wB.style.display = two ? '' : 'none'; }
+    card.querySelectorAll('.hh-wlabel').forEach(function(l){ l.style.display = two ? '' : 'none'; });
+    var cp = card.querySelector('.hh-copyab'); if(cp){ cp.style.display = two ? '' : 'none'; }
+    var tA = totOf(wA), tB = wB ? totOf(wB) : 0;
+    var eA = wA.querySelector('[data-role="tot"]'); if(eA){ eA.textContent = (Math.round(tA*100)/100) + ' h'; }
+    if(wB){ var eB = wB.querySelector('[data-role="tot"]'); if(eB){ eB.textContent = (Math.round(tB*100)/100) + ' h'; } }
+    var g = card.querySelector('[data-role="totgen"]');
+    if(g){ g.textContent = two ? ('Moyenne : ' + (Math.round((tA+tB)/2*100)/100) + ' h/sem (A ' + (Math.round(tA*100)/100) + ' · B ' + (Math.round(tB*100)/100) + ')')
+                              : ('Total : ' + (Math.round(tA*100)/100) + ' h/sem'); }
   }
   document.addEventListener('input', function(e){
-    if(e.target.matches('.hh-form input')){ refreshTot(e.target.closest('.hh-emp')); }
+    if(e.target.matches('.hh-form input')){ refresh(e.target.closest('.hh-emp')); }
+  });
+  document.addEventListener('change', function(e){
+    if(e.target.classList &amp;&amp; e.target.classList.contains('hh-two')){ refresh(e.target.closest('.hh-emp')); }
   });
   document.addEventListener('click', function(e){
     var ed = e.target.closest('.hh-edit');
     if(ed){
-      var f = ed.closest('.hh-emp').querySelector('.hh-form');
+      var card0 = ed.closest('.hh-emp');
+      var f = card0.querySelector('.hh-form');
       f.style.display = (f.style.display === 'block') ? 'none' : 'block';
-      refreshTot(ed.closest('.hh-emp'));
+      refresh(card0);
       return;
     }
     var b = e.target.closest('.hh-b[data-act]');
     if(!b){ return; }
     var card = b.closest('.hh-emp');
     var act = b.getAttribute('data-act');
-    if(act === 'lundi'){
-      for(var f2=0; f2&lt;4; f2++){
-        var src = card.querySelector('input[data-d="0"][data-f="'+f2+'"]').value;
-        for(var d=1; d&lt;=4; d++){ card.querySelector('input[data-d="'+d+'"][data-f="'+f2+'"]').value = src; }
+    if(act === 'lundi' || act === 'clear'){
+      var week = b.closest('.hh-week');
+      if(act === 'lundi'){
+        for(var f2=0; f2&lt;4; f2++){
+          var src = week.querySelector('input[data-d="0"][data-f="'+f2+'"]').value;
+          for(var d=1; d&lt;=4; d++){ week.querySelector('input[data-d="'+d+'"][data-f="'+f2+'"]').value = src; }
+        }
+      } else {
+        week.querySelectorAll('input').forEach(function(i){ i.value=''; });
       }
-      refreshTot(card);
+      refresh(card);
       return;
     }
-    if(act === 'clear'){
-      card.querySelectorAll('.hh-form input').forEach(function(i){ i.value=''; });
-      refreshTot(card);
+    if(act === 'copyab'){
+      var wA = card.querySelector('.hh-week-0'), wB = card.querySelector('.hh-week-1');
+      for(var d3=0; d3&lt;7; d3++){
+        for(var f3=0; f3&lt;4; f3++){
+          wB.querySelector('input[data-d="'+d3+'"][data-f="'+f3+'"]').value =
+            wA.querySelector('input[data-d="'+d3+'"][data-f="'+f3+'"]').value;
+        }
+      }
+      refresh(card);
       return;
     }
     if(act === 'save'){
-      var hor = [];
-      for(var d2=0; d2&lt;7; d2++){ hor.push(get(card, d2)); }
-      if(totOf(card) &lt;= 0){ alert('Renseignez au moins une plage horaire.'); return; }
+      var two = isTwo(card);
+      var wA2 = card.querySelector('.hh-week-0'), wB2 = card.querySelector('.hh-week-1');
+      var horA = [], horB = [];
+      for(var d4=0; d4&lt;7; d4++){ horA.push(get(wA2, d4)); horB.push(get(wB2, d4)); }
+      if(totOf(wA2) &lt;= 0){ alert('Renseignez au moins une plage horaire en semaine A.'); return; }
+      if(two &amp;&amp; totOf(wB2) &lt;= 0){ alert('Le cycle 2 semaines est coché : renseignez aussi la semaine B (ou utilisez « A → B »).'); return; }
       b.disabled = true;
+      var ctx = {active_model:'hr.employee', emp_id:parseInt(card.getAttribute('data-emp')),
+                 horaires:horA, horaires_b:horB, deux_semaines:two, hj_k:KK};
       fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2021]],kwargs:{context:{active_model:'hr.employee',emp_id:parseInt(card.getAttribute('data-emp')),horaires:hor,hj_k:KK}}}})
+        body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2021]],kwargs:{context:ctx}}})
       }).then(function(r){return r.json();}).then(function(d){
         b.disabled = false;
         if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
-        alert('✓ Horaire enregistré (' + ((d.result||{}).total||0).toFixed(2) + ' h/sem) pour ' + card.getAttribute('data-name'));
+        var res = d.result || {};
+        alert('✓ Horaire enregistré pour ' + card.getAttribute('data-name') + '\n' +
+              (res.deux ? ('Cycle 2 semaines — moyenne ' + (res.semaine||0).toFixed(2) + ' h/sem')
+                        : ((res.total||0).toFixed(2) + ' h/sem')));
         location.reload();
       }).catch(function(){ b.disabled = false; alert('Échec réseau'); });
     }
