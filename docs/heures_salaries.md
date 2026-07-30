@@ -52,10 +52,12 @@
 - Évolutions possibles : jours fériés automatiques, verrouillage du mois après
   export, signature salarié.
 
-## Raccourcis dans le module Employés (29/07)
-Menu **Employés → Heures & congés** :
+## Raccourcis dans le module Présences (30/07)
+Menu **Présences → Heures & congés** (déplacé depuis Employés) :
 - 🗓 Tableau des heures (web) → /heures-admin (clé incluse dans l'action URL)
 - 📅 Planning RH (web) → /planning-rh
+- 🔗 Liens salariés (web) → /heures-liens
+- ⏰ Horaires par défaut (web) → /heures-horaires
 - Saisies des heures → liste x_heures_jour (filtres travail/congés/maladie,
   regroupements, totaux)
 - Demandes de congés → liste x_demande_conge (filtre « En attente »)
