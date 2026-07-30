@@ -23,24 +23,31 @@
         <t t-set="prev_d" t-value="(day - datetime.timedelta(days=1)).strftime('%Y-%m-%d')"/>
         <t t-set="next_d" t-value="(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d')"/>
         <t t-set="board" t-value="request.httprequest.args.get('board') or 'complet'"/>
-        <t t-set="board_label" t-value="{'complet': 'complet', 'secondaire': 'sciage secondaire', 'primaire': 'sciage primaire', 'atelier': 'Atelier', 'usine': 'Usine'}.get(board, board)"/>
-        <t t-if="board == 'secondaire'">
-          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse([18, 6, 7, 8, 5, 9, 22, 12, 19])"/>
-          <t t-set="type_kw" t-value="['secondaire', 'taille']"/>
-          <t t-set="type_dom" t-value="['|', ('name', 'ilike', 'secondaire'), ('name', 'ilike', 'taille')]"/>
-        </t>
-        <t t-elif="board == 'primaire'">
-          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse([1, 4])"/>
+        <t t-set="board_label" t-value="{'complet': 'complet', 'primaire': 'sciage primaire', 'atelier': 'Atelier', 'usine': 'Usine'}.get(board, board)"/>
+        <t t-set="m_prim" t-value="[1, 4]"/>
+        <t t-set="m_ate" t-value="[23, 7, 18, 22, 24]"/>
+        <t t-set="m_usi" t-value="[20, 5, 9, 21, 15]"/>
+        <t t-set="grp" t-value="{}"/>
+        <t t-if="board == 'primaire'">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse(m_prim)"/>
           <t t-set="type_kw" t-value="['primaire']"/>
           <t t-set="type_dom" t-value="[('name', 'ilike', 'primaire')]"/>
         </t>
-        <t t-elif="board in ('atelier', 'usine')">
-          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1),('x_studio_site','=',board)], order='name')"/>
+        <t t-elif="board == 'atelier'">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse(m_ate)"/>
           <t t-set="type_kw" t-value="[]"/>
-          <t t-set="type_dom" t-value="[('workcenter_id.x_studio_site','=',board)]"/>
+          <t t-set="type_dom" t-value="[('workcenter_id', 'in', m_ate)]"/>
+        </t>
+        <t t-elif="board == 'usine'">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse(m_usi)"/>
+          <t t-set="type_kw" t-value="[]"/>
+          <t t-set="type_dom" t-value="[('workcenter_id', 'in', m_usi)]"/>
         </t>
         <t t-else="">
-          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1)], order='name')"/>
+          <t t-set="m_ordre" t-value="m_prim + m_ate + m_usi"/>
+          <t t-set="m_autres" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1),('id','not in',m_ordre)], order='name').ids"/>
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse(m_ordre + m_autres)"/>
+          <t t-set="grp" t-value="dict([(i, 'prim') for i in m_prim] + [(i, 'ate') for i in m_ate] + [(i, 'usi') for i in m_usi])"/>
           <t t-set="type_kw" t-value="[]"/>
           <t t-set="type_dom" t-value="[]"/>
         </t>
@@ -51,14 +58,11 @@
         <t t-set="ots" t-value="ots | draft_ots"/><t t-set="done_day_ots" t-value="website.env['mrp.workorder'].sudo().search([('state','=','done'),('production_id.state','=','done'),('production_id.company_id','=',1),('date_start','&gt;=',day.strftime('%Y-%m-%d 00:00:00')),('date_start','&lt;',(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))] + qdom, order='date_start')"/><t t-set="ots" t-value="ots | done_day_ots"/>
         <t t-set="bcs" t-value="q and sorted(set([o for o in ots.mapped('production_id.origin') if o])) or []"/>
         <t t-set="ots" t-value="ots.filtered(lambda w: w.production_id.origin == bc) if bc else ots"/>
-        <t t-if="board == 'secondaire'">
-          <t t-set="ots" t-value="ots.filtered(lambda w: ('secondaire' in (w.name or '').lower()) or ('taille' in (w.name or '').lower()))"/>
-        </t>
-        <t t-elif="board == 'primaire'">
+        <t t-if="board == 'primaire'">
           <t t-set="ots" t-value="ots.filtered(lambda w: 'primaire' in (w.name or '').lower())"/>
         </t>
         <t t-elif="board in ('atelier', 'usine')">
-          <t t-set="ots" t-value="ots.filtered(lambda w: w.workcenter_id.x_studio_site == board)"/>
+          <t t-set="ots" t-value="ots.filtered(lambda w: w.workcenter_id.id in machines.ids)"/>
         </t>
         <t t-set="so_map" t-value="{r['name']: r for r in website.env['sale.order'].sudo().search_read([('name','in', [o for o in ots.mapped('production_id.origin') if o])], ['name','create_date'])}"/>
         <t t-set="employees" t-value="website.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
@@ -67,13 +71,18 @@
           <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'complet' else ''}}" t-attf-href="/planning-machines?board=complet&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🏭 Board complet</a></li>
           <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'atelier' else ''}}" t-attf-href="/planning-machines?board=atelier&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">📍 Board Atelier</a></li>
           <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'usine' else ''}}" t-attf-href="/planning-machines?board=usine&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🏗️ Board Usine</a></li>
-          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'secondaire' else ''}}" t-attf-href="/planning-machines?board=secondaire&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🪚 Sciage secondaire</a></li>
-          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'primaire' else ''}}" t-attf-href="/planning-machines?board=primaire&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🪨 Sciage primaire</a></li>
+          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'primaire' else ''}}" t-attf-href="/planning-machines?board=primaire&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🪨 Board Primaire</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}">👷 Vue opérateurs</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-fabrication?q={{q}}&amp;bc={{bc}}">📅 Vue semaine</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}">📆 Vue mois</a></li>
           <li class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
         </ul>
+        <div t-if="board == 'complet'" class="d-flex gap-2 flex-wrap mb-2" style="font-size:12.5px;font-weight:700;">
+          <span style="background:#FDEBD0;border-radius:7px;padding:3px 10px;">🪨 Primaire</span>
+          <span style="background:#E3F4E4;border-radius:7px;padding:3px 10px;">📍 Atelier</span>
+          <span style="background:#DDEBFB;border-radius:7px;padding:3px 10px;">🏗️ Usine</span>
+          <span style="background:#F4F5F7;border-radius:7px;padding:3px 10px;">Autres machines</span>
+        </div>
         <div class="d-flex align-items-center mb-2 flex-wrap gap-3">
           <h3 class="mb-0">Board <t t-esc="board_label"/> (opérations) — <t t-esc="day.strftime('%d/%m/%Y')"/></h3>
           <div class="d-flex gap-2 flex-wrap">
@@ -132,9 +141,11 @@
           </t>
           <!-- Colonnes machines -->
           <t t-foreach="machines" t-as="wc">
-            <div class="pf-col rounded p-2" t-att-data-wc="wc.id" style="background:#F4F5F7;min-width:240px;max-width:240px;min-height:400px;">
+            <t t-set="colbg" t-value="{'prim': '#FDEBD0', 'ate': '#E3F4E4', 'usi': '#DDEBFB'}.get(grp.get(wc.id), '#F4F5F7')"/>
+            <t t-set="colbadge" t-value="{'prim': '🪨 Primaire', 'ate': '📍 Atelier', 'usi': '🏗️ Usine'}.get(grp.get(wc.id), '')"/>
+            <div class="pf-col rounded p-2" t-att-data-wc="wc.id" t-attf-style="background:{{colbg}};min-width:240px;max-width:240px;min-height:400px;">
               <t t-set="wc_ots" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == day and w.workcenter_id.id == wc.id)"/>
-              <h6 style="position:sticky;top:0;background:#F4F5F7;z-index:5;padding:6px 0;margin:-6px 0 4px;"><t t-esc="wc.name"/> <small class="text-muted">(<t t-esc="len(wc_ots)"/>)</small><button t-if="len(wc_ots) &gt; 1" class="btn btn-sm btn-outline-secondary py-0 px-1 float-end" style="font-size:10px;line-height:1.3;" t-attf-onclick="reseq({{wc.id}})" title="Réétaler les heures de la journée (06:00 puis +durée)">↕ h</button></h6>
+              <h6 t-attf-style="position:sticky;top:0;background:{{colbg}};z-index:5;padding:6px 0;margin:-6px 0 4px;"><t t-esc="wc.name"/> <small class="text-muted">(<t t-esc="len(wc_ots)"/>)</small><small t-if="colbadge" style="display:block;font-size:9.5px;font-weight:800;color:#64748b;letter-spacing:.4px;" t-esc="colbadge"/><button t-if="len(wc_ots) &gt; 1" class="btn btn-sm btn-outline-secondary py-0 px-1 float-end" style="font-size:10px;line-height:1.3;" t-attf-onclick="reseq({{wc.id}})" title="Réétaler les heures de la journée (06:00 puis +durée)">↕ h</button></h6>
               <t t-foreach="wc_ots" t-as="w"><t t-call="website.planning_machine_card"/></t>
             </div>
           </t>
