@@ -92,3 +92,32 @@ les `week_type` 0/1, à l'identique des calendriers Odoo standards ; décocher l
 case repasse le salarié en semaine simple. Odoo applique A ou B selon la parité
 de la semaine, et le pré-remplissage des feuilles d'heures suit automatiquement.
 Raccourcis depuis /heures-admin et /heures-liens.
+
+## Correctifs config RH (30/07) — blocages au changement d'horaire
+Le changement d'horaire d'un salarié déclenche un recalcul de ses congés ;
+trois défauts de configuration le faisaient échouer :
+
+1. **SARL MAQUIGNON — projet interne cassé** : `leave_timesheet_task_id` vide
+   (conséquence du compte analytique archivé le 18/12/2025). Tâche « Congés »
+   du nouveau projet interne rattachée à la société.
+2. **SFM — type de congé de référence manquant** (`l10n_fr_reference_leave_type`)
+   → « Vous devez d'abord définir un type de congé de référence pour cette
+   société ». Aligné sur SARL MAQUIGNON (« Congés payés »).
+3. **Types de congés rattachés à une seule société alors qu'ils servent au
+   groupe** : « Congés payés » (CHATEL) est utilisé par les 4 sociétés,
+   « JOURS A RECUPERER » (MAQUIGNON) par 2. Les 4 types personnalisés passent
+   en **communs à toutes les sociétés**, ce qui reflète l'usage réel et évite
+   que tout changement de société casse l'historique de congés.
+
+Vérifié après correctifs : **32 des 33 salariés** acceptent un changement
+d'horaire (test automatisé, transaction annulée).
+
+### Reste un point RH, à traiter par la comptable
+Les **attributions de congés payés 2025-2026 n'ont jamais été créées** :
+tout le monde n'a que la période 2024-05-31 → 2025-05-31 (27,5 j). Charlotte
+est la seule à avoir posé des congés après cette date (2-3 juin 2025), d'où
+un blocage sur sa seule fiche. L'éditeur affiche désormais un message
+explicite au lieu de l'erreur Odoo brute :
+« un de ses congés déjà validés n'est couvert par aucune attribution
+(période close ou attribution manquante). Créez l'attribution correspondante
+dans Congés, puis réessayez. »
