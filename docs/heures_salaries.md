@@ -120,15 +120,19 @@ trois défauts de configuration le faisaient échouer :
 Vérifié après correctifs : **32 des 33 salariés** acceptent un changement
 d'horaire (test automatisé, transaction annulée).
 
-### Reste un point RH, à traiter par la comptable
-Les **attributions de congés payés 2025-2026 n'ont jamais été créées** :
-tout le monde n'a que la période 2024-05-31 → 2025-05-31 (27,5 j). Charlotte
-est la seule à avoir posé des congés après cette date (2-3 juin 2025), d'où
-un blocage sur sa seule fiche. L'éditeur affiche désormais un message
-explicite au lieu de l'erreur Odoo brute :
-« un de ses congés déjà validés n'est couvert par aucune attribution
-(période close ou attribution manquante). Créez l'attribution correspondante
-dans Congés, puis réessayez. »
+### Point RH réglé le 30/07 — attribution CP de Charlotte
+Les attributions de congés payés 2025-2026 n'avaient jamais été créées
+(tout le monde s'arrêtait à 2024-05-31 → 2025-05-31, 27,5 j). Charlotte était
+la seule à avoir des congés validés après cette date (2-3 juin 2025), donc la
+seule bloquée. **Créée le 30/07** : attribution « Congés payés 01/06/2025 →
+31/05/2026 (régularisation) », 25 jours, validée — *montant standard à faire
+vérifier/ajuster par la comptable*. Son horaire 38 h (L-Me 08:30-12:30 /
+13:15-17:45, Je jusqu'à 17:15, Ve 08:30-13:00) a ensuite été enregistré
+(calendrier « Horaire — MAIGNAN Charlotte », 38 h/sem).
+Audit du même jour sur **tous** les salariés : aucun autre congé validé non
+couvert par une attribution, et le test à blanc de changement d'horaire passe
+pour les **32 fiches actives sur 32** (la 33ᵉ était le doublon DISTRI BETON de
+Christophe MAQUIGNON, archivé le même jour).
 
 ## Bug corrigé (30/07) — le lundi n'était pas enregistré
 **Symptôme** : tout horaire saisi via /heures-horaires perdait le lundi ;
