@@ -1,0 +1,93 @@
+# === action 1917 | Relocaliser palette (emplacement) | modele [1496, 'Poste de scan'] ===
+
+for record in records:
+    colis = record.x_studio_colis_actifs
+    if not colis:
+        record.write({'x_studio_rsultat': "Aucune palette active"})
+        continue
+    move_msg = "cloturee"
+    tid = env.context.get('target_loc')
+    if tid:
+        loc = env['stock.location'].browse(tid)
+    else:
+        loc = env['stock.location'].search([('name','=',colis.x_studio_zone or ''),('usage','=','internal')], limit=1)
+    if loc:
+        quants = env['stock.quant']
+        for q in colis.quant_ids:
+            if q.quantity > 0 and q.location_id.id != loc.id:
+                quants |= q
+        if quants:
+            try:
+                src_ids = []
+                for q in quants:
+                    if q.location_id.id not in src_ids:
+                        src_ids.append(q.location_id.id)
+                ptype = env['stock.picking.type'].search([('code','=','internal'),('company_id','=',colis.company_id.id or 1)], limit=1)
+                for src_id in src_ids:
+                    picking = env['stock.picking'].create({'picking_type_id': ptype.id, 'location_id': src_id, 'location_dest_id': loc.id, 'origin': colis.name})
+                    todo = []
+                    for q in quants:
+                        if q.location_id.id == src_id:
+                            move = env['stock.move'].create({'product_id': q.product_id.id, 'product_uom_qty': q.quantity, 'product_uom': q.product_id.uom_id.id, 'picking_id': picking.id, 'location_id': src_id, 'location_dest_id': loc.id})
+                            todo.append((move.id, q.product_id.id, q.quantity, q.product_id.uom_id.id))
+                    picking.action_confirm()
+                    for t in todo:
+                        env['stock.move.line'].create({'move_id': t[0], 'picking_id': picking.id, 'product_id': t[1], 'quantity': t[2], 'product_uom_id': t[3], 'location_id': src_id, 'location_dest_id': loc.id, 'package_id': colis.id, 'result_package_id': colis.id, 'picked': True})
+                    picking.with_context(skip_backorder=True).button_validate()
+                move_msg = "deplacee en " + loc.display_name
+            except Exception:
+                move_msg = "cloturee (deplacement a verifier)"
+        else:
+            move_msg = "en " + loc.display_name
+    try:
+        tmpl = env['mail.template'].search([('name','=','Bon de colisage (cloture)')], limit=1)
+        if tmpl:
+            tmpl.send_mail(colis.id, force_send=True)
+    except Exception:
+        pass
+    record.write({'x_studio_rsultat': "Palette " + move_msg})
+
+
+# === action 2038 | TEST horaire détail (temporaire) | modele [436, 'Employee'] ===
+
+emp = env['hr.employee'].sudo().browse(env.context.get('eid'))
+msg = 'OK'
+try:
+    cal = env['resource.calendar'].sudo().create({
+        'name': 'ZZ test', 'company_id': emp.company_id.id, 'two_weeks_calendar': False,
+        'attendance_ids': [(0, 0, {'name': 'Lundi matin', 'dayofweek': '0',
+                                   'hour_from': 8.0, 'hour_to': 12.0, 'day_period': 'morning'})]})
+    emp.write({'resource_calendar_id': cal.id})
+except Exception as e:
+    msg = 'KO: ' + str(e)[:400]
+raise UserError(msg)
+
+
+# === action 2040 | TEST horaire final (temporaire) | modele [436, 'Employee'] ===
+
+emp = env['hr.employee'].sudo().browse(env.context.get('eid'))
+msg = 'OK'
+att = []
+for i in range(5):
+    att.append((0, 0, {'name': 'M', 'dayofweek': str(i), 'hour_from': 8.0, 'hour_to': 12.0, 'day_period': 'morning'}))
+    att.append((0, 0, {'name': 'A', 'dayofweek': str(i), 'hour_from': 13.5, 'hour_to': 17.5, 'day_period': 'afternoon'}))
+try:
+    cal = env['resource.calendar'].sudo().create({'name': 'ZZ test', 'company_id': emp.company_id.id,
+                                                  'two_weeks_calendar': False, 'attendance_ids': att})
+    emp.write({'resource_calendar_id': cal.id})
+except Exception as e:
+    msg = 'KO: ' + str(e)[:160]
+raise UserError(msg)
+
+
+# === action 1925 | _tmp_fix_cron_116 | modele [31, 'Scheduled Actions'] ===
+env["ir.cron"].browse(116)._write({"code": code, "failure_count": 0})
+
+# === action 1926 | _tmp_patch_cron116 | modele [31, 'Scheduled Actions'] ===
+new_code = env.context.get('_fix_code','')
+env.cr.execute(
+    "UPDATE ir_cron SET code=%s, failure_count=0, write_date=NOW() WHERE id=116",
+    (new_code,)
+)
+log('Cron 116 mis a jour OK', level='info')
+
