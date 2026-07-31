@@ -25,12 +25,21 @@
     .btn-open { background: #e8f0fe; color: #3a5a99; }
     .error { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
              padding: 14px; color: #856404; font-size: 13px; margin-bottom: 12px; }
+    .admin-link { display: block; background: #0b7285; color: #fff; text-decoration: none;
+                  border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 800;
+                  margin-bottom: 16px; }
+    .admin-link span { display: block; font-size: 11.5px; font-weight: 600; opacity: .85; margin-top: 2px; }
   </style>
 </head>
 <body>
   <h1>🔗 Liens « Ma tournée » par chauffeur</h1>
   <p class="sub">À envoyer par SMS / WhatsApp. Chaque lien est personnel et signé —
     un chauffeur ne voit que sa tournée. Conseil : mettre le lien en favori sur le téléphone.</p>
+
+  <a class="admin-link" href="{{ BASE }}/plein-manuel?token={{ token }}">
+    ⛽ Saisie plein — secrétariat
+    <span>Backup manuel si un chauffeur n'a pas pu saisir son plein depuis son téléphone</span>
+  </a>
 
   {% if error %}<div class="error">⚠️ {{ error }}</div>{% endif %}
 
