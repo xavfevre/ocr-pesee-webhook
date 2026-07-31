@@ -60,6 +60,7 @@ TRAVAUX_TABS = [
     ("poste", "Pompage", [
         ("pomp_poste",      "Poste de relevage",   "U"),
         ("pomp_puisard",    "Puisard",             "U"),
+        ("pomp_avaloir",    "Avaloir",             "U"),
         ("pomp_regard",     "Regard de visite",    "U"),
         ("travaux_pompage", "Travaux de pompage",  "H"),
         ("pomp_bac_graisse", "Bac à graisses",        "U"),
@@ -835,6 +836,17 @@ def _save_plein(uid, models, vid, km, litres, jour, chauffeur, compteur):
         result["conso"] = round(litres / dist * 100, 1)
     return result
 
+def _write_plein(uid, models, rec_id, vid, km, litres, jour, chauffeur, compteur):
+    """Met à jour un relevé existant. Lève ValueError si saisie invalide."""
+    if not vid or km <= 0 or litres <= 0:
+        raise ValueError("Camion, compteur km et litres sont obligatoires.")
+    vals = {"vehicle_id": vid, "date": jour, "value": km,
+            "x_litres": litres, "x_chauffeur": chauffeur}
+    if compteur > 0:
+        vals["x_compteur_cuve"] = compteur
+    x(models, uid, "fleet.vehicle.odometer", "write", [rec_id], vals)
+    return {"litres": litres, "km": km}
+
 def _last_cuve(uid, models):
     last_cuve = x(models, uid, "fleet.vehicle.odometer", "search_read",
                   [["x_compteur_cuve", ">", 0]], fields=["x_compteur_cuve"],
@@ -890,14 +902,28 @@ def plein_manuel():
             if not chauffeur:
                 raise ValueError("Le nom du chauffeur est obligatoire.")
             jour = f.get("date") or date.today().isoformat()
-            result = _save_plein(uid, models, vid, _num(f, "km"), _num(f, "litres"),
-                                  jour, chauffeur, _num(f, "compteur"))
+            edit_id = f.get("edit_id", type=int)
+            if edit_id:
+                result = _write_plein(uid, models, edit_id, vid, _num(f, "km"), _num(f, "litres"),
+                                       jour, chauffeur, _num(f, "compteur"))
+                result["updated"] = True
+            else:
+                result = _save_plein(uid, models, vid, _num(f, "km"), _num(f, "litres"),
+                                      jour, chauffeur, _num(f, "compteur"))
             result["vehicule"] = f.get("vehicule_label", "")
             result["chauffeur"] = chauffeur
         except ValueError as ex:
             error = str(ex) or "Saisie invalide — vérifiez les valeurs."
         except Exception:
             error = "Erreur d'enregistrement — réessayez."
+
+    edit_rec = None
+    edit_id = request.args.get("edit", type=int)
+    if edit_id and request.method == "GET":
+        rec = x(models, uid, "fleet.vehicle.odometer", "read", [edit_id],
+                fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur", "x_compteur_cuve"])
+        if rec:
+            edit_rec = rec[0]
 
     vehicles = x(models, uid, "fleet.vehicle", "search_read",
                  [["active", "=", True]], fields=["id", "name", "odometer"],
@@ -908,7 +934,7 @@ def plein_manuel():
     return render_template("plein_manuel.html", token=SECRET, vehicles=vehicles,
                            employees=employees, today=date.today().isoformat(),
                            last_cuve=_last_cuve(uid, models), historique=historique,
-                           result=result, error=error)
+                           edit_rec=edit_rec, result=result, error=error)
 
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """

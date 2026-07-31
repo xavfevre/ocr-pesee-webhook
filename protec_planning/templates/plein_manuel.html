@@ -61,6 +61,12 @@
     td { padding: 7px 12px; border-top: 1px solid #f0f5f5; }
     tbody tr:hover td { background: #f4faf9; }
     .empty { color: var(--muted); font-size: 13px; padding: 16px 18px; }
+    .edit-note { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                 background: var(--amber-lt); border-bottom: 1px solid #f0dca6; padding: 8px 18px;
+                 font-size: 12px; font-weight: 700; color: #7a5b0d; }
+    .edit-note a { color: var(--cy-dk); text-decoration: none; font-weight: 800; }
+    .link-edit { color: var(--cy-dk); text-decoration: none; font-weight: 700; font-size: 12px; }
+    .link-edit:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -70,7 +76,7 @@
 </header>
 
 {% if result %}
-<div class="banner ok">✓ Plein enregistré pour {{ result.chauffeur }}
+<div class="banner ok">✓ Plein {{ "mis à jour" if result.updated else "enregistré" }} pour {{ result.chauffeur }}
   <span class="sub">{{ "%g"|format(result.litres) }} L à {{ "%g"|format(result.km)|int }} km</span></div>
 {% elif error %}
 <div class="banner err">⚠ {{ error }}</div>
@@ -78,8 +84,13 @@
 
 <div class="wrap">
   <div class="card">
-    <div class="card-h">Nouvelle saisie</div>
+    <div class="card-h">{{ "Modifier une saisie" if edit_rec else "Nouvelle saisie" }}</div>
+    {% if edit_rec %}
+    <div class="edit-note">✎ Correction du plein du {{ edit_rec.date }}
+      <a href="{{ BASE }}/plein-manuel?token={{ token }}">Annuler</a></div>
+    {% endif %}
     <form method="POST" action="{{ BASE }}/plein-manuel?token={{ token }}" id="pform">
+      {% if edit_rec %}<input type="hidden" name="edit_id" value="{{ edit_rec.id }}"/>{% endif %}
 
       <div class="row2">
         <div class="fld">
@@ -87,8 +98,8 @@
           <select name="vehicule" id="vehicule" required onchange="onVeh()">
             <option value="">— Choisir —</option>
             {% for v in vehicles %}
-            <option value="{{ v.id }}" data-last="{{ v.odometer|int }}"
-                    data-label="{{ v.name }}">{{ v.name }}</option>
+            <option value="{{ v.id }}" data-last="{{ v.odometer|int }}" data-label="{{ v.name }}"
+                    {% if edit_rec and edit_rec.vehicle_id and edit_rec.vehicle_id[0] == v.id %}selected{% endif %}>{{ v.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -103,22 +114,26 @@
         </div>
       </div>
       <div class="hint" id="lastkmHint" style="margin:-6px 0 12px;"></div>
-      <input type="hidden" name="vehicule_label" id="vehicule_label"/>
+      <input type="hidden" name="vehicule_label" id="vehicule_label"
+             value="{{ edit_rec.vehicle_id[1] if edit_rec and edit_rec.vehicle_id else '' }}"/>
 
       <div class="fld">
         <label>Ou nom libre (si absent de la liste)</label>
-        <input type="text" name="chauffeur_autre" placeholder="ex. intérimaire, remplaçant…"/>
+        <input type="text" name="chauffeur_autre" placeholder="ex. intérimaire, remplaçant…"
+               value="{{ edit_rec.x_chauffeur or '' if edit_rec else '' }}"/>
       </div>
 
       <div class="row2">
         <div class="fld">
           <label>Compteur km</label>
           <input type="number" name="km" id="km" step="1" min="1" required
-                 oninput="checkKm()" placeholder="km"/>
+                 oninput="checkKm()" placeholder="km"
+                 value="{{ edit_rec.value|int if edit_rec else '' }}"/>
         </div>
         <div class="fld">
           <label>Litres</label>
-          <input type="number" name="litres" step="0.01" min="0.1" required placeholder="L"/>
+          <input type="number" name="litres" step="0.01" min="0.1" required placeholder="L"
+                 value="{{ edit_rec.x_litres if edit_rec else '' }}"/>
         </div>
       </div>
       <div class="warn-box" id="warnBox">⚠ Ce compteur est inférieur au dernier relevé connu — vérifiez la saisie.</div>
@@ -126,11 +141,12 @@
       <div class="row2">
         <div class="fld">
           <label>Date</label>
-          <input type="date" name="date" value="{{ today }}" required/>
+          <input type="date" name="date" value="{{ edit_rec.date if edit_rec else today }}" required/>
         </div>
         <div class="fld">
           <label>Compteur cuve <span style="text-transform:none; font-weight:500;">(optionnel)</span></label>
-          <input type="number" name="compteur" step="1" min="0" placeholder="L"/>
+          <input type="number" name="compteur" step="1" min="0" placeholder="L"
+                 value="{{ edit_rec.x_compteur_cuve|int if edit_rec and edit_rec.x_compteur_cuve else '' }}"/>
         </div>
       </div>
       {% if last_cuve %}
@@ -138,7 +154,7 @@
         🔢 Dernier relevé cuve connu (tous camions) : {{ "%.0f"|format(last_cuve) }} L</div>
       {% endif %}
 
-      <button type="submit" class="btn-save" id="saveBtn">Enregistrer le plein</button>
+      <button type="submit" class="btn-save" id="saveBtn">{{ "Mettre à jour" if edit_rec else "Enregistrer le plein" }}</button>
     </form>
   </div>
 
@@ -147,7 +163,7 @@
     {% if historique %}
     <div class="hist-body">
       <table>
-        <thead><tr><th>Date</th><th>Camion</th><th class="num">Km</th><th class="num">Litres</th><th>Chauffeur</th></tr></thead>
+        <thead><tr><th>Date</th><th>Camion</th><th class="num">Km</th><th class="num">Litres</th><th>Chauffeur</th><th></th></tr></thead>
         <tbody>
         {% for h in historique %}
         <tr>
@@ -156,6 +172,7 @@
           <td class="num">{{ "{:,}".format(h.value|int).replace(',', ' ') }}</td>
           <td class="num">{{ "%g"|format(h.x_litres) }}</td>
           <td>{{ h.x_chauffeur or '' }}</td>
+          <td><a class="link-edit" href="{{ BASE }}/plein-manuel?token={{ token }}&edit={{ h.id }}">Modifier</a></td>
         </tr>
         {% endfor %}
         </tbody>
@@ -191,6 +208,7 @@ document.getElementById('pform').addEventListener('submit', function () {
   btn.disabled = true;
   btn.textContent = 'Enregistrement…';
 });
+{% if edit_rec %}onVeh();{% endif %}
 </script>
 </body>
 </html>
