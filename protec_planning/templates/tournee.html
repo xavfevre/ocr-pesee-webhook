@@ -64,10 +64,14 @@
 
 <header>
   <div class="logo">P</div>
-  <div>
+  <div style="flex:1;">
     <div class="hdr-title">Ma tournée</div>
     <div class="hdr-sub">{{ emp_name }}</div>
   </div>
+  <a href="{{ BASE }}/plein?c={{ emp_id }}&s={{ sig }}"
+     style="background:rgba(255,255,255,.18); color:#fff; font-weight:800; font-size:14px;
+            border:1.5px solid rgba(255,255,255,.5); border-radius:10px; padding:9px 12px;
+            text-decoration:none; white-space:nowrap;">⛽ Plein</a>
 </header>
 
 {% if error %}<div class="error">⚠️ Erreur : {{ error }}</div>{% endif %}

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plein gasoil — PROTEC</title>
+  <style>
+    :root { --cy: #5bc8c8; --cy-dk: #2b8a8a; --cy-lt: #e6f7f7; --border: #d5e3e3;
+            --text: #17434a; --green: #2eb85c; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #f0f6f6; color: var(--text); padding-bottom: 90px; }
+    header { background: var(--cy); color: #fff; text-align: center; padding: 12px; }
+    header .t1 { font-size: 12px; font-weight: 700; opacity: .9; }
+    header .t2 { font-size: 19px; font-weight: 900; letter-spacing: .5px; }
+    .okbar { background: var(--green); color: #fff; text-align: center;
+             font-weight: 800; padding: 10px; font-size: 14px; }
+    .errbar { background: #dc2626; color: #fff; text-align: center;
+              font-weight: 800; padding: 10px; font-size: 14px; }
+    .wrap { max-width: 560px; margin: 14px auto; padding: 0 12px; }
+    .box { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(23,67,74,.08);
+           padding: 16px; }
+    .fld { margin-bottom: 14px; }
+    .fld label { display: block; font-size: 12px; font-weight: 800; color: var(--cy-dk);
+                 margin-bottom: 4px; }
+    .fld input, .fld select { width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 12px; font-size: 17px; font-family: inherit; color: var(--text); background: #fff; }
+    .hint { font-size: 12px; color: #6b7c9a; margin-top: 4px; }
+    .btn { width: 100%; background: var(--cy); color: #fff; border: none; font-size: 18px;
+           font-weight: 900; border-radius: 12px; padding: 15px; cursor: pointer; margin-top: 4px; }
+    .btn:active { background: var(--cy-dk); }
+    .recap { background: var(--cy-lt); border-radius: 10px; padding: 12px; font-size: 14px;
+             margin-bottom: 12px; }
+    .back { display: inline-block; margin: 10px 0 0; color: var(--cy-dk); font-weight: 700;
+            text-decoration: none; font-size: 14px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="t1">PROTEC « Pôle Assainissement » — {{ emp_name }}</div>
+  <div class="t2">⛽ PLEIN DE GASOIL</div>
+</header>
+
+{% if result %}
+<div class="okbar">✓ Plein enregistré — {{ "%g"|format(result.litres) }} L à {{ "%g"|format(result.km) }} km
+  {% if result.conso %} · {{ "%g"|format(result.distance) }} km parcourus · {{ result.conso }} L/100km{% endif %}
+</div>
+{% elif error %}
+<div class="errbar">⚠ {{ error }}</div>
+{% endif %}
+
+<div class="wrap">
+  <div class="box">
+    <form method="POST" action="{{ BASE }}/plein?c={{ emp_id }}&s={{ sig }}">
+      <div class="fld">
+        <label>Camion</label>
+        <select name="vehicule" id="veh" required onchange="showLast()">
+          <option value="">— choisir —</option>
+          {% for v in vehicles %}
+          <option value="{{ v.id }}" data-last="{{ v.odometer|int }}">{{ v.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint" id="lastkm"></div>
+      </div>
+      <div class="fld">
+        <label>Compteur kilométrique (km)</label>
+        <input type="number" name="km" inputmode="numeric" step="1" min="1" required
+               placeholder="ex. 542146"/>
+      </div>
+      <div class="fld">
+        <label>Litres de gasoil</label>
+        <input type="number" name="litres" inputmode="decimal" step="0.01" min="0.1" required
+               placeholder="ex. 157"/>
+      </div>
+      <div class="fld">
+        <label>Date</label>
+        <input type="date" name="date" value="{{ today }}" required/>
+      </div>
+      <button type="submit" class="btn">💾 ENREGISTRER LE PLEIN</button>
+    </form>
+    <a class="back" href="{{ BASE }}/ma-tournee?c={{ emp_id }}&s={{ sig }}">◀ Retour à ma tournée</a>
+  </div>
+</div>
+
+<script>
+function showLast() {
+  var sel = document.getElementById('veh');
+  var opt = sel.options[sel.selectedIndex];
+  var last = opt ? parseInt(opt.getAttribute('data-last') || '0') : 0;
+  document.getElementById('lastkm').textContent =
+    last > 0 ? ('Dernier compteur connu : ' + last.toLocaleString('fr-FR') + ' km') : '';
+  var km = document.querySelector('[name=km]');
+  if (last > 0) { km.min = last; }
+}
+</script>
+</body>
+</html>
