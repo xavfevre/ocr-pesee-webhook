@@ -938,9 +938,12 @@ def plein_manuel():
 
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
     d1, d2 = _ebp_month_range(mois)
+    veh_filter = request.args.get("veh", type=int)
+    dom = [["x_litres", ">", 0], ["date", ">=", d1], ["date", "<=", d2]]
+    if veh_filter:
+        dom.append(["vehicle_id", "=", veh_filter])
     historique = x(models, uid, "fleet.vehicle.odometer", "search_read",
-                   [["x_litres", ">", 0], ["date", ">=", d1], ["date", "<=", d2]],
-                   fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur"],
+                   dom, fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur"],
                    order="date desc, id desc")
     mois_label = f"{MOIS_FR[int(mois[5:7]) - 1].capitalize()} {mois[:4]}"
 
@@ -948,7 +951,7 @@ def plein_manuel():
                            employees=employees, today=date.today().isoformat(),
                            last_cuve=_last_cuve(uid, models), historique=historique,
                            mois=mois, mois_label=mois_label, mois_prev=_shift_month(mois, -1),
-                           mois_next=_shift_month(mois, 1),
+                           mois_next=_shift_month(mois, 1), veh_filter=veh_filter,
                            edit_rec=edit_rec, result=result, error=error)
 
 @bp.route("/plein-manuel/supprimer", methods=["POST"])
@@ -960,7 +963,8 @@ def plein_manuel_supprimer():
     if rec_id:
         x(models, uid, "fleet.vehicle.odometer", "unlink", [rec_id])
     mois = request.form.get("mois") or date.today().strftime("%Y-%m")
-    return redirect(url_for(".plein_manuel", token=SECRET, mois=mois))
+    veh_filter = request.form.get("veh", type=int)
+    return redirect(url_for(".plein_manuel", token=SECRET, mois=mois, veh=veh_filter or None))
 
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """
