@@ -149,6 +149,10 @@
         {{ tlabel }}<span class="cnt">{{ nb }}</span>
       </button>
       {% endfor %}
+      <button type="button" class="tab-btn{{ ' filled' if curage_rows else '' }}"
+              data-tab="tab-curage-tranches" onclick="showTab('tab-curage-tranches', this)">
+        Tranches de curage<span class="cnt">{{ curage_rows|length }}</span>
+      </button>
     </div>
     <div class="box-body" style="padding:0 0 4px;">
       {% for tkey, tlabel, rows in travaux_tabs %}
@@ -168,6 +172,39 @@
         </table>
       </div>
       {% endfor %}
+      <div class="tab-pane" id="tab-curage-tranches">
+        <div style="padding:10px;">
+          <div class="fld" style="margin-bottom:10px;">
+            <label>Commune</label>
+            <input type="text" name="curage_commune" value="{{ curage_commune }}">
+          </div>
+          <div class="dech-scroll">
+            <table id="curage-table">
+              <tr><th>Rue</th><th class="col-q">Longueur (ml)</th><th class="col-u">Amiante</th><th>Problèmes rencontrés</th><th style="width:28px;"></th></tr>
+              <tbody id="curage-rows">
+                {% for r in curage_rows %}
+                <tr>
+                  <td><input type="text" name="curage_rue_{{ loop.index0 }}" value="{{ r.rue or '' }}"></td>
+                  <td><input type="text" inputmode="decimal" name="curage_longueur_{{ loop.index0 }}" value="{{ r.longueur or '' }}"></td>
+                  <td class="ck"><input type="checkbox" name="curage_amiante_{{ loop.index0 }}" value="1"{{ ' checked' if r.amiante else '' }}></td>
+                  <td><input type="text" name="curage_probleme_{{ loop.index0 }}" value="{{ r.probleme or '' }}"></td>
+                  <td><button type="button" onclick="removeCurageRow(this)"
+                              style="border:none; background:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div id="curage-empty" style="padding:14px 4px; color:var(--muted); font-size:13px;">
+            Aucune rue curée saisie.
+          </div>
+          <button type="button" onclick="addCurageRow()"
+                  style="margin:10px 4px; border:1.5px solid var(--cy); background:#fff; color:var(--cy-dk);
+                         font-weight:800; border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer;">
+            + Ajouter une rue
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -182,7 +219,7 @@
     </div>
   </div>
 
-  <div class="box">
+  <div class="box" id="dechets-box">
     <div class="box-title">Déchets</div>
     <div class="box-body" style="padding:0 0 4px;">
       <table>
@@ -278,6 +315,47 @@ function showTab(id, btn) {
   if (btn) { btn.classList.add('active'); }
 }
 
+// Tranches de curage : lignes rue par rue ajoutées/retirées dynamiquement.
+// Dès qu'une ligne existe, le bloc Déchets n'a plus lieu d'être → masqué.
+var curageIdx = {{ curage_rows|length }};
+function curageRowHtml(i) {
+  return '<td><input type="text" name="curage_rue_' + i + '"></td>' +
+    '<td><input type="text" inputmode="decimal" name="curage_longueur_' + i + '"></td>' +
+    '<td class="ck"><input type="checkbox" name="curage_amiante_' + i + '" value="1"></td>' +
+    '<td><input type="text" name="curage_probleme_' + i + '"></td>' +
+    '<td><button type="button" onclick="removeCurageRow(this)" ' +
+    'style="border:none;background:none;color:var(--muted);font-size:16px;cursor:pointer;">✕</button></td>';
+}
+function addCurageRow() {
+  var i = curageIdx++;
+  var tr = document.createElement('tr');
+  tr.innerHTML = curageRowHtml(i);
+  document.getElementById('curage-rows').appendChild(tr);
+  updateDechetsVisibility();
+  saveDraft();
+}
+// Recrée une ligne à un index précis (restauration de brouillon) sans avancer
+// curageIdx en dessous de ce qui existe déjà.
+function ensureCurageRow(i) {
+  if (document.querySelector('[name="curage_rue_' + i + '"]')) { return; }
+  var tr = document.createElement('tr');
+  tr.innerHTML = curageRowHtml(i);
+  document.getElementById('curage-rows').appendChild(tr);
+  if (i >= curageIdx) { curageIdx = i + 1; }
+}
+function removeCurageRow(btn) {
+  btn.closest('tr').remove();
+  updateDechetsVisibility();
+  saveDraft();
+}
+function updateDechetsVisibility() {
+  var hasRows = document.getElementById('curage-rows').children.length > 0;
+  document.getElementById('dechets-box').style.display = hasRows ? 'none' : '';
+  document.getElementById('curage-empty').style.display = hasRows ? 'none' : '';
+  document.getElementById('curage-table').style.display = hasRows ? '' : 'none';
+}
+updateDechetsVisibility();
+
 // Photos : recadrage à 1280px max, JPEG 80%
 function photoFail(i, msg) {
   var lbl = document.getElementById('pl' + i);
@@ -357,6 +435,9 @@ function saveDraft() {
   document.querySelectorAll('form input[type=text], form input[type=time], form textarea, form select').forEach(function (el) {
     if (el.name) { data[el.name] = el.value; }
   });
+  document.querySelectorAll('form input[type=checkbox]').forEach(function (el) {
+    if (el.name) { data[el.name] = el.checked ? '1' : ''; }
+  });
   for (var i = 1; i <= 4; i++) {
     var v = document.getElementById('ph' + i).value;
     if (v && v.indexOf('data:') === 0) { data['photo_' + i] = v; }
@@ -374,6 +455,12 @@ function restoreDraft() {
   if (!raw) { return; }
   try {
     var data = JSON.parse(raw);
+    // Recrée d'abord les lignes de curage dynamiques avant de restaurer leurs valeurs
+    Object.keys(data).forEach(function (k) {
+      var m = /^curage_rue_(\d+)$/.exec(k);
+      if (m) { ensureCurageRow(parseInt(m[1], 10)); }
+    });
+    updateDechetsVisibility();
     Object.keys(data).forEach(function (k) {
       if (!data[k] || k === 'save_mode' || k === 'signature') { return; }
       if (k.indexOf('photo_') === 0) {
@@ -385,6 +472,7 @@ function restoreDraft() {
         return;
       }
       var el = document.querySelector('form [name="' + k + '"]');
+      if (el && el.type === 'checkbox') { el.checked = true; return; }
       if (el) { el.value = data[k]; }
     });
   } catch (e) {}

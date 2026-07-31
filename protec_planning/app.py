@@ -12,7 +12,7 @@ que le webhook Maquignon) — ou exécutable seul pour les tests.
 Données : Odoo v19 SaaS PROTEC via XML-RPC (planning.slot).
 Env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET
 """
-import os, json, time, hmac, hashlib, socket
+import os, json, time, hmac, hashlib, socket, re
 import urllib.request, http.cookiejar
 import xmlrpc.client
 from datetime import datetime, timedelta, date
@@ -489,6 +489,24 @@ def fiche(slot_id):
             if any(row.values()):
                 data["dechets"][code] = row
 
+        # Tranches de curage (lignes dynamiques rue par rue)
+        data["curage_commune"] = f.get("curage_commune", "").strip()
+        curage_rows = []
+        idxs = sorted({int(mo.group(1)) for k in f.keys()
+                       if (mo := re.match(r"curage_rue_(\d+)$", k))})
+        for i in idxs:
+            rue = f.get(f"curage_rue_{i}", "").strip()
+            longueur = f.get(f"curage_longueur_{i}", "").strip()
+            if not rue and not longueur:
+                continue
+            curage_rows.append({
+                "rue": rue,
+                "longueur": longueur,
+                "amiante": bool(f.get(f"curage_amiante_{i}")),
+                "probleme": f.get(f"curage_probleme_{i}", "").strip(),
+            })
+        data["curage"] = curage_rows
+
         def bin_val(field_val):
             if field_val and field_val.startswith("data:"):
                 return field_val.split(",", 1)[1]
@@ -594,6 +612,8 @@ def fiche(slot_id):
     _sv_trav = saved_data.get("travaux", {}) if isinstance(saved_data, dict) else {}
     tab_counts = {tkey: sum(1 for code, _l, _u in rows if code in _sv_trav)
                   for tkey, _tl, rows in TRAVAUX_TABS}
+    curage_rows = saved_data.get("curage", []) if isinstance(saved_data, dict) else []
+    curage_commune = (saved_data.get("curage_commune") if isinstance(saved_data, dict) else "") or card["ville"]
 
     prefill = {
         "vehicule":      s.get("x_fdt_vehicule") or "",
@@ -629,6 +649,7 @@ def fiche(slot_id):
         date_label=f"{d.day:02d}/{d.month:02d}/{d.year}",
         adresse=adresse, prefill=prefill,
         travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts,
+        curage_rows=curage_rows, curage_commune=curage_commune,
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
@@ -651,6 +672,15 @@ def render_fiche_html(card, vals, data, nphotos=0):
     for code, v in data.get("dechets", {}).items():
         rows_d += (f"<tr><td>{labels_d.get(code, code)}</td>"
                    f"<td>{v.get('volume','')}</td><td>{v.get('destination','')}</td><td>{v.get('temps','')}</td></tr>")
+    rows_c = ""
+    total_ml = 0
+    for v in data.get("curage", []):
+        try:
+            total_ml += float((v.get("longueur") or "0").replace(",", "."))
+        except ValueError:
+            pass
+        rows_c += (f"<tr><td>{v.get('rue','')}</td><td>{v.get('longueur','')}</td>"
+                   f"<td>{'Oui' if v.get('amiante') else 'Non'}</td><td>{v.get('probleme','')}</td></tr>")
     html = (
         f"<p><b>📝 Fiche de fin de travaux</b> — {card['client']}</p>"
         f"<p>Véhicule : {vals['x_fdt_vehicule'] or '—'} · "
@@ -667,6 +697,12 @@ def render_fiche_html(card, vals, data, nphotos=0):
     if rows_d:
         html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Vol. m³</th>"
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
+    if rows_c:
+        commune = data.get("curage_commune") or ""
+        html += (f"<p><b>Tranches de curage</b>{' — ' + commune if commune else ''} "
+                 f"— total {total_ml:g} ml</p>"
+                 "<table border='1' cellpadding='3'><tr><th>Rue</th><th>Longueur (ml)</th>"
+                 "<th>Amiante</th><th>Problèmes rencontrés</th></tr>" + rows_c + "</table>")
     return html
 
 def _labelize(code):
@@ -738,6 +774,30 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
                         f"<td style='{td}'>{E(v.get('volume',''))}</td>"
                         f"<td style='{td}'>{E(v.get('destination',''))}</td>"
                         f"<td style='{td}'>{E(v.get('temps',''))}</td></tr>")
+        html.append("</table>")
+
+    rows_c = data.get("curage", [])
+    if rows_c:
+        commune = data.get("curage_commune") or ""
+        total_ml = 0
+        for v in rows_c:
+            try:
+                total_ml += float((v.get("longueur") or "0").replace(",", "."))
+            except ValueError:
+                pass
+        title = "TRANCHES DE CURAGE" + (f" — {E(commune).upper()}" if commune else "")
+        html.append(f"<h3 style='{H2}'>{title}</h3>")
+        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
+        html.append(f"<tr><th style='{th}'>Rue</th><th style='{th};width:100px;'>Longueur (ml)</th>"
+                    f"<th style='{th};width:80px;'>Amiante</th><th style='{th}'>Problèmes rencontrés</th></tr>")
+        for v in rows_c:
+            html.append(f"<tr><td style='{td}'>{E(v.get('rue',''))}</td>"
+                        f"<td style='{td}'>{E(v.get('longueur',''))}</td>"
+                        f"<td style='{td}'>{'Oui' if v.get('amiante') else 'Non'}</td>"
+                        f"<td style='{td}'>{E(v.get('probleme',''))}</td></tr>")
+        html.append(f"<tr><td style='{td};font-weight:700;'>TOTAL</td>"
+                    f"<td style='{td};font-weight:700;'>{total_ml:g} ml</td>"
+                    f"<td style='{td}'></td><td style='{td}'></td></tr>")
         html.append("</table>")
 
     if commentaires or prochain:
