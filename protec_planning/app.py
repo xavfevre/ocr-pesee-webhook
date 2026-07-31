@@ -882,6 +882,13 @@ def plein():
                            vehicles=vehicles, today=date.today().isoformat(),
                            last_cuve=_last_cuve(uid, models), result=result, error=error)
 
+def _shift_month(mois, delta):
+    y, mo = int(mois[:4]), int(mois[5:7])
+    mo += delta
+    y += (mo - 1) // 12
+    mo = (mo - 1) % 12 + 1
+    return f"{y:04d}-{mo:02d}"
+
 # ─── SAISIE MANUELLE (admin/secrétariat) ─────────────────────────────────────
 # Backup de /plein pour Manon : si un chauffeur n'a pas pu saisir son plein
 # depuis son téléphone, la secrétaire peut le faire ici pour n'importe quel
@@ -928,12 +935,20 @@ def plein_manuel():
     vehicles = x(models, uid, "fleet.vehicle", "search_read",
                  [["active", "=", True]], fields=["id", "name", "odometer"],
                  order="name asc")
+
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    d1, d2 = _ebp_month_range(mois)
     historique = x(models, uid, "fleet.vehicle.odometer", "search_read",
-                   [["x_litres", ">", 0]], fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur"],
-                   order="id desc", limit=15)
+                   [["x_litres", ">", 0], ["date", ">=", d1], ["date", "<=", d2]],
+                   fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur"],
+                   order="date desc, id desc")
+    mois_label = f"{MOIS_FR[int(mois[5:7]) - 1].capitalize()} {mois[:4]}"
+
     return render_template("plein_manuel.html", token=SECRET, vehicles=vehicles,
                            employees=employees, today=date.today().isoformat(),
                            last_cuve=_last_cuve(uid, models), historique=historique,
+                           mois=mois, mois_label=mois_label, mois_prev=_shift_month(mois, -1),
+                           mois_next=_shift_month(mois, 1),
                            edit_rec=edit_rec, result=result, error=error)
 
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
