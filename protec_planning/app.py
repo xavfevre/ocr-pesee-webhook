@@ -809,6 +809,51 @@ def bi_pdf(slot_id):
         _web_session["opener"] = None  # session expirée : ré-authentifier et réessayer
     return "Erreur de génération du PDF — réessayez.", 502
 
+# ─── PLEIN DE GASOIL (TICPE) ────────────────────────────────────────────────
+# Chaque plein saisi par un chauffeur devient un relevé compteur du module
+# Parc automobile (fleet.vehicle.odometer + litres) → suivi TICPE automatisé.
+@bp.route("/plein", methods=["GET", "POST"])
+def plein():
+    emp_id = request.args.get("c", type=int)
+    sig = request.args.get("s", "")
+    if not emp_id or not check_sig(f"driver:{emp_id}", sig):
+        abort(403)
+    uid, models = odoo_connect()
+    emp_name = emp_name_map(uid, models).get(emp_id) or f"Chauffeur {emp_id}"
+
+    result, error = None, None
+    if request.method == "POST":
+        f = request.form
+        try:
+            vid = int(f.get("vehicule") or 0)
+            km = float((f.get("km") or "").replace(",", ".").replace(" ", ""))
+            litres = float((f.get("litres") or "").replace(",", ".").replace(" ", ""))
+            jour = f.get("date") or date.today().isoformat()
+            if not vid or km <= 0 or litres <= 0:
+                raise ValueError("Camion, compteur et litres sont obligatoires.")
+            prev = x(models, uid, "fleet.vehicle.odometer", "search_read",
+                     [["vehicle_id", "=", vid]], fields=["value", "date"],
+                     order="value desc", limit=1)
+            x(models, uid, "fleet.vehicle.odometer", "create", [{
+                "vehicle_id": vid, "date": jour, "value": km,
+                "x_litres": litres, "x_chauffeur": emp_name.split()[0]}])
+            result = {"litres": litres, "km": km}
+            if prev and km > prev[0]["value"] > 0:
+                dist = km - prev[0]["value"]
+                result["distance"] = dist
+                result["conso"] = round(litres / dist * 100, 1)
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide — vérifiez les valeurs."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    vehicles = x(models, uid, "fleet.vehicle", "search_read",
+                 [["active", "=", True]], fields=["id", "name", "odometer"],
+                 order="name asc")
+    return render_template("plein.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
+                           vehicles=vehicles, today=date.today().isoformat(),
+                           result=result, error=error)
+
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """
 const CACHE = 'protec-tournee-v1';
