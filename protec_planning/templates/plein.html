@@ -76,6 +76,14 @@
         <label>Date</label>
         <input type="date" name="date" value="{{ today }}" required/>
       </div>
+      <div class="fld">
+        <label>N° compteur cuve (totalisateur pompe)</label>
+        <input type="number" name="compteur" inputmode="numeric" step="1" min="0"
+               placeholder="ex. 930797"/>
+        {% if last_cuve %}
+        <div class="hint">Dernier relevé connu : {{ "%.0f"|format(last_cuve) }}</div>
+        {% endif %}
+      </div>
       <button type="submit" class="btn">💾 ENREGISTRER LE PLEIN</button>
     </form>
     <a class="back" href="{{ BASE }}/ma-tournee?c={{ emp_id }}&s={{ sig }}">◀ Retour à ma tournée</a>
