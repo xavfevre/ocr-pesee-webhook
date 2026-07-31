@@ -824,19 +824,25 @@ def plein():
     result, error = None, None
     if request.method == "POST":
         f = request.form
+        def num(name):
+            v = (f.get(name) or "").replace(",", ".").replace(" ", "")
+            return float(v) if v else 0.0
         try:
             vid = int(f.get("vehicule") or 0)
-            km = float((f.get("km") or "").replace(",", ".").replace(" ", ""))
-            litres = float((f.get("litres") or "").replace(",", ".").replace(" ", ""))
+            km = num("km")
+            litres = num("litres")
+            compteur = num("compteur")
             jour = f.get("date") or date.today().isoformat()
             if not vid or km <= 0 or litres <= 0:
-                raise ValueError("Camion, compteur et litres sont obligatoires.")
+                raise ValueError("Camion, compteur km et litres sont obligatoires.")
             prev = x(models, uid, "fleet.vehicle.odometer", "search_read",
                      [["vehicle_id", "=", vid]], fields=["value", "date"],
                      order="value desc", limit=1)
-            x(models, uid, "fleet.vehicle.odometer", "create", [{
-                "vehicle_id": vid, "date": jour, "value": km,
-                "x_litres": litres, "x_chauffeur": emp_name.split()[0]}])
+            vals = {"vehicle_id": vid, "date": jour, "value": km,
+                    "x_litres": litres, "x_chauffeur": emp_name.split()[0]}
+            if compteur > 0:
+                vals["x_compteur_cuve"] = compteur
+            x(models, uid, "fleet.vehicle.odometer", "create", [vals])
             result = {"litres": litres, "km": km}
             if prev and km > prev[0]["value"] > 0:
                 dist = km - prev[0]["value"]
@@ -850,9 +856,13 @@ def plein():
     vehicles = x(models, uid, "fleet.vehicle", "search_read",
                  [["active", "=", True]], fields=["id", "name", "odometer"],
                  order="name asc")
+    last_cuve = x(models, uid, "fleet.vehicle.odometer", "search_read",
+                  [["x_compteur_cuve", ">", 0]], fields=["x_compteur_cuve"],
+                  order="x_compteur_cuve desc", limit=1)
+    last_cuve = last_cuve[0]["x_compteur_cuve"] if last_cuve else None
     return render_template("plein.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
                            vehicles=vehicles, today=date.today().isoformat(),
-                           result=result, error=error)
+                           last_cuve=last_cuve, result=result, error=error)
 
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """
