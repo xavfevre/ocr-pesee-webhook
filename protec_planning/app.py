@@ -812,6 +812,35 @@ def bi_pdf(slot_id):
 # ─── PLEIN DE GASOIL (TICPE) ────────────────────────────────────────────────
 # Chaque plein saisi par un chauffeur devient un relevé compteur du module
 # Parc automobile (fleet.vehicle.odometer + litres) → suivi TICPE automatisé.
+def _num(f, name):
+    v = (f.get(name) or "").replace(",", ".").replace(" ", "")
+    return float(v) if v else 0.0
+
+def _save_plein(uid, models, vid, km, litres, jour, chauffeur, compteur):
+    """Crée le relevé odomètre + litrage. Lève ValueError si saisie invalide."""
+    if not vid or km <= 0 or litres <= 0:
+        raise ValueError("Camion, compteur km et litres sont obligatoires.")
+    prev = x(models, uid, "fleet.vehicle.odometer", "search_read",
+             [["vehicle_id", "=", vid]], fields=["value", "date"],
+             order="value desc", limit=1)
+    vals = {"vehicle_id": vid, "date": jour, "value": km,
+            "x_litres": litres, "x_chauffeur": chauffeur}
+    if compteur > 0:
+        vals["x_compteur_cuve"] = compteur
+    x(models, uid, "fleet.vehicle.odometer", "create", [vals])
+    result = {"litres": litres, "km": km}
+    if prev and km > prev[0]["value"] > 0:
+        dist = km - prev[0]["value"]
+        result["distance"] = dist
+        result["conso"] = round(litres / dist * 100, 1)
+    return result
+
+def _last_cuve(uid, models):
+    last_cuve = x(models, uid, "fleet.vehicle.odometer", "search_read",
+                  [["x_compteur_cuve", ">", 0]], fields=["x_compteur_cuve"],
+                  order="x_compteur_cuve desc", limit=1)
+    return last_cuve[0]["x_compteur_cuve"] if last_cuve else None
+
 @bp.route("/plein", methods=["GET", "POST"])
 def plein():
     emp_id = request.args.get("c", type=int)
@@ -824,30 +853,11 @@ def plein():
     result, error = None, None
     if request.method == "POST":
         f = request.form
-        def num(name):
-            v = (f.get(name) or "").replace(",", ".").replace(" ", "")
-            return float(v) if v else 0.0
         try:
             vid = int(f.get("vehicule") or 0)
-            km = num("km")
-            litres = num("litres")
-            compteur = num("compteur")
             jour = f.get("date") or date.today().isoformat()
-            if not vid or km <= 0 or litres <= 0:
-                raise ValueError("Camion, compteur km et litres sont obligatoires.")
-            prev = x(models, uid, "fleet.vehicle.odometer", "search_read",
-                     [["vehicle_id", "=", vid]], fields=["value", "date"],
-                     order="value desc", limit=1)
-            vals = {"vehicle_id": vid, "date": jour, "value": km,
-                    "x_litres": litres, "x_chauffeur": emp_name.split()[0]}
-            if compteur > 0:
-                vals["x_compteur_cuve"] = compteur
-            x(models, uid, "fleet.vehicle.odometer", "create", [vals])
-            result = {"litres": litres, "km": km}
-            if prev and km > prev[0]["value"] > 0:
-                dist = km - prev[0]["value"]
-                result["distance"] = dist
-                result["conso"] = round(litres / dist * 100, 1)
+            result = _save_plein(uid, models, vid, _num(f, "km"), _num(f, "litres"),
+                                  jour, emp_name.split()[0], _num(f, "compteur"))
         except ValueError as ex:
             error = str(ex) or "Saisie invalide — vérifiez les valeurs."
         except Exception:
@@ -856,13 +866,49 @@ def plein():
     vehicles = x(models, uid, "fleet.vehicle", "search_read",
                  [["active", "=", True]], fields=["id", "name", "odometer"],
                  order="name asc")
-    last_cuve = x(models, uid, "fleet.vehicle.odometer", "search_read",
-                  [["x_compteur_cuve", ">", 0]], fields=["x_compteur_cuve"],
-                  order="x_compteur_cuve desc", limit=1)
-    last_cuve = last_cuve[0]["x_compteur_cuve"] if last_cuve else None
     return render_template("plein.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
                            vehicles=vehicles, today=date.today().isoformat(),
-                           last_cuve=last_cuve, result=result, error=error)
+                           last_cuve=_last_cuve(uid, models), result=result, error=error)
+
+# ─── SAISIE MANUELLE (admin/secrétariat) ─────────────────────────────────────
+# Backup de /plein pour Manon : si un chauffeur n'a pas pu saisir son plein
+# depuis son téléphone, la secrétaire peut le faire ici pour n'importe quel
+# camion / chauffeur, avec la même logique d'enregistrement.
+@bp.route("/plein-manuel", methods=["GET", "POST"])
+def plein_manuel():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    uid, models = odoo_connect()
+    employees = get_all_employees(uid, models)
+
+    result, error = None, None
+    if request.method == "POST":
+        f = request.form
+        try:
+            vid = int(f.get("vehicule") or 0)
+            chauffeur = (f.get("chauffeur_autre") or "").strip() or (f.get("chauffeur") or "").strip()
+            if not chauffeur:
+                raise ValueError("Le nom du chauffeur est obligatoire.")
+            jour = f.get("date") or date.today().isoformat()
+            result = _save_plein(uid, models, vid, _num(f, "km"), _num(f, "litres"),
+                                  jour, chauffeur, _num(f, "compteur"))
+            result["vehicule"] = f.get("vehicule_label", "")
+            result["chauffeur"] = chauffeur
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide — vérifiez les valeurs."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    vehicles = x(models, uid, "fleet.vehicle", "search_read",
+                 [["active", "=", True]], fields=["id", "name", "odometer"],
+                 order="name asc")
+    historique = x(models, uid, "fleet.vehicle.odometer", "search_read",
+                   [["x_litres", ">", 0]], fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur"],
+                   order="id desc", limit=15)
+    return render_template("plein_manuel.html", token=SECRET, vehicles=vehicles,
+                           employees=employees, today=date.today().isoformat(),
+                           last_cuve=_last_cuve(uid, models), historique=historique,
+                           result=result, error=error)
 
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """
@@ -943,7 +989,7 @@ def liens():
                          "url": url})
     except Exception as ex:
         error = str(ex)
-    return render_template("liens.html", rows=rows, error=error)
+    return render_template("liens.html", rows=rows, error=error, token=SECRET)
 
 # ─── EXPORT COMPTABLE EBP (admin) ────────────────────────────────────────────
 # Journaux Odoo (PROTEC) → EBP : la comptable importe les CSV dans EBP SaaS.
