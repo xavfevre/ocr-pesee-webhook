@@ -67,6 +67,18 @@
     .edit-note a { color: var(--cy-dk); text-decoration: none; font-weight: 800; }
     .link-edit { color: var(--cy-dk); text-decoration: none; font-weight: 700; font-size: 12px; }
     .link-edit:hover { text-decoration: underline; }
+    .link-del { color: var(--red); background: none; border: none; cursor: pointer;
+                font-weight: 700; font-size: 12px; font-family: inherit; padding: 0; }
+    .link-del:hover { text-decoration: underline; }
+    .row-actions { display: flex; gap: 10px; align-items: center; }
+
+    .mois-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                padding: 10px 18px; border-bottom: 1px solid #eef4f3; }
+    .mois-nav a { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+                  border-radius: 6px; background: var(--cy-lt); color: var(--cy-dk); text-decoration: none;
+                  font-weight: 900; font-size: 14px; }
+    .mois-nav a:hover { background: var(--cy); color: #fff; }
+    .mois-nav .lbl { font-size: 13px; font-weight: 800; color: var(--text); text-transform: capitalize; }
   </style>
 </head>
 <body>
@@ -87,9 +99,9 @@
     <div class="card-h">{{ "Modifier une saisie" if edit_rec else "Nouvelle saisie" }}</div>
     {% if edit_rec %}
     <div class="edit-note">✎ Correction du plein du {{ edit_rec.date }}
-      <a href="{{ BASE }}/plein-manuel?token={{ token }}">Annuler</a></div>
+      <a href="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois }}">Annuler</a></div>
     {% endif %}
-    <form method="POST" action="{{ BASE }}/plein-manuel?token={{ token }}" id="pform">
+    <form method="POST" action="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois }}" id="pform">
       {% if edit_rec %}<input type="hidden" name="edit_id" value="{{ edit_rec.id }}"/>{% endif %}
 
       <div class="row2">
@@ -160,6 +172,11 @@
 
   <div class="card">
     <div class="card-h">Derniers pleins saisis</div>
+    <div class="mois-nav">
+      <a href="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois_prev }}">‹</a>
+      <span class="lbl">{{ mois_label }}</span>
+      <a href="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois_next }}">›</a>
+    </div>
     {% if historique %}
     <div class="hist-body">
       <table>
@@ -172,14 +189,25 @@
           <td class="num">{{ "{:,}".format(h.value|int).replace(',', ' ') }}</td>
           <td class="num">{{ "%g"|format(h.x_litres) }}</td>
           <td>{{ h.x_chauffeur or '' }}</td>
-          <td><a class="link-edit" href="{{ BASE }}/plein-manuel?token={{ token }}&edit={{ h.id }}">Modifier</a></td>
+          <td>
+            <div class="row-actions">
+              <a class="link-edit" href="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois }}&edit={{ h.id }}">Modifier</a>
+              <form method="POST" action="{{ BASE }}/plein-manuel/supprimer?token={{ token }}"
+                    class="del-form"
+                    data-msg="Supprimer ce plein du {{ h.date }} ({{ '%g'|format(h.x_litres) }} L) ?">
+                <input type="hidden" name="id" value="{{ h.id }}"/>
+                <input type="hidden" name="mois" value="{{ mois }}"/>
+                <button type="submit" class="link-del">Supprimer</button>
+              </form>
+            </div>
+          </td>
         </tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    <div class="empty">Aucun plein enregistré.</div>
+    <div class="empty">Aucun plein enregistré pour {{ mois_label|lower }}.</div>
     {% endif %}
   </div>
 </div>
@@ -207,6 +235,11 @@ document.getElementById('pform').addEventListener('submit', function () {
   var btn = document.getElementById('saveBtn');
   btn.disabled = true;
   btn.textContent = 'Enregistrement…';
+});
+document.querySelectorAll('.del-form').forEach(function (f) {
+  f.addEventListener('submit', function (e) {
+    if (!confirm(f.dataset.msg)) e.preventDefault();
+  });
 });
 {% if edit_rec %}onVeh();{% endif %}
 </script>
