@@ -70,6 +70,7 @@
       padding: 14px 44px 14px 14px; font-size: 19px; font-weight: 700; font-family: inherit;
       color: var(--text); background: #fbfdfc; }
     .fld input:focus { outline: none; border-color: var(--cy); background: #fff; }
+    .fld input::placeholder { color: #a9c2c1; font-weight: 400; }
     .fld .unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
                  font-size: 13px; font-weight: 800; color: var(--muted); pointer-events: none; }
     .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -142,15 +143,14 @@
           <label>Compteur km</label>
           <div class="unit-wrap">
             <input type="number" name="km" id="km" inputmode="numeric" step="1" min="1" required
-                   placeholder="542146" oninput="checkKm()"/>
+                   oninput="checkKm()"/>
             <span class="unit">km</span>
           </div>
         </div>
         <div class="fld">
           <label>Litres</label>
           <div class="unit-wrap">
-            <input type="number" name="litres" id="litres" inputmode="decimal" step="0.01" min="0.1" required
-                   placeholder="157"/>
+            <input type="number" name="litres" id="litres" inputmode="decimal" step="0.01" min="0.1" required/>
             <span class="unit">L</span>
           </div>
         </div>
@@ -170,8 +170,7 @@
       <div class="card-h">⛽ Compteur cuve<span class="opt-tag">optionnel</span></div>
       <div class="fld">
         <div class="unit-wrap">
-          <input type="number" name="compteur" id="compteur" inputmode="numeric" step="1" min="0"
-                 placeholder="930797"/>
+          <input type="number" name="compteur" id="compteur" inputmode="numeric" step="1" min="0"/>
           <span class="unit">L</span>
         </div>
         {% if last_cuve %}
