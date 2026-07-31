@@ -75,12 +75,6 @@
     .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .hint { font-size: 12px; color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
 
-    .estimate { display: none; background: var(--cy-lt); border-radius: 12px; padding: 12px 14px;
-                margin-top: 10px; }
-    .estimate.show { display: flex; justify-content: space-around; text-align: center; }
-    .estimate .e-val { font-size: 18px; font-weight: 900; color: var(--cy-dk); }
-    .estimate .e-lbl { font-size: 10.5px; font-weight: 700; color: var(--muted); margin-top: 1px; }
-
     .warn-box { display: none; background: var(--amber-lt); border: 1px solid #f0dca6; border-radius: 10px;
                 padding: 9px 12px; font-size: 12.5px; color: #7a5b0d; margin-top: 8px; font-weight: 700; }
     .warn-box.show { display: block; }
@@ -113,8 +107,7 @@
 {% if result %}
 <div class="banner ok">
   ✓ Plein enregistré
-  <span class="sub">{{ "%g"|format(result.litres) }} L à {{ "%g"|format(result.km)|int }} km
-    {% if result.conso %} · {{ result.conso }} L/100 km{% endif %}</span>
+  <span class="sub">{{ "%g"|format(result.litres) }} L à {{ "%g"|format(result.km)|int }} km</span>
 </div>
 {% elif error %}
 <div class="banner err">⚠ {{ error }}</div>
@@ -149,7 +142,7 @@
           <label>Compteur km</label>
           <div class="unit-wrap">
             <input type="number" name="km" id="km" inputmode="numeric" step="1" min="1" required
-                   placeholder="542146" oninput="updateEstimate()"/>
+                   placeholder="542146" oninput="checkKm()"/>
             <span class="unit">km</span>
           </div>
         </div>
@@ -157,17 +150,13 @@
           <label>Litres</label>
           <div class="unit-wrap">
             <input type="number" name="litres" id="litres" inputmode="decimal" step="0.01" min="0.1" required
-                   placeholder="157" oninput="updateEstimate()"/>
+                   placeholder="157"/>
             <span class="unit">L</span>
           </div>
         </div>
       </div>
       <div class="hint" id="lastkmHint"></div>
       <div class="warn-box" id="warnBox">⚠ Ce compteur est inférieur au dernier relevé connu — vérifiez la saisie.</div>
-      <div class="estimate" id="estBox">
-        <div><div class="e-val" id="estDist">—</div><div class="e-lbl">KM PARCOURUS</div></div>
-        <div><div class="e-val" id="estConso">—</div><div class="e-lbl">L / 100 KM</div></div>
-      </div>
     </div>
 
     <div class="card">
@@ -211,24 +200,15 @@ function pickVeh(el) {
   hint.textContent = lastKm > 0 ? ('🛣 Dernier compteur connu : ' + lastKm.toLocaleString('fr-FR') + ' km') : '';
   var kmInput = document.getElementById('km');
   if (lastKm > 0) { kmInput.min = lastKm; kmInput.focus(); }
-  updateEstimate();
+  checkKm();
 }
-function updateEstimate() {
+function checkKm() {
   var km = parseFloat(document.getElementById('km').value) || 0;
-  var litres = parseFloat(document.getElementById('litres').value) || 0;
-  var estBox = document.getElementById('estBox');
   var warnBox = document.getElementById('warnBox');
   if (lastKm > 0 && km > 0 && km <= lastKm) {
-    warnBox.classList.add('show'); estBox.classList.remove('show'); return;
-  }
-  warnBox.classList.remove('show');
-  if (lastKm > 0 && km > lastKm && litres > 0) {
-    var dist = km - lastKm;
-    document.getElementById('estDist').textContent = dist.toLocaleString('fr-FR');
-    document.getElementById('estConso').textContent = (litres / dist * 100).toFixed(1);
-    estBox.classList.add('show');
+    warnBox.classList.add('show');
   } else {
-    estBox.classList.remove('show');
+    warnBox.classList.remove('show');
   }
 }
 document.getElementById('pform').addEventListener('submit', function () {
