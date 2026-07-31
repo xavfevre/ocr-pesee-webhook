@@ -1,0 +1,461 @@
+<t t-name="website.planning_machines">
+  <t t-call="website.layout">
+    <div id="wrap" class="oe_structure">
+      <section class="container-fluid px-3 py-3">
+
+    <t t-set="colors" t-value="{'TUFFEAU': '#5B8DEF', 'HAIMS': '#4CAF50', 'MIGNE': '#E0973F', 'RICHEMONT': '#3BC9B5', 'TERVOUX': '#D946C8', 'SIREUIL': '#F2D63B'}"/>
+      <t t-set="tcolors" t-value="{'SIREUIL': '#5C4A00'}"/>
+    <style>
+      .ofc{position:relative;}
+      .ofc:hover{z-index:40;}
+      .of-pop{display:none;position:absolute;left:0;top:calc(100% - 4px);z-index:80;background:#fff;border:1px solid #bbb;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,.2);padding:7px 9px;min-width:230px;max-width:320px;font-size:11px;color:#333;font-weight:400;}
+      .ofc:hover .of-pop{display:block;}
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element, .o_header_sales_one {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      #wrap {padding-top:0 !important; margin-top:0 !important;}
+    </style>
+
+        <t t-set="dparam" t-value="request.httprequest.args.get('day')"/>
+        <t t-set="q" t-value="(request.httprequest.args.get('q') or '').strip()"/>
+        <t t-set="bc" t-value="(request.httprequest.args.get('bc') or '').strip()"/>
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="day" t-value="dparam and datetime.datetime.strptime(dparam, '%Y-%m-%d').date() or today"/>
+        <t t-set="prev_d" t-value="(day - datetime.timedelta(days=1)).strftime('%Y-%m-%d')"/>
+        <t t-set="next_d" t-value="(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d')"/>
+        <t t-set="board" t-value="request.httprequest.args.get('board') or 'complet'"/>
+        <t t-set="board_label" t-value="{'complet': 'complet', 'secondaire': 'sciage secondaire', 'primaire': 'sciage primaire', 'atelier': 'Atelier', 'usine': 'Usine'}.get(board, board)"/>
+        <t t-if="board == 'secondaire'">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse([18, 6, 7, 8, 5, 9, 22, 12, 19])"/>
+          <t t-set="type_kw" t-value="['secondaire', 'taille']"/>
+          <t t-set="type_dom" t-value="['|', ('name', 'ilike', 'secondaire'), ('name', 'ilike', 'taille')]"/>
+        </t>
+        <t t-elif="board == 'primaire'">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse([1, 4])"/>
+          <t t-set="type_kw" t-value="['primaire']"/>
+          <t t-set="type_dom" t-value="[('name', 'ilike', 'primaire')]"/>
+        </t>
+        <t t-elif="board in ('atelier', 'usine')">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1),('x_studio_site','=',board)], order='name')"/>
+          <t t-set="type_kw" t-value="[]"/>
+          <t t-set="type_dom" t-value="[('workcenter_id.x_studio_site','=',board)]"/>
+        </t>
+        <t t-else="">
+          <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1)], order='name')"/>
+          <t t-set="type_kw" t-value="[]"/>
+          <t t-set="type_dom" t-value="[]"/>
+        </t>
+        <t t-set="qdom" t-value="q and ['|','|','|','|',('name','ilike',q),('production_id.name','ilike',q),('production_id.origin','ilike',q),('production_id.x_studio_nom_du_client','ilike',q),('production_id.x_studio_ref_commande_client','ilike',q)] or []"/>
+        <t t-set="ots" t-value="website.env['mrp.workorder'].sudo().search([('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1)] + qdom, order='date_start')"/>
+        <t t-set="draft_dom" t-value="[('production_id.state','=','draft'),('production_id.company_id','=',1)] + qdom + type_dom + (bc and [('production_id.origin','=',bc)] or [])"/>
+        <t t-set="draft_ots" t-value="website.env['mrp.workorder'].sudo().search(draft_dom, order='create_date, id', limit=(None if (q or bc) else 30))"/>
+        <t t-set="ots" t-value="ots | draft_ots"/><t t-set="done_day_ots" t-value="website.env['mrp.workorder'].sudo().search([('state','=','done'),('production_id.state','=','done'),('production_id.company_id','=',1),('date_start','&gt;=',day.strftime('%Y-%m-%d 00:00:00')),('date_start','&lt;',(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))] + qdom, order='date_start')"/><t t-set="ots" t-value="ots | done_day_ots"/>
+        <t t-set="bcs" t-value="q and sorted(set([o for o in ots.mapped('production_id.origin') if o])) or []"/>
+        <t t-set="ots" t-value="ots.filtered(lambda w: w.production_id.origin == bc) if bc else ots"/>
+        <t t-if="board == 'secondaire'">
+          <t t-set="ots" t-value="ots.filtered(lambda w: ('secondaire' in (w.name or '').lower()) or ('taille' in (w.name or '').lower()))"/>
+        </t>
+        <t t-elif="board == 'primaire'">
+          <t t-set="ots" t-value="ots.filtered(lambda w: 'primaire' in (w.name or '').lower())"/>
+        </t>
+        <t t-elif="board in ('atelier', 'usine')">
+          <t t-set="ots" t-value="ots.filtered(lambda w: w.workcenter_id.x_studio_site == board)"/>
+        </t>
+        <t t-set="so_map" t-value="{r['name']: r for r in website.env['sale.order'].sudo().search_read([('name','in', [o for o in ots.mapped('production_id.origin') if o])], ['name','create_date'])}"/>
+        <t t-set="employees" t-value="website.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
+
+        <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
+          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'complet' else ''}}" t-attf-href="/planning-machines?board=complet&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🏭 Board complet</a></li>
+          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'atelier' else ''}}" t-attf-href="/planning-machines?board=atelier&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">📍 Board Atelier</a></li>
+          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'usine' else ''}}" t-attf-href="/planning-machines?board=usine&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🏗️ Board Usine</a></li>
+          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'secondaire' else ''}}" t-attf-href="/planning-machines?board=secondaire&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🪚 Sciage secondaire</a></li>
+          <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'primaire' else ''}}" t-attf-href="/planning-machines?board=primaire&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}">🪨 Sciage primaire</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}">👷 Vue opérateurs</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-fabrication?q={{q}}&amp;bc={{bc}}">📅 Vue semaine</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}">📆 Vue mois</a></li>
+          <li class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
+        </ul>
+        <div class="d-flex align-items-center mb-2 flex-wrap gap-3">
+          <h3 class="mb-0">Board <t t-esc="board_label"/> (opérations) — <t t-esc="day.strftime('%d/%m/%Y')"/></h3>
+          <div class="d-flex gap-2 flex-wrap">
+            <a t-attf-href="/planning-machines?board={{board}}&amp;day={{prev_d}}&amp;q={{q}}&amp;bc={{bc}}" class="btn btn-sm btn-outline-secondary">← Jour préc.</a>
+            <a t-attf-href="/planning-machines?board={{board}}" class="btn btn-sm btn-outline-secondary">Aujourd'hui</a>
+            <a t-attf-href="/planning-machines?board={{board}}&amp;day={{next_d}}&amp;q={{q}}&amp;bc={{bc}}" class="btn btn-sm btn-outline-secondary">Jour suiv. →</a>
+            <button onclick="window.location.reload()" class="btn btn-sm btn-outline-dark">↻ Actualiser</button>
+            <form method="get" action="/planning-machines" class="d-flex gap-1">
+              <input type="hidden" name="board" t-att-value="board"/>
+              <input type="hidden" name="day" t-att-value="day.strftime('%Y-%m-%d')"/>
+              <input name="q" t-att-value="q" placeholder="Client / BC / OF..." class="form-control form-control-sm" style="width:170px;"/>
+              <button type="submit" class="btn btn-sm btn-outline-dark">🔍</button>
+              <a t-if="q" t-attf-href="/planning-machines?board={{board}}&amp;day={{day.strftime('%Y-%m-%d')}}" class="btn btn-sm btn-outline-danger" title="Effacer le filtre">✕</a>
+            </form>
+          </div>
+        </div>
+        <div t-if="q or bc" class="alert alert-warning py-1 px-2 mb-2 small">Filtre actif : <strong t-esc="q"/><t t-if="bc"> — BC : <strong t-esc="bc"/></t></div>
+        <div t-if="q and bcs" class="d-flex gap-1 flex-wrap align-items-center mb-2">
+          <span class="small text-muted me-1">Commandes :</span>
+          <a t-attf-href="/planning-machines?board={{board}}&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if not bc else 'btn-outline-secondary'}}">Toutes</a>
+          <t t-foreach="bcs[:20]" t-as="b">
+            <a t-attf-href="/planning-machines?board={{board}}&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{b}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if bc == b else 'btn-outline-secondary'}}" t-esc="b"/>
+          </t>
+        </div>
+        <p class="small text-muted mb-2">Une carte = une opération. Glisser sur une machine = planifie l'opération sur cette machine au <t t-esc="day.strftime('%d/%m')"/>. Les opérations terminées ne sont pas déplaçables. Le sélecteur affecte l'opérateur (contour vert = OK).</p>
+
+        <input type="hidden" id="pf-day" t-att-value="day.strftime('%Y-%m-%d')"/>
+        <select id="pf-emp-tpl" style="display:none;">
+          <option value="">— Opérateur —</option>
+          <t t-foreach="employees" t-as="e"><option t-att-value="e.id" t-esc="e.name"/></t>
+        </select>
+
+        <div class="d-none d-md-block">
+        <div id="pf-board" style="overflow:auto;">
+        <div class="d-flex gap-2" style="min-height:100%;width:max-content;">
+          <!-- Colonne À planifier (uniquement boards Sciage) -->
+          <t t-if="board != 'complet'">
+          <div class="pf-col rounded p-2" data-wc="0" style="background:#FBEAEA;min-width:240px;max-width:240px;min-height:400px;">
+            <t t-set="placed_ids" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == day and w.workcenter_id.id in machines.ids).ids"/>
+            <t t-set="backlog" t-value="ots.filtered(lambda w: w.state not in ('done', 'cancel') and w.id not in placed_ids)"/>
+            <h6 class="text-danger" style="position:sticky;top:0;background:#FBEAEA;z-index:5;padding:6px 0;margin:-6px 0 4px;">⚠ À planifier (<t t-esc="len(backlog)"/>)</h6>
+            <t t-set="blog_ofs" t-value="sorted(set(backlog.mapped('production_id')), key=lambda p: str(p.create_date or ''))"/>
+            <t t-foreach="blog_ofs" t-as="bof">
+              <t t-set="bof_ws" t-value="backlog.filtered(lambda w: w.production_id.id == bof.id)"/>
+              <t t-if="len(bof_ws) &gt; 1">
+                <div style="border:2px dashed #94A3B8;border-radius:8px;padding:4px;margin-bottom:8px;background:rgba(255,255,255,.4);">
+                  <div style="font-size:10px;color:#475569;font-weight:700;margin:0 2px 3px;">⛓ <t t-esc="bof.name"/> — <t t-esc="len(bof_ws)"/> opérations</div>
+                  <t t-foreach="bof_ws" t-as="w"><t t-call="website.planning_machine_card"/></t>
+                </div>
+              </t>
+              <t t-else="">
+                <t t-foreach="bof_ws" t-as="w"><t t-call="website.planning_machine_card"/></t>
+              </t>
+            </t>
+          </div>
+          </t>
+          <!-- Colonnes machines -->
+          <t t-foreach="machines" t-as="wc">
+            <div class="pf-col rounded p-2" t-att-data-wc="wc.id" style="background:#F4F5F7;min-width:240px;max-width:240px;min-height:400px;">
+              <t t-set="wc_ots" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == day and w.workcenter_id.id == wc.id)"/>
+              <h6 style="position:sticky;top:0;background:#F4F5F7;z-index:5;padding:6px 0;margin:-6px 0 4px;"><t t-esc="wc.name"/> <small class="text-muted">(<t t-esc="len(wc_ots)"/>)</small><button t-if="len(wc_ots) &gt; 1" class="btn btn-sm btn-outline-secondary py-0 px-1 float-end" style="font-size:10px;line-height:1.3;" t-attf-onclick="reseq({{wc.id}})" title="Réétaler les heures de la journée (06:00 puis +durée)">↕ h</button></h6>
+              <t t-foreach="wc_ots" t-as="w"><t t-call="website.planning_machine_card"/></t>
+            </div>
+          </t>
+        </div>
+        </div>
+        </div>
+
+        <!-- ===== VERSION MOBILE : sections + panneau de déplacement ===== -->
+        <div class="d-md-none">
+          <t t-foreach="machines" t-as="wc"><span class="pf-target" t-att-data-tid="wc.id" style="display:none;" t-esc="wc.name"/></t>
+          <t t-if="board != 'complet'">
+          <div class="p-2 rounded mb-2" style="background:#FBEAEA;">
+            <h6 class="text-danger mb-1">⚠ À planifier (<t t-esc="len(backlog)"/>)</h6>
+            <t t-set="mblog_ofs" t-value="sorted(set(backlog.mapped('production_id')), key=lambda p: str(p.create_date or ''))"/>
+            <t t-foreach="mblog_ofs" t-as="bof">
+              <t t-set="bof_ws" t-value="backlog.filtered(lambda w: w.production_id.id == bof.id)"/>
+              <t t-if="len(bof_ws) &gt; 1">
+                <div style="border:2px dashed #94A3B8;border-radius:8px;padding:4px;margin-bottom:8px;background:rgba(255,255,255,.4);">
+                  <div style="font-size:10px;color:#475569;font-weight:700;margin:0 2px 3px;">⛓ <t t-esc="bof.name"/> — <t t-esc="len(bof_ws)"/> opérations</div>
+                  <t t-foreach="bof_ws" t-as="w"><t t-call="website.planning_machine_card"/></t>
+                </div>
+              </t>
+              <t t-else="">
+                <t t-foreach="bof_ws" t-as="w"><t t-call="website.planning_machine_card"/></t>
+              </t>
+            </t>
+          </div>
+          </t>
+          <t t-foreach="machines" t-as="wc">
+            <t t-set="wc_m" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == day and w.workcenter_id.id == wc.id)"/>
+            <t t-if="wc_m">
+              <div class="card mb-2">
+                <div class="card-header py-1 bg-light"><h6 class="mb-0">🏭 <t t-esc="wc.name"/> <small class="text-muted">(<t t-esc="len(wc_m)"/>)</small></h6></div>
+                <div class="card-body p-2"><t t-foreach="wc_m" t-as="w"><t t-call="website.planning_machine_card"/></t></div>
+              </div>
+            </t>
+          </t>
+        </div>
+
+        <script>
+        // 
+        (function () {
+          var DAY = document.getElementById('pf-day').value;
+          var WSTART = 6 * 60; // début atelier en minutes UTC (06:00 UTC = 08:00 Paris)
+          try { if (sessionStorage.getItem('pf_reseq')) { sessionStorage.removeItem('pf_reseq'); setTimeout(function () { toast('Heures réétalées ✓'); }, 300); } } catch (e) {}
+
+          function rpcWrite(woId, vals, cb) {
+            fetch('/web/dataset/call_kw', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {
+                model: 'mrp.workorder', method: 'write',
+                args: [[woId], vals], kwargs: {}
+              }})
+            }).then(function (r) { return r.json(); }).then(function (data) {
+              if (data.error) { cb(false, data.error.data &amp;&amp; data.error.data.message || data.error.message); }
+              else { cb(true); }
+            }).catch(function (e) { cb(false, String(e)); });
+          }
+
+          function rpcCall(model, method, args, cb) {
+            fetch('/web/dataset/call_kw', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { model: model, method: method, args: args, kwargs: {} } })
+            }).then(function (r) { return r.json(); }).then(function (data) {
+              if (data.error) { cb(false, data.error.data &amp;&amp; data.error.data.message || data.error.message); }
+              else { cb(true, data.result); }
+            }).catch(function (e) { cb(false, String(e)); });
+          }
+
+          window.reseq = function (wcId) {
+            var col = document.querySelector('.pf-col[data-wc="' + wcId + '"]');
+            if (!col) { return; }
+            var cards = Array.prototype.slice.call(col.querySelectorAll('.pf-card'));
+            var p = DAY.split('-');
+            var base = Date.UTC(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]), 0, 0, 0);
+            var startMin = WSTART, i = 0;
+            function step() {
+              if (i &gt;= cards.length) { try { sessionStorage.setItem('pf_reseq', '1'); } catch (e) {} window.location.reload(); return; }
+              var card = cards[i]; i++;
+              if (card.getAttribute('data-lock') === '1') { step(); return; }
+              var dur = parseFloat(card.getAttribute('data-dur')) || 60;
+              var woId = parseInt(card.getAttribute('data-id'));
+              var s = base + startMin * 60000;
+              startMin += dur;
+              rpcWrite(woId, { date_start: fmtUTC(s), date_finished: fmtUTC(s + dur * 60000) }, function (ok, msg) { if (!ok) { alert('Échec re-séquencement : ' + msg); } step(); });
+            }
+            step();
+          }
+
+          function fmtUTC(ms) {
+            var d = new Date(ms);
+            function z(n) { return (n &lt; 10 ? '0' : '') + n; }
+            return d.getUTCFullYear() + '-' + z(d.getUTCMonth() + 1) + '-' + z(d.getUTCDate()) + ' ' + z(d.getUTCHours()) + ':' + z(d.getUTCMinutes()) + ':' + z(d.getUTCSeconds());
+          }
+
+          function toast(txt) {
+            var t = document.createElement('div');
+            t.textContent = txt;
+            t.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2d6a6f;color:#fff;padding:8px 16px;border-radius:8px;z-index:999;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+            document.body.appendChild(t);
+            setTimeout(function () { t.remove(); }, 4500);
+          }
+
+          // Opérateur (employee_assigned_ids)
+          var tpl = document.getElementById('pf-emp-tpl');
+          function markOp(sel) { if (sel &amp;&amp; !sel.value) { sel.style.border = '2px solid #D33'; sel.style.background = '#FFF0F0'; } else if (sel) { sel.style.border = '2px solid #2E9E5B'; sel.style.background = ''; } }
+          document.querySelectorAll('select.pf-op').forEach(function (sel) {
+            sel.innerHTML = tpl.innerHTML;
+            sel.value = sel.getAttribute('data-op') || '';
+            markOp(sel);
+            sel.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+            sel.addEventListener('change', function () {
+              var woId = parseInt(sel.closest('.pf-card').getAttribute('data-id'));
+              var v = sel.value;
+              var vals = { employee_assigned_ids: v ? [[6, false, [parseInt(v)]]] : [[5]] };
+              rpcWrite(woId, vals, function (ok, msg) {
+                markOp(sel);
+                if (!ok) alert('Échec affectation opérateur : ' + msg);
+              });
+            });
+          });
+
+          // Pastille ✓ = terminer l'ordre de travail
+          document.querySelectorAll('.pf-done').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+              ev.preventDefault(); ev.stopPropagation();
+              if (!confirm('Terminer cette opération ?')) { return; }
+              var woId = parseInt(b.closest('.pf-card').getAttribute('data-id'));
+              fetch('/web/dataset/call_kw', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { model: 'mrp.workorder', method: 'button_finish', args: [[woId]], kwargs: {} } })
+              }).then(function (r) { return r.json(); }).then(function (d) {
+                if (d.error) { alert('Échec : ' + (d.error.data &amp;&amp; d.error.data.message || d.error.message)); }
+                else { window.location.reload(); }
+              }).catch(function (e) { alert('Échec : ' + e); });
+            });
+          });
+
+          // Clic sur le n° de commande = filtre toggle
+          var bcEls = document.querySelectorAll('.pf-bc');
+          for (var bi = 0; bi &lt; bcEls.length; bi++) {
+            (function (el) {
+              el.addEventListener('click', function (ev) {
+                ev.preventDefault(); ev.stopPropagation();
+                var u = new URL(window.location);
+                var v = el.getAttribute('data-bc');
+                if (u.searchParams.get('bc') === v) { u.searchParams.delete('bc'); } else { u.searchParams.set('bc', v); }
+                window.location.href = u.toString();
+              });
+            })(bcEls[bi]);
+          }
+
+          // ----- Déplacement : drag souris (PC) + tap-tap (tactile) -----
+          var selected = null, bar = null, dragged = null;
+
+          function clearSel() {
+            if (selected) { selected.style.boxShadow = ''; selected = null; }
+            if (bar) { bar.parentNode &amp;&amp; bar.parentNode.removeChild(bar); bar = null; }
+            var cols = document.querySelectorAll('.pf-col');
+            for (var i = 0; i &lt; cols.length; i++) { cols[i].style.outline = ''; }
+          }
+
+          function applyDrop(card, col) {
+            var wcId = parseInt(col.getAttribute('data-wc'));
+            if (!(wcId &gt; 0)) { var uprod = parseInt(card.getAttribute('data-prod')); if (!(uprod &gt; 0)) { toast('OF introuvable, impossible de déplanifier.'); clearSel(); return; } if (!confirm('Déplanifier tout l’OF ? Toutes ses opérations repasseront en « À planifier ».')) { clearSel(); return; } rpcCall('mrp.production', 'button_unplan', [[uprod]], function (ok, msg) { if (!ok) { alert('Échec déplanification : ' + msg); clearSel(); } else { window.location.reload(); } }); return; }
+            var opSel = card.querySelector('.pf-op');
+            if (opSel &amp;&amp; !opSel.value) { alert("Veuillez d'abord affecter un opérateur à cette opération."); markOp(opSel); try { opSel.focus(); } catch (e) {} clearSel(); return; }
+            var woId = parseInt(card.getAttribute('data-id'));
+            var dur = parseFloat(card.getAttribute('data-dur')) || 60;
+            var p = DAY.split('-');
+            var startMin = WSTART;
+            col.querySelectorAll('.pf-card').forEach(function (c) { if (c !== card) { var e = parseInt(c.getAttribute('data-endmin')); if (!isNaN(e) &amp;&amp; e &gt; startMin) { startMin = e; } } });
+            var startMs = Date.UTC(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]), 0, 0, 0) + startMin * 60000;
+            var vals = { workcenter_id: wcId, date_start: fmtUTC(startMs), date_finished: fmtUTC(startMs + dur * 60000) };
+            var isDraft = card.getAttribute('data-draft') === '1';
+            var prodId = parseInt(card.getAttribute('data-prod'));
+            var origin = card.parentNode;
+            col.appendChild(card);
+            clearSel();
+            function doWrite() {
+              rpcWrite(woId, vals, function (ok, msg) {
+                if (!ok) { origin.appendChild(card); alert('Échec : ' + msg); }
+                else { card.setAttribute('data-endmin', String(Math.round(startMin + dur))); if (isDraft) { toast('OF validé et planifié ✓'); setTimeout(function () { window.location.reload(); }, 700); } }
+              });
+            }
+            if (isDraft &amp;&amp; prodId &gt; 0) {
+              rpcCall('mrp.production', 'action_confirm', [[prodId]], function (ok, msg) {
+                if (!ok) { origin.appendChild(card); alert('Échec validation OF : ' + msg); } else { doWrite(); }
+              });
+            } else { doWrite(); }
+          }
+
+          function selectCard(card) {
+            clearSel();
+            selected = card;
+            card.style.boxShadow = '0 0 0 3px #3B82F6';
+            var cols = document.querySelectorAll('.pf-col');
+            for (var i = 0; i &lt; cols.length; i++) {
+              if (parseInt(cols[i].getAttribute('data-wc')) &gt; 0) { cols[i].style.outline = '2px dashed #3B82F6'; }
+            }
+            bar = document.createElement('div');
+            bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1F2937;color:#fff;padding:12px 16px;z-index:998;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+            var span = document.createElement('span');
+            span.textContent = 'Touchez une machine pour y déplacer cette opération';
+            var btn = document.createElement('button');
+            btn.textContent = 'Annuler';
+            btn.className = 'btn btn-sm btn-outline-light';
+            btn.addEventListener('click', clearSel);
+            bar.appendChild(span); bar.appendChild(btn);
+            document.body.appendChild(bar);
+          }
+
+          function valsForTarget(tid, card) {
+            var dur = parseFloat(card.getAttribute('data-dur')) || 60;
+            var p = DAY.split('-');
+            var startMin = WSTART;
+            var tcol = document.querySelector('.pf-col[data-wc="' + tid + '"]');
+            if (tcol) { tcol.querySelectorAll('.pf-card').forEach(function (c) { if (c !== card) { var e = parseInt(c.getAttribute('data-endmin')); if (!isNaN(e) &amp;&amp; e &gt; startMin) { startMin = e; } } }); }
+            var s = Date.UTC(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]), 0, 0, 0) + startMin * 60000;
+            return { workcenter_id: tid, date_start: fmtUTC(s), date_finished: fmtUTC(s + dur * 60000) };
+          }
+          var sheet = null;
+          function closeSheet() { if (sheet) { sheet.parentNode &amp;&amp; sheet.parentNode.removeChild(sheet); sheet = null; } }
+          function openSheet(card) {
+            var opSel = card.querySelector('.pf-op');
+            if (opSel &amp;&amp; !opSel.value) { alert("Veuillez d'abord affecter un opérateur à cette opération."); markOp(opSel); return; }
+            closeSheet();
+            sheet = document.createElement('div');
+            sheet.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#1F2937;color:#fff;z-index:999;padding:12px;max-height:65vh;overflow:auto;border-radius:12px 12px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.4);';
+            var h = document.createElement('div');
+            h.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+            var ttl = document.createElement('strong'); ttl.textContent = 'Déplacer vers quelle machine ?';
+            var x = document.createElement('button'); x.textContent = 'Annuler'; x.className = 'btn btn-sm btn-outline-light';
+            x.addEventListener('click', closeSheet);
+            h.appendChild(ttl); h.appendChild(x); sheet.appendChild(h);
+            var grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+            var tgts = document.querySelectorAll('.pf-target');
+            for (var i = 0; i &lt; tgts.length; i++) {
+              (function (t) {
+                var b = document.createElement('button');
+                b.className = 'btn btn-light'; b.style.cssText = 'font-size:13px;padding:10px 6px;';
+                b.textContent = t.textContent;
+                b.addEventListener('click', function () {
+                  var woId = parseInt(card.getAttribute('data-id'));
+                  var isDraft = card.getAttribute('data-draft') === '1';
+                  var prodId = parseInt(card.getAttribute('data-prod'));
+                  var vals = valsForTarget(parseInt(t.getAttribute('data-tid')), card);
+                  function w2() { rpcWrite(woId, vals, function (ok, msg) { if (ok) { window.location.reload(); } else { alert('Échec : ' + msg); } }); }
+                  if (isDraft &amp;&amp; prodId &gt; 0) { rpcCall('mrp.production', 'action_confirm', [[prodId]], function (ok, msg) { if (ok) { w2(); } else { alert('Échec validation OF : ' + msg); } }); } else { w2(); }
+                  closeSheet();
+                });
+                grid.appendChild(b);
+              })(tgts[i]);
+            }
+            sheet.appendChild(grid);
+            document.body.appendChild(sheet);
+          }
+
+          var cards = document.querySelectorAll('.pf-card');
+          for (var ci = 0; ci &lt; cards.length; ci++) {
+            (function (card) {
+              // tap-tap (tactile et souris)
+              card.addEventListener('click', function (ev) {
+                if (ev.target.closest('a') || ev.target.closest('select')) { return; }
+                ev.stopPropagation();
+                if (card.getAttribute('data-lock') !== '0') { return; }
+                if (window.innerWidth &lt; 768) { openSheet(card); } else if (selected === card) { clearSel(); } else { selectCard(card); }
+              });
+              // drag souris (PC)
+              if (card.getAttribute('data-lock') === '0') {
+                card.setAttribute('draggable', 'true');
+                card.addEventListener('dragstart', function () { dragged = card; card.style.opacity = '0.4'; });
+                card.addEventListener('dragend', function () { card.style.opacity = '1'; });
+              }
+            })(cards[ci]);
+          }
+
+          var cols = document.querySelectorAll('.pf-col');
+          for (var co = 0; co &lt; cols.length; co++) {
+            (function (col) {
+              col.addEventListener('click', function () {
+                if (selected) { applyDrop(selected, col); }
+              });
+              col.addEventListener('dragover', function (ev) { ev.preventDefault(); col.style.boxShadow = 'inset 0 0 0 2px #3B82F6'; });
+              col.addEventListener('dragleave', function () { col.style.boxShadow = ''; });
+              col.addEventListener('drop', function (ev) {
+                ev.preventDefault(); col.style.boxShadow = '';
+                if (dragged) { applyDrop(dragged, col); dragged = null; }
+              });
+            })(cols[co]);
+          }
+
+          // Hauteur du board = hauteur restante de la fenêtre (les en-têtes sticky collent dans cette zone)
+          function sizeBoard() {
+            var el = document.getElementById('pf-board');
+            if (!el) { return; }
+            var r = el.getBoundingClientRect();
+            var h = window.innerHeight - r.top - 8;
+            if (h &gt; 200) { el.style.height = h + 'px'; }
+          }
+          sizeBoard();
+          window.addEventListener('resize', sizeBoard);
+
+          // Pansement kiosque : auto-fermer le popup d'erreur BlogPostLink (vieux navigateurs sans :has)
+          setInterval(function () {
+            var modals = document.querySelectorAll('.modal, .o_dialog');
+            for (var i = 0; i &lt; modals.length; i++) {
+              if ((modals[i].textContent || '').indexOf('Could not start interaction') !== -1) {
+                var btns = modals[i].querySelectorAll('button');
+                for (var j = 0; j &lt; btns.length; j++) {
+                  if (/fermer|close/i.test(btns[j].textContent || '')) { btns[j].click(); }
+                }
+              }
+            }
+          }, 1200);
+        })();
+        // 
+        </script>
+      </section>
+    </div>
+  </t>
+</t>

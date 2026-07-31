@@ -80,10 +80,20 @@
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
         <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
         <t t-set="rep_cnt" t-value="dict((g['x_studio_colis_id'][0], g['x_studio_colis_id_count']) for g in request.env['x_repartition_palette'].sudo().read_group([('x_studio_colis_id','in',colis_ouverts.ids)], ['id'], ['x_studio_colis_id']))"/>
+        <t t-set="colis_ofs" t-value="request.env['mrp.production'].sudo().search([('x_studio_colis','in',colis_ouverts.ids)])"/>
+        <t t-set="colis_reps" t-value="request.env['x_repartition_palette'].sudo().search([('x_studio_colis_id','in',colis_ouverts.ids)])"/>
+        <t t-set="colis_pairs" t-value="[(o, o.x_studio_colis.id) for o in colis_ofs] + [(r.x_studio_of_id, r.x_studio_colis_id.id) for r in colis_reps if r.x_studio_of_id]"/>
+        <t t-set="cm_cl" t-value="{}"/><t t-set="cm_rf" t-value="{}"/><t t-set="cm_pa" t-value="{}"/>
+        <t t-set="_m1" t-value="[cm_cl.setdefault(ci, set()).add(o.x_studio_nom_du_client) for o, ci in colis_pairs if o.x_studio_nom_du_client]"/>
+        <t t-set="_m2" t-value="[cm_rf.setdefault(ci, set()).add(o.x_studio_ref_commande_client) for o, ci in colis_pairs if o.x_studio_ref_commande_client]"/>
+        <t t-set="_m3" t-value="[cm_pa.setdefault(ci, set()).add(o.x_studio_palette) for o, ci in colis_pairs if o.x_studio_palette]"/>
+        <t t-set="colis_meta" t-value="dict((c.id, ' · '.join([x for x in [', '.join(sorted(cm_cl.get(c.id, []))), ', '.join(sorted(cm_rf.get(c.id, []))), ', '.join(sorted(cm_pa.get(c.id, [])))] if x]).replace('&quot;',' ')) for c in colis_ouverts)"/>
         <t t-set="hmach" t-value="sorted(set(w.workcenter_id.name for w in dones if w.workcenter_id))"/>
+        <t t-set="hsit" t-value="sorted(set(w.workcenter_id.x_studio_site for w in dones if w.workcenter_id and w.workcenter_id.x_studio_site))"/>
         <t t-set="hcli" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in dones if w.production_id.x_studio_nom_du_client))"/>
         <t t-set="hrefs" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in dones if w.production_id.x_studio_ref_commande_client))"/>
         <t t-set="hpals" t-value="sorted(set(w.production_id.x_studio_palette for w in dones if w.production_id.x_studio_palette))"/>
+        <t t-set="hcols" t-value="sorted(set(w.production_id.x_studio_colis.name for w in dones if w.production_id.x_studio_colis))"/>
         <div class="vo-chips"><span class="vo-lbl">Période</span>
           <t t-foreach="[(7,'7 jours'),(30,'30 jours'),(90,'90 jours'),(365,'1 an')]" t-as="pj">
             <a t-attf-class="vo-chip {{'on' if histj == pj[0] else ''}}" style="text-decoration:none;" t-attf-href="/vue-operateur?op={{op}}&amp;hist=1&amp;j={{pj[0]}}">🕘 <t t-esc="pj[1]"/></a>
@@ -91,10 +101,12 @@
         </div>
         <p class="text-muted mb-2"><strong id="vo-hn"><t t-esc="len(dones)"/></strong> opération(s) terminée(s) sur <t t-esc="histj"/> jours</p>
         <t t-if="dones">
+          <t t-if="len(hsit) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Site</span><t t-foreach="hsit" t-as="sv"><span class="vo-chip chip-hsit" t-att-data-val="sv">📍 <t t-esc="{'atelier': 'Atelier', 'usine': 'Usine'}.get(sv, sv)"/></span></t></div></t>
           <t t-if="len(hmach) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Machines</span><t t-foreach="hmach" t-as="mc"><span class="vo-chip chip-hmac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t></div></t>
           <t t-if="len(hcli) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Clients</span><t t-foreach="hcli" t-as="cl"><span class="vo-chip chip-hcli" t-att-data-val="cl"><t t-esc="cl"/></span></t></div></t>
           <t t-if="len(hrefs) &gt; 1"><div class="vo-chips vo-hrow"><span class="vo-lbl">Réf. cde</span><t t-foreach="hrefs" t-as="rf"><span class="vo-chip chip-href" t-att-data-val="rf" t-att-title="rf"><t t-esc="rf"/></span></t></div></t>
           <t t-if="hpals"><div class="vo-chips vo-hrow"><span class="vo-lbl">Palette</span><t t-foreach="hpals" t-as="pa"><span class="vo-chip chip-hpal" t-att-data-val="pa" t-att-title="pa">🟪 <t t-esc="pa"/></span></t></div></t>
+          <t t-if="hcols"><div class="vo-chips vo-hrow"><span class="vo-lbl">Colis</span><t t-foreach="hcols" t-as="co"><span class="vo-chip chip-hcol" t-att-data-val="co" t-att-title="co">📦 <t t-esc="co"/></span></t></div></t>
         </t>
         <t t-if="not dones"><div class="alert alert-secondary">Aucune opération terminée pour le moment.</div></t>
         <t t-if="dones">
@@ -112,21 +124,53 @@
             <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
           </div>
         </div>
+        <div id="vo-rebut-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:10600;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;max-width:430px;width:94vw;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong style="font-size:17px;">💥 Déclarer un rebut</strong>
+              <button type="button" class="vo-reb-close btn btn-sm btn-outline-secondary">✕</button>
+            </div>
+            <div id="vo-reb-of" style="font-weight:800;color:#0f172a;margin-bottom:8px;">—</div>
+            <div style="font-weight:700;color:#475569;font-size:13px;">Nombre de pierres au rebut</div>
+            <div class="d-flex gap-1 my-1 align-items-center">
+              <input id="vo-reb-qty" type="number" min="1" value="1" class="form-control" style="max-width:110px;font-weight:800;font-size:18px;"/>
+              <button type="button" id="vo-reb-all" class="btn btn-outline-secondary" style="font-weight:800;">Toutes</button>
+            </div>
+            <div style="font-weight:700;color:#475569;font-size:13px;margin-top:8px;">Motif</div>
+            <div class="d-flex flex-wrap gap-1 my-1">
+              <button type="button" class="vo-reb-motif vo-chip">Casse fabrication</button>
+              <button type="button" class="vo-reb-motif vo-chip">Casse manutention</button>
+              <button type="button" class="vo-reb-motif vo-chip">Palette tombée</button>
+              <button type="button" class="vo-reb-motif vo-chip">Défaut pierre</button>
+            </div>
+            <input id="vo-reb-autre" type="text" class="form-control mb-2" placeholder="Autre motif / précision…"/>
+            <button type="button" id="vo-reb-go" class="btn btn-danger w-100" style="font-weight:800;font-size:16px;">💥 Valider le rebut → relancer l'OF</button>
+          </div>
+        </div>
+        <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
+          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+          <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
+          <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
+          <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <strong style="font-size:17px;">📦 Choisir le colis</strong>
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
-            <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0)) for c in colis_ouverts]) + ']'"/>
+            <div class="d-flex gap-1 mb-2">
+              <input id="vo-colis-search" type="text" class="form-control" placeholder="Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+              <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
+            </div>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, '')) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
               <t t-foreach="colis_ouverts" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
               </t>
@@ -146,7 +190,7 @@
               <t t-set="col" t-value="rawcol or '#9AA0A6'"/>
               <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
               <t t-set="htxt" t-value="'#1a1a1a' if lum &gt; 150 else '#ffffff'"/>
-              <div class="vo-card" t-attf-style="border-left-color:{{col}};" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-palette="of.x_studio_palette or ''">
+              <div class="vo-card" t-attf-style="border-left-color:{{col}};" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-colis="of.x_studio_colis.name or ''">
                 <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
                   <span><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
                   <span><t t-esc="pierre"/></span>
@@ -158,6 +202,7 @@
                       <span t-if="of.x_studio_colis" class="vo-pal">📦 <t t-esc="of.x_studio_colis.name"/></span>
                       <button t-elif="of.state == 'done'" type="button" class="vo-addcolis btn btn-sm btn-outline-primary" t-att-data-ofid="of.id" style="font-weight:800;">📦 Mettre au colis</button>
                       <span t-else="" style="font-size:11.5px;color:#94a3b8;">OF non clôturé — colisage impossible</span>
+                      <button type="button" class="vo-rebut btn btn-sm btn-outline-danger" t-att-data-ofid="of.id" t-att-data-of="of.name or ''" t-att-data-nbr="of.x_studio_nbr or 1" style="font-weight:800;margin-left:6px;">💥 Rebut</button>
                     </div>
                     <div t-if="of.x_studio_nom_du_client" class="vo-cli">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>
                     <div style="font-size:12px;"><strong t-esc="of.name"/><t t-if="of.origin"> · BC <t t-esc="of.origin"/></t></div>
@@ -190,6 +235,26 @@
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
         <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
         <t t-set="rep_cnt" t-value="dict((g['x_studio_colis_id'][0], g['x_studio_colis_id_count']) for g in request.env['x_repartition_palette'].sudo().read_group([('x_studio_colis_id','in',colis_ouverts.ids)], ['id'], ['x_studio_colis_id']))"/>
+        <t t-set="colis_ofs" t-value="request.env['mrp.production'].sudo().search([('x_studio_colis','in',colis_ouverts.ids)])"/>
+        <t t-set="colis_reps" t-value="request.env['x_repartition_palette'].sudo().search([('x_studio_colis_id','in',colis_ouverts.ids)])"/>
+        <t t-set="colis_pairs" t-value="[(o, o.x_studio_colis.id) for o in colis_ofs] + [(r.x_studio_of_id, r.x_studio_colis_id.id) for r in colis_reps if r.x_studio_of_id]"/>
+        <t t-set="cm_cl" t-value="{}"/><t t-set="cm_rf" t-value="{}"/><t t-set="cm_pa" t-value="{}"/>
+        <t t-set="_m1" t-value="[cm_cl.setdefault(ci, set()).add(o.x_studio_nom_du_client) for o, ci in colis_pairs if o.x_studio_nom_du_client]"/>
+        <t t-set="_m2" t-value="[cm_rf.setdefault(ci, set()).add(o.x_studio_ref_commande_client) for o, ci in colis_pairs if o.x_studio_ref_commande_client]"/>
+        <t t-set="_m3" t-value="[cm_pa.setdefault(ci, set()).add(o.x_studio_palette) for o, ci in colis_pairs if o.x_studio_palette]"/>
+        <t t-set="colis_meta" t-value="dict((c.id, ' · '.join([x for x in [', '.join(sorted(cm_cl.get(c.id, []))), ', '.join(sorted(cm_rf.get(c.id, []))), ', '.join(sorted(cm_pa.get(c.id, [])))] if x]).replace('&quot;',' ')) for c in colis_ouverts)"/>
+        <t t-set="blocs_ouverts" t-value="request.env['x_bloc'].sudo().search([('x_studio_statut','in',['stock','sciage'])], order='id desc', limit=150)"/>
+        <div id="vo-bloc-data" style="display:none;" t-att-data-blocs="'[' + ','.join(['{&quot;id&quot;:%s,&quot;n&quot;:&quot;%s&quot;,&quot;nc&quot;:&quot;%s&quot;,&quot;p&quot;:&quot;%s&quot;,&quot;v&quot;:%.3f,&quot;s&quot;:&quot;%s&quot;}' % (b.id, b.x_name, (b.x_studio_num_carriere or '').replace('&quot;',' '), (b.x_studio_pierre.name or '').replace('&quot;',' '), b.x_studio_vol_capable or 0.0, b.x_studio_statut or '') for b in blocs_ouverts]) + ']'"/>
+        <div id="vo-bloc-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:10650;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;max-width:470px;width:94vw;max-height:82vh;overflow:auto;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong style="font-size:17px;">🪨 Lier le bloc à l'OF</strong>
+              <button type="button" id="vo-bloc-close" class="btn btn-sm btn-outline-secondary">✕</button>
+            </div>
+            <input id="vo-bloc-search" type="text" class="form-control mb-2" placeholder="📷 Scanner la fiche bloc ou taper n° / carrière / pierre…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+            <div id="vo-bloc-list"/>
+          </div>
+        </div>
         <div id="vo-zone-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:1001;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:22px;width:min(400px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4);">
             <div style="font-size:17px;font-weight:800;margin-bottom:12px;">🔒 Clôturer <span id="vo-zone-cname"/> — emplacement :</div>
@@ -198,21 +263,30 @@
             <button type="button" class="vo-zone-cancel btn btn-outline-secondary w-100">Annuler</button>
           </div>
         </div>
+        <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
+          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+          <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
+          <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
+          <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <strong style="font-size:17px;">📦 Choisir le colis</strong>
               <button type="button" id="vo-colis-close" class="btn btn-sm btn-outline-secondary">✕</button>
             </div>
-            <input id="vo-colis-search" type="text" class="form-control mb-2" placeholder="📷 Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0)) for c in colis_ouverts]) + ']'"/>
+            <div class="d-flex gap-1 mb-2">
+              <input id="vo-colis-search" type="text" class="form-control" placeholder="Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
+              <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
+            </div>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, '')) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
               <t t-foreach="colis_ouverts" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
               </t>
@@ -221,6 +295,7 @@
         </div>
         <t t-set="clients_op" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in ots if w.production_id.x_studio_nom_du_client))"/>
         <t t-set="machines_op" t-value="sorted(set(w.workcenter_id.name for w in ots if w.workcenter_id))"/>
+        <t t-set="sites_op" t-value="sorted(set(w.workcenter_id.x_studio_site for w in ots if w.workcenter_id and w.workcenter_id.x_studio_site))"/>
         <t t-set="refs_op" t-value="sorted(set(w.production_id.x_studio_ref_commande_client for w in ots if w.production_id.x_studio_ref_commande_client))"/>
         <t t-set="palettes_op" t-value="sorted(set(w.production_id.x_studio_palette for w in ots if w.production_id.x_studio_palette))"/>
         <t t-set="todo_n" t-value="len(ots.filtered(lambda w: w.state != 'done'))"/>
@@ -233,7 +308,12 @@
           <button type="button" id="vo-dim-x" class="btn btn-sm btn-outline-secondary" style="display:none;">✕ Dimensions</button>
           <span class="vo-lbl" style="text-transform:none;letter-spacing:0;">pierres qui tiennent dans ce gabarit, peu importe l’orientation</span>
         </div>
-        <t t-if="len(machines_op) &gt; 1">
+        <t t-if="len(sites_op) &gt; 1">
+          <div class="vo-chips"><span class="vo-lbl">Site</span>
+            <t t-foreach="sites_op" t-as="sv"><span class="vo-chip chip-site" t-att-data-val="sv">📍 <t t-esc="{'atelier': 'Atelier', 'usine': 'Usine'}.get(sv, sv)"/></span></t>
+          </div>
+        </t>
+        <t t-if="machines_op">
           <div class="vo-chips"><span class="vo-lbl">Machines</span>
             <t t-foreach="machines_op" t-as="mc"><span class="vo-chip chip-mac" t-att-data-val="mc">🏭 <t t-esc="mc"/></span></t>
           </div>
@@ -272,7 +352,7 @@
           <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
           <t t-set="htxt" t-value="'#1a1a1a' if lum &gt; 150 else '#ffffff'"/>
           <t t-set="plans" t-value="all_plans.filtered(lambda a: a.res_id == of.id)"/>
-          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'">
+          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'" t-att-data-scieprim="'1' if 'primaire' in (w.name or '').lower() else ''" t-att-data-bloc="of.x_studio_bloc.x_name or ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
               <span><t t-esc="pierre"/></span>
@@ -317,6 +397,149 @@
         window.location.href = '/vue-operateur' + (v ? ('?op=' + encodeURIComponent(v) + h) : '');
       }
       (function(){
+        var blocOf=0, blocCard=null;
+        var blocPop=document.getElementById('vo-bloc-pop');
+        var BLOCS=[]; try{ var _bd=document.getElementById('vo-bloc-data'); BLOCS=JSON.parse((_bd &amp;&amp; _bd.getAttribute('data-blocs'))||'[]'); }catch(e){}
+        function blocRow(b){
+          return '&lt;button type="button" class="vo-bloc-choice btn btn-outline-primary w-100 mb-2" style="font-weight:800;text-align:left;" data-bid="'+b.id+'"&gt;'
+            +b.n+(b.nc?' · '+b.nc:'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+(b.p||'?')+' · '+b.v+' m³ · '+(b.s==='sciage'?'en sciage':'au parc')+'&lt;/span&gt;&lt;/button&gt;';
+        }
+        function blocLink(bid,bname){
+          fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1996]],kwargs:{context:{active_model:'mrp.production',active_ids:[blocOf],active_id:blocOf,bloc_id:bid,bloc_name:bname||''}}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            var bn=(d.result &amp;&amp; d.result.bloc)||'';
+            if(blocPop){ blocPop.style.display='none'; }
+            if(blocCard){
+              document.querySelectorAll('.vo-card').forEach(function(c){
+                if(c.getAttribute('data-ofid')===blocCard.getAttribute('data-ofid')){ c.setAttribute('data-bloc', bn); if(typeof render==='function'){ render(c); } }
+              });
+            }
+          }).catch(function(e){ alert('Échec : '+e); });
+        }
+        function blocRender(){
+          var inp=document.getElementById('vo-bloc-search'); var lst=document.getElementById('vo-bloc-list');
+          if(!lst){ return; }
+          var v=(inp &amp;&amp; inp.value||'').trim().toLowerCase();
+          var rows=BLOCS.filter(function(b){ return !v || (b.n+' '+(b.nc||'')+' '+(b.p||'')).toLowerCase().indexOf(v)!==-1; }).slice(0,25);
+          lst.innerHTML=rows.map(blocRow).join('') || '&lt;div class="alert alert-warning"&gt;Aucun bloc ne correspond — Entrée pour envoyer le n° scanné tel quel&lt;/div&gt;';
+          lst.querySelectorAll('.vo-bloc-choice').forEach(function(b){
+            b.onclick=function(){ blocLink(parseInt(b.getAttribute('data-bid')), null); };
+          });
+        }
+        window.voOpenBloc=function(ofid, card){
+          blocOf=ofid; blocCard=card;
+          var inp=document.getElementById('vo-bloc-search'); if(inp){ inp.value=''; }
+          blocRender();
+          if(blocPop){ blocPop.style.display='flex'; }
+          if(inp){ setTimeout(function(){ inp.focus(); },80); }
+        };
+        if(blocPop){
+          var bcl=document.getElementById('vo-bloc-close'); if(bcl){ bcl.onclick=function(){ blocPop.style.display='none'; }; }
+          var bsr=document.getElementById('vo-bloc-search');
+          if(bsr){
+            bsr.addEventListener('input', blocRender);
+            bsr.addEventListener('keydown', function(e){
+              if(e.key!=='Enter'){ return; }
+              e.preventDefault();
+              var v=(bsr.value||'').trim(); if(!v){ return; }
+              blocLink(null, v);
+            });
+          }
+        }
+        var rebOfId=0, rebMax=1;
+        var rebPop=document.getElementById('vo-rebut-pop');
+        function openReb(ofid, ofname, nbr){
+          rebOfId=ofid; rebMax=parseInt(nbr)||1;
+          var t=document.getElementById('vo-reb-of'); if(t){ t.textContent=ofname+' — '+rebMax+' pierre(s) au total'; }
+          var q=document.getElementById('vo-reb-qty'); if(q){ q.value=1; q.max=rebMax; }
+          var a=document.getElementById('vo-reb-autre'); if(a){ a.value=''; }
+          document.querySelectorAll('.vo-reb-motif').forEach(function(c){ c.classList.remove('on'); });
+          if(rebPop){ rebPop.style.display='flex'; }
+        }
+        window.voOpenReb=openReb;
+        if(rebPop){
+          document.querySelectorAll('.vo-reb-close').forEach(function(b){ b.onclick=function(){ rebPop.style.display='none'; }; });
+          document.querySelectorAll('.vo-reb-motif').forEach(function(c){
+            c.onclick=function(){ document.querySelectorAll('.vo-reb-motif').forEach(function(x){ x.classList.remove('on'); }); c.classList.add('on'); };
+          });
+          var ball=document.getElementById('vo-reb-all');
+          if(ball){ ball.onclick=function(){ var q=document.getElementById('vo-reb-qty'); if(q){ q.value=rebMax; } }; }
+          var bgo=document.getElementById('vo-reb-go');
+          if(bgo){ bgo.onclick=function(){
+            var q=parseInt((document.getElementById('vo-reb-qty')||{}).value)||0;
+            if(q&lt;1 || q&gt;rebMax){ alert('Nombre de pierres invalide (1 à '+rebMax+')'); return; }
+            var m=''; var sel=document.querySelector('.vo-reb-motif.on'); if(sel){ m=sel.textContent; }
+            var au=(document.getElementById('vo-reb-autre')||{}).value||''; if(au.replace(/\s/g,'')!==''){ m=(m?m+' — ':'')+au; }
+            if(!m){ alert('Choisissez un motif'); return; }
+            bgo.disabled=true;
+            fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1987]],kwargs:{context:{active_model:'mrp.production',active_ids:[rebOfId],active_id:rebOfId,rebut_n:q,rebut_motif:m}}}})
+            }).then(function(r){return r.json();}).then(function(d){
+              bgo.disabled=false;
+              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+              var nn=(d.result &amp;&amp; d.result.new_of)||'';
+              alert('💥 Rebut enregistré — OF relancé : '+nn);
+              location.reload();
+            }).catch(function(e){ bgo.disabled=false; alert('Échec : '+e); });
+          }; }
+          document.querySelectorAll('.vo-rebut').forEach(function(b){
+            b.onclick=function(){ openReb(parseInt(b.getAttribute('data-ofid')), b.getAttribute('data-of')||'OF', b.getAttribute('data-nbr')||1); };
+          });
+        }
+        var camPop=document.getElementById('vo-cam-pop'), camVid=document.getElementById('vo-cam-video'), camMsg=document.getElementById('vo-cam-msg');
+        var camStream=null, camTimer=null;
+        function camStop(){
+          if(camTimer){ clearInterval(camTimer); camTimer=null; }
+          if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); camStream=null; }
+          if(camVid){ camVid.srcObject=null; }
+          if(camPop){ camPop.style.display='none'; }
+        }
+        function camOpen(onCode){
+          if(!camPop){ return; }
+          if(!window.BarcodeDetector){ alert('Scanner caméra non supporté par ce navigateur — utilisez la douchette ou tapez le numéro.'); return; }
+          if(!(navigator.mediaDevices &amp;&amp; navigator.mediaDevices.getUserMedia)){ alert('Caméra indisponible sur cet appareil.'); return; }
+          camPop.style.display='block';
+          if(camMsg){ camMsg.textContent='Visez le code-barre de la palette…'; }
+          navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}}).then(function(st){
+            camStream=st; camVid.srcObject=st;
+            return camVid.play();
+          }).then(function(){
+            var det;
+            try{ det=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','itf','qr_code']}); }
+            catch(e){ det=new BarcodeDetector(); }
+            var busy=false;
+            camTimer=setInterval(function(){
+              if(busy || !camStream || camVid.readyState &lt; 2){ return; }
+              busy=true;
+              det.detect(camVid).then(function(codes){
+                busy=false;
+                var v='';
+                for(var ci=0; ci&lt;codes.length; ci++){ if(codes[ci].rawValue &amp;&amp; codes[ci].rawValue.trim()){ v=codes[ci].rawValue.trim(); break; } }
+                if(!v){ return; }
+                camStop();
+                try{ if(navigator.vibrate){ navigator.vibrate(90); } }catch(e){}
+                onCode(v);
+              }).catch(function(){ busy=false; });
+            }, 220);
+          }).catch(function(err){
+            camStop();
+            alert('Caméra inaccessible : ' + ((err &amp;&amp; err.message) || err) + '\nAutorisez l’accès caméra pour ce site dans les réglages du navigateur.');
+          });
+        }
+        var camCloseB=document.getElementById('vo-cam-close');
+        if(camCloseB){ camCloseB.onclick=camStop; }
+        var camBtnB=document.getElementById('vo-cam-btn');
+        if(camBtnB){ camBtnB.onclick=function(){
+          camOpen(function(v){
+            var s=document.getElementById('vo-colis-search');
+            if(!s){ return; }
+            s.value=v;
+            s.dispatchEvent(new Event('input',{bubbles:true}));
+            s.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+          });
+        }; }
         var params = new URLSearchParams(window.location.search);
         var op = params.get('op');
         if(op){ try{ localStorage.setItem('vo_op', op); }catch(e){} }
@@ -328,6 +551,8 @@
           var blocks = Array.prototype.slice.call(document.querySelectorAll('.vo-dayblock'));
           var pop=document.getElementById('vo-colis-pop'); var curOf=0; var curBtn=null;
           var lastColis=null; try{ lastColis=JSON.parse(localStorage.getItem('vo_last_colis')||'null'); }catch(e){}
+          try{ var _dcH=document.getElementById('vo-colis-data'); var _opH=JSON.parse((_dcH&amp;&amp;_dcH.getAttribute('data-colis'))||'[]');
+            if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opH.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
           function saveLast(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
           function assign(ofid, cid, cname, btn, after){
@@ -335,7 +560,9 @@
               body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
             }).then(function(r){return r.json();}).then(function(d){
               if(after){ after(); }
-              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+              if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
+              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
+              alert('\u00c9chec : '+_m); return; }
               if(cid){ saveLast(cid,cname); }
               markDone(btn,cname);
               if(pop){ pop.style.display='none'; }
@@ -344,7 +571,7 @@
           document.querySelectorAll('.vo-addcolis').forEach(function(b){
             b.onclick=function(){ curOf=parseInt(b.getAttribute('data-ofid')); curBtn=b; if(pop){ pop.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchH(); setTimeout(function(){ s.focus(); },80); } } };
             if(lastColis &amp;&amp; lastColis.id){
-              var q=document.createElement('button'); q.type='button'; q.className='btn btn-sm btn-primary'; q.style.cssText='font-weight:800;margin-left:6px;';
+              var q=document.createElement('button'); q.type='button'; q.className='vo-lastq btn btn-sm btn-primary'; q.style.cssText='font-weight:800;margin-left:6px;';
               q.textContent='⚡ '+lastColis.name;
               q.onclick=function(){ q.disabled=true; assign(parseInt(b.getAttribute('data-ofid')), lastColis.id, lastColis.name, b, function(){ q.disabled=false; }); };
               b.after(q);
@@ -355,14 +582,14 @@ var dataC=document.getElementById('vo-colis-data');
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchH(){
             var v=(srchC &amp;&amp; srchC.value || '').trim().toLowerCase();
             if(!v){ if(listC){ listC.style.display=''; } if(dynC){ dynC.innerHTML=''; dynC.style.display='none'; } return; }
             if(listC){ listC.style.display='none'; }
-            var m=COLIS.filter(function(c){ return c.name.toLowerCase().indexOf(v)!==-1; }).slice(0,15);
+            var m=COLIS.filter(function(c){ return (c.name+' '+(c.m||'')).toLowerCase().indexOf(v)!==-1; }).slice(0,15);
             if(dynC){ dynC.style.display=''; dynC.innerHTML = m.length ? m.map(rowC).join('') : '&lt;div class="alert alert-warning"&gt;Aucun colis ouvert ne correspond — Entrée pour chercher ce numéro exact&lt;/div&gt;'; }
           }
           if(srchC){
@@ -407,21 +634,23 @@ var dataC=document.getElementById('vo-colis-data');
             };
           });
           if(!blocks.length){ return; }
-          var selHC={}, selHR={}, selHM={}, selHP={};
+          var selHC={}, selHR={}, selHM={}, selHP={}, selHK={}, selHS={};
           function hOk(sel, card, attr){ var k=Object.keys(sel); return k.length===0 || !!sel[card.getAttribute(attr)||'']; }
-          function hMatch(c){ return hOk(selHC,c,'data-client') &amp;&amp; hOk(selHR,c,'data-ref') &amp;&amp; hOk(selHM,c,'data-machine') &amp;&amp; hOk(selHP,c,'data-palette'); }
+          function hMatch(c){ return hOk(selHC,c,'data-client') &amp;&amp; hOk(selHR,c,'data-ref') &amp;&amp; hOk(selHM,c,'data-machine') &amp;&amp; hOk(selHP,c,'data-palette') &amp;&amp; hOk(selHK,c,'data-colis') &amp;&amp; hOk(selHS,c,'data-site'); }
           var idx = 0;
           for(var i=0;i&lt;blocks.length;i++){ if(blocks[i].getAttribute('data-today')==='1'){ idx=i; break; } }
           var lbl=document.getElementById('vd-lbl'), prev=document.getElementById('vd-prev'), next=document.getElementById('vd-next');
           function nextVis(from,dir){ var i=from+dir; while(i&gt;=0 &amp;&amp; i&lt;blocks.length){ if(blocks[i].getAttribute('data-vis')!=='0'){ return i; } i+=dir; } return -1; }
           function refreshChips(){
             var b=blocks[idx];
-            var pm={}, pc={}, pr={}, pp={};
+            var pm={}, pc={}, pr={}, pp={}, pk={}, ps={};
             b.querySelectorAll('.vo-card').forEach(function(card){
+              ps[card.getAttribute('data-site')||'']=1;
               pm[card.getAttribute('data-machine')||'']=1;
               pc[card.getAttribute('data-client')||'']=1;
               pr[card.getAttribute('data-ref')||'']=1;
               pp[card.getAttribute('data-palette')||'']=1;
+              pk[card.getAttribute('data-colis')||'']=1;
             });
             function upd(cls, present, sel){
               document.querySelectorAll(cls).forEach(function(ch){
@@ -429,7 +658,7 @@ var dataC=document.getElementById('vo-colis-data');
                 ch.style.display = (present[v] || sel[v]) ? '' : 'none';
               });
             }
-            upd('.chip-hmac',pm,selHM); upd('.chip-hcli',pc,selHC); upd('.chip-href',pr,selHR); upd('.chip-hpal',pp,selHP);
+            upd('.chip-hmac',pm,selHM); upd('.chip-hcli',pc,selHC); upd('.chip-href',pr,selHR); upd('.chip-hpal',pp,selHP); upd('.chip-hcol',pk,selHK); upd('.chip-hsit',ps,selHS);
             document.querySelectorAll('.vo-hrow').forEach(function(row){
               var any=false;
               row.querySelectorAll('.vo-chip').forEach(function(ch){ if(ch.style.display!=='none'){ any=true; } });
@@ -460,7 +689,7 @@ var dataC=document.getElementById('vo-colis-data');
               ch.onclick=function(){ var v=ch.getAttribute('data-val'); if(sel[v]){ delete sel[v]; ch.classList.remove('on'); } else { sel[v]=1; ch.classList.add('on'); } applyH(); };
             });
           }
-          chipH(selHM,'.chip-hmac'); chipH(selHC,'.chip-hcli'); chipH(selHR,'.chip-href'); chipH(selHP,'.chip-hpal');
+          chipH(selHM,'.chip-hmac'); chipH(selHC,'.chip-hcli'); chipH(selHR,'.chip-href'); chipH(selHP,'.chip-hpal'); chipH(selHK,'.chip-hcol'); chipH(selHS,'.chip-hsit');
           if(prev){ prev.onclick=function(){ var j=nextVis(idx,1); if(j!==-1){ idx=j; show(); } }; }
           if(next){ next.onclick=function(){ var j=nextVis(idx,-1); if(j!==-1){ idx=j; show(); } }; }
           applyH();
@@ -470,13 +699,17 @@ var dataC=document.getElementById('vo-colis-data');
         function bd(id,m,cls,txt){ return '&lt;button type="button" class="vo-act btn '+cls+'" data-id="'+id+'" data-m="'+m+'"&gt;'+txt+'&lt;/button&gt;'; }
         var popC=document.getElementById('vo-colis-pop'); var curOfP=0; var curCardP=null;
         var lastColis=null; try{ lastColis=JSON.parse(localStorage.getItem('vo_last_colis')||'null'); }catch(e){}
+        try{ var _dcP=document.getElementById('vo-colis-data'); var _opP=JSON.parse((_dcP&amp;&amp;_dcP.getAttribute('data-colis'))||'[]');
+            if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opP.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
         function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
         function assignC(ofid, cid, cname, card, after){
           fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
           }).then(function(r){return r.json();}).then(function(d){
             if(after){ after(); }
-            if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
+              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
+              alert('\u00c9chec : '+_m); return; }
             if(cid){ saveLastC(cid,cname); }
             if(popC){ popC.style.display='none'; }
             if(card){
@@ -496,14 +729,14 @@ var dataC=document.getElementById('vo-colis-data');
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchP(){
             var v=(srchC &amp;&amp; srchC.value || '').trim().toLowerCase();
             if(!v){ if(listC){ listC.style.display=''; } if(dynC){ dynC.innerHTML=''; dynC.style.display='none'; } return; }
             if(listC){ listC.style.display='none'; }
-            var m=COLIS.filter(function(c){ return c.name.toLowerCase().indexOf(v)!==-1; }).slice(0,15);
+            var m=COLIS.filter(function(c){ return (c.name+' '+(c.m||'')).toLowerCase().indexOf(v)!==-1; }).slice(0,15);
             if(dynC){ dynC.style.display=''; dynC.innerHTML = m.length ? m.map(rowC).join('') : '&lt;div class="alert alert-warning"&gt;Aucun colis ouvert ne correspond — Entrée pour chercher ce numéro exact&lt;/div&gt;'; }
           }
           if(srchC){
@@ -561,12 +794,23 @@ var dataC=document.getElementById('vo-colis-data');
               ch=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis&lt;/button&gt;';
               if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
             }
-            acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch;
+            acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch+' &lt;button type="button" class="vo-rebut2 btn btn-outline-danger" style="font-weight:800;"&gt;💥 Rebut&lt;/button&gt;';
             bindColis(acts, card);
+            var rb=acts.querySelector('.vo-rebut2');
+            if(rb){ rb.onclick=function(){ window.voOpenReb(parseInt(card.getAttribute('data-ofid')), card.getAttribute('data-of')||'OF', card.getAttribute('data-nbr')||1); }; }
           }
           else if(st==='progress'){ badge.innerHTML='&lt;span class="badge text-bg-success"&gt;▶ En cours&lt;/span&gt;'; acts.innerHTML=bd(id,'button_pending','btn-warning','⏸ Pause')+bd(id,'button_finish','btn-success','✓ Terminer'); }
           else if(st==='blocked'){ badge.innerHTML='&lt;span class="badge text-bg-danger"&gt;⛔ Bloquée&lt;/span&gt;'; acts.innerHTML=''; }
           else { badge.innerHTML='&lt;span class="badge text-bg-light"&gt;○ À faire&lt;/span&gt;'; acts.innerHTML=bd(id,'button_start','btn-primary','▶ Démarrer'); }
+          if(card.getAttribute('data-scieprim')==='1'){
+            var curB=card.getAttribute('data-bloc')||'';
+            var bb=document.createElement('button'); bb.type='button';
+            bb.className='vo-blocbtn btn '+(curB?'btn-outline-secondary':'btn-warning');
+            bb.style.cssText='font-weight:800;margin-left:6px;';
+            bb.textContent=curB?('🪨 '+curB):'🪨 Scanner le bloc';
+            bb.onclick=function(){ window.voOpenBloc(parseInt(card.getAttribute('data-ofid')), card); };
+            acts.appendChild(bb);
+          }
           bind(acts);
         }
         function bind(root){
@@ -623,11 +867,11 @@ var dataC=document.getElementById('vo-colis-data');
         }
         document.querySelectorAll('.vo-card').forEach(function(c){ render(c); renderP(c); });
 
-        var selC={}, selR={}, selM={}, selP={}, dimQ=['','',''];
+        var selC={}, selR={}, selM={}, selP={}, selS={}, dimQ=['','',''];
         var VOP = new URLSearchParams(location.search).get('op') || '';
         var FKEY = 'vo_filters_' + VOP;
         function saveF(){
-          try{ localStorage.setItem(FKEY, JSON.stringify({c:Object.keys(selC), r:Object.keys(selR), m:Object.keys(selM), p:Object.keys(selP), d:dimQ})); }catch(e){}
+          try{ localStorage.setItem(FKEY, JSON.stringify({c:Object.keys(selC), r:Object.keys(selR), m:Object.keys(selM), p:Object.keys(selP), s:Object.keys(selS), d:dimQ})); }catch(e){}
         }
         function restoreF(){
           var s=null; try{ s=JSON.parse(localStorage.getItem(FKEY)||'null'); }catch(e){}
@@ -638,17 +882,18 @@ var dataC=document.getElementById('vo-colis-data');
               var v=ch.getAttribute('data-val'); if(set[v]){ sel[v]=1; ch.classList.add('on'); }
             });
           }
-          rest(s.c, selC, '.chip-cli'); rest(s.r, selR, '.chip-ref'); rest(s.m, selM, '.chip-mac'); rest(s.p, selP, '.chip-pal');
+          rest(s.c, selC, '.chip-cli'); rest(s.r, selR, '.chip-ref'); rest(s.m, selM, '.chip-mac'); rest(s.p, selP, '.chip-pal'); rest(s.s, selS, '.chip-site');
           if(s.d){ dimQ=[s.d[0]||'', s.d[1]||'', s.d[2]||'']; dimIns.forEach(function(inp,i){ if(inp){ inp.value=dimQ[i]; } });
             if(dimX){ dimX.style.display=(dimQ[0]||dimQ[1]||dimQ[2])?'':'none'; } }
         }
         function apply(){
           document.querySelectorAll('.vo-card').forEach(function(c){
-            var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'', mc=c.getAttribute('data-machine')||'', pa=c.getAttribute('data-palette')||'';
-            var kc=Object.keys(selC), kr=Object.keys(selR), km=Object.keys(selM), kp=Object.keys(selP);
+            var cl=c.getAttribute('data-client')||'', rf=c.getAttribute('data-ref')||'', mc=c.getAttribute('data-machine')||'', pa=c.getAttribute('data-palette')||'', sv=c.getAttribute('data-site')||'';
+            var kc=Object.keys(selC), kr=Object.keys(selR), km=Object.keys(selM), kp=Object.keys(selP), ks=Object.keys(selS);
             var okC = kc.length===0 || selC[cl];
             var okR = kr.length===0 || selR[rf];
             var okM = km.length===0 || selM[mc];
+            var okS = ks.length===0 || selS[sv];
             var okP = kp.length===0 || selP[pa];
             var okD = true;
             var cons = dimQ.map(function(v){ var f = parseFloat(v); return isNaN(f) ? null : f; })
@@ -665,7 +910,7 @@ var dataC=document.getElementById('vo-colis-data');
               }
               if(!pd.length){ okD = false; }
             }
-            c.style.display = (okC &amp;&amp; okR &amp;&amp; okM &amp;&amp; okP &amp;&amp; okD) ? '' : 'none';
+            c.style.display = (okC &amp;&amp; okR &amp;&amp; okM &amp;&amp; okP &amp;&amp; okD &amp;&amp; okS) ? '' : 'none';
           });
           updateCount();
         }
@@ -689,7 +934,7 @@ var dataC=document.getElementById('vo-colis-data');
             };
           });
         }
-        chip(selC, '.chip-cli'); chip(selR, '.chip-ref'); chip(selM, '.chip-mac'); chip(selP, '.chip-pal');
+        chip(selC, '.chip-cli'); chip(selR, '.chip-ref'); chip(selM, '.chip-mac'); chip(selP, '.chip-pal'); chip(selS, '.chip-site');
         restoreF();
         var SKEY='vo_sort_'+VOP;
         function applySort(){
