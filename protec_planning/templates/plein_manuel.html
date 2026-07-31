@@ -67,6 +67,10 @@
     .edit-note a { color: var(--cy-dk); text-decoration: none; font-weight: 800; }
     .link-edit { color: var(--cy-dk); text-decoration: none; font-weight: 700; font-size: 12px; }
     .link-edit:hover { text-decoration: underline; }
+    .link-del { color: var(--red); background: none; border: none; cursor: pointer;
+                font-weight: 700; font-size: 12px; font-family: inherit; padding: 0; }
+    .link-del:hover { text-decoration: underline; }
+    .row-actions { display: flex; gap: 10px; align-items: center; }
 
     .mois-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px;
                 padding: 10px 18px; border-bottom: 1px solid #eef4f3; }
@@ -185,7 +189,18 @@
           <td class="num">{{ "{:,}".format(h.value|int).replace(',', ' ') }}</td>
           <td class="num">{{ "%g"|format(h.x_litres) }}</td>
           <td>{{ h.x_chauffeur or '' }}</td>
-          <td><a class="link-edit" href="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois }}&edit={{ h.id }}">Modifier</a></td>
+          <td>
+            <div class="row-actions">
+              <a class="link-edit" href="{{ BASE }}/plein-manuel?token={{ token }}&mois={{ mois }}&edit={{ h.id }}">Modifier</a>
+              <form method="POST" action="{{ BASE }}/plein-manuel/supprimer?token={{ token }}"
+                    class="del-form"
+                    data-msg="Supprimer ce plein du {{ h.date }} ({{ '%g'|format(h.x_litres) }} L) ?">
+                <input type="hidden" name="id" value="{{ h.id }}"/>
+                <input type="hidden" name="mois" value="{{ mois }}"/>
+                <button type="submit" class="link-del">Supprimer</button>
+              </form>
+            </div>
+          </td>
         </tr>
         {% endfor %}
         </tbody>
@@ -220,6 +235,11 @@ document.getElementById('pform').addEventListener('submit', function () {
   var btn = document.getElementById('saveBtn');
   btn.disabled = true;
   btn.textContent = 'Enregistrement…';
+});
+document.querySelectorAll('.del-form').forEach(function (f) {
+  f.addEventListener('submit', function (e) {
+    if (!confirm(f.dataset.msg)) e.preventDefault();
+  });
 });
 {% if edit_rec %}onVeh();{% endif %}
 </script>

@@ -951,6 +951,17 @@ def plein_manuel():
                            mois_next=_shift_month(mois, 1),
                            edit_rec=edit_rec, result=result, error=error)
 
+@bp.route("/plein-manuel/supprimer", methods=["POST"])
+def plein_manuel_supprimer():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    uid, models = odoo_connect()
+    rec_id = request.form.get("id", type=int)
+    if rec_id:
+        x(models, uid, "fleet.vehicle.odometer", "unlink", [rec_id])
+    mois = request.form.get("mois") or date.today().strftime("%Y-%m")
+    return redirect(url_for(".plein_manuel", token=SECRET, mois=mois))
+
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """
 const CACHE = 'protec-tournee-v1';
