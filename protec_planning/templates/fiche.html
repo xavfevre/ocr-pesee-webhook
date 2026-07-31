@@ -331,7 +331,7 @@ function addCurageRow() {
   var tr = document.createElement('tr');
   tr.innerHTML = curageRowHtml(i);
   document.getElementById('curage-rows').appendChild(tr);
-  updateDechetsVisibility();
+  updateCurageDisplay();
   saveDraft();
 }
 // Recrée une ligne à un index précis (restauration de brouillon) sans avancer
@@ -345,16 +345,15 @@ function ensureCurageRow(i) {
 }
 function removeCurageRow(btn) {
   btn.closest('tr').remove();
-  updateDechetsVisibility();
+  updateCurageDisplay();
   saveDraft();
 }
-function updateDechetsVisibility() {
+function updateCurageDisplay() {
   var hasRows = document.getElementById('curage-rows').children.length > 0;
-  document.getElementById('dechets-box').style.display = hasRows ? 'none' : '';
   document.getElementById('curage-empty').style.display = hasRows ? 'none' : '';
   document.getElementById('curage-table').style.display = hasRows ? '' : 'none';
 }
-updateDechetsVisibility();
+updateCurageDisplay();
 
 // Photos : recadrage à 1280px max, JPEG 80%
 function photoFail(i, msg) {
@@ -460,7 +459,7 @@ function restoreDraft() {
       var m = /^curage_rue_(\d+)$/.exec(k);
       if (m) { ensureCurageRow(parseInt(m[1], 10)); }
     });
-    updateDechetsVisibility();
+    updateCurageDisplay();
     Object.keys(data).forEach(function (k) {
       if (!data[k] || k === 'save_mode' || k === 'signature') { return; }
       if (k.indexOf('photo_') === 0) {
