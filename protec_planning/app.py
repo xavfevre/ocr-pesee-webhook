@@ -60,6 +60,7 @@ TRAVAUX_TABS = [
     ("poste", "Pompage", [
         ("pomp_poste",      "Poste de relevage",   "U"),
         ("pomp_puisard",    "Puisard",             "U"),
+        ("pomp_avaloir",    "Avaloir",             "U"),
         ("pomp_regard",     "Regard de visite",    "U"),
         ("travaux_pompage", "Travaux de pompage",  "H"),
         ("pomp_bac_graisse", "Bac à graisses",        "U"),
