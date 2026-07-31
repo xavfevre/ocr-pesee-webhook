@@ -2,104 +2,241 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>Plein gasoil — PROTEC</title>
   <style>
-    :root { --cy: #5bc8c8; --cy-dk: #2b8a8a; --cy-lt: #e6f7f7; --border: #d5e3e3;
-            --text: #17434a; --green: #2eb85c; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --cy: #2bb3ab; --cy-dk: #1d7f79; --cy-lt: #e3f6f4; --border: #dbe8e7;
+            --text: #163a3d; --muted: #6b8a89; --green: #2eb85c; --red: #e0483e;
+            --amber: #d99a1f; --amber-lt: #fdf3df; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-           background: #f0f6f6; color: var(--text); padding-bottom: 90px; }
-    header { background: var(--cy); color: #fff; text-align: center; padding: 12px; }
-    header .t1 { font-size: 12px; font-weight: 700; opacity: .9; }
-    header .t2 { font-size: 19px; font-weight: 900; letter-spacing: .5px; }
-    .okbar { background: var(--green); color: #fff; text-align: center;
-             font-weight: 800; padding: 10px; font-size: 14px; }
-    .errbar { background: #dc2626; color: #fff; text-align: center;
-              font-weight: 800; padding: 10px; font-size: 14px; }
-    .wrap { max-width: 560px; margin: 14px auto; padding: 0 12px; }
-    .box { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(23,67,74,.08);
-           padding: 16px; }
+           background: #eef6f6; color: var(--text); padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+    header { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, var(--cy), var(--cy-dk));
+             color: #fff; padding: calc(12px + env(safe-area-inset-top)) 16px 14px;
+             display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+    header a.back { width: 38px; height: 38px; flex: none; display: flex; align-items: center;
+                    justify-content: center; background: rgba(255,255,255,.18); border-radius: 50%;
+                    color: #fff; text-decoration: none; font-size: 19px; }
+    header .titles { flex: 1; min-width: 0; }
+    header .t1 { font-size: 11.5px; font-weight: 700; opacity: .85; text-transform: uppercase;
+                 letter-spacing: .4px; }
+    header .t2 { font-size: 19px; font-weight: 900; letter-spacing: .2px; display: flex;
+                 align-items: center; gap: 7px; }
+
+    .banner { text-align: center; font-weight: 800; padding: 12px 16px; font-size: 14.5px;
+              display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .banner.ok { background: var(--green); color: #fff; }
+    .banner.err { background: var(--red); color: #fff; }
+    .banner .sub { display: block; font-weight: 600; font-size: 12.5px; opacity: .92; margin-top: 2px; }
+
+    .wrap { max-width: 560px; margin: 0 auto; padding: 14px 12px 4px; }
+
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 10px rgba(23,67,74,.07);
+            padding: 16px; margin-bottom: 12px; border: 1px solid #f0f5f5; }
+    .card-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800;
+              color: var(--cy-dk); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 12px; }
+    .card-h .n { width: 22px; height: 22px; border-radius: 50%; background: var(--cy-lt);
+                 color: var(--cy-dk); display: flex; align-items: center; justify-content: center;
+                 font-size: 12px; font-weight: 900; flex: none; }
+    .card.optional { background: #fbfdfc; }
+    .card.optional .card-h { color: var(--muted); }
+    .card.optional .card-h .n { background: #eef2f2; color: var(--muted); }
+    .opt-tag { margin-left: auto; font-size: 10.5px; font-weight: 800; color: var(--muted);
+               background: #eef2f2; padding: 3px 8px; border-radius: 20px; text-transform: none;
+               letter-spacing: 0; }
+
+    /* Sélecteur camion : grille de cartes tactiles */
+    .veh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .veh-card { position: relative; border: 2px solid var(--border); border-radius: 12px;
+                padding: 11px 10px; cursor: pointer; user-select: none; background: #fff;
+                transition: border-color .1s, background .1s; }
+    .veh-card .vname { font-size: 14.5px; font-weight: 800; line-height: 1.2; }
+    .veh-card .vplate { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+    .veh-card .vkm { font-size: 10.5px; color: var(--muted); margin-top: 5px; }
+    .veh-card.sel { border-color: var(--cy); background: var(--cy-lt); }
+    .veh-card.sel::after { content: "✓"; position: absolute; top: 7px; right: 9px; color: var(--cy-dk);
+                            font-weight: 900; font-size: 13px; }
+    .veh-card:active { transform: scale(.97); }
+
     .fld { margin-bottom: 14px; }
-    .fld label { display: block; font-size: 12px; font-weight: 800; color: var(--cy-dk);
-                 margin-bottom: 4px; }
-    .fld input, .fld select { width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
-      padding: 12px; font-size: 17px; font-family: inherit; color: var(--text); background: #fff; }
-    .hint { font-size: 12px; color: #6b7c9a; margin-top: 4px; }
-    .btn { width: 100%; background: var(--cy); color: #fff; border: none; font-size: 18px;
-           font-weight: 900; border-radius: 12px; padding: 15px; cursor: pointer; margin-top: 4px; }
-    .btn:active { background: var(--cy-dk); }
-    .recap { background: var(--cy-lt); border-radius: 10px; padding: 12px; font-size: 14px;
-             margin-bottom: 12px; }
-    .back { display: inline-block; margin: 10px 0 0; color: var(--cy-dk); font-weight: 700;
-            text-decoration: none; font-size: 14px; }
+    .fld:last-child { margin-bottom: 0; }
+    .fld label { display: block; font-size: 12.5px; font-weight: 800; color: var(--cy-dk);
+                 margin-bottom: 5px; }
+    .card.optional .fld label { color: var(--muted); }
+    .fld .unit-wrap { position: relative; }
+    .fld input { width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 14px 44px 14px 14px; font-size: 19px; font-weight: 700; font-family: inherit;
+      color: var(--text); background: #fbfdfc; }
+    .fld input:focus { outline: none; border-color: var(--cy); background: #fff; }
+    .fld .unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+                 font-size: 13px; font-weight: 800; color: var(--muted); pointer-events: none; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+
+    .estimate { display: none; background: var(--cy-lt); border-radius: 12px; padding: 12px 14px;
+                margin-top: 10px; }
+    .estimate.show { display: flex; justify-content: space-around; text-align: center; }
+    .estimate .e-val { font-size: 18px; font-weight: 900; color: var(--cy-dk); }
+    .estimate .e-lbl { font-size: 10.5px; font-weight: 700; color: var(--muted); margin-top: 1px; }
+
+    .warn-box { display: none; background: var(--amber-lt); border: 1px solid #f0dca6; border-radius: 10px;
+                padding: 9px 12px; font-size: 12.5px; color: #7a5b0d; margin-top: 8px; font-weight: 700; }
+    .warn-box.show { display: block; }
+
+    .actionbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+                 padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+                 background: rgba(238,246,246,.94); backdrop-filter: blur(6px);
+                 border-top: 1px solid var(--border); }
+    .actionbar .inner { max-width: 560px; margin: 0 auto; display: flex; gap: 10px; }
+    .btn-save { flex: 1; background: var(--cy); color: #fff; border: none; font-size: 17px;
+                font-weight: 900; border-radius: 14px; padding: 16px; cursor: pointer;
+                box-shadow: 0 3px 10px rgba(43,179,171,.35); display: flex; align-items: center;
+                justify-content: center; gap: 8px; }
+    .btn-save:active { background: var(--cy-dk); transform: scale(.985); }
+    .btn-save:disabled { opacity: .6; }
+
+    .again { display: block; text-align: center; margin: 6px 0 4px; color: var(--cy-dk);
+             font-weight: 800; font-size: 14px; text-decoration: none; }
   </style>
 </head>
 <body>
 <header>
-  <div class="t1">PROTEC « Pôle Assainissement » — {{ emp_name }}</div>
-  <div class="t2">⛽ PLEIN DE GASOIL</div>
+  <a class="back" href="{{ BASE }}/ma-tournee?c={{ emp_id }}&s={{ sig }}">‹</a>
+  <div class="titles">
+    <div class="t1">{{ emp_name }}</div>
+    <div class="t2">⛽ Plein de gasoil</div>
+  </div>
 </header>
 
 {% if result %}
-<div class="okbar">✓ Plein enregistré — {{ "%g"|format(result.litres) }} L à {{ "%g"|format(result.km) }} km
-  {% if result.conso %} · {{ "%g"|format(result.distance) }} km parcourus · {{ result.conso }} L/100km{% endif %}
+<div class="banner ok">
+  ✓ Plein enregistré
+  <span class="sub">{{ "%g"|format(result.litres) }} L à {{ "%g"|format(result.km)|int }} km
+    {% if result.conso %} · {{ result.conso }} L/100 km{% endif %}</span>
 </div>
 {% elif error %}
-<div class="errbar">⚠ {{ error }}</div>
+<div class="banner err">⚠ {{ error }}</div>
 {% endif %}
 
 <div class="wrap">
-  <div class="box">
-    <form method="POST" action="{{ BASE }}/plein?c={{ emp_id }}&s={{ sig }}">
-      <div class="fld">
-        <label>Camion</label>
-        <select name="vehicule" id="veh" required onchange="showLast()">
-          <option value="">— choisir —</option>
-          {% for v in vehicles %}
-          <option value="{{ v.id }}" data-last="{{ v.odometer|int }}">{{ v.name }}</option>
-          {% endfor %}
-        </select>
-        <div class="hint" id="lastkm"></div>
+
+  {% if result %}
+  <a class="again" href="{{ BASE }}/plein?c={{ emp_id }}&s={{ sig }}">➕ Enregistrer un autre plein</a>
+  {% endif %}
+
+  <form method="POST" action="{{ BASE }}/plein?c={{ emp_id }}&s={{ sig }}" id="pform">
+
+    <div class="card">
+      <div class="card-h"><span class="n">1</span> Camion</div>
+      <div class="veh-grid" id="vehGrid">
+        {% for v in vehicles %}
+        <div class="veh-card" data-id="{{ v.id }}" data-last="{{ v.odometer|int }}" onclick="pickVeh(this)">
+          <div class="vname">{{ v.name.split('(')[0].strip() }}</div>
+          <div class="vplate">{{ v.name.split('(')[1].rstrip(')') if '(' in v.name else '' }}</div>
+          <div class="vkm">{% if v.odometer %}🛣 {{ v.odometer|int }} km{% endif %}</div>
+        </div>
+        {% endfor %}
       </div>
-      <div class="fld">
-        <label>Compteur kilométrique (km)</label>
-        <input type="number" name="km" inputmode="numeric" step="1" min="1" required
-               placeholder="ex. 542146"/>
+      <input type="hidden" name="vehicule" id="vehicule" required/>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="n">2</span> Compteur &amp; litres</div>
+      <div class="row2">
+        <div class="fld">
+          <label>Compteur km</label>
+          <div class="unit-wrap">
+            <input type="number" name="km" id="km" inputmode="numeric" step="1" min="1" required
+                   placeholder="542146" oninput="updateEstimate()"/>
+            <span class="unit">km</span>
+          </div>
+        </div>
+        <div class="fld">
+          <label>Litres</label>
+          <div class="unit-wrap">
+            <input type="number" name="litres" id="litres" inputmode="decimal" step="0.01" min="0.1" required
+                   placeholder="157" oninput="updateEstimate()"/>
+            <span class="unit">L</span>
+          </div>
+        </div>
       </div>
-      <div class="fld">
-        <label>Litres de gasoil</label>
-        <input type="number" name="litres" inputmode="decimal" step="0.01" min="0.1" required
-               placeholder="ex. 157"/>
+      <div class="hint" id="lastkmHint"></div>
+      <div class="warn-box" id="warnBox">⚠ Ce compteur est inférieur au dernier relevé connu — vérifiez la saisie.</div>
+      <div class="estimate" id="estBox">
+        <div><div class="e-val" id="estDist">—</div><div class="e-lbl">KM PARCOURUS</div></div>
+        <div><div class="e-val" id="estConso">—</div><div class="e-lbl">L / 100 KM</div></div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="n">3</span> Date</div>
       <div class="fld">
-        <label>Date</label>
         <input type="date" name="date" value="{{ today }}" required/>
       </div>
+    </div>
+
+    <div class="card optional">
+      <div class="card-h">⛽ Compteur cuve<span class="opt-tag">optionnel</span></div>
       <div class="fld">
-        <label>N° compteur cuve (totalisateur pompe)</label>
-        <input type="number" name="compteur" inputmode="numeric" step="1" min="0"
-               placeholder="ex. 930797"/>
+        <div class="unit-wrap">
+          <input type="number" name="compteur" id="compteur" inputmode="numeric" step="1" min="0"
+                 placeholder="930797"/>
+          <span class="unit">L</span>
+        </div>
         {% if last_cuve %}
-        <div class="hint">Dernier relevé connu : {{ "%.0f"|format(last_cuve) }}</div>
+        <div class="hint">🔢 Dernier relevé connu (tous camions) : {{ "%.0f"|format(last_cuve) }}</div>
         {% endif %}
       </div>
-      <button type="submit" class="btn">💾 ENREGISTRER LE PLEIN</button>
-    </form>
-    <a class="back" href="{{ BASE }}/ma-tournee?c={{ emp_id }}&s={{ sig }}">◀ Retour à ma tournée</a>
+    </div>
+
+  </form>
+</div>
+
+<div class="actionbar">
+  <div class="inner">
+    <button type="submit" form="pform" class="btn-save" id="saveBtn">💾 Enregistrer le plein</button>
   </div>
 </div>
 
 <script>
-function showLast() {
-  var sel = document.getElementById('veh');
-  var opt = sel.options[sel.selectedIndex];
-  var last = opt ? parseInt(opt.getAttribute('data-last') || '0') : 0;
-  document.getElementById('lastkm').textContent =
-    last > 0 ? ('Dernier compteur connu : ' + last.toLocaleString('fr-FR') + ' km') : '';
-  var km = document.querySelector('[name=km]');
-  if (last > 0) { km.min = last; }
+var lastKm = 0;
+function pickVeh(el) {
+  document.querySelectorAll('.veh-card').forEach(function (c) { c.classList.remove('sel'); });
+  el.classList.add('sel');
+  document.getElementById('vehicule').value = el.getAttribute('data-id');
+  lastKm = parseInt(el.getAttribute('data-last') || '0');
+  var hint = document.getElementById('lastkmHint');
+  hint.textContent = lastKm > 0 ? ('🛣 Dernier compteur connu : ' + lastKm.toLocaleString('fr-FR') + ' km') : '';
+  var kmInput = document.getElementById('km');
+  if (lastKm > 0) { kmInput.min = lastKm; kmInput.focus(); }
+  updateEstimate();
 }
+function updateEstimate() {
+  var km = parseFloat(document.getElementById('km').value) || 0;
+  var litres = parseFloat(document.getElementById('litres').value) || 0;
+  var estBox = document.getElementById('estBox');
+  var warnBox = document.getElementById('warnBox');
+  if (lastKm > 0 && km > 0 && km <= lastKm) {
+    warnBox.classList.add('show'); estBox.classList.remove('show'); return;
+  }
+  warnBox.classList.remove('show');
+  if (lastKm > 0 && km > lastKm && litres > 0) {
+    var dist = km - lastKm;
+    document.getElementById('estDist').textContent = dist.toLocaleString('fr-FR');
+    document.getElementById('estConso').textContent = (litres / dist * 100).toFixed(1);
+    estBox.classList.add('show');
+  } else {
+    estBox.classList.remove('show');
+  }
+}
+document.getElementById('pform').addEventListener('submit', function () {
+  if (!document.getElementById('vehicule').value) { return; }
+  var btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Enregistrement…';
+});
 </script>
 </body>
 </html>
