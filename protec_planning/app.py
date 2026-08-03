@@ -12,7 +12,7 @@ que le webhook Maquignon) — ou exécutable seul pour les tests.
 Données : Odoo v19 SaaS PROTEC via XML-RPC (planning.slot).
 Env vars : PROTEC_ODOO_USER, PROTEC_ODOO_PASSWORD, PROTEC_PLANNING_SECRET
 """
-import os, json, time, hmac, hashlib, socket
+import os, json, time, hmac, hashlib, socket, re
 import urllib.request, http.cookiejar
 import xmlrpc.client
 from datetime import datetime, timedelta, date
@@ -60,6 +60,7 @@ TRAVAUX_TABS = [
     ("poste", "Pompage", [
         ("pomp_poste",      "Poste de relevage",   "U"),
         ("pomp_puisard",    "Puisard",             "U"),
+        ("pomp_avaloir",    "Avaloir",             "U"),
         ("pomp_regard",     "Regard de visite",    "U"),
         ("travaux_pompage", "Travaux de pompage",  "H"),
         ("pomp_bac_graisse", "Bac à graisses",        "U"),
@@ -488,6 +489,24 @@ def fiche(slot_id):
             if any(row.values()):
                 data["dechets"][code] = row
 
+        # Tranches de curage (lignes dynamiques rue par rue)
+        data["curage_commune"] = f.get("curage_commune", "").strip()
+        curage_rows = []
+        idxs = sorted({int(mo.group(1)) for k in f.keys()
+                       if (mo := re.match(r"curage_rue_(\d+)$", k))})
+        for i in idxs:
+            rue = f.get(f"curage_rue_{i}", "").strip()
+            longueur = f.get(f"curage_longueur_{i}", "").strip()
+            if not rue and not longueur:
+                continue
+            curage_rows.append({
+                "rue": rue,
+                "longueur": longueur,
+                "amiante": bool(f.get(f"curage_amiante_{i}")),
+                "probleme": f.get(f"curage_probleme_{i}", "").strip(),
+            })
+        data["curage"] = curage_rows
+
         def bin_val(field_val):
             if field_val and field_val.startswith("data:"):
                 return field_val.split(",", 1)[1]
@@ -593,6 +612,8 @@ def fiche(slot_id):
     _sv_trav = saved_data.get("travaux", {}) if isinstance(saved_data, dict) else {}
     tab_counts = {tkey: sum(1 for code, _l, _u in rows if code in _sv_trav)
                   for tkey, _tl, rows in TRAVAUX_TABS}
+    curage_rows = saved_data.get("curage", []) if isinstance(saved_data, dict) else []
+    curage_commune = (saved_data.get("curage_commune") if isinstance(saved_data, dict) else "") or card["ville"]
 
     prefill = {
         "vehicule":      s.get("x_fdt_vehicule") or "",
@@ -628,6 +649,7 @@ def fiche(slot_id):
         date_label=f"{d.day:02d}/{d.month:02d}/{d.year}",
         adresse=adresse, prefill=prefill,
         travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts,
+        curage_rows=curage_rows, curage_commune=curage_commune,
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
@@ -650,6 +672,15 @@ def render_fiche_html(card, vals, data, nphotos=0):
     for code, v in data.get("dechets", {}).items():
         rows_d += (f"<tr><td>{labels_d.get(code, code)}</td>"
                    f"<td>{v.get('volume','')}</td><td>{v.get('destination','')}</td><td>{v.get('temps','')}</td></tr>")
+    rows_c = ""
+    total_ml = 0
+    for v in data.get("curage", []):
+        try:
+            total_ml += float((v.get("longueur") or "0").replace(",", "."))
+        except ValueError:
+            pass
+        rows_c += (f"<tr><td>{v.get('rue','')}</td><td>{v.get('longueur','')}</td>"
+                   f"<td>{'Oui' if v.get('amiante') else 'Non'}</td><td>{v.get('probleme','')}</td></tr>")
     html = (
         f"<p><b>📝 Fiche de fin de travaux</b> — {card['client']}</p>"
         f"<p>Véhicule : {vals['x_fdt_vehicule'] or '—'} · "
@@ -666,6 +697,12 @@ def render_fiche_html(card, vals, data, nphotos=0):
     if rows_d:
         html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Vol. m³</th>"
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
+    if rows_c:
+        commune = data.get("curage_commune") or ""
+        html += (f"<p><b>Tranches de curage</b>{' — ' + commune if commune else ''} "
+                 f"— total {total_ml:g} ml</p>"
+                 "<table border='1' cellpadding='3'><tr><th>Rue</th><th>Longueur (ml)</th>"
+                 "<th>Amiante</th><th>Problèmes rencontrés</th></tr>" + rows_c + "</table>")
     return html
 
 def _labelize(code):
@@ -739,6 +776,30 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
                         f"<td style='{td}'>{E(v.get('temps',''))}</td></tr>")
         html.append("</table>")
 
+    rows_c = data.get("curage", [])
+    if rows_c:
+        commune = data.get("curage_commune") or ""
+        total_ml = 0
+        for v in rows_c:
+            try:
+                total_ml += float((v.get("longueur") or "0").replace(",", "."))
+            except ValueError:
+                pass
+        title = "TRANCHES DE CURAGE" + (f" — {E(commune).upper()}" if commune else "")
+        html.append(f"<h3 style='{H2}'>{title}</h3>")
+        html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
+        html.append(f"<tr><th style='{th}'>Rue</th><th style='{th};width:100px;'>Longueur (ml)</th>"
+                    f"<th style='{th};width:80px;'>Amiante</th><th style='{th}'>Problèmes rencontrés</th></tr>")
+        for v in rows_c:
+            html.append(f"<tr><td style='{td}'>{E(v.get('rue',''))}</td>"
+                        f"<td style='{td}'>{E(v.get('longueur',''))}</td>"
+                        f"<td style='{td}'>{'Oui' if v.get('amiante') else 'Non'}</td>"
+                        f"<td style='{td}'>{E(v.get('probleme',''))}</td></tr>")
+        html.append(f"<tr><td style='{td};font-weight:700;'>TOTAL</td>"
+                    f"<td style='{td};font-weight:700;'>{total_ml:g} ml</td>"
+                    f"<td style='{td}'></td><td style='{td}'></td></tr>")
+        html.append("</table>")
+
     if commentaires or prochain:
         html.append(f"<h3 style='{H2}'>OBSERVATIONS &amp; RECOMMANDATIONS</h3>")
         html.append("<div style='border:1px solid #e5e7eb;border-left:4px solid #0b7285;"
@@ -808,6 +869,162 @@ def bi_pdf(slot_id):
             pass
         _web_session["opener"] = None  # session expirée : ré-authentifier et réessayer
     return "Erreur de génération du PDF — réessayez.", 502
+
+# ─── PLEIN DE GASOIL (TICPE) ────────────────────────────────────────────────
+# Chaque plein saisi par un chauffeur devient un relevé compteur du module
+# Parc automobile (fleet.vehicle.odometer + litres) → suivi TICPE automatisé.
+def _num(f, name):
+    v = (f.get(name) or "").replace(",", ".").replace(" ", "")
+    return float(v) if v else 0.0
+
+def _save_plein(uid, models, vid, km, litres, jour, chauffeur, compteur):
+    """Crée le relevé odomètre + litrage. Lève ValueError si saisie invalide."""
+    if not vid or km <= 0 or litres <= 0:
+        raise ValueError("Camion, compteur km et litres sont obligatoires.")
+    prev = x(models, uid, "fleet.vehicle.odometer", "search_read",
+             [["vehicle_id", "=", vid]], fields=["value", "date"],
+             order="value desc", limit=1)
+    vals = {"vehicle_id": vid, "date": jour, "value": km,
+            "x_litres": litres, "x_chauffeur": chauffeur}
+    if compteur > 0:
+        vals["x_compteur_cuve"] = compteur
+    x(models, uid, "fleet.vehicle.odometer", "create", [vals])
+    result = {"litres": litres, "km": km}
+    if prev and km > prev[0]["value"] > 0:
+        dist = km - prev[0]["value"]
+        result["distance"] = dist
+        result["conso"] = round(litres / dist * 100, 1)
+    return result
+
+def _write_plein(uid, models, rec_id, vid, km, litres, jour, chauffeur, compteur):
+    """Met à jour un relevé existant. Lève ValueError si saisie invalide."""
+    if not vid or km <= 0 or litres <= 0:
+        raise ValueError("Camion, compteur km et litres sont obligatoires.")
+    vals = {"vehicle_id": vid, "date": jour, "value": km,
+            "x_litres": litres, "x_chauffeur": chauffeur}
+    if compteur > 0:
+        vals["x_compteur_cuve"] = compteur
+    x(models, uid, "fleet.vehicle.odometer", "write", [rec_id], vals)
+    return {"litres": litres, "km": km}
+
+def _last_cuve(uid, models):
+    last_cuve = x(models, uid, "fleet.vehicle.odometer", "search_read",
+                  [["x_compteur_cuve", ">", 0]], fields=["x_compteur_cuve"],
+                  order="x_compteur_cuve desc", limit=1)
+    return last_cuve[0]["x_compteur_cuve"] if last_cuve else None
+
+@bp.route("/plein", methods=["GET", "POST"])
+def plein():
+    emp_id = request.args.get("c", type=int)
+    sig = request.args.get("s", "")
+    if not emp_id or not check_sig(f"driver:{emp_id}", sig):
+        abort(403)
+    uid, models = odoo_connect()
+    emp_name = emp_name_map(uid, models).get(emp_id) or f"Chauffeur {emp_id}"
+
+    result, error = None, None
+    if request.method == "POST":
+        f = request.form
+        try:
+            vid = int(f.get("vehicule") or 0)
+            jour = f.get("date") or date.today().isoformat()
+            result = _save_plein(uid, models, vid, _num(f, "km"), _num(f, "litres"),
+                                  jour, emp_name.split()[0], _num(f, "compteur"))
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide — vérifiez les valeurs."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    vehicles = x(models, uid, "fleet.vehicle", "search_read",
+                 [["active", "=", True]], fields=["id", "name", "odometer"],
+                 order="name asc")
+    return render_template("plein.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
+                           vehicles=vehicles, today=date.today().isoformat(),
+                           last_cuve=_last_cuve(uid, models), result=result, error=error)
+
+def _shift_month(mois, delta):
+    y, mo = int(mois[:4]), int(mois[5:7])
+    mo += delta
+    y += (mo - 1) // 12
+    mo = (mo - 1) % 12 + 1
+    return f"{y:04d}-{mo:02d}"
+
+# ─── SAISIE MANUELLE (admin/secrétariat) ─────────────────────────────────────
+# Backup de /plein pour Manon : si un chauffeur n'a pas pu saisir son plein
+# depuis son téléphone, la secrétaire peut le faire ici pour n'importe quel
+# camion / chauffeur, avec la même logique d'enregistrement.
+@bp.route("/plein-manuel", methods=["GET", "POST"])
+def plein_manuel():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    uid, models = odoo_connect()
+    employees = get_all_employees(uid, models)
+
+    result, error = None, None
+    if request.method == "POST":
+        f = request.form
+        try:
+            vid = int(f.get("vehicule") or 0)
+            chauffeur = (f.get("chauffeur_autre") or "").strip() or (f.get("chauffeur") or "").strip()
+            if not chauffeur:
+                raise ValueError("Le nom du chauffeur est obligatoire.")
+            jour = f.get("date") or date.today().isoformat()
+            edit_id = f.get("edit_id", type=int)
+            if edit_id:
+                result = _write_plein(uid, models, edit_id, vid, _num(f, "km"), _num(f, "litres"),
+                                       jour, chauffeur, _num(f, "compteur"))
+                result["updated"] = True
+            else:
+                result = _save_plein(uid, models, vid, _num(f, "km"), _num(f, "litres"),
+                                      jour, chauffeur, _num(f, "compteur"))
+            result["vehicule"] = f.get("vehicule_label", "")
+            result["chauffeur"] = chauffeur
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide — vérifiez les valeurs."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    edit_rec = None
+    edit_id = request.args.get("edit", type=int)
+    if edit_id and request.method == "GET":
+        rec = x(models, uid, "fleet.vehicle.odometer", "read", [edit_id],
+                fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur", "x_compteur_cuve"])
+        if rec:
+            edit_rec = rec[0]
+
+    vehicles = x(models, uid, "fleet.vehicle", "search_read",
+                 [["active", "=", True]], fields=["id", "name", "odometer"],
+                 order="name asc")
+
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    d1, d2 = _ebp_month_range(mois)
+    veh_filter = request.args.get("veh", type=int)
+    dom = [["x_litres", ">", 0], ["date", ">=", d1], ["date", "<=", d2]]
+    if veh_filter:
+        dom.append(["vehicle_id", "=", veh_filter])
+    historique = x(models, uid, "fleet.vehicle.odometer", "search_read",
+                   dom, fields=["date", "vehicle_id", "value", "x_litres", "x_chauffeur"],
+                   order="date desc, id desc")
+    mois_label = f"{MOIS_FR[int(mois[5:7]) - 1].capitalize()} {mois[:4]}"
+
+    return render_template("plein_manuel.html", token=SECRET, vehicles=vehicles,
+                           employees=employees, today=date.today().isoformat(),
+                           last_cuve=_last_cuve(uid, models), historique=historique,
+                           mois=mois, mois_label=mois_label, mois_prev=_shift_month(mois, -1),
+                           mois_next=_shift_month(mois, 1), veh_filter=veh_filter,
+                           edit_rec=edit_rec, result=result, error=error)
+
+@bp.route("/plein-manuel/supprimer", methods=["POST"])
+def plein_manuel_supprimer():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    uid, models = odoo_connect()
+    rec_id = request.form.get("id", type=int)
+    if rec_id:
+        x(models, uid, "fleet.vehicle.odometer", "unlink", [rec_id])
+    mois = request.form.get("mois") or date.today().strftime("%Y-%m")
+    veh_filter = request.form.get("veh", type=int)
+    return redirect(url_for(".plein_manuel", token=SECRET, mois=mois, veh=veh_filter or None))
 
 # ─── PWA : hors connexion pour les chauffeurs ────────────────────────────────
 SW_JS = """
@@ -888,7 +1105,7 @@ def liens():
                          "url": url})
     except Exception as ex:
         error = str(ex)
-    return render_template("liens.html", rows=rows, error=error)
+    return render_template("liens.html", rows=rows, error=error, token=SECRET)
 
 # ─── EXPORT COMPTABLE EBP (admin) ────────────────────────────────────────────
 # Journaux Odoo (PROTEC) → EBP : la comptable importe les CSV dans EBP SaaS.
