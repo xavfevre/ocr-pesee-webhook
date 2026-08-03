@@ -149,3 +149,20 @@ CERBELLE Céline, CHEVALIER Christophe, DESPUJOLS Loïc, GILLARD Loïc,
 GUERIN Frédéric, LANGLOIS Nicolas — lundi restauré à l'identique du mardi,
 ce qui ramène chacun **exactement à ses heures contractuelles** (35 h pour
 Céline, 39 h pour les cinq autres), confirmant l'hypothèse.
+
+## Amélioration (30/07) — message clair en cas de session expirée
+**Symptôme** : un salarié qui garde sa page ouverte plusieurs jours (onglet
+mobile jamais fermé) obtient, en tentant d'enregistrer, une alerte technique
+« Échec : Session expired » — incompréhensible et sans action possible
+(cas rencontré par TRINQUARD Nicolas).
+
+**Cause** : la session anonyme liée à la page a une durée de vie limitée
+côté Odoo ; au-delà, l'appel d'enregistrement échoue avant même d'atteindre
+l'action serveur.
+
+**Correctif** : les 5 pages web (Mes heures, Heures admin, Planning RH,
+Liens, Horaires) détectent maintenant ce cas précis et affichent
+« Votre page était ouverte depuis trop longtemps… elle va se recharger »,
+puis rechargent automatiquement la page. La saisie en cours doit être
+refaite après le rechargement (elle n'était de toute façon pas enregistrée),
+mais le salarié comprend quoi faire au lieu de rester bloqué.

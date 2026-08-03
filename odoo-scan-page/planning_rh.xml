@@ -128,11 +128,20 @@
         <script>
 (function(){
   var KK = document.getElementById('pr-k').getAttribute('data-k');
+  function handleErr(d){
+    var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
+    if(/session/i.test(m) &amp;&amp; /(expir|invalid)/i.test(m)){
+      alert('La page était ouverte depuis trop longtemps et la connexion a expiré. Elle va se recharger : merci de refaire votre dernière action.');
+      location.reload();
+      return;
+    }
+    alert('Échec : ' + m);
+  }
   function repond(id, dec, rep){
     fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2014]],kwargs:{context:{active_model:'x_demande_conge',dc_id:id,dc_decision:dec,dc_reponse:rep,hj_k:KK}}}})
     }).then(function(r){return r.json();}).then(function(d){
-      if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+      if(d.error){ handleErr(d); return; }
       location.reload();
     }).catch(function(){ alert('Échec réseau'); });
   }
