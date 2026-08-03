@@ -54,6 +54,29 @@
   (`ir.config_parameter maquignon.heures_export_key`) ; le lien complet est
   généré par la page /heures-admin. **Actif après le prochain merge sur main.**
 
+## Enregistrement via le relais Render (03/08) — correctif majeur
+
+Les 5 pages appelaient `/web/dataset/call_kw` pour exécuter les actions
+serveur. **Cet endpoint est réservé aux navigateurs connectés au backend
+Odoo** : sur les téléphones des salariés (et sur tout poste non logué), chaque
+enregistrement échouait en « Session expired » — c'était le message « page
+ouverte depuis trop longtemps » en boucle, que régénérer le lien ne corrigeait
+pas. Ça marchait en test uniquement parce que le navigateur du bureau était
+logué à Odoo.
+
+Les pages passent désormais par `POST /heures/rpc` sur l'app Render
+(`ocr-pesee-webhook.onrender.com`), qui exécute l'action via XML-RPC avec le
+compte technique. Actions autorisées : 2012, 2013, 2014, 2020, 2021 —
+uniquement. La sécurité reste portée par les actions (jeton salarié / clé
+responsables vérifiés dans leur code) : le relais n'y change rien, il remplace
+seulement l'exigence « être connecté à Odoo » que les liens signés ne peuvent
+pas satisfaire. CORS limité à l'origine du site Odoo (`HEURES_ORIGINE`,
+défaut `ODOO_URL`).
+
+**Déploiement en deux temps** : 1) merger sur main (Render déploie le relais),
+2) `python odoo-scan-page/deploy_heures.py` (pousse les 5 vues corrigées dans
+Odoo et vérifie le marqueur du relais en relecture).
+
 ## Notes
 - Les horaires de référence se règlent dans Odoo : fiche employé → Horaires
   de travail. Tout salarié à horaire particulier doit avoir son calendrier.

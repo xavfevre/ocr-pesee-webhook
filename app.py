@@ -884,7 +884,9 @@ def _fab_dash_call_kw(models, uid):
 @app.route("/rebuild-fab-dashboard", methods=["POST"])
 @require_secret
 def rebuild_fab_dashboard():
-    models, uid = odoo_connect()
+    # odoo_connect() renvoie (uid, models) : dépaqueté à l'envers, execute_kw
+    # recevait l'entier uid comme proxy et plantait.
+    uid, models = odoo_connect()
     counts = fab_dashboard.rebuild(_fab_dash_call_kw(models, uid))
     app.logger.info(f"fab-dashboard redimensionné: {counts}")
     return jsonify({"ok": True, "counts": counts})
@@ -904,7 +906,7 @@ def export_heures_route():
     key = (request.args.get("k") or "").strip()
     if not re.match(r"^\d{4}-\d{2}$", mois):
         return jsonify({"error": "mois attendu au format YYYY-MM"}), 400
-    models, uid = odoo_connect()
+    uid, models = odoo_connect()
 
     def call(model, method, *args, **kw):
         return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, method, list(args), kw)
@@ -921,6 +923,62 @@ def export_heures_route():
     )
 
 
+# ─── HEURES SALARIÉS : RELAIS RPC DES PAGES WEB ──────────────────────────────
+# Les pages /mes-heures, /heures-admin, /planning-rh, /heures-horaires et
+# /heures-liens sont des vues website Odoo consultées SANS compte Odoo (liens
+# signés). Elles appelaient /web/dataset/call_kw, réservé aux utilisateurs
+# connectés au backend : tout enregistrement échouait en « Session expired »
+# dès que le navigateur n'était pas logué à Odoo — donc sur tous les téléphones
+# des salariés. Ce relais exécute les mêmes actions serveur avec le compte
+# technique ; la sécurité reste portée par les actions elles-mêmes (jeton
+# personnel du salarié ou clé responsables vérifiés dans leur code), le relais
+# n'y ajoute ni n'y retire rien.
+HEURES_ACTIONS_AUTORISEES = {
+    2012,  # enregistrer une journée (jeton salarié ou clé responsables)
+    2013,  # créer une demande de congés (jeton salarié)
+    2014,  # répondre à une demande de congés (clé responsables)
+    2020,  # régénérer le lien d'un salarié (clé responsables)
+    2021,  # horaires par défaut d'un salarié (clé responsables)
+}
+HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
+
+
+def _heures_cors(resp):
+    resp.headers["Access-Control-Allow-Origin"] = HEURES_ORIGINE
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Max-Age"] = "86400"
+    return resp
+
+
+@app.route("/heures/rpc", methods=["POST", "OPTIONS"])
+def heures_rpc():
+    if request.method == "OPTIONS":
+        return _heures_cors(app.make_response(("", 204)))
+
+    donnees = request.get_json(silent=True) or {}
+    action_id = donnees.get("action_id")
+    ctx = donnees.get("ctx")
+    if action_id not in HEURES_ACTIONS_AUTORISEES or not isinstance(ctx, dict):
+        return _heures_cors(jsonify({"error": {"message": "action non autorisée"}}))
+
+    try:
+        uid, models = odoo_connect()
+        resultat = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
+            "ir.actions.server", "run", [[int(action_id)]], {"context": ctx},
+        )
+        return _heures_cors(jsonify({"result": resultat if isinstance(resultat, dict) else {}}))
+    except xmlrpc.client.Fault as exc:
+        # Message de l'action (jeton invalide, clé erronée...) : renvoyé tel
+        # quel, la page l'affiche à l'utilisateur.
+        message = (exc.faultString or "Erreur Odoo").strip()
+        return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
+    except Exception as exc:
+        app.logger.warning(f"heures_rpc: {exc}")
+        return _heures_cors(jsonify({"error": {"message": f"Service indisponible : {exc}"}}))
+
+
 def _fab_dash_nightly():
     while True:
         now = datetime.utcnow()
@@ -930,7 +988,7 @@ def _fab_dash_nightly():
             nxt = nxt + timedelta(days=1)
         _time.sleep(max((nxt - now).total_seconds(), 60))
         try:
-            models, uid = odoo_connect()
+            uid, models = odoo_connect()
             counts = fab_dashboard.rebuild(_fab_dash_call_kw(models, uid))
             app.logger.info(f"fab-dashboard recalage nocturne: {counts}")
         except Exception as e:

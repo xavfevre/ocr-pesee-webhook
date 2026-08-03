@@ -122,13 +122,15 @@
         <script>
 (function(){
   var KK = document.getElementById('hh-k').getAttribute('data-k');
+  /* Relais Render : page ouverte via la clé responsables, sans compte Odoo —
+     /web/dataset/call_kw répond « Session expired » hors backend. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
   function handleErr(d){
     var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
-    if(/session/i.test(m) &amp;&amp; /(expir|invalid)/i.test(m)){
-      alert('La page était ouverte depuis trop longtemps et la connexion a expiré. Elle va se recharger : merci de refaire votre dernière action.');
-      location.reload();
-      return;
-    }
     alert('Échec : ' + m);
   }
   function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
@@ -209,9 +211,7 @@
       b.disabled = true;
       var ctx = {active_model:'hr.employee', emp_id:parseInt(card.getAttribute('data-emp')),
                  horaires:horA, horaires_b:horB, deux_semaines:two, hj_k:KK};
-      fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2021]],kwargs:{context:ctx}}})
-      }).then(function(r){return r.json();}).then(function(d){
+      rpcAction(2021, ctx).then(function(r){return r.json();}).then(function(d){
         b.disabled = false;
         if(d.error){ handleErr(d); return; }
         var res = d.result || {};

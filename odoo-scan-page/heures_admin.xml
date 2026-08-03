@@ -173,19 +173,20 @@
     }).catch(function(){ prompt('Lien personnel du salarié :', lk); });
   });
   function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
+  /* Relais Render : cette page est ouverte via la clé responsables, sans
+     compte Odoo — /web/dataset/call_kw répond « Session expired » dès que le
+     navigateur n'est pas logué au backend. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
   function handleErr(d){
     var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
-    if(/session/i.test(m) &amp;&amp; /(expir|invalid)/i.test(m)){
-      alert('La page était ouverte depuis trop longtemps et la connexion a expiré. Elle va se recharger : merci de refaire votre dernière action.');
-      location.reload();
-      return;
-    }
     alert('Échec : ' + m);
   }
   function rpcSave(emp, date, typ, md, mf, ad, af, done){
-    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2012]],kwargs:{context:{active_model:'x_heures_jour',hj_emp:emp,hj_k:KK,hj_date:date,hj_type:typ,hj_m_deb:md,hj_m_fin:mf,hj_am_deb:ad,hj_am_fin:af}}}})
-    }).then(function(r){return r.json();}).then(function(d){
+    rpcAction(2012, {active_model:'x_heures_jour',hj_emp:emp,hj_k:KK,hj_date:date,hj_type:typ,hj_m_deb:md,hj_m_fin:mf,hj_am_deb:ad,hj_am_fin:af}).then(function(r){return r.json();}).then(function(d){
       if(d.error){ handleErr(d); return; }
       done(d.result||{});
     }).catch(function(){ alert('Échec réseau'); });

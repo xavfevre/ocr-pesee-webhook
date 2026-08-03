@@ -215,11 +215,19 @@
     document.getElementById('mh-t-hs').textContent = (hs&gt;=0?'+':'')+hs.toFixed(2)+' h';
   }
   totals();
+  /* Enregistrement via le relais Render, PAS /web/dataset/call_kw : cette page
+     est consultée sans compte Odoo (lien signé), et call_kw est réservé aux
+     utilisateurs connectés au backend — chaque sauvegarde échouait en
+     « Session expired » sur les téléphones des salariés. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
   function handleErr(d){
     var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
-    if(/session/i.test(m) &amp;&amp; /(expir|invalid)/i.test(m)){
-      alert('Votre page était ouverte depuis trop longtemps et la connexion a expiré. Elle va se recharger : merci de ressaisir votre dernière action.');
-      location.reload();
+    if(/jeton|token/i.test(m)){
+      alert("Votre lien personnel n'est plus valide (il a peut-être été régénéré). Demandez un nouveau lien à votre responsable.");
       return;
     }
     alert('Échec : ' + m);
@@ -228,9 +236,7 @@
     var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_token:TOK, hj_date:card.getAttribute('data-date'), hj_type:typ,
                hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af};
     card.style.opacity = .5;
-    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2012]],kwargs:{context:ctx}}})
-    }).then(function(r){return r.json();}).then(function(d){
+    rpcAction(2012, ctx).then(function(r){return r.json();}).then(function(d){
       card.style.opacity = 1;
       if(d.error){ handleErr(d); return; }
       var res = d.result || {};
@@ -261,9 +267,7 @@
     var du = document.getElementById('mh-dc-du').value, au = document.getElementById('mh-dc-au').value;
     if(!du || !au || du &gt; au){ alert('Choisissez des dates valides (Du ≤ Au).'); return; }
     dcgo.disabled = true;
-    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2013]],kwargs:{context:{active_model:'x_demande_conge',dc_emp:EMP,dc_token:TOK,dc_du:du,dc_au:au,dc_type:document.getElementById('mh-dc-type').value,dc_motif:document.getElementById('mh-dc-motif').value}}}})
-    }).then(function(r){return r.json();}).then(function(d){
+    rpcAction(2013, {active_model:'x_demande_conge',dc_emp:EMP,dc_token:TOK,dc_du:du,dc_au:au,dc_type:document.getElementById('mh-dc-type').value,dc_motif:document.getElementById('mh-dc-motif').value}).then(function(r){return r.json();}).then(function(d){
       dcgo.disabled = false;
       if(d.error){ handleErr(d); return; }
       alert('✓ Demande envoyée à votre responsable.');
