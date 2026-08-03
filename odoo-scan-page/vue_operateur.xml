@@ -352,7 +352,7 @@
           <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
           <t t-set="htxt" t-value="'#1a1a1a' if lum &gt; 150 else '#ffffff'"/>
           <t t-set="plans" t-value="all_plans.filtered(lambda a: a.res_id == of.id)"/>
-          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'" t-att-data-scieprim="'1' if 'primaire' in (w.name or '').lower() else ''" t-att-data-bloc="of.x_studio_bloc.x_name or ''">
+          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'" t-att-data-scieprim="'1' if 'primaire' in (w.name or '').lower() else ''" t-att-data-bloc="of.x_studio_bloc.x_name or ''" t-att-data-note="of.x_note_atelier or ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
               <span><t t-esc="pierre"/></span>
@@ -366,6 +366,9 @@
                 </div>
                 <div t-if="of.x_studio_ref_commande_client" class="vo-ref">📄 Réf cde : <t t-esc="of.x_studio_ref_commande_client"/></div>
                 <div t-if="of.x_studio_palette" class="vo-pal">🟪 <t t-esc="of.x_studio_palette"/></div>
+                <div class="vo-noterow" style="margin:4px 0;">
+                  <input type="text" class="vo-noteinp" t-att-value="of.x_note_atelier or ''" placeholder="💬 Note" autocomplete="off" style="width:100%;font-size:14px;font-weight:700;color:#713f12;background:#fef9c3;border:1.5px solid #fde047;border-radius:8px;padding:6px 10px;outline:none;"/>
+                </div>
                 <div t-if="plans" style="margin:4px 0;">
                   <t t-foreach="plans" t-as="pl">
                     <a t-attf-href="/web/content/{{pl.id}}?download=false" target="_blank" class="vo-plan">📐 <t t-esc="(pl.name or 'Plan')[:36]"/></a>
@@ -488,6 +491,31 @@
             b.onclick=function(){ openReb(parseInt(b.getAttribute('data-ofid')), b.getAttribute('data-of')||'OF', b.getAttribute('data-nbr')||1); };
           });
         }
+        function noteSave(inp){
+          var card=inp.closest('.vo-card'); if(!card){ return; }
+          var ofid=parseInt(card.getAttribute('data-ofid')); if(!ofid){ return; }
+          var val=(inp.value||'').trim();
+          if(val === (card.getAttribute('data-note')||'').trim()){ return; }
+          inp.style.borderColor='#94a3b8';
+          fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2011]],kwargs:{context:{active_model:'mrp.production',active_ids:[ofid],active_id:ofid,note_atelier:val}}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ inp.style.borderColor='#dc2626'; alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            document.querySelectorAll('.vo-card').forEach(function(c){
+              if(parseInt(c.getAttribute('data-ofid'))!==ofid){ return; }
+              c.setAttribute('data-note', val);
+              var i2=c.querySelector('.vo-noteinp'); if(i2 &amp;&amp; i2!==inp){ i2.value=val; }
+            });
+            inp.style.borderColor='#16a34a';
+            setTimeout(function(){ inp.style.borderColor='#fde047'; }, 1400);
+          }).catch(function(e){ inp.style.borderColor='#dc2626'; });
+        }
+        document.addEventListener('keydown', function(e){
+          if(e.target &amp;&amp; e.target.classList &amp;&amp; e.target.classList.contains('vo-noteinp') &amp;&amp; e.key==='Enter'){ e.preventDefault(); e.target.blur(); }
+        });
+        document.addEventListener('focusout', function(e){
+          if(e.target &amp;&amp; e.target.classList &amp;&amp; e.target.classList.contains('vo-noteinp')){ noteSave(e.target); }
+        });
         var camPop=document.getElementById('vo-cam-pop'), camVid=document.getElementById('vo-cam-video'), camMsg=document.getElementById('vo-cam-msg');
         var camStream=null, camTimer=null;
         function camStop(){

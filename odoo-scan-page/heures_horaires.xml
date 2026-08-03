@@ -1,0 +1,230 @@
+<t t-name="website.heures_horaires">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f8fafc;}
+      .hh-wrap{max-width:820px;margin:0 auto;padding:14px;}
+      .hh-brand{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
+      .hh-brand img{height:48px;max-width:160px;object-fit:contain;}
+      .hh-soc{font-weight:900;color:#334155;margin:16px 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;}
+      .hh-emp{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 14px;margin-bottom:7px;}
+      .hh-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+      .hh-name{font-weight:800;font-size:15px;color:#0f172a;}
+      .hh-sum{font-size:12.5px;color:#64748b;font-weight:600;}
+      .hh-tag{display:inline-block;background:#eef2ff;color:#4338ca;border-radius:6px;padding:1px 8px;font-size:11.5px;font-weight:800;margin-left:6px;}
+      .hh-tag.two{background:#fef3c7;color:#92400e;}
+      .hh-edit{border:none;border-radius:9px;padding:8px 12px;font-weight:800;font-size:13px;cursor:pointer;background:#0f172a;color:#fff;}
+      .hh-form{display:none;margin-top:10px;border-top:1px solid #f1f5f9;padding-top:10px;}
+      .hh-grid{display:grid;grid-template-columns:72px 1fr 1fr 14px 1fr 1fr;gap:5px 6px;align-items:center;}
+      .hh-grid .lbl{font-size:12.5px;font-weight:800;color:#64748b;}
+      .hh-grid input{border:1.5px solid #cbd5e1;border-radius:8px;padding:5px;font-size:14px;font-weight:700;width:100%;}
+      .hh-grid .sep{text-align:center;color:#cbd5e1;font-weight:800;}
+      .hh-tools{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0;}
+      .hh-b{border:none;border-radius:9px;padding:8px 11px;font-weight:800;font-size:12.5px;cursor:pointer;}
+      .hh-save{background:#16a34a;color:#fff;flex:1;}
+      .hh-lun{background:#e0f2fe;color:#075985;}
+      .hh-clear{background:#fee2e2;color:#991b1b;}
+      .hh-tot{font-weight:900;color:#0f172a;align-self:center;font-size:13.5px;}
+      .hh-note{color:#64748b;font-size:12.5px;margin-top:12px;background:#fff;border-radius:10px;padding:10px 14px;}
+    </style>
+    <div class="hh-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <img src="/web/image/res.company/1/logo" alt="Maquignon" style="height:60px;object-fit:contain;margin-bottom:10px;"/>
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-else="">
+        <div class="hh-brand">
+          <img src="/web/image/res.company/1/logo" alt="Maquignon"/>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Feuilles d'heures</div>
+            <div style="font-size:20px;font-weight:900;color:#0f172a;">Horaires par défaut des salariés</div>
+          </div>
+          <div style="margin-left:auto;">
+            <a t-attf-href="/heures-admin?k={{kk}}" class="hh-b" style="background:#e2e8f0;color:#0f172a;text-decoration:none;">🗓 Heures</a>
+            <a t-attf-href="/planning-rh?k={{kk}}" class="hh-b" style="background:#e2e8f0;color:#0f172a;text-decoration:none;">📅 Planning</a>
+            <a t-attf-href="/heures-liens?k={{kk}}" class="hh-b" style="background:#e2e8f0;color:#0f172a;text-decoration:none;">🔗 Liens</a>
+          </div>
+        </div>
+        <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
+        <t t-set="jours" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']"/>
+        <t t-set="emps" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
+        <t t-set="lastc" t-value="0"/>
+        <t t-foreach="emps" t-as="e">
+          <t t-if="e.company_id.id != lastc">
+            <div class="hh-soc" t-esc="e.company_id.name"/>
+            <t t-set="lastc" t-value="e.company_id.id"/>
+          </t>
+          <t t-set="cal" t-value="e.resource_calendar_id"/>
+          <t t-set="tot" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == '0')]) if cal else 0"/>
+          <div class="hh-emp" t-att-data-emp="e.id" t-att-data-name="e.name">
+            <div class="hh-top">
+              <div>
+                <span class="hh-name" t-esc="e.name"/>
+                <span class="hh-tag" t-esc="cal.name if cal else 'sans horaire'"/>
+                <span t-if="cal and cal.two_weeks_calendar" class="hh-tag two">cycle 2 semaines</span>
+                <div class="hh-sum"><t t-esc="('%g' % round(tot, 2))"/> h/semaine</div>
+              </div>
+              <button type="button" class="hh-edit">✏️ Modifier</button>
+            </div>
+            <div class="hh-form">
+              <label style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:13.5px;color:#334155;margin-bottom:8px;cursor:pointer;">
+                <input type="checkbox" class="hh-two" t-att-checked="'checked' if (cal and cal.two_weeks_calendar) else None" style="width:17px;height:17px;"/>
+                Cycle 2 semaines (alternance A / B)
+              </label>
+              <t t-foreach="['0', '1']" t-as="wk">
+                <div t-attf-class="hh-week hh-week-{{wk}}" t-att-data-wk="wk" t-attf-style="{{'' if (wk == '0' or (cal and cal.two_weeks_calendar)) else 'display:none;'}}">
+                  <div t-attf-class="hh-wlabel wl-{{wk}}" style="font-weight:900;font-size:13px;color:#4338ca;margin:6px 0 4px;">
+                    <t t-if="wk == '0'">📅 Semaine A</t><t t-else="">📅 Semaine B</t>
+                  </div>
+                  <div class="hh-grid">
+                    <span class="lbl"></span><span class="lbl">Matin début</span><span class="lbl">Matin fin</span><span></span><span class="lbl">A-m début</span><span class="lbl">A-m fin</span>
+                    <t t-foreach="range(7)" t-as="i">
+                      <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and ((a.week_type == wk) if (cal and cal.two_weeks_calendar) else wk == '0')] if cal else []"/>
+                      <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'afternoon' and ((a.week_type == wk) if (cal and cal.two_weeks_calendar) else wk == '0')] if cal else []"/>
+                      <span class="lbl" t-esc="jours[i]"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="0" t-att-value="fmt(min([a.hour_from for a in morn])) if morn else ''"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="1" t-att-value="fmt(max([a.hour_to for a in morn])) if morn else ''"/>
+                      <span class="sep">/</span>
+                      <input type="time" t-att-data-d="str(i)" data-f="2" t-att-value="fmt(min([a.hour_from for a in aft])) if aft else ''"/>
+                      <input type="time" t-att-data-d="str(i)" data-f="3" t-att-value="fmt(max([a.hour_to for a in aft])) if aft else ''"/>
+                    </t>
+                  </div>
+                  <div class="hh-tools">
+                    <button type="button" class="hh-b hh-lun" data-act="lundi">Lundi → mar-ven</button>
+                    <button type="button" class="hh-b hh-clear" data-act="clear">Vider cette semaine</button>
+                    <span class="hh-tot" data-role="tot"></span>
+                  </div>
+                </div>
+              </t>
+              <div class="hh-tools">
+                <button type="button" class="hh-b hh-copyab" data-act="copyab" style="background:#e0e7ff;color:#3730a3;display:none;">A → B</button>
+                <span class="hh-tot" data-role="totgen"></span>
+                <button type="button" class="hh-b hh-save" data-act="save">💾 Enregistrer la semaine type</button>
+              </div>
+            </div>
+          </div>
+        </t>
+        <div class="hh-note">
+          ✏️ ouvre la semaine type du salarié : renseignez matin et après-midi pour chaque jour (laissez vide = jour non travaillé, une seule plage = matinée continue).
+          « <b>Lundi → mar-ven</b> » recopie le lundi sur mardi-vendredi. Cochez « <b>Cycle 2 semaines</b> » pour les horaires alternés : une grille Semaine A et une Semaine B
+          (« <b>A → B</b> » recopie la première dans la seconde) ; Odoo applique automatiquement A ou B selon la parité de la semaine du calendrier.
+          À l'enregistrement, un <b>horaire individuel « Horaire — Nom »</b> est créé (ou mis à jour) et affecté au salarié — les horaires des autres salariés ne sont jamais touchés.
+          Le nouvel horaire sert immédiatement au pré-remplissage de sa feuille d'heures, au calcul des HS et au planning.
+        </div>
+        <div id="hh-k" t-att-data-k="kk" style="display:none;"/>
+        <script>
+(function(){
+  var KK = document.getElementById('hh-k').getAttribute('data-k');
+  /* Relais Render : page ouverte via la clé responsables, sans compte Odoo —
+     /web/dataset/call_kw répond « Session expired » hors backend. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
+  function handleErr(d){
+    var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
+    alert('Échec : ' + m);
+  }
+  function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
+  function get(week, d){
+    var out = [0,0,0,0];
+    week.querySelectorAll('input[data-d="'+d+'"]').forEach(function(inp){ out[parseInt(inp.getAttribute('data-f'))] = toDec(inp.value); });
+    return out;
+  }
+  function totOf(week){
+    var t = 0;
+    for(var i=0;i&lt;7;i++){ var g = get(week, i); t += Math.max(g[1]-g[0], 0) + Math.max(g[3]-g[2], 0); }
+    return t;
+  }
+  function isTwo(card){ var c = card.querySelector('.hh-two'); return !!(c &amp;&amp; c.checked); }
+  function refresh(card){
+    var two = isTwo(card);
+    var wA = card.querySelector('.hh-week-0'), wB = card.querySelector('.hh-week-1');
+    if(wB){ wB.style.display = two ? '' : 'none'; }
+    card.querySelectorAll('.hh-wlabel').forEach(function(l){ l.style.display = two ? '' : 'none'; });
+    var cp = card.querySelector('.hh-copyab'); if(cp){ cp.style.display = two ? '' : 'none'; }
+    var tA = totOf(wA), tB = wB ? totOf(wB) : 0;
+    var eA = wA.querySelector('[data-role="tot"]'); if(eA){ eA.textContent = (Math.round(tA*100)/100) + ' h'; }
+    if(wB){ var eB = wB.querySelector('[data-role="tot"]'); if(eB){ eB.textContent = (Math.round(tB*100)/100) + ' h'; } }
+    var g = card.querySelector('[data-role="totgen"]');
+    if(g){ g.textContent = two ? ('Moyenne : ' + (Math.round((tA+tB)/2*100)/100) + ' h/sem (A ' + (Math.round(tA*100)/100) + ' · B ' + (Math.round(tB*100)/100) + ')')
+                              : ('Total : ' + (Math.round(tA*100)/100) + ' h/sem'); }
+  }
+  document.addEventListener('input', function(e){
+    if(e.target.matches('.hh-form input')){ refresh(e.target.closest('.hh-emp')); }
+  });
+  document.addEventListener('change', function(e){
+    if(e.target.classList &amp;&amp; e.target.classList.contains('hh-two')){ refresh(e.target.closest('.hh-emp')); }
+  });
+  document.addEventListener('click', function(e){
+    var ed = e.target.closest('.hh-edit');
+    if(ed){
+      var card0 = ed.closest('.hh-emp');
+      var f = card0.querySelector('.hh-form');
+      f.style.display = (f.style.display === 'block') ? 'none' : 'block';
+      refresh(card0);
+      return;
+    }
+    var b = e.target.closest('.hh-b[data-act]');
+    if(!b){ return; }
+    var card = b.closest('.hh-emp');
+    var act = b.getAttribute('data-act');
+    if(act === 'lundi' || act === 'clear'){
+      var week = b.closest('.hh-week');
+      if(act === 'lundi'){
+        for(var f2=0; f2&lt;4; f2++){
+          var src = week.querySelector('input[data-d="0"][data-f="'+f2+'"]').value;
+          for(var d=1; d&lt;=4; d++){ week.querySelector('input[data-d="'+d+'"][data-f="'+f2+'"]').value = src; }
+        }
+      } else {
+        week.querySelectorAll('input').forEach(function(i){ i.value=''; });
+      }
+      refresh(card);
+      return;
+    }
+    if(act === 'copyab'){
+      var wA = card.querySelector('.hh-week-0'), wB = card.querySelector('.hh-week-1');
+      for(var d3=0; d3&lt;7; d3++){
+        for(var f3=0; f3&lt;4; f3++){
+          wB.querySelector('input[data-d="'+d3+'"][data-f="'+f3+'"]').value =
+            wA.querySelector('input[data-d="'+d3+'"][data-f="'+f3+'"]').value;
+        }
+      }
+      refresh(card);
+      return;
+    }
+    if(act === 'save'){
+      var two = isTwo(card);
+      var wA2 = card.querySelector('.hh-week-0'), wB2 = card.querySelector('.hh-week-1');
+      var horA = [], horB = [];
+      for(var d4=0; d4&lt;7; d4++){ horA.push(get(wA2, d4)); horB.push(get(wB2, d4)); }
+      if(totOf(wA2) &lt;= 0){ alert('Renseignez au moins une plage horaire en semaine A.'); return; }
+      if(two &amp;&amp; totOf(wB2) &lt;= 0){ alert('Le cycle 2 semaines est coché : renseignez aussi la semaine B (ou utilisez « A → B »).'); return; }
+      b.disabled = true;
+      var ctx = {active_model:'hr.employee', emp_id:parseInt(card.getAttribute('data-emp')),
+                 horaires:horA, horaires_b:horB, deux_semaines:two, hj_k:KK};
+      rpcAction(2021, ctx).then(function(r){return r.json();}).then(function(d){
+        b.disabled = false;
+        if(d.error){ handleErr(d); return; }
+        var res = d.result || {};
+        alert('✓ Horaire enregistré pour ' + card.getAttribute('data-name') + '\n' +
+              (res.deux ? ('Cycle 2 semaines — moyenne ' + (res.semaine||0).toFixed(2) + ' h/sem')
+                        : ((res.total||0).toFixed(2) + ' h/sem')));
+        location.reload();
+      }).catch(function(){ b.disabled = false; alert('Échec réseau'); });
+    }
+  });
+})();
+        </script>
+      </t>
+    </div>
+  </t>
+</t>

@@ -1,0 +1,112 @@
+<t t-name="website.heures_liens">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f8fafc;}
+      .hl-wrap{max-width:860px;margin:0 auto;padding:14px;}
+      .hl-brand{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+      .hl-brand img{height:48px;max-width:160px;object-fit:contain;}
+      .hl-soc{font-weight:900;color:#334155;margin:16px 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;}
+      .hl-row{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+      .hl-name{font-weight:800;font-size:15px;color:#0f172a;}
+      .hl-cal{font-size:12px;color:#94a3b8;font-weight:600;}
+      .hl-btns{display:flex;gap:6px;flex-wrap:wrap;}
+      .hl-b{border:none;border-radius:9px;padding:8px 12px;font-weight:800;font-size:13px;cursor:pointer;text-decoration:none;display:inline-block;}
+      .hl-copy{background:#0f172a;color:#fff;}
+      .hl-wa{background:#22c55e;color:#fff;}
+      .hl-mail{background:#3b82f6;color:#fff;}
+      .hl-regen{background:#fee2e2;color:#991b1b;}
+      .hl-note{color:#64748b;font-size:12.5px;margin-top:12px;background:#fff;border-radius:10px;padding:10px 14px;}
+    </style>
+    <div class="hl-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <img src="/web/image/res.company/1/logo" alt="Maquignon" style="height:60px;object-fit:contain;margin-bottom:10px;"/>
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-else="">
+        <div class="hl-brand">
+          <img src="/web/image/res.company/1/logo" alt="Maquignon"/>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Feuilles d'heures</div>
+            <div style="font-size:20px;font-weight:900;color:#0f172a;">Liens personnels des salariés</div>
+          </div>
+          <div style="margin-left:auto;">
+            <a t-attf-href="/heures-admin?k={{kk}}" class="hl-b" style="background:#e2e8f0;color:#0f172a;">🗓 Heures</a>
+            <a t-attf-href="/planning-rh?k={{kk}}" class="hl-b" style="background:#e2e8f0;color:#0f172a;">📅 Planning</a>
+            <a t-attf-href="/heures-horaires?k={{kk}}" class="hl-b" style="background:#e2e8f0;color:#0f172a;">⏰ Horaires</a>
+          </div>
+        </div>
+        <t t-set="emps" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
+        <t t-set="lastc" t-value="0"/>
+        <t t-foreach="emps" t-as="e">
+          <t t-if="e.company_id.id != lastc">
+            <div class="hl-soc" t-esc="e.company_id.name"/>
+            <t t-set="lastc" t-value="e.company_id.id"/>
+          </t>
+          <t t-set="lien" t-value="'https://maquignon.odoo.com/mes-heures?emp=%s&amp;t=%s' % (e.id, e.x_heures_token or '')"/>
+          <div class="hl-row" t-att-data-emp="e.id" t-att-data-name="e.name" t-att-data-link="lien">
+            <div>
+              <div class="hl-name" t-esc="e.name"/>
+              <div class="hl-cal" t-esc="e.resource_calendar_id.name or 'sans horaire'"/>
+            </div>
+            <div class="hl-btns">
+              <button type="button" class="hl-b hl-copy">📋 Copier</button>
+              <a class="hl-b hl-wa" t-attf-href="https://wa.me/?text={{('Bonjour %s, voici votre lien personnel pour saisir vos heures et demander vos congés : %s — Conservez-le, il est strictement personnel.' % (e.name, lien)).replace(' ', '%20').replace('&amp;', '%26')}}" target="_blank">💬 WhatsApp</a>
+              <a class="hl-b hl-mail" t-attf-href="mailto:{{e.work_email or ''}}?subject=Votre%20lien%20de%20saisie%20des%20heures&amp;body={{('Bonjour %s,%%0A%%0AVoici votre lien personnel pour saisir vos heures et demander vos congés :%%0A%s%%0A%%0AConservez-le, il est strictement personnel.' % (e.name, lien)).replace(' ', '%20').replace('&amp;', '%26')}}">✉️ Email</a>
+              <button type="button" class="hl-b hl-regen" title="Invalide l'ancien lien et en crée un nouveau">♻️</button>
+            </div>
+          </div>
+        </t>
+        <div class="hl-note">
+          📋 copie le lien · 💬 ouvre WhatsApp avec le message prêt à envoyer (choisir le contact) · ✉️ prépare un email · <b>♻️ régénère le lien</b> (l'ancien ne fonctionne plus — à utiliser si un lien a fuité, puis renvoyer le nouveau au salarié). Chaque lien est strictement personnel : ne jamais les diffuser en groupe.
+        </div>
+        <div id="hl-k" t-att-data-k="kk" style="display:none;"/>
+        <script>
+(function(){
+  var KK = document.getElementById('hl-k').getAttribute('data-k');
+  /* Relais Render : page ouverte via la clé responsables, sans compte Odoo —
+     /web/dataset/call_kw répond « Session expired » hors backend. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
+  function handleErr(d){
+    var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
+    alert('Échec : ' + m);
+  }
+  document.addEventListener('click', function(e){
+    var cp = e.target.closest('.hl-copy');
+    if(cp){
+      var lk = cp.closest('.hl-row').getAttribute('data-link');
+      (navigator.clipboard ? navigator.clipboard.writeText(lk) : Promise.reject()).then(function(){
+        cp.textContent = '✓ Copié';
+        setTimeout(function(){ cp.textContent = '📋 Copier'; }, 1400);
+      }).catch(function(){ prompt('Lien personnel :', lk); });
+      return;
+    }
+    var rg = e.target.closest('.hl-regen');
+    if(rg){
+      var row = rg.closest('.hl-row');
+      if(!confirm(row.getAttribute('data-name') + ' : régénérer le lien ? L’ancien ne fonctionnera plus.')){ return; }
+      var arr = new Uint8Array(12); crypto.getRandomValues(arr);
+      var tok = btoa(String.fromCharCode.apply(null, arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+      rpcAction(2020, {active_model:'hr.employee',emp_id:parseInt(row.getAttribute('data-emp')),new_token:tok,hj_k:KK}).then(function(r){return r.json();}).then(function(d){
+        if(d.error){ handleErr(d); return; }
+        location.reload();
+      }).catch(function(){ alert('Échec réseau'); });
+    }
+  });
+})();
+        </script>
+      </t>
+    </div>
+  </t>
+</t>

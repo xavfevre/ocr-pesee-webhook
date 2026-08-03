@@ -1,0 +1,282 @@
+<t t-name="website.mes_heures">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f1f5f9;}
+      .mh-wrap{max-width:640px;margin:0 auto;padding:12px;}
+      .mh-brand{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+      .mh-brand img{height:52px;max-width:170px;object-fit:contain;}
+      .mh-brand .t{font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;}
+      .mh-brand .n{font-size:21px;font-weight:900;color:#0f172a;line-height:1.15;}
+      .mh-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+      .mh-emp{font-size:20px;font-weight:800;color:#0f172a;}
+      .mh-nav{display:flex;gap:6px;align-items:center;}
+      .mh-nav a{border:1px solid #cbd5e1;border-radius:10px;padding:8px 14px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;}
+      .mh-week{font-weight:800;color:#334155;font-size:15px;}
+      .mh-tot{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 14px;display:flex;gap:18px;justify-content:center;font-weight:800;font-size:15px;margin-bottom:10px;flex-wrap:wrap;}
+      .mh-tot b{color:#5eead4;}
+      .mh-day{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px;margin-bottom:10px;border-left:6px solid #cbd5e1;}
+      .mh-day.t-travail{border-left-color:#16a34a;}
+      .mh-day.t-cp{border-left-color:#f59e0b;}
+      .mh-day.t-maladie{border-left-color:#dc2626;}
+      .mh-day.t-ferie{border-left-color:#7c3aed;}
+      .mh-day.t-absence{border-left-color:#ef4444;}
+      .mh-day.t-recup{border-left-color:#0ea5e9;}
+      .mh-day.t-repos{border-left-color:#94a3b8;}
+      .mh-dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+      .mh-dname{font-size:16px;font-weight:900;color:#0f172a;text-transform:capitalize;}
+      .mh-state{font-size:13.5px;font-weight:800;color:#475569;}
+      .mh-theo{font-size:12px;color:#94a3b8;font-weight:600;}
+      .mh-btns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 6px;}
+      .mh-b{border:none;border-radius:10px;padding:9px 12px;font-weight:800;font-size:13.5px;cursor:pointer;}
+      .mh-b-ok{background:#16a34a;color:#fff;}
+      .mh-b-cp{background:#fef3c7;color:#92400e;}
+      .mh-b-mal{background:#fee2e2;color:#991b1b;}
+      .mh-b-fer{background:#ede9fe;color:#5b21b6;}
+      .mh-b-abs{background:#fecaca;color:#7f1d1d;}
+      .mh-b-rec{background:#e0f2fe;color:#075985;}
+      .mh-times{display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 8px;align-items:center;margin-top:4px;}
+      .mh-times label{font-size:12.5px;font-weight:800;color:#64748b;}
+      .mh-times input{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-size:15px;font-weight:700;width:100%;}
+      .mh-save{margin-top:7px;width:100%;border:none;border-radius:10px;padding:10px;background:#1d4ed8;color:#fff;font-weight:900;font-size:15px;cursor:pointer;}
+      .mh-lock{margin-top:8px;border-radius:10px;padding:10px 12px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;}
+      .mh-lock small{display:block;font-weight:600;font-size:12px;opacity:.85;margin-top:2px;}
+      .mh-lock.l-cp{background:#fef3c7;color:#92400e;}
+      .mh-lock.l-maladie{background:#fee2e2;color:#991b1b;}
+      .mh-lock.l-ferie{background:#ede9fe;color:#5b21b6;}
+      .mh-lock.l-absence{background:#fecaca;color:#7f1d1d;}
+      .mh-lock.l-recup{background:#e0f2fe;color:#075985;}
+      .mh-lock.l-repos{background:#f1f5f9;color:#475569;}
+      .mh-pick{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;}
+      .mh-pick a{display:inline-block;margin:3px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;color:#0f172a;}
+      .mh-soc{font-weight:900;color:#334155;margin:10px 0 4px;font-size:14px;text-transform:uppercase;}
+    </style>
+    <div class="mh-wrap">
+      <t t-set="empp" t-value="request.params.get('emp')"/>
+      <t t-set="tok" t-value="(request.params.get('t') or '').strip()"/>
+      <t t-set="empok" t-value="request.env['hr.employee'].sudo().browse(int(empp)) if (empp and empp.isdigit()) else None"/>
+      <t t-set="valid" t-value="bool(empok and empok.exists() and tok and empok.x_heures_token and tok == empok.x_heures_token)"/>
+      <t t-if="not valid">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;box-shadow:0 1px 4px rgba(0,0,0,.08);">
+          <img src="/web/image/res.company/1/logo" alt="Maquignon" style="height:64px;max-width:220px;object-fit:contain;margin-bottom:12px;"/>
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Lien personnel requis</h4>
+          <div style="color:#64748b;">Cette page s'ouvre uniquement avec votre lien personnel.<br/>Demandez-le à votre responsable ou à la comptabilité.</div>
+        </div>
+      </t>
+      <t t-else="">
+        <t t-set="emp" t-value="empok"/>
+        <t t-set="semp" t-value="request.params.get('sem')"/>
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
+        <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
+        <t t-set="cal" t-value="emp.resource_calendar_id"/>
+        <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
+        <t t-set="saisies" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]))"/>
+        <div class="mh-brand">
+          <img t-attf-src="/web/image/res.company/{{emp.company_id.id}}/logo" t-att-alt="emp.company_id.name"/>
+          <div>
+            <div class="t">Feuille d'heures</div>
+            <div class="n" t-esc="emp.name"/>
+          </div>
+        </div>
+        <div class="mh-head">
+          <div>
+            <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/></div>
+          </div>
+          <div class="mh-nav">
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
+            <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+          </div>
+        </div>
+        <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
+        <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
+          ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
+        </div>
+        <t t-foreach="range(7)" t-as="i">
+          <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
+          <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
+          <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]"/>
+          <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period in ('afternoon',) and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]"/>
+          <t t-set="tmd" t-value="min([a.hour_from for a in morn]) if morn else 0"/>
+          <t t-set="tmf" t-value="max([a.hour_to for a in morn]) if morn else 0"/>
+          <t t-set="tad" t-value="min([a.hour_from for a in aft]) if aft else 0"/>
+          <t t-set="taf" t-value="max([a.hour_to for a in aft]) if aft else 0"/>
+          <t t-set="theo" t-value="(tmf - tmd) + (taf - tad)"/>
+          <t t-set="s" t-value="saisies.get(dstr)"/>
+          <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
+          <t t-set="lock" t-value="s and s.x_type in ('cp', 'maladie', 'ferie', 'absence', 'recup', 'repos')"/>
+          <div t-attf-class="mh-day t-{{s and s.x_type or 'vide'}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % theo"
+               t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)"
+               t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-type="s and s.x_type or ''">
+            <div class="mh-dh">
+              <span class="mh-dname"><t t-esc="jours[i]"/> <t t-esc="d.strftime('%d/%m')"/></span>
+              <span class="mh-state" t-att-data-role="'state'">
+                <t t-if="s">
+                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h</t>
+                  <t t-elif="s.x_type == 'cp'">🏖 Congés</t>
+                  <t t-elif="s.x_type == 'maladie'">🤒 Maladie</t>
+                  <t t-elif="s.x_type == 'ferie'">🎉 Férié</t>
+                  <t t-elif="s.x_type == 'absence'">⛔ Absence</t>
+                  <t t-elif="s.x_type == 'recup'">🔄 Récup</t>
+                  <t t-else="">💤 Repos</t>
+                </t>
+                <t t-else="">—</t>
+              </span>
+            </div>
+            <div class="mh-theo" t-if="theo &gt; 0">Horaire habituel : <t t-esc="fmt(tmd)"/>-<t t-esc="fmt(tmf)"/><t t-if="taf"> / <t t-esc="fmt(tad)"/>-<t t-esc="fmt(taf)"/></t> (<t t-esc="'%.2f' % theo"/> h)</div>
+            <div class="mh-theo" t-else="">Pas d'horaire prévu ce jour</div>
+            <t t-if="lock">
+              <div t-attf-class="mh-lock l-{{s.x_type}}">
+                <span style="font-size:20px;">
+                  <t t-if="s.x_type == 'cp'">🏖</t>
+                  <t t-elif="s.x_type == 'maladie'">🤒</t>
+                  <t t-elif="s.x_type == 'ferie'">🎉</t>
+                  <t t-elif="s.x_type == 'absence'">⛔</t>
+                  <t t-elif="s.x_type == 'recup'">🔄</t>
+                  <t t-else="">💤</t>
+                </span>
+                <span>
+                  <t t-if="s.x_type == 'cp'">Congés payés</t>
+                  <t t-elif="s.x_type == 'maladie'">Arrêt maladie</t>
+                  <t t-elif="s.x_type == 'ferie'">Jour férié</t>
+                  <t t-elif="s.x_type == 'absence'">Absence</t>
+                  <t t-elif="s.x_type == 'recup'">Récupération</t>
+                  <t t-else="">Repos</t>
+                  <small>Saisi par la direction — pas d'heures à renseigner. En cas d'erreur, prévenez le bureau.</small>
+                </span>
+              </div>
+            </t>
+            <t t-else="">
+              <div class="mh-btns" t-if="theo &gt; 0">
+                <button type="button" class="mh-b mh-b-ok" data-act="normal">✓ Journée normale</button>
+              </div>
+              <div class="mh-times">
+                <label>Matin</label>
+                <input type="time" data-f="m_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_deb) or ''"/>
+                <input type="time" data-f="m_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_m_fin) or ''"/>
+                <label>Ap.-midi</label>
+                <input type="time" data-f="am_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_deb) or ''"/>
+                <input type="time" data-f="am_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_fin) or ''"/>
+              </div>
+              <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
+            </t>
+          </div>
+        </t>
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🏖 Demander des congés</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Du</label>
+            <input type="date" id="mh-dc-du" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Au</label>
+            <input type="date" id="mh-dc-au" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Type</label>
+            <select id="mh-dc-type" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;">
+              <option value="cp">Congés payés</option>
+              <option value="recup">Récupération</option>
+              <option value="sans_solde">Sans solde</option>
+            </select>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Motif</label>
+            <input type="text" id="mh-dc-motif" placeholder="facultatif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+          </div>
+          <button type="button" id="mh-dc-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#f59e0b;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">📨 Envoyer la demande</button>
+          <t t-set="dems" t-value="request.env['x_demande_conge'].sudo().search([('x_employee_id','=',emp.id)], order='id desc', limit=6)"/>
+          <div t-if="dems" style="margin-top:10px;">
+            <div style="font-weight:800;color:#64748b;font-size:12.5px;margin-bottom:4px;">MES DEMANDES</div>
+            <t t-foreach="dems" t-as="dc">
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:5px 0;border-top:1px solid #f1f5f9;">
+                <span><b><t t-esc="dc.x_du.strftime('%d/%m')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></b> · <t t-esc="dict([('cp','CP'),('recup','Récup'),('sans_solde','Sans solde')]).get(dc.x_type, dc.x_type)"/><t t-if="dc.x_motif"> · <t t-esc="dc.x_motif"/></t></span>
+                <span t-if="dc.x_statut == 'attente'" style="color:#b45309;font-weight:800;">⏳ En attente</span>
+                <span t-elif="dc.x_statut == 'approuve'" style="color:#15803d;font-weight:800;">✓ Approuvé</span>
+                <span t-else="" style="color:#b91c1c;font-weight:800;" t-att-title="dc.x_reponse or ''">✗ Refusé</span>
+              </div>
+            </t>
+          </div>
+        </div>
+        <div t-att-data-emp="emp.id" t-att-data-tok="tok" id="mh-data" style="display:none;"/>
+        <script>
+(function(){
+  var EMP = parseInt(document.getElementById('mh-data').getAttribute('data-emp'));
+  var TOK = document.getElementById('mh-data').getAttribute('data-tok');
+  function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
+  function fromDec(h){ if(!h){ return ''; } var H=Math.floor(h), M=Math.round((h-H)*60); return ('0'+H).slice(-2)+':'+('0'+M).slice(-2); }
+  var LBL = {travail:'✓', cp:'🏖 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
+  function totals(){
+    var eff=0, theo=0;
+    document.querySelectorAll('.mh-day').forEach(function(c){
+      theo += parseFloat(c.getAttribute('data-theo')||0);
+      if(c.getAttribute('data-type')==='travail'){ eff += parseFloat(c.getAttribute('data-heures')||0); }
+    });
+    document.getElementById('mh-t-eff').textContent = eff.toFixed(2)+' h';
+    document.getElementById('mh-t-theo').textContent = theo.toFixed(2)+' h';
+    var hs = eff-theo;
+    document.getElementById('mh-t-hs').textContent = (hs&gt;=0?'+':'')+hs.toFixed(2)+' h';
+  }
+  totals();
+  /* Enregistrement via le relais Render, PAS /web/dataset/call_kw : cette page
+     est consultée sans compte Odoo (lien signé), et call_kw est réservé aux
+     utilisateurs connectés au backend — chaque sauvegarde échouait en
+     « Session expired » sur les téléphones des salariés. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
+  function handleErr(d){
+    var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
+    if(/jeton|token/i.test(m)){
+      alert("Votre lien personnel n'est plus valide (il a peut-être été régénéré). Demandez un nouveau lien à votre responsable.");
+      return;
+    }
+    alert('Échec : ' + m);
+  }
+  function save(card, typ, md, mf, ad, af){
+    var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_token:TOK, hj_date:card.getAttribute('data-date'), hj_type:typ,
+               hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af};
+    card.style.opacity = .5;
+    rpcAction(2012, ctx).then(function(r){return r.json();}).then(function(d){
+      card.style.opacity = 1;
+      if(d.error){ handleErr(d); return; }
+      var res = d.result || {};
+      card.setAttribute('data-type', typ);
+      card.setAttribute('data-heures', res.heures || 0);
+      card.className = 'mh-day t-'+typ;
+      var st = card.querySelector('[data-role="state"]');
+      st.textContent = (typ==='travail') ? ('✓ '+(res.heures||0).toFixed(2)+' h') : LBL[typ];
+      if(typ !== 'travail'){ card.querySelectorAll('.mh-times input').forEach(function(i){ i.value=''; }); }
+      totals();
+      if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
+    }).catch(function(e){ card.style.opacity = 1; alert('Échec réseau'); });
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('.mh-b, .mh-save'); if(!b){ return; }
+    var card = b.closest('.mh-day'); var act = b.getAttribute('data-act');
+    var inp = {};
+    card.querySelectorAll('.mh-times input').forEach(function(i){ inp[i.getAttribute('data-f')] = i; });
+    if(!inp.m_deb){ return; }
+    if(act === 'normal'){
+      inp.m_deb.value = card.getAttribute('data-tmd'); inp.m_fin.value = card.getAttribute('data-tmf');
+      inp.am_deb.value = card.getAttribute('data-tad'); inp.am_fin.value = card.getAttribute('data-taf');
+    } else if(act !== 'save'){ return; }
+    save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
+  });
+  var dcgo = document.getElementById('mh-dc-go');
+  if(dcgo){ dcgo.addEventListener('click', function(){
+    var du = document.getElementById('mh-dc-du').value, au = document.getElementById('mh-dc-au').value;
+    if(!du || !au || du &gt; au){ alert('Choisissez des dates valides (Du ≤ Au).'); return; }
+    dcgo.disabled = true;
+    rpcAction(2013, {active_model:'x_demande_conge',dc_emp:EMP,dc_token:TOK,dc_du:du,dc_au:au,dc_type:document.getElementById('mh-dc-type').value,dc_motif:document.getElementById('mh-dc-motif').value}).then(function(r){return r.json();}).then(function(d){
+      dcgo.disabled = false;
+      if(d.error){ handleErr(d); return; }
+      alert('✓ Demande envoyée à votre responsable.');
+      location.reload();
+    }).catch(function(){ dcgo.disabled = false; alert('Échec réseau'); });
+  }); }
+})();
+        </script>
+      </t>
+    </div>
+  </t>
+</t>
