@@ -47,12 +47,14 @@ for cle, fichier in VUES.items():
     with open(chemin, encoding="utf-8") as f:
         arch = f.read()
 
-    ids = x("ir.ui.view", "search", [[("key", "=", cle)]])
+    # Le raccourci x() emballe déjà chaque argument : le domaine se passe nu,
+    # sinon Odoo reçoit un domaine à double crochets et le rejette.
+    ids = x("ir.ui.view", "search", [("key", "=", cle)])
     if not ids:
         print(f"⚠ {cle} : vue introuvable (clé inconnue) — ignorée")
         continue
 
-    x("ir.ui.view", "write", [ids, {"arch": arch}])
+    x("ir.ui.view", "write", ids, {"arch": arch})
     relu = x("ir.ui.view", "read", [ids[0]], fields=["arch_db"])[0]["arch_db"]
     ok = MARQUEUR in relu
     print(f"{'✓' if ok else '✗'} {cle} (id {ids[0]}) : {len(arch)} octets écrits, relais Render {'présent' if ok else 'ABSENT'}")
