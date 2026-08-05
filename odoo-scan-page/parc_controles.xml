@@ -1,0 +1,257 @@
+<t t-name="website.parc_controles">
+  <t t-call="website.layout">
+    <t t-set="today" t-value="datetime.date.today()"/>
+    <t t-set="selected_cat" t-value="request.params.get('cat', '')"/>
+    <t t-set="selected_etat" t-value="request.params.get('etat', '')"/>
+
+    <t t-set="rows" t-value="request.env['x_controle_vehicule'].sudo().search([], order='x_vehicule_id')"/>
+    <t t-set="types" t-value="request.env['x_type_controle'].sudo().search([], order='id')"/>
+    <t t-set="vehicules" t-value="request.env['fleet.vehicle'].sudo().search([('active','=',True)], order='name')"/>
+
+    <!-- Historique natif Fleet (onglet Services) : source de vérité pour la dernière date -->
+    <t t-set="logs" t-value="request.env['fleet.vehicle.log.services'].sudo().search([('state','!=','cancelled')])"/>
+    <t t-set="last_log" t-value="{}"/>
+    <t t-foreach="logs" t-as="lg">
+      <t t-if="lg.date and lg.service_type_id">
+        <t t-set="lk" t-value="(lg.vehicle_id.id, lg.service_type_id.id)"/>
+        <t t-if="lk not in last_log or lg.date &gt; last_log[lk]"><t t-set="_x" t-value="last_log.update({lk: lg.date})"/></t>
+      </t>
+    </t>
+
+    <t t-set="by_veh" t-value="{}"/>
+    <t t-foreach="rows" t-as="r">
+      <t t-set="_x" t-value="by_veh.setdefault(r.x_vehicule_id.id, {}).update({r.x_type_id.id: r})"/>
+    </t>
+    <t t-set="derniere_date" t-value="lambda r: last_log.get((r.x_vehicule_id.id, r.x_type_id.x_fleet_service_type_id.id)) if r.x_type_id.x_fleet_service_type_id else None or r.x_derniere_date"/>
+
+    <t t-set="palette" t-value="{'ct_leger': '#1d4ed8', 'antipol_vul': '#0891b2', 'ct_pl': '#7c3aed', 'chrono': '#c2410c', 'limiteur': '#b45309', 'extincteur': '#dc2626', 'vgp_an': '#15803d', 'vgp_sem': '#0f766e'}"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#eef2f6;}
+      .pc-wrap{max-width:none;width:100%;padding:14px 18px;box-sizing:border-box;}
+      .pc-topbar{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;margin-bottom:12px;}
+      .pc-kpis{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
+      .pc-kpi{border-radius:10px;padding:6px 14px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid transparent;}
+      .pc-kpi b{font-size:17px;}
+      .pc-kpi.retard{background:#fee2e2;color:#991b1b;}
+      .pc-kpi.proche{background:#fef3c7;color:#92400e;}
+      .pc-kpi.ok{background:#dcfce7;color:#166534;}
+      .pc-kpi.vide{background:#f1f5f9;color:#475569;}
+      .pc-kpi.on{border-color:currentColor;}
+      .pc-filters{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+      .pc-filters a{border:1.5px solid #cbd5e1;border-radius:16px;padding:4px 12px;font-size:12px;font-weight:700;text-decoration:none;color:#334155;background:#fff;}
+      .pc-filters a.on{background:#0f172a;color:#fff;border-color:#0f172a;}
+      table.pc{border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 5px rgba(0,0,0,.09);width:100%;table-layout:fixed;}
+      .pc th{background:#0f172a;color:#fff;font-size:11.5px;font-weight:800;padding:8px 4px;text-align:center;}
+      .pc th.veh{text-align:left;padding:8px 12px;width:260px;}
+      .pc td{border-top:1px solid #eef2f6;border-left:1px solid #eef2f6;text-align:center;padding:0;height:56px;vertical-align:middle;}
+      .pc td.veh{text-align:left;padding:6px 12px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fbfcfe;}
+      .pc td.veh small{display:block;font-weight:800;color:#475569;font-size:12.5px;margin-top:1px;}
+      .pc td.veh small .km{color:#0f172a;}
+      .pc td.na{background:#f8fafc;color:#e2e8f0;}
+      .pc-cell{display:block;width:100%;height:100%;padding:5px 4px;cursor:pointer;border:none;background:none;font-size:11px;font-weight:800;line-height:1.25;}
+      .pc-cell.retard{background:#fecaca;color:#7f1d1d;}
+      .pc-cell.proche{background:#fde68a;color:#78350f;}
+      .pc-cell.ok{background:#bbf7d0;color:#14532d;}
+      .pc-cell.vide{background:#f1f5f9;color:#94a3b8;}
+      .pc-cell:hover{filter:brightness(.95);}
+      .pc-legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:10px;font-size:11.5px;font-weight:700;color:#475569;}
+      .pc-legend span{display:inline-flex;align-items:center;gap:5px;}
+      .pc-legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+      .pc-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;align-items:center;justify-content:center;}
+      .pc-pop.show{display:flex;}
+      .pc-pop-box{background:#fff;border-radius:14px;padding:20px;width:340px;max-width:92vw;}
+      .pc-pop-box h5{margin:0 0 4px;font-weight:900;}
+      .pc-pop-box .sub{color:#64748b;font-size:12.5px;margin-bottom:14px;}
+      .pc-pop-box label{font-weight:800;color:#64748b;font-size:12.5px;display:block;margin-bottom:4px;}
+      .pc-pop-box input{width:100%;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;font-weight:700;margin-bottom:12px;}
+      .pc-pop-box .row{display:flex;gap:8px;}
+      .pc-pop-box button{border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;flex:1;}
+      .pc-btn-save{background:#0f172a;color:#fff;}
+      .pc-btn-clear{background:#fee2e2;color:#991b1b;}
+      .pc-btn-cancel{background:#f1f5f9;color:#334155;}
+    </style>
+
+    <t t-set="alerte_emails" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.parc_alerte_email') or ''"/>
+
+    <div class="pc-wrap">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:800;color:#15324f;font-size:24px;">🚗 Parc automobile — Contrôles obligatoires</h3>
+
+      <div class="pc-topbar" style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:8px 16px;">
+        <span style="font-weight:800;color:#334155;font-size:12.5px;">📧 Alerte email (retards / échéances sous 30 j, chaque lundi) à :</span>
+        <input type="text" id="pcEmails" t-att-value="alerte_emails" placeholder="ex : isabelle@maquignon.com, charlotte@maquignon.com" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:5px 8px;font-weight:700;font-size:12.5px;min-width:280px;flex:1;max-width:420px;"/>
+        <button type="button" id="pcEmailsSave" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;cursor:pointer;">Enregistrer</button>
+      </div>
+
+      <div class="pc-topbar">
+        <t t-set="all_states" t-value="[]"/>
+        <t t-foreach="rows" t-as="r">
+          <t t-if="not selected_cat or r.x_categorie == selected_cat">
+          <t t-set="dd" t-value="derniere_date(r)"/>
+          <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
+          <t t-set="_x" t-value="all_states.append('vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')))"/>
+          </t>
+        </t>
+        <div class="pc-kpis">
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{'' if selected_etat == 'retard' else 'retard'}}" t-attf-class="pc-kpi retard {{'on' if selected_etat == 'retard' else ''}}" style="text-decoration:none;">⛔ En retard <b><t t-esc="all_states.count('retard')"/></b></a>
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{'' if selected_etat == 'proche' else 'proche'}}" t-attf-class="pc-kpi proche {{'on' if selected_etat == 'proche' else ''}}" style="text-decoration:none;">⚠ Sous 30 j <b><t t-esc="all_states.count('proche')"/></b></a>
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{'' if selected_etat == 'ok' else 'ok'}}" t-attf-class="pc-kpi ok {{'on' if selected_etat == 'ok' else ''}}" style="text-decoration:none;">✓ À jour <b><t t-esc="all_states.count('ok')"/></b></a>
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{'' if selected_etat == 'vide' else 'vide'}}" t-attf-class="pc-kpi vide {{'on' if selected_etat == 'vide' else ''}}" style="text-decoration:none;">? À renseigner <b><t t-esc="all_states.count('vide')"/></b></a>
+        </div>
+        <div class="pc-filters">
+          <a t-attf-href="/parc-controles?etat={{selected_etat}}" t-attf-class="{{'on' if not selected_cat else ''}}">Toutes catégories</a>
+          <t t-foreach="[('vp','Voitures'),('vul','Utilitaires'),('pl_porteur','Camions porteurs'),('pl_tracteur','Tracteurs routiers'),('remorque','Remorques'),('terrassement','Engins de terrassement'),('levage','Levage (chariots/télescopiques)')]" t-as="cc">
+            <a t-attf-href="/parc-controles?cat={{cc[0]}}&amp;etat={{selected_etat}}" t-attf-class="{{'on' if selected_cat == cc[0] else ''}}" t-esc="cc[1]"/>
+          </t>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+      <table class="pc">
+        <thead>
+          <tr>
+            <th class="veh">Véhicule</th>
+            <t t-foreach="types" t-as="ty">
+              <th t-esc="ty.x_name"/>
+            </t>
+          </tr>
+        </thead>
+        <tbody>
+          <t t-foreach="vehicules" t-as="v">
+            <t t-set="vrows" t-value="by_veh.get(v.id, {})"/>
+            <t t-if="vrows">
+              <t t-set="vcat" t-value="list(vrows.values())[0].x_categorie"/>
+              <t t-if="not selected_cat or vcat == selected_cat">
+              <t t-set="vstates" t-value="[]"/>
+              <t t-foreach="types" t-as="ty">
+                <t t-if="ty.id in vrows">
+                  <t t-set="r" t-value="vrows[ty.id]"/>
+                  <t t-set="dd" t-value="derniere_date(r)"/>
+                  <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
+                  <t t-set="_x" t-value="vstates.append('vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')))"/>
+                </t>
+              </t>
+              <t t-if="not selected_etat or selected_etat in vstates">
+              <tr>
+                <td class="veh">
+                  <t t-esc="v.name.split('/')[-2] if '/' in v.name else v.name"/>
+                  <small>
+                    <t t-esc="v.license_plate or ''"/>
+                    <t t-if="v.odometer"> · <span class="km"><t t-esc="'{:,.0f}'.format(v.odometer).replace(',', ' ')"/> <t t-esc="'km' if v.odometer_unit == 'kilometers' else 'h'"/></span></t>
+                  </small>
+                </td>
+                <t t-foreach="types" t-as="ty">
+                  <t t-if="ty.id in vrows">
+                    <t t-set="r" t-value="vrows[ty.id]"/>
+                    <t t-set="dd" t-value="derniere_date(r)"/>
+                    <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
+                    <t t-set="etat" t-value="'vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok'))"/>
+                    <td>
+                      <button type="button" t-attf-class="pc-cell {{etat}}" t-att-data-id="r.id" t-att-data-veh="v.name" t-att-data-type="ty.x_name" t-att-data-mois="ty.x_periodicite_mois" t-att-data-date="dd or ''">
+                        <t t-if="dd">
+                          <t t-esc="dd.strftime('%d/%m/%y')"/><br/>
+                          <t t-if="ech">→ <t t-esc="ech.strftime('%d/%m/%y')"/></t>
+                        </t>
+                        <t t-else="">À renseigner</t>
+                      </button>
+                    </td>
+                  </t>
+                  <t t-else="">
+                    <td class="na">—</td>
+                  </t>
+                </t>
+              </tr>
+              </t>
+              </t>
+            </t>
+          </t>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="pc-legend">
+        <span><i style="background:#fecaca;"/> En retard</span>
+        <span><i style="background:#fde68a;"/> Échéance sous 30 jours</span>
+        <span><i style="background:#bbf7d0;"/> À jour</span>
+        <span><i style="background:#f1f5f9;"/> Jamais renseigné</span>
+        <span>Cliquez sur une case pour saisir la date du dernier contrôle</span>
+      </div>
+    </div>
+
+    <div class="pc-pop" id="pcPop">
+      <div class="pc-pop-box">
+        <h5 id="pcPopVeh"/>
+        <div class="sub" id="pcPopType"/>
+        <label>Dernier contrôle réalisé le</label>
+        <input type="date" id="pcPopDate"/>
+        <div class="sub" id="pcPopNext" style="margin-bottom:12px;"/>
+        <button type="button" class="pc-btn-valid" id="pcPopValid" style="width:100%;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;background:#dcfce7;color:#166534;margin-bottom:10px;">✓ Valider aujourd'hui — planifie le prochain contrôle</button>
+        <div class="row">
+          <button type="button" class="pc-btn-cancel" id="pcPopCancel">Annuler</button>
+          <button type="button" class="pc-btn-clear" id="pcPopClear">Effacer</button>
+          <button type="button" class="pc-btn-save" id="pcPopSave">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        var pop = document.getElementById('pcPop');
+        var curId = null, curMois = 0;
+        function nextEch(dateVal){
+          if(!dateVal || !curMois){ return ''; }
+          var d = new Date(dateVal + 'T00:00:00');
+          d.setDate(d.getDate() + 30 * curMois);
+          return d.toLocaleDateString('fr-FR');
+        }
+        function refreshNext(){
+          var dv = document.getElementById('pcPopDate').value;
+          var n = nextEch(dv);
+          document.getElementById('pcPopNext').textContent = n ? ('Prochain contrôle planifié automatiquement autour du ' + n) : '';
+        }
+        function openPop(btn){
+          curId = btn.getAttribute('data-id');
+          curMois = parseInt(btn.getAttribute('data-mois'), 10) || 0;
+          document.getElementById('pcPopVeh').textContent = btn.getAttribute('data-veh');
+          document.getElementById('pcPopType').textContent = btn.getAttribute('data-type') + ' — périodicité ' + btn.getAttribute('data-mois') + ' mois';
+          document.getElementById('pcPopDate').value = btn.getAttribute('data-date') || '';
+          refreshNext();
+          pop.classList.add('show');
+        }
+        function closePop(){ pop.classList.remove('show'); curId = null; curMois = 0; }
+        document.querySelectorAll('.pc-cell').forEach(function(b){ b.addEventListener('click', function(){ openPop(b); }); });
+        document.getElementById('pcPopCancel').addEventListener('click', closePop);
+        document.getElementById('pcPopDate').addEventListener('change', refreshNext);
+        pop.addEventListener('click', function(e){ if(e.target === pop){ closePop(); } });
+        function save(dateVal){
+          if(!curId){ return; }
+          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2055]], kwargs:{context:{active_model:'x_controle_vehicule', pc_id:curId, pc_date:dateVal || ''}}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ alert('Échec : ' + (d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            location.reload();
+          }).catch(function(){ alert('Échec réseau'); });
+        }
+        document.getElementById('pcPopSave').addEventListener('click', function(){ save(document.getElementById('pcPopDate').value); });
+        document.getElementById('pcPopValid').addEventListener('click', function(){
+          var t = new Date();
+          var iso = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+          save(iso);
+        });
+        document.getElementById('pcPopClear').addEventListener('click', function(){ if(confirm('Effacer la date de ce contrôle ?\n(la ligne d\'historique déjà créée dans l\'onglet Services du véhicule ne sera pas supprimée, et le prochain contrôle planifié automatiquement sera annulé)')){ save(''); } });
+        var emSave = document.getElementById('pcEmailsSave');
+        if(emSave){ emSave.addEventListener('click', function(){
+          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2056]], kwargs:{context:{active_model:'x_controle_vehicule', pc_emails:document.getElementById('pcEmails').value}}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ alert('Échec : ' + (d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            emSave.textContent = '✓ Enregistré';
+            setTimeout(function(){ emSave.textContent = 'Enregistrer'; }, 2000);
+          }).catch(function(){ alert('Échec réseau'); });
+        }); }
+      })();
+    </script>
+  </t>
+</t>
