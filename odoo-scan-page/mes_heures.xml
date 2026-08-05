@@ -165,6 +165,70 @@
             </t>
           </div>
         </t>
+        <!-- ===== Mes congés (compteurs période 01/06 → 31/05) ===== -->
+        <t t-set="per_start" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/>
+        <t t-set="per_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',per_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="n_cp" t-value="len(per_rows.filtered(lambda r: r.x_type == 'cp'))"/>
+        <t t-set="n_rec" t-value="len(per_rows.filtered(lambda r: r.x_type == 'recup'))"/>
+        <t t-set="n_mal" t-value="len(per_rows.filtered(lambda r: r.x_type == 'maladie'))"/>
+        <t t-set="n_abs" t-value="len(per_rows.filtered(lambda r: r.x_type == 'absence'))"/>
+        <t t-set="allocs" t-value="request.env['hr.leave.allocation'].sudo().search([('employee_id','=',emp.id),('state','=','validate'),('holiday_status_id.name','=','Congés payés'),('date_from','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="allocs" t-value="allocs.filtered(lambda a: not a.date_to or a.date_to &gt;= today)"/>
+        <t t-set="droit" t-value="sum(allocs.mapped('number_of_days'))"/>
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🏖 Mes congés</div>
+          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Période du <t t-esc="per_start.strftime('%d/%m/%Y')"/> à aujourd'hui</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <t t-if="droit &gt; 0">
+              <div style="flex:1;min-width:100px;background:#ECFDF5;border-radius:10px;padding:8px 10px;text-align:center;">
+                <div style="font-size:22px;font-weight:900;color:#047857;"><t t-esc="'%g' % (droit - n_cp)"/></div>
+                <div style="font-size:11px;font-weight:800;color:#065F46;">CP restants</div>
+                <div style="font-size:10px;color:#94a3b8;">sur <t t-esc="'%g' % droit"/> acquis</div>
+              </div>
+            </t>
+            <div style="flex:1;min-width:90px;background:#FEF3C7;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="n_cp"/></div>
+              <div style="font-size:11px;font-weight:800;color:#92400e;">CP pris</div>
+            </div>
+            <div style="flex:1;min-width:90px;background:#E0F2FE;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#075985;"><t t-esc="n_rec"/></div>
+              <div style="font-size:11px;font-weight:800;color:#075985;">Récups</div>
+            </div>
+            <div style="flex:1;min-width:90px;background:#FEE2E2;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#991b1b;"><t t-esc="n_mal"/></div>
+              <div style="font-size:11px;font-weight:800;color:#991b1b;">Maladie</div>
+            </div>
+            <div t-if="n_abs" style="flex:1;min-width:90px;background:#FECACA;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#7f1d1d;"><t t-esc="n_abs"/></div>
+              <div style="font-size:11px;font-weight:800;color:#7f1d1d;">Absences</div>
+            </div>
+          </div>
+          <div t-if="not droit" style="margin-top:8px;color:#94a3b8;font-size:11.5px;">Le solde de CP restants sera affiché ici dès que le bureau aura enregistré votre droit annuel. En attendant, le compteur « CP pris » fait foi — voir le bureau pour votre solde exact.</div>
+        </div>
+
+        <!-- ===== Mon mois ===== -->
+        <t t-set="m_start" t-value="today.replace(day=1)"/>
+        <t t-set="m_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',m_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="m_eff" t-value="sum(m_rows.filtered(lambda r: r.x_type == 'travail').mapped('x_heures'))"/>
+        <t t-set="m_theo" t-value="sum(m_rows.filtered(lambda r: r.x_type == 'travail').mapped('x_theo'))"/>
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">📊 Mon mois — <t t-esc="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][today.month - 1]"/></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:100px;background:#f1f5f9;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:20px;font-weight:900;color:#0f172a;"><t t-esc="'%.1f' % m_eff"/> h</div>
+              <div style="font-size:11px;font-weight:800;color:#64748b;">effectuées</div>
+            </div>
+            <div style="flex:1;min-width:100px;background:#f1f5f9;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:20px;font-weight:900;color:#0f172a;"><t t-esc="'%.1f' % m_theo"/> h</div>
+              <div style="font-size:11px;font-weight:800;color:#64748b;">théorique saisi</div>
+            </div>
+            <div t-attf-style="flex:1;min-width:100px;background:{{'#ECFDF5' if m_eff &gt;= m_theo else '#FEF3C7'}};border-radius:10px;padding:8px 10px;text-align:center;">
+              <div t-attf-style="font-size:20px;font-weight:900;color:{{'#047857' if m_eff &gt;= m_theo else '#92400e'}};"><t t-esc="('+' if m_eff &gt;= m_theo else '') + ('%.1f' % (m_eff - m_theo))"/> h</div>
+              <div style="font-size:11px;font-weight:800;color:#64748b;">écart</div>
+            </div>
+          </div>
+        </div>
+
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
           <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🏖 Demander des congés</div>
           <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
@@ -195,6 +259,30 @@
             </t>
           </div>
         </div>
+        <!-- ===== Mes coordonnées ===== -->
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">📇 Mes coordonnées</div>
+          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Tenez-les à jour : elles servent au bureau pour vous joindre (et en cas d'urgence).</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
+            <label style="font-weight:800;color:#64748b;font-size:13px;">📱 Portable</label>
+            <input type="tel" id="mh-co-mobile" t-att-value="emp.private_phone or ''" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">✉️ Email perso</label>
+            <input type="email" id="mh-co-email" t-att-value="emp.private_email or ''" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">🏠 Adresse</label>
+            <input type="text" id="mh-co-rue" t-att-value="emp.private_street or ''" placeholder="rue" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;"></label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="mh-co-cp" t-att-value="emp.private_zip or ''" placeholder="CP" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;width:90px;"/>
+              <input type="text" id="mh-co-ville" t-att-value="emp.private_city or ''" placeholder="ville" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;flex:1;"/>
+            </div>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">🆘 Urgence</label>
+            <input type="text" id="mh-co-urgnom" t-att-value="emp.emergency_contact or ''" placeholder="personne à prévenir" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;"></label>
+            <input type="tel" id="mh-co-urgtel" t-att-value="emp.emergency_phone or ''" placeholder="son téléphone" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+          </div>
+          <button type="button" id="mh-co-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#0f172a;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">💾 Enregistrer mes coordonnées</button>
+        </div>
+
         <div t-att-data-emp="emp.id" t-att-data-tok="tok" id="mh-data" style="display:none;"/>
         <script>
 (function(){
@@ -273,6 +361,28 @@
       alert('✓ Demande envoyée à votre responsable.');
       location.reload();
     }).catch(function(){ dcgo.disabled = false; alert('Échec réseau'); });
+  }); }
+  var cogo = document.getElementById('mh-co-go');
+  if(cogo){ cogo.addEventListener('click', function(){
+    cogo.disabled = true;
+    var ctx = {active_model:'hr.employee', co_emp:EMP, co_token:TOK,
+               co_mobile:document.getElementById('mh-co-mobile').value,
+               co_email:document.getElementById('mh-co-email').value,
+               co_rue:document.getElementById('mh-co-rue').value,
+               co_cp:document.getElementById('mh-co-cp').value,
+               co_ville:document.getElementById('mh-co-ville').value,
+               co_urg_nom:document.getElementById('mh-co-urgnom').value,
+               co_urg_tel:document.getElementById('mh-co-urgtel').value};
+    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2048]],kwargs:{context:ctx}}})
+    }).then(function(r){return r.json();}).then(function(d){
+      cogo.disabled = false;
+      if(d.error){ handleErr(d); return; }
+      var n = (d.result || {}).changed || 0;
+      cogo.textContent = n ? '✓ Coordonnées enregistrées' : '✓ Rien à modifier';
+      cogo.style.background = '#15803d';
+      setTimeout(function(){ cogo.textContent = '💾 Enregistrer mes coordonnées'; cogo.style.background = '#0f172a'; }, 2500);
+    }).catch(function(){ cogo.disabled = false; alert('Échec réseau'); });
   }); }
 })();
         </script>

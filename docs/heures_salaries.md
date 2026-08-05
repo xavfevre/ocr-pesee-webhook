@@ -157,6 +157,22 @@ couvert par une attribution, et le test à blanc de changement d'horaire passe
 pour les **32 fiches actives sur 32** (la 33ᵉ était le doublon DISTRI BETON de
 Christophe MAQUIGNON, archivé le même jour).
 
+## Enrichissement de la page salarié (05/08)
+Trois nouveaux blocs sur `/mes-heures`, sous la semaine :
+- **🏖 Mes congés** : compteurs de la période CP en cours (01/06 → 31/05) —
+  CP pris, récups, maladie, absences — calculés depuis la feuille d'heures
+  (`x_heures_jour`, la source fiable du groupe). Le **solde de CP restants**
+  ne s'affiche que si une attribution Odoo validée couvre la date du jour
+  (droit − pris) ; sinon un message renvoie vers le bureau. Pour que le
+  solde apparaisse pour tous, créer les attributions annuelles dans Congés.
+- **📊 Mon mois** : heures effectuées vs théorique saisi du mois, écart
+  coloré.
+- **📇 Mes coordonnées** : le salarié met à jour lui-même portable, email
+  perso, adresse, contact d'urgence. Enregistrement via l'action serveur
+  **2048** (jeton vérifié, champs limités à cette liste blanche) ; chaque
+  modification est **tracée dans le journal de la fiche salarié** (ancienne
+  et nouvelle valeur), visible par Charlotte et Isabelle.
+
 ## Bug corrigé (30/07) — le lundi n'était pas enregistré
 **Symptôme** : tout horaire saisi via /heures-horaires perdait le lundi ;
 le total affiché (ex. 28 h au lieu de 35 h) était juste — c'est la donnée
