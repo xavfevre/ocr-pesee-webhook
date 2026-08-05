@@ -48,3 +48,27 @@ Rendu testé avec session authentifiée (la page nécessite une connexion
 interne, non accessible en anonyme) : HTTP 200, aucune trace d'erreur,
 colonne présente avec ses 41 blocs (40 clients + « Sans client »), grille
 et cartes existantes intactes.
+
+## Complément (06/08/2026) — alignement des deux compteurs
+
+Le bandeau « Demandes à traiter » comptait 69, la nouvelle colonne 51 :
+écart de 18 tâches déjà planifiées (jour + véhicule visibles sur la grille)
+mais jamais sorties de l'étape « Nouvelle demande ».
+
+- Colonne recentrée sur l'étape « Nouvelle demande » uniquement (au lieu de
+  toutes les étapes actives sans date).
+- Les 18 tâches déjà planifiées mais bloquées en « Nouvelle demande »
+  déplacées vers « In Progress ».
+- **Automatisation créée** (id 83, action serveur 2046) : dès qu'une tâche
+  du projet « Demande de transport » reçoit une date de planification alors
+  qu'elle est encore en « Nouvelle demande », elle passe automatiquement en
+  « In Progress ». Les deux compteurs resteront alignés sans intervention
+  manuelle.
+
+**Point technique découvert en testant** : sur `project.task`,
+`planned_date_begin` est ignoré en écriture s'il n'est pas envoyé **en même
+temps** que `date_deadline` (widget de dates couplées) — un `write()` avec
+seulement le champ de début est silencieusement sans effet. Le nouveau
+glisser-déposer depuis la colonne « À planifier » envoie bien les deux
+champs (fin = début + 1h par défaut), donc l'automatisation se déclenche
+correctement à chaque dépose.
