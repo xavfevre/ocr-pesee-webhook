@@ -155,15 +155,28 @@
       </t>
       <t t-set="filtered_records" t-value="[t for t in filtered_records if t.planned_date_begin]"/>
 
+      <!-- Tâches à planifier (sans date), groupées par client -->
+      <t t-set="backlog_all" t-value="[t for t in all_records if not t.planned_date_begin and not (t.stage_id and (('annul' in t.stage_id.name.lower()) or ('realise' in t.stage_id.name.lower()) or ('cancel' in t.stage_id.name.lower())))]"/>
+      <t t-set="backlog" t-value="backlog_all"/>
+      <t t-if="selected_chauffeur">
+        <t t-set="backlog" t-value="[t for t in backlog if t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur]"/>
+      </t>
+      <t t-if="selected_client">
+        <t t-set="backlog" t-value="[t for t in backlog if t.partner_id and t.partner_id.display_name == selected_client]"/>
+      </t>
+      <t t-set="backlog_clients" t-value="sorted(set([(t.partner_id.id, t.partner_id.display_name) for t in backlog if t.partner_id]), key=lambda c: (-len([x for x in backlog if x.partner_id and x.partner_id.id == c[0]]), c[1]))"/>
+      <t t-set="backlog_no_client" t-value="[t for t in backlog if not t.partner_id]"/>
+
       <!-- VERSION DESKTOP : Table avec bandeau fixe -->
       <div id="tpDesktop" class="d-none d-md-block">
         <!-- Bandeau fixe des transports -->
         <t t-set="immats" t-value="sorted(set([t.x_studio_transport.display_name for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]))"/>
         <t t-set="immats" t-value="list(immats) + ['SANS TRANSPORT']"/>
         <t t-set="carriers" t-value="sorted(set([t.x_studio_transport for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]), key=lambda c: c.display_name)"/>
-        
+
         <div id="stickyHeader" class="d-none d-md-block sticky-header" style="display: none;">
-          <div class="d-flex bg-dark text-white py-2" style="min-width: 1400px;">
+          <div class="d-flex bg-dark text-white py-2" style="min-width: 1630px;">
+            <div class="header-cell" style="width: 230px; min-width: 230px; background:#7f1d1d;">⚠ À planifier</div>
             <div class="header-cell" style="width: 100px; min-width: 100px;">Jour</div>
             <t t-foreach="immats" t-as="immat">
               <div class="header-cell" style="min-width: 180px; flex: 1;">
@@ -180,9 +193,10 @@
         </div>
 
         <div class="table-responsive d-none d-md-block tt-scroll">
-          <table id="mainTable" class="table table-sm table-bordered text-center align-middle" style="min-width: 1400px;">
+          <table id="mainTable" class="table table-sm table-bordered text-center align-middle" style="min-width: 1630px;">
             <thead class="table-dark small">
               <tr>
+                <th style="width: 230px; min-width: 230px; background:#7f1d1d;">⚠ À planifier (<t t-esc="len(backlog)"/>)</th>
                 <th style="width: 100px;">Jour</th>
                 <t t-foreach="immats" t-as="immat">
                   <th style="min-width: 180px;">
@@ -205,6 +219,54 @@
                 <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
                 
                 <tr t-attf-class="{{is_today and 'table-warning' or ''}}" style="height: 120px;">
+                  <t t-if="day_offset == 0">
+                    <td rowspan="7" class="align-top p-1" style="min-width:230px;max-width:230px;background:#FBEAEA;vertical-align:top;">
+                      <div style="max-height:900px;overflow-y:auto;">
+                        <h6 class="text-danger mb-2" style="position:sticky;top:0;background:#FBEAEA;z-index:4;padding:4px 0;margin:0;font-size:13px;">⚠ À planifier (<t t-esc="len(backlog)"/>)</h6>
+                        <t t-foreach="backlog_clients" t-as="bc">
+                          <t t-set="bc_id" t-value="bc[0]"/>
+                          <t t-set="bc_name" t-value="bc[1]"/>
+                          <t t-set="bc_tasks" t-value="[t for t in backlog if t.partner_id and t.partner_id.id == bc_id]"/>
+                          <t t-set="bc_color" t-value="palette[sum([ord(ch) for ch in bc_name]) % len(palette)]"/>
+                          <div t-attf-style="border-left:4px solid {{bc_color}};border-radius:4px;margin-bottom:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);">
+                            <div t-attf-style="background:{{bc_color}}22;color:{{bc_color}};font-weight:800;font-size:10.5px;padding:3px 6px;border-radius:0 3px 0 0;">
+                              🏢 <t t-esc="bc_name"/> (<t t-esc="len(bc_tasks)"/>)
+                            </div>
+                            <div style="padding:3px;">
+                              <t t-foreach="bc_tasks" t-as="tache">
+                                <div class="tp-card border rounded mb-1 p-1 small text-start hover-shadow" style="font-size:10.5px;cursor:grab;position:relative;background:#fff;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" data-status="autre" t-att-data-id="tache.id" data-begin="" data-end="">
+                                  <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:9px;text-decoration:none;" title="Ouvrir la tâche">🔗</a>
+                                  <strong class="d-block text-truncate" style="padding-right:14px;"><t t-esc="tache.name"/></strong>
+                                  <div class="text-muted" style="font-size:9.5px;">
+                                    <t t-esc="tache.stage_id.name if tache.stage_id else 'Sans étape'"/>
+                                    <t t-if="tache.create_date"> · <t t-esc="tache.create_date.strftime('%d/%m/%y')"/></t>
+                                  </div>
+                                  <div t-if="tache.x_studio_chauffeur" class="text-truncate" style="font-size:9.5px;color:#0369a1;">👤 <t t-esc="tache.x_studio_chauffeur.display_name"/></div>
+                                </div>
+                              </t>
+                            </div>
+                          </div>
+                        </t>
+                        <t t-if="backlog_no_client">
+                          <div style="border-left:4px solid #94a3b8;border-radius:4px;margin-bottom:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);">
+                            <div style="background:#94a3b822;color:#475569;font-weight:800;font-size:10.5px;padding:3px 6px;">🏢 Sans client (<t t-esc="len(backlog_no_client)"/>)</div>
+                            <div style="padding:3px;">
+                              <t t-foreach="backlog_no_client" t-as="tache">
+                                <div class="tp-card border rounded mb-1 p-1 small text-start hover-shadow" style="font-size:10.5px;cursor:grab;position:relative;background:#fff;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" data-status="autre" t-att-data-id="tache.id" data-begin="" data-end="">
+                                  <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:9px;text-decoration:none;" title="Ouvrir la tâche">🔗</a>
+                                  <strong class="d-block text-truncate" style="padding-right:14px;"><t t-esc="tache.name"/></strong>
+                                  <div class="text-muted" style="font-size:9.5px;">
+                                    <t t-esc="tache.stage_id.name if tache.stage_id else 'Sans étape'"/>
+                                    <t t-if="tache.create_date"> · <t t-esc="tache.create_date.strftime('%d/%m/%y')"/></t>
+                                  </div>
+                                </div>
+                              </t>
+                            </div>
+                          </div>
+                        </t>
+                      </div>
+                    </td>
+                  </t>
                   <td class="fw-bold small align-top pt-2" style="width: 100px;">
                     <t t-if="day_name_en == 'Monday'">Lun</t>
                     <t t-if="day_name_en == 'Tuesday'">Mar</t>
@@ -677,17 +739,20 @@
           var day = cell.getAttribute('data-day');
           var engin = parseInt(cell.getAttribute('data-engin'));
           var begin = card.getAttribute('data-begin');
-          var time = begin.split(' ')[1];
+          var fromBacklog = !begin;
+          var time = begin ? begin.split(' ')[1] : '08:00:00';
           var newBegin = day + ' ' + time;
           var vals = { planned_date_begin: newBegin, x_studio_transport: engin &gt; 0 ? engin : false };
           var end = card.getAttribute('data-end');
           if (end) { vals.date_deadline = fmtUTC(pms(newBegin) + (pms(end) - pms(begin))); }
+          else if (fromBacklog) { vals.date_deadline = fmtUTC(pms(newBegin) + 3600000); }
           var origin = card.parentNode;
           cell.appendChild(card);
           card.setAttribute('data-begin', newBegin);
-          if (end) { card.setAttribute('data-end', vals.date_deadline); }
+          if (vals.date_deadline) { card.setAttribute('data-end', vals.date_deadline); }
           rpcWrite(taskId, vals, function (ok, msg) {
             if (!ok) { origin.appendChild(card); alert('Échec : ' + msg); }
+            else if (fromBacklog) { window.location.reload(); }
           });
         }
         var cards = document.querySelectorAll('.tp-card');
