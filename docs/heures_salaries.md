@@ -80,8 +80,19 @@ Odoo et vérifie le marqueur du relais en relecture).
 ## Notes
 - Les horaires de référence se règlent dans Odoo : fiche employé → Horaires
   de travail. Tout salarié à horaire particulier doit avoir son calendrier.
-- Évolutions possibles : jours fériés automatiques, verrouillage du mois après
-  export, signature salarié.
+- Évolutions possibles : verrouillage du mois après export, signature salarié.
+
+## Jours fériés automatiques (05/08)
+Action serveur **2049** + cron mensuel (**122**) : pour les ~120 prochains
+jours, crée une ligne « férié » dans la feuille d'heures de chaque salarié
+dont c'est un **jour ouvré selon son calendrier** (parité 2 semaines gérée,
+théorique du jour renseigné). Fériés France calculés (11 jours, Pâques par
+algorithme — pas de dépendance) ; ne touche jamais un jour déjà saisi, le
+bureau peut requalifier un férié travaillé via /heures-admin. Première
+exécution : 15/08 créé pour les 2 salariées du samedi, 01/11 (dimanche)
+pour personne, 11/11 pour les 33 fiches. Les fériés apparaissent partout
+(grille admin, planning, page salarié en bandeau violet, export paie
+mention FERIE).
 
 ## Raccourcis dans le module Présences (30/07)
 Menu **Présences → Heures & congés** (déplacé depuis Employés) :
