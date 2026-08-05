@@ -92,14 +92,20 @@ le verrou. Stocké dans `ir.config_parameter maquignon.heures_verrou`,
 posé/levé par l'action **2050** (clé responsables, via le relais Render).
 Usage type : après l'export paie du mois, figer au dernier jour du mois.
 
-## Présences Odoo : détection d'absences désactivée (05/08)
-Le module Présences n'est **pas alimenté** par les feuilles d'heures (ce
-sont les pages web + export paie qui font foi). Le cron Odoo « Attendance:
-Detect Absences » créait chaque nuit des pointages techniques d'1 seconde
-(blocs rouges 0h dans Présences) pour tous les salariés sans badge — du
-bruit, puisque personne ne badge. Cron désactivé, les 21 pointages
-techniques supprimés. À réactiver seulement si un jour le badgeage kiosque
-est utilisé.
+## Présences Odoo alimenté par la saisie web (05/08)
+La saisie web **vaut pointage kiosque** : chaque journée « travail »
+enregistrée (salarié ou bureau, action 2012) crée les pointages
+`hr.attendance` correspondants — un le matin, un l'après-midi — en heure
+locale Europe/Paris convertie en UTC. Une correction remplace les pointages
+du jour ; une requalification en CP/maladie/férié/absence (2012 ou
+approbation de congés 2014) les retire. L'historique des saisies a été
+rattrapé (54 pointages recréés). Le planning du module Présences reflète
+donc les feuilles d'heures ; l'export paie reste la référence.
+
+Le cron Odoo « Attendance: Detect Absences » reste **désactivé** : il
+créait chaque nuit des pointages techniques 0h (blocs rouges) pour tout
+salarié « sans badge », redondants avec le « ! » des feuilles d'heures
+(54 marqueurs purgés en tout).
 
 ## Vue mensuelle salarié (05/08)
 Basculeur **Semaine / Mois** en haut de `/mes-heures`. La vue mois affiche
