@@ -15,9 +15,14 @@
     <t t-set="day_records" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('planned_date_begin','&lt;',dt)], order='planned_date_begin')"/>
 
     <t t-set="selected_chauffeur" t-value="request.params.get('chauffeur', '')"/>
+    <t t-set="selected_client" t-value="request.params.get('client', '')"/>
     <t t-set="chauffeurs_list" t-value="sorted(set([t.x_studio_chauffeur.display_name for t in day_records if t.x_studio_chauffeur]))"/>
+    <t t-set="clients_list" t-value="sorted(set([t.partner_id.display_name for t in day_records if t.partner_id]))"/>
     <t t-if="selected_chauffeur">
       <t t-set="day_records" t-value="day_records.filtered(lambda t: t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur)"/>
+    </t>
+    <t t-if="selected_client">
+      <t t-set="day_records" t-value="day_records.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/>
     </t>
 
     <t t-set="bon_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',day_records.ids),('x_studio_photo_bon','!=',False)])"/>
@@ -103,16 +108,16 @@
     <div class="ptj-wrap">
       <div class="ptj-topbar">
         <div class="ptj-head">
-          <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;chauffeur={{selected_chauffeur}}" class="btn">◀ Préc.</a>
+          <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn">◀ Préc.</a>
           <div class="ptj-datebox">
             📅 <t t-esc="jours_noms[day.weekday()]"/> <t t-esc="day.day"/> <t t-esc="mois_noms[day.month - 1]"/> <t t-esc="day.year"/>
             <small><t t-if="is_today">Aujourd'hui</t><t t-else="">Semaine <t t-esc="day.isocalendar()[1]"/></t></small>
           </div>
-          <a t-attf-href="/planning-transport-jour?day={{next_d}}&amp;chauffeur={{selected_chauffeur}}" class="btn">Suiv. ▶</a>
-          <a t-attf-href="/planning-transport-jour?chauffeur={{selected_chauffeur}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
+          <a t-attf-href="/planning-transport-jour?day={{next_d}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn">Suiv. ▶</a>
+          <a t-attf-href="/planning-transport-jour?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
           <input type="date" id="ptjPick" t-att-value="day.strftime('%Y-%m-%d')"/>
-          <a href="/model/tache" class="btn">🗓️ Vue semaine</a>
-          <a href="/planning-transport-mois" class="btn">📆 Vue mois</a>
+          <a t-attf-href="/model/tache?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}&amp;limit=1000" class="btn">🗓️ Vue semaine</a>
+          <a t-attf-href="/planning-transport-mois?client={{selected_client}}" class="btn">📆 Vue mois</a>
         </div>
 
         <div class="ptj-summary">
@@ -120,6 +125,15 @@
             <option value="">👥 Tous chauffeurs</option>
             <t t-foreach="chauffeurs_list" t-as="ch">
               <option t-att-value="ch" t-att-selected="'selected' if ch == selected_chauffeur else None"><t t-esc="ch"/></option>
+            </t>
+          </select>
+          <select onchange="ptjFilter('client', this.value)">
+            <option value="">🏢 Tous clients</option>
+            <t t-if="selected_client and selected_client not in clients_list">
+              <option t-att-value="selected_client" selected="selected"><t t-esc="selected_client"/></option>
+            </t>
+            <t t-foreach="clients_list" t-as="cl">
+              <option t-att-value="cl" t-att-selected="'selected' if cl == selected_client else None"><t t-esc="cl"/></option>
             </t>
           </select>
           <span class="ptj-kpi"><b><t t-esc="len(day_records)"/></b> tâche<t t-if="len(day_records) != 1">s</t></span>

@@ -30,22 +30,51 @@
         📅 Planning Transport
       </h5>
       
-      <!-- Bandeau infos semaine + filtres côte à côte -->
+      <!-- Bandeau : navigation puis filtres (même organisation que la vue jour) -->
       <div class="text-center small mb-2 p-2 bg-light rounded">
         <t t-set="today" t-value="datetime.datetime.now()"/>
         <t t-set="week_start" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(weeks=current_week_offset)"/>
         <t t-set="week_end" t-value="week_start + datetime.timedelta(days=6)"/>
 
-        <strong><t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
-        <span class="text-muted">
-          <t t-if="current_week_offset == 0">Semaine courante</t>
-          <t t-elif="current_week_offset == -1">Semaine dernière</t>
-          <t t-elif="current_week_offset == 1">Semaine prochaine</t>
-          <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
-          <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
-        </span>
+        <!-- Ligne 1 : navigation (desktop) -->
+        <div class="d-none d-md-flex justify-content-center align-items-center gap-2 flex-wrap">
+          <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
+            <i class="fa fa-chevron-left"/> Préc.
+          </a>
+          <div style="min-width:230px;line-height:1.25;">
+            <strong style="font-size:17px;color:#15324f;">📅 <t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
+            <span class="text-muted" style="font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;">
+              <t t-if="current_week_offset == 0">Semaine courante</t>
+              <t t-elif="current_week_offset == -1">Semaine dernière</t>
+              <t t-elif="current_week_offset == 1">Semaine prochaine</t>
+              <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
+              <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
+              · Sem. <t t-esc="week_start.isocalendar()[1]"/>
+            </span>
+          </div>
+          <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
+            Suiv. <i class="fa fa-chevron-right"/>
+          </a>
+          <a t-attf-href="?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-success btn-sm">Semaine en cours</a>
+          <input type="week" id="tpWeekPick" t-attf-value="{{week_start.isocalendar()[0]}}-W{{'%02d' % week_start.isocalendar()[1]}}" class="form-control form-control-sm w-auto" style="font-weight:700;border-radius:10px;border-color:#cbd5e1;" title="Aller directement à une semaine"/>
+          <a t-attf-href="/planning-transport-jour?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}" class="btn btn-warning btn-sm">📆 Vue jour</a>
+          <a t-attf-href="/planning-transport-mois?client={{request.params.get('client', '')}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
+          <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
+        </div>
 
-        <!-- Filtres côte à côte -->
+        <!-- Dates (mobile) -->
+        <div class="d-md-none">
+          <strong><t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
+          <span class="text-muted">
+            <t t-if="current_week_offset == 0">Semaine courante</t>
+            <t t-elif="current_week_offset == -1">Semaine dernière</t>
+            <t t-elif="current_week_offset == 1">Semaine prochaine</t>
+            <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
+            <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
+          </span>
+        </div>
+
+        <!-- Ligne 2 : filtres -->
         <div class="mt-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
           <t t-set="selected_chauffeur" t-value="request.params.get('chauffeur', '')"/>
           <t t-set="chauffeurs_list" t-value="sorted(set([t.x_studio_chauffeur.display_name for t in all_records if t.x_studio_chauffeur and t.planned_date_begin]))"/>
@@ -83,22 +112,6 @@
       <!-- Compteur factures par statut (recalculé selon les filtres) -->
       <div id="tpCountBar" class="d-flex flex-wrap justify-content-center align-items-center gap-1 mb-2"></div>
 
-      <!-- Navigation semaine : Préc / Semaine en cours / Suiv -->
-      <div class="text-center mb-2 d-none d-md-flex justify-content-center align-items-center gap-2">
-        <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
-          <i class="fa fa-chevron-left"/> <span class="d-none d-md-inline">Préc.</span>
-        </a>
-        <a t-attf-href="?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-success btn-sm">
-          <i class="fa fa-calendar-check d-none d-md-inline"/> Semaine en cours
-        </a>
-        <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
-          <span class="d-none d-md-inline">Suiv.</span> <i class="fa fa-chevron-right"/>
-        </a>
-        <input type="week" id="tpWeekPick" t-attf-value="{{week_start.isocalendar()[0]}}-W{{'%02d' % week_start.isocalendar()[1]}}" class="form-control form-control-sm w-auto" style="font-weight:700;border-radius:10px;border-color:#cbd5e1;" title="Aller directement à une semaine"/>
-        <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
-        <a href="/planning-transport-jour" class="btn btn-warning btn-sm">📆 Vue jour</a>
-        <a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
-      </div>
 
       <!-- Demandes à traiter - Version responsive -->
       <div class="alert alert-info mb-2 py-2">
@@ -270,7 +283,7 @@
                     </td>
                   </t>
                   <td class="fw-bold small align-top pt-2" style="width: 100px;">
-                    <a t-attf-href="/planning-transport-jour?day={{current_date.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour">
+                    <a t-attf-href="/planning-transport-jour?day={{current_date.strftime('%Y-%m-%d')}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour">
                       <t t-if="day_name_en == 'Monday'">Lun</t>
                       <t t-if="day_name_en == 'Tuesday'">Mar</t>
                       <t t-if="day_name_en == 'Wednesday'">Mer</t>
@@ -416,7 +429,7 @@
           </div>
           <a t-attf-href="?day_offset={{m_off + 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
         </div>
-        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
+        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a t-attf-href="/planning-transport-mois?client={{selected_client}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
           <t t-set="day_name_en" t-value="current_date.strftime('%A')"/>
           <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
           
