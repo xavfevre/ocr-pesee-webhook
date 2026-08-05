@@ -115,6 +115,7 @@
     </style>
 
     <div class="ptj-wrap">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:800;color:#15324f;font-size:24px;">📅 Planning Transport — Vue jour</h3>
       <div class="ptj-topbar">
         <div class="ptj-head">
           <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn">◀ Préc.</a>
