@@ -51,6 +51,15 @@
       .mh-pick{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;}
       .mh-pick a{display:inline-block;margin:3px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;color:#0f172a;}
       .mh-soc{font-weight:900;color:#334155;margin:10px 0 4px;font-size:14px;text-transform:uppercase;}
+      /* ===== Vue ordinateur automatique (≥ 992px) : jours en grille + panneau latéral ===== */
+      @media (min-width: 992px) {
+        .mh-wrap{max-width:1240px;}
+        .mh-grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start;}
+        .mh-days{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start;}
+        .mh-day{margin-bottom:0;}
+        .mh-side > div{margin:0 0 14px 0 !important;}
+        .mh-brand .n{font-size:24px;}
+      }
     </style>
     <div class="mh-wrap">
       <t t-set="empp" t-value="request.params.get('emp')"/>
@@ -95,6 +104,8 @@
         <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
           ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
         </div>
+        <div class="mh-grid">
+        <div class="mh-days">
         <t t-foreach="range(7)" t-as="i">
           <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
           <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
@@ -165,6 +176,8 @@
             </t>
           </div>
         </t>
+        </div>
+        <div class="mh-side">
         <!-- ===== Mes congés (compteurs période 01/06 → 31/05) ===== -->
         <t t-set="per_start" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/>
         <t t-set="per_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',per_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
@@ -281,6 +294,8 @@
             <input type="tel" id="mh-co-urgtel" t-att-value="emp.emergency_phone or ''" placeholder="son téléphone" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
           </div>
           <button type="button" id="mh-co-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#0f172a;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">💾 Enregistrer mes coordonnées</button>
+        </div>
+        </div>
         </div>
 
         <div t-att-data-emp="emp.id" t-att-data-tok="tok" id="mh-data" style="display:none;"/>
