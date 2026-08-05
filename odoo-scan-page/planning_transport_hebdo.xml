@@ -156,7 +156,7 @@
       <t t-set="filtered_records" t-value="[t for t in filtered_records if t.planned_date_begin]"/>
 
       <!-- Tâches à planifier (sans date), groupées par client -->
-      <t t-set="backlog_all" t-value="[t for t in all_records if not t.planned_date_begin and not (t.stage_id and (('annul' in t.stage_id.name.lower()) or ('realise' in t.stage_id.name.lower()) or ('cancel' in t.stage_id.name.lower())))]"/>
+      <t t-set="backlog_all" t-value="[t for t in all_records if not t.planned_date_begin and t.stage_id and t.stage_id.name == 'Nouvelle demande']"/>
       <t t-set="backlog" t-value="backlog_all"/>
       <t t-if="selected_chauffeur">
         <t t-set="backlog" t-value="[t for t in backlog if t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur]"/>
