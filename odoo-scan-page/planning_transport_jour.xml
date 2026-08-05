@@ -21,8 +21,9 @@
     <t t-if="selected_chauffeur">
       <t t-set="day_records" t-value="day_records.filtered(lambda t: t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur)"/>
     </t>
+    <t t-set="chips_records" t-value="day_records"/>
     <t t-if="selected_client">
-      <t t-set="day_records" t-value="day_records.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/>
+      <t t-set="day_records" t-value="day_records.filtered(lambda t: (t.partner_id.display_name if t.partner_id else 'Sans client') == selected_client)"/>
     </t>
 
     <t t-set="bon_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',day_records.ids),('x_studio_photo_bon','!=',False)])"/>
@@ -32,13 +33,21 @@
     <t t-set="liv_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',day_records.ids),('x_studio_photo_1','!=',False)])"/>
     <t t-set="liv_map" t-value="{a.x_project_task_id.id: a.id for a in liv_atts}"/>
 
-    <!-- Regroupement par client -->
+    <!-- Regroupement par client (colonnes = après filtre) -->
     <t t-set="cl_stats" t-value="{}"/>
     <t t-foreach="day_records" t-as="t2_">
       <t t-set="c2n" t-value="t2_.partner_id.display_name if t2_.partner_id else 'Sans client'"/>
       <t t-set="cl_stats_x" t-value="cl_stats.update({c2n: cl_stats.get(c2n, 0) + 1})"/>
     </t>
     <t t-set="cl_sorted" t-value="sorted(cl_stats.items(), key=lambda kv: (-kv[1], kv[0]))"/>
+
+    <!-- Vignettes = tous les clients du jour (avant filtre client), pour pouvoir changer de filtre -->
+    <t t-set="chip_stats" t-value="{}"/>
+    <t t-foreach="chips_records" t-as="t3_">
+      <t t-set="c3n" t-value="t3_.partner_id.display_name if t3_.partner_id else 'Sans client'"/>
+      <t t-set="chip_stats_x" t-value="chip_stats.update({c3n: chip_stats.get(c3n, 0) + 1})"/>
+    </t>
+    <t t-set="chips_sorted" t-value="sorted(chip_stats.items(), key=lambda kv: (-kv[1], kv[0]))"/>
 
     <t t-set="vehicles_used" t-value="set([t.x_studio_transport.id for t in day_records if t.x_studio_transport])"/>
     <t t-set="no_vehicle_count" t-value="len(day_records.filtered(lambda t: not t.x_studio_transport))"/>
@@ -148,12 +157,11 @@
           </t>
         </div>
 
-        <div class="ptj-clwrap" t-if="cl_sorted">
-          <button type="button" class="ptj-cl-mini" id="ptjClAll">Tout</button>
-          <button type="button" class="ptj-cl-mini" id="ptjClNone">Aucun</button>
-          <t t-foreach="cl_sorted" t-as="cs">
+        <div class="ptj-clwrap" t-if="chips_sorted" t-att-data-selected="selected_client">
+          <button type="button" class="ptj-cl-mini" id="ptjClAll" t-att-style="'display:none;' if not selected_client else ''">✕ Tous les clients</button>
+          <t t-foreach="chips_sorted" t-as="cs">
             <t t-set="cscol" t-value="palette[sum([ord(ch) for ch in cs[0]]) % len(palette)]"/>
-            <span class="ptj-cl-chip" t-att-data-client="cs[0]" t-attf-style="border-color:{{cscol}};">
+            <span t-attf-class="ptj-cl-chip {{'off' if (selected_client and selected_client != cs[0]) else ''}}" t-att-data-client="cs[0]" t-attf-style="border-color:{{cscol}};{{'background:' + cscol + '22;' if selected_client == cs[0] else ''}}" t-att-title="'Cliquer pour isoler ce client (le filtre est conservé en changeant de jour)' if selected_client != cs[0] else 'Cliquer pour retirer le filtre'">
               <span class="dot" t-attf-style="background:{{cscol}};"/> <t t-esc="cs[0]"/> <span class="n"><t t-esc="cs[1]"/></span>
             </span>
           </t>
@@ -210,29 +218,17 @@
           });
         });
 
-        // Vignettes clients : affiche/masque la colonne du client
-        var clChips = document.querySelectorAll('.ptj-cl-chip');
-        var active = {};
-        clChips.forEach(function(chip){ active[chip.getAttribute('data-client')] = true; });
-        function applyClFilter(){
-          document.querySelectorAll('.ptj-col[data-client]').forEach(function(col){
-            col.style.display = active[col.getAttribute('data-client')] ? '' : 'none';
-          });
-          clChips.forEach(function(chip){
-            chip.classList.toggle('off', !active[chip.getAttribute('data-client')]);
-          });
-        }
-        clChips.forEach(function(chip){
+        // Vignettes clients : posent le filtre dans l'URL (conservé en changeant de jour)
+        var clWrap = document.querySelector('.ptj-clwrap');
+        var curClient = clWrap ? (clWrap.getAttribute('data-selected') || '') : '';
+        document.querySelectorAll('.ptj-cl-chip').forEach(function(chip){
           chip.addEventListener('click', function(){
             var c = chip.getAttribute('data-client');
-            active[c] = !active[c];
-            applyClFilter();
+            ptjFilter('client', c === curClient ? '' : c);
           });
         });
         var clAllBtn = document.getElementById('ptjClAll');
-        if(clAllBtn){ clAllBtn.addEventListener('click', function(){ clChips.forEach(function(c){ active[c.getAttribute('data-client')] = true; }); applyClFilter(); }); }
-        var clNoneBtn = document.getElementById('ptjClNone');
-        if(clNoneBtn){ clNoneBtn.addEventListener('click', function(){ clChips.forEach(function(c){ active[c.getAttribute('data-client')] = false; }); applyClFilter(); }); }
+        if(clAllBtn){ clAllBtn.addEventListener('click', function(){ ptjFilter('client', ''); }); }
       })();
     </script>
   </t>
