@@ -15,14 +15,9 @@
     <t t-set="day_records" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('planned_date_begin','&lt;',dt)], order='planned_date_begin')"/>
 
     <t t-set="selected_chauffeur" t-value="request.params.get('chauffeur', '')"/>
-    <t t-set="selected_client" t-value="request.params.get('client', '')"/>
     <t t-set="chauffeurs_list" t-value="sorted(set([t.x_studio_chauffeur.display_name for t in day_records if t.x_studio_chauffeur]))"/>
-    <t t-set="clients_list" t-value="sorted(set([t.partner_id.display_name for t in day_records if t.partner_id]))"/>
     <t t-if="selected_chauffeur">
       <t t-set="day_records" t-value="day_records.filtered(lambda t: t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur)"/>
-    </t>
-    <t t-if="selected_client">
-      <t t-set="day_records" t-value="day_records.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/>
     </t>
 
     <t t-set="bon_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',day_records.ids),('x_studio_photo_bon','!=',False)])"/>
@@ -32,20 +27,16 @@
     <t t-set="liv_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',day_records.ids),('x_studio_photo_1','!=',False)])"/>
     <t t-set="liv_map" t-value="{a.x_project_task_id.id: a.id for a in liv_atts}"/>
 
-    <!-- Backlog "à planifier" (Nouvelle demande, sans date), même logique que la vue semaine -->
-    <t t-set="backlog" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('active','=',True),('stage_id.name','=','Nouvelle demande'),('planned_date_begin','=',False)])"/>
-    <t t-if="selected_chauffeur">
-      <t t-set="backlog" t-value="backlog.filtered(lambda t: t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur)"/>
+    <!-- Regroupement par client -->
+    <t t-set="cl_stats" t-value="{}"/>
+    <t t-foreach="day_records" t-as="t2_">
+      <t t-set="c2n" t-value="t2_.partner_id.display_name if t2_.partner_id else 'Sans client'"/>
+      <t t-set="cl_stats_x" t-value="cl_stats.update({c2n: cl_stats.get(c2n, 0) + 1})"/>
     </t>
-    <t t-if="selected_client">
-      <t t-set="backlog" t-value="backlog.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/>
-    </t>
-    <t t-set="backlog_clients" t-value="sorted(set([(t.partner_id.id, t.partner_id.display_name) for t in backlog if t.partner_id]), key=lambda c: (-len([x for x in backlog if x.partner_id and x.partner_id.id == c[0]]), c[1]))"/>
-    <t t-set="backlog_no_client" t-value="[t for t in backlog if not t.partner_id]"/>
+    <t t-set="cl_sorted" t-value="sorted(cl_stats.items(), key=lambda kv: (-kv[1], kv[0]))"/>
 
-    <!-- Colonnes véhicules -->
-    <t t-set="carriers" t-value="sorted(set([t.x_studio_transport for t in day_records if t.x_studio_transport and t.x_studio_transport.active]), key=lambda c: c.display_name)"/>
-    <t t-set="no_carrier_tasks" t-value="day_records.filtered(lambda t: not t.x_studio_transport)"/>
+    <t t-set="vehicles_used" t-value="set([t.x_studio_transport.id for t in day_records if t.x_studio_transport])"/>
+    <t t-set="no_vehicle_count" t-value="len(day_records.filtered(lambda t: not t.x_studio_transport))"/>
 
     <!-- Résumé chauffeurs du jour -->
     <t t-set="drv_stats" t-value="{}"/>
@@ -57,181 +48,132 @@
     </t>
     <t t-set="drv_sorted" t-value="sorted(drv_stats.items(), key=lambda kv: -kv[1][0])"/>
 
-    <!-- Vignettes clients du jour -->
-    <t t-set="cl_stats" t-value="{}"/>
-    <t t-foreach="day_records" t-as="t2_">
-      <t t-set="c2n" t-value="t2_.partner_id.display_name if t2_.partner_id else 'Sans client'"/>
-      <t t-set="cl_stats_x" t-value="cl_stats.update({c2n: cl_stats.get(c2n, 0) + 1})"/>
-    </t>
-    <t t-set="cl_sorted" t-value="sorted(cl_stats.items(), key=lambda kv: (-kv[1], kv[0]))"/>
-
     <style>
       header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
       #wrapwrap &gt; main {padding-top:0 !important;}
-      body{background:#f1f5f9;}
-      .ptj-wrap{max-width:none;width:100%;padding:12px 16px;box-sizing:border-box;}
-      .ptj-head{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
-      .ptj-head a.btn{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;}
-      .ptj-datebox{font-size:18px;font-weight:900;color:#15324f;min-width:260px;text-align:center;}
-      .ptj-datebox small{display:block;font-weight:600;color:#64748b;font-size:12px;}
-      .ptj-filters{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:10px;}
-      .ptj-filters select, .ptj-filters input[type=date]{border:1px solid #cbd5e1;border-radius:9px;padding:6px 10px;font-weight:700;font-size:13px;}
-      .ptj-drivers{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px;}
-      .ptj-drv-chip{background:#fff;border:1.5px solid #cbd5e1;border-radius:14px;padding:4px 11px;font-size:12.5px;font-weight:700;color:#0f172a;display:inline-flex;align-items:center;gap:6px;}
+      body{background:#eef2f6;}
+      .ptj-wrap{max-width:none;width:100%;padding:14px 18px;box-sizing:border-box;}
+      .ptj-topbar{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;margin-bottom:12px;}
+      .ptj-head{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;}
+      .ptj-head a.btn, .ptj-head input[type=date]{border:1px solid #cbd5e1;border-radius:10px;padding:8px 14px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;font-size:13.5px;}
+      .ptj-head a.btn:hover{background:#f1f5f9;}
+      .ptj-datebox{font-size:20px;font-weight:900;color:#15324f;min-width:280px;text-align:center;line-height:1.15;}
+      .ptj-datebox small{display:block;font-weight:700;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.6px;}
+      .ptj-summary{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-weight:800;color:#334155;font-size:13px;}
+      .ptj-summary select{border:1px solid #cbd5e1;border-radius:10px;padding:6px 10px;font-weight:700;font-size:13px;background:#fff;}
+      .ptj-kpi{background:#f1f5f9;border-radius:10px;padding:4px 12px;}
+      .ptj-kpi b{color:#0f172a;}
+      .ptj-kpi.warn{background:#FEF3C7;color:#92400e;}
+      .ptj-drivers{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px;}
+      .ptj-drv-chip{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:4px 12px;font-size:12.5px;font-weight:700;color:#0f172a;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
       .ptj-drv-chip .n{background:#0f172a;color:#fff;border-radius:9px;padding:0 7px;font-size:11px;}
-      .ptj-board{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;align-items:flex-start;}
-      .ptj-col{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);min-width:260px;max-width:260px;flex:none;}
-      .ptj-col-blog{background:#FBEAEA;}
-      .ptj-col-h{position:sticky;top:0;background:inherit;border-radius:10px 10px 0 0;padding:8px 10px;border-bottom:1px solid #e2e8f0;}
-      .ptj-col-title{font-weight:900;font-size:13.5px;color:#0f172a;}
-      .ptj-col-sub{font-size:11px;color:#64748b;font-weight:700;margin-top:1px;}
-      .ptj-col-body{padding:7px;max-height:78vh;overflow-y:auto;}
-      .ttx{background:#fff !important;border-color:#d4dde4 !important;box-shadow:0 1px 3px rgba(0,0,0,.10);overflow:hidden;border-radius:9px;position:relative;margin-bottom:8px;cursor:grab;}
-      .ttx-head{background:#327279;color:#fff;font-weight:800;font-size:12.5px;line-height:1.3;padding:6px 10px 6px 13px;margin:0;white-space:normal;}
+      .ptj-drv-chip .h{color:#64748b;font-weight:600;}
+      .ptj-clwrap{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-top:10px;}
+      .ptj-cl-chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid #cbd5e1;border-radius:16px;padding:4px 12px 4px 9px;font-size:12.5px;font-weight:700;cursor:pointer;user-select:none;background:#fff;color:#334155;transition:opacity .15s;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+      .ptj-cl-chip .dot{width:10px;height:10px;border-radius:50%;flex:none;}
+      .ptj-cl-chip .n{background:#f1f5f9;border-radius:9px;padding:0 7px;font-size:11px;color:#334155;font-weight:800;}
+      .ptj-cl-chip.off{opacity:.3;}
+      .ptj-cl-mini{border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:12px;font-weight:700;padding:3px 10px;cursor:pointer;color:#334155;}
+      .ptj-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;}
+      .ptj-col{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);min-width:280px;max-width:280px;flex:none;overflow:hidden;}
+      .ptj-col-h{padding:10px 12px 8px;border-bottom:1px solid #eef2f6;}
+      .ptj-col-band{height:5px;border-radius:12px 12px 0 0;}
+      .ptj-col-title{font-weight:900;font-size:14px;color:#0f172a;line-height:1.25;}
+      .ptj-col-sub{font-size:11.5px;color:#64748b;font-weight:700;margin-top:3px;}
+      .ptj-col-body{padding:9px;max-height:74vh;overflow-y:auto;}
+      .ttx{background:#fff;border:1px solid #e5eaf0;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden;border-radius:10px;position:relative;margin-bottom:9px;transition:box-shadow .15s, transform .15s;cursor:pointer;}
+      .ttx:hover{box-shadow:0 4px 12px rgba(0,0,0,.14);transform:translateY(-1px);}
+      .ttx-head{background:#327279;color:#fff;font-weight:800;font-size:12.5px;line-height:1.3;padding:6px 26px 6px 11px;margin:0;white-space:normal;}
       .ttx-status{margin:0;padding:3px 4px;text-align:center;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.5px;line-height:1.4;}
-      .ttx-body{font-size:12.5px;margin-top:2px;padding:2px 10px 8px 13px;}
-      .ttx-driver{font-weight:800;color:#111827;margin-bottom:2px;}
+      .ttx-body{font-size:12.5px;padding:6px 11px 9px;}
+      .ttx-row{display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+      .ttx-veh{background:#0f172a;color:#fff;border-radius:7px;padding:1px 8px;font-size:11px;font-weight:800;display:inline-block;}
+      .ttx-veh.none{background:#f59e0b;color:#78350f;}
+      .ttx-driver{font-weight:800;color:#111827;}
       .ttx-time{font-weight:800;color:#0369a1;}
-      .ttx-dur{color:#64748b;font-weight:600;font-size:11px;margin-top:1px;}
-      .ttx-tags{margin-top:4px;line-height:1.6;}
+      .ttx-dur{color:#94a3b8;font-weight:700;font-size:11px;}
+      .ttx-tags{margin-top:4px;line-height:1.7;}
       .ttx-tag{display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;padding:0 6px;font-size:10px;font-weight:700;margin:1px 3px 0 0;}
-      .ttx-links{margin-top:4px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;}
-      .ttx-open{position:absolute;top:2px;right:6px;font-size:10px;text-decoration:none;z-index:2;}
-      .ptj-blog-client{border-left:4px solid #999;border-radius:4px;margin-bottom:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);}
-      .ptj-blog-client-h{font-weight:800;font-size:10.5px;padding:3px 6px;border-radius:0 3px 0 0;}
-      .ptj-blog-card{border:1px solid #e2e8f0;border-radius:6px;padding:4px 16px 4px 6px;margin:3px;font-size:10.5px;background:#fff;position:relative;cursor:grab;}
-      .ptj-empty{color:#94a3b8;font-size:12px;text-align:center;padding:14px 6px;}
-      .ptj-clwrap{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-bottom:10px;}
-      .ptj-cl-chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid #cbd5e1;border-radius:14px;padding:3px 10px 3px 8px;font-size:12px;font-weight:700;cursor:pointer;user-select:none;background:#fff;color:#334155;transition:opacity .15s;}
-      .ptj-cl-chip .dot{width:9px;height:9px;border-radius:50%;flex:none;}
-      .ptj-cl-chip .n{background:#f1f5f9;border-radius:9px;padding:0 6px;font-size:10.5px;color:#334155;font-weight:800;}
-      .ptj-cl-chip.off{opacity:.35;}
-      .ptj-cl-mini{border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:11.5px;font-weight:700;padding:2px 8px;cursor:pointer;color:#334155;}
+      .ttx-links{margin-top:5px;display:flex;gap:10px;flex-wrap:wrap;font-size:12px;font-weight:800;border-top:1px dashed #e5eaf0;padding-top:5px;}
+      .ttx-open{position:absolute;top:4px;right:7px;font-size:11px;text-decoration:none;z-index:2;}
+      .ptj-empty{color:#94a3b8;font-size:12.5px;text-align:center;padding:18px 8px;}
+      .ptj-nothing{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:40px;text-align:center;color:#64748b;font-weight:700;}
     </style>
 
     <div class="ptj-wrap">
-      <h5 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#2c3e50;">📅 Planning Transport — Vue jour</h5>
-
-      <div class="ptj-head">
-        <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn">◀ Préc.</a>
-        <div class="ptj-datebox">
-          <t t-esc="jours_noms[day.weekday()]"/> <t t-esc="day.day"/> <t t-esc="mois_noms[day.month - 1]"/> <t t-esc="day.year"/>
-          <small><t t-if="is_today">Aujourd'hui</t><t t-else="">Semaine <t t-esc="day.isocalendar()[1]"/></t></small>
+      <div class="ptj-topbar">
+        <div class="ptj-head">
+          <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;chauffeur={{selected_chauffeur}}" class="btn">◀ Préc.</a>
+          <div class="ptj-datebox">
+            📅 <t t-esc="jours_noms[day.weekday()]"/> <t t-esc="day.day"/> <t t-esc="mois_noms[day.month - 1]"/> <t t-esc="day.year"/>
+            <small><t t-if="is_today">Aujourd'hui</t><t t-else="">Semaine <t t-esc="day.isocalendar()[1]"/></t></small>
+          </div>
+          <a t-attf-href="/planning-transport-jour?day={{next_d}}&amp;chauffeur={{selected_chauffeur}}" class="btn">Suiv. ▶</a>
+          <a t-attf-href="/planning-transport-jour?chauffeur={{selected_chauffeur}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
+          <input type="date" id="ptjPick" t-att-value="day.strftime('%Y-%m-%d')"/>
+          <a href="/model/tache" class="btn">🗓️ Vue semaine</a>
+          <a href="/planning-transport-mois" class="btn">📆 Vue mois</a>
         </div>
-        <a t-attf-href="/planning-transport-jour?day={{next_d}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn">Suiv. ▶</a>
-        <a t-attf-href="/planning-transport-jour?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
-        <input type="date" id="ptjPick" t-att-value="day.strftime('%Y-%m-%d')" style="border:1px solid #cbd5e1;border-radius:9px;padding:6px 8px;font-weight:700;"/>
-        <a href="/model/tache" class="btn">🗓️ Vue semaine</a>
-        <a href="/planning-transport-mois" class="btn">📆 Vue mois</a>
-      </div>
 
-      <div class="ptj-filters">
-        <select onchange="ptjFilter('chauffeur', this.value)">
-          <option value="">👥 Tous chauffeurs</option>
-          <t t-foreach="chauffeurs_list" t-as="ch">
-            <option t-att-value="ch" t-att-selected="'selected' if ch == selected_chauffeur else None"><t t-esc="ch"/></option>
+        <div class="ptj-summary">
+          <select onchange="ptjFilter('chauffeur', this.value)">
+            <option value="">👥 Tous chauffeurs</option>
+            <t t-foreach="chauffeurs_list" t-as="ch">
+              <option t-att-value="ch" t-att-selected="'selected' if ch == selected_chauffeur else None"><t t-esc="ch"/></option>
+            </t>
+          </select>
+          <span class="ptj-kpi"><b><t t-esc="len(day_records)"/></b> tâche<t t-if="len(day_records) != 1">s</t></span>
+          <span class="ptj-kpi"><b><t t-esc="len(cl_sorted)"/></b> client<t t-if="len(cl_sorted) != 1">s</t></span>
+          <span class="ptj-kpi">🚛 <b><t t-esc="len(vehicles_used)"/></b> véhicule<t t-if="len(vehicles_used) != 1">s</t></span>
+          <span t-if="no_vehicle_count" class="ptj-kpi warn">⚠ <b><t t-esc="no_vehicle_count"/></b> sans véhicule</span>
+        </div>
+
+        <div class="ptj-drivers" t-if="drv_sorted">
+          <t t-foreach="drv_sorted" t-as="dv">
+            <span class="ptj-drv-chip">👤 <t t-esc="dv[0]"/> <span class="n"><t t-esc="dv[1][0]"/></span><span class="h" t-if="dv[1][1] &gt; 0"><t t-esc="'%.1f' % dv[1][1]"/> h</span></span>
           </t>
-        </select>
-        <select onchange="ptjFilter('client', this.value)">
-          <option value="">🏢 Tous clients</option>
-          <t t-foreach="clients_list" t-as="cl">
-            <option t-att-value="cl" t-att-selected="'selected' if cl == selected_client else None"><t t-esc="cl"/></option>
+        </div>
+
+        <div class="ptj-clwrap" t-if="cl_sorted">
+          <button type="button" class="ptj-cl-mini" id="ptjClAll">Tout</button>
+          <button type="button" class="ptj-cl-mini" id="ptjClNone">Aucun</button>
+          <t t-foreach="cl_sorted" t-as="cs">
+            <t t-set="cscol" t-value="palette[sum([ord(ch) for ch in cs[0]]) % len(palette)]"/>
+            <span class="ptj-cl-chip" t-att-data-client="cs[0]" t-attf-style="border-color:{{cscol}};">
+              <span class="dot" t-attf-style="background:{{cscol}};"/> <t t-esc="cs[0]"/> <span class="n"><t t-esc="cs[1]"/></span>
+            </span>
           </t>
-        </select>
-        <span style="align-self:center;font-weight:800;color:#334155;font-size:13px;">
-          <t t-esc="len(day_records)"/> tâche<t t-if="len(day_records) != 1">s</t> ce jour ·
-          <t t-esc="len(carriers)"/> véhicule<t t-if="len(carriers) != 1">s</t> utilisé<t t-if="len(carriers) != 1">s</t>
-          <t t-if="no_carrier_tasks"> · <span style="color:#b45309;"><t t-esc="len(no_carrier_tasks)"/> sans véhicule</span></t>
-        </span>
+        </div>
       </div>
 
-      <div class="ptj-drivers" t-if="drv_sorted">
-        <t t-foreach="drv_sorted" t-as="dv">
-          <span class="ptj-drv-chip">👤 <t t-esc="dv[0]"/> <span class="n"><t t-esc="dv[1][0]"/></span><t t-if="dv[1][1] &gt; 0"> · <t t-esc="'%.1f' % dv[1][1]"/> h</t></span>
-        </t>
-      </div>
+      <t t-if="not day_records">
+        <div class="ptj-nothing">🛌 Aucun transport planifié ce jour</div>
+      </t>
 
-      <div class="ptj-clwrap" t-if="cl_sorted">
-        <button type="button" class="ptj-cl-mini" id="ptjClAll">Tout</button>
-        <button type="button" class="ptj-cl-mini" id="ptjClNone">Aucun</button>
+      <!-- Une colonne par client, triées par volume décroissant -->
+      <div class="ptj-board" t-if="day_records">
         <t t-foreach="cl_sorted" t-as="cs">
-          <t t-set="cscol" t-value="palette[sum([ord(ch) for ch in cs[0]]) % len(palette)]"/>
-          <span class="ptj-cl-chip" t-att-data-client="cs[0]" t-attf-style="border-color:{{cscol}};">
-            <span class="dot" t-attf-style="background:{{cscol}};"/> <t t-esc="cs[0]"/> <span class="n"><t t-esc="cs[1]"/></span>
-          </span>
-        </t>
-      </div>
-
-      <div class="ptj-board">
-        <!-- Colonne à planifier -->
-        <div class="ptj-col ptj-col-blog">
-          <div class="ptj-col-h">
-            <div class="ptj-col-title" style="color:#b91c1c;">⚠ À planifier (<t t-esc="len(backlog)"/>)</div>
-            <div class="ptj-col-sub">Nouvelle demande, sans date</div>
-          </div>
-          <div class="ptj-col-body">
-            <t t-if="not backlog"><div class="ptj-empty">Aucune demande en attente</div></t>
-            <t t-foreach="backlog_clients" t-as="bc">
-              <t t-set="bc_id" t-value="bc[0]"/>
-              <t t-set="bc_name" t-value="bc[1]"/>
-              <t t-set="bc_tasks" t-value="[t for t in backlog if t.partner_id and t.partner_id.id == bc_id]"/>
-              <t t-set="bc_color" t-value="palette[sum([ord(ch) for ch in bc_name]) % len(palette)]"/>
-              <div class="ptj-blog-client" t-attf-style="border-left-color:{{bc_color}};">
-                <div class="ptj-blog-client-h" t-attf-style="background:{{bc_color}}22;color:{{bc_color}};">🏢 <t t-esc="bc_name"/> (<t t-esc="len(bc_tasks)"/>)</div>
-                <t t-foreach="bc_tasks" t-as="tache">
-                  <div class="ptj-blog-card tp-card" t-att-data-id="tache.id" data-begin="" data-end="">
-                    <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" class="ttx-open" title="Ouvrir la tâche">🔗</a>
-                    <strong class="d-block text-truncate"><t t-esc="tache.name"/></strong>
-                    <span style="color:#64748b;"><t t-if="tache.create_date"><t t-esc="tache.create_date.strftime('%d/%m/%y')"/></t></span>
-                  </div>
-                </t>
-              </div>
-            </t>
-            <t t-if="backlog_no_client">
-              <div class="ptj-blog-client" style="border-left-color:#94a3b8;">
-                <div class="ptj-blog-client-h" style="background:#94a3b822;color:#475569;">🏢 Sans client (<t t-esc="len(backlog_no_client)"/>)</div>
-                <t t-foreach="backlog_no_client" t-as="tache">
-                  <div class="ptj-blog-card tp-card" t-att-data-id="tache.id" data-begin="" data-end="">
-                    <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" class="ttx-open" title="Ouvrir la tâche">🔗</a>
-                    <strong class="d-block text-truncate"><t t-esc="tache.name"/></strong>
-                  </div>
-                </t>
-              </div>
-            </t>
-          </div>
-        </div>
-
-        <!-- Colonnes véhicules -->
-        <t t-foreach="carriers" t-as="carrier">
-          <t t-set="veh_tasks" t-value="day_records.filtered(lambda t: t.x_studio_transport and t.x_studio_transport.id == carrier.id)"/>
-          <t t-set="veh_hours" t-value="sum([((t_.date_deadline - t_.planned_date_begin).total_seconds() / 3600.0) for t_ in veh_tasks if t_.date_deadline and t_.planned_date_begin])"/>
-          <div class="ptj-col tp-cell" t-att-data-day="day.strftime('%Y-%m-%d')" t-att-data-engin="carrier.id">
+          <t t-set="cname_col" t-value="cs[0]"/>
+          <t t-set="ccol_col" t-value="palette[sum([ord(ch) for ch in cname_col]) % len(palette)]"/>
+          <t t-set="cl_tasks" t-value="day_records.filtered(lambda t: (t.partner_id.display_name if t.partner_id else 'Sans client') == cname_col)"/>
+          <t t-set="cl_hours" t-value="sum([((t_.date_deadline - t_.planned_date_begin).total_seconds() / 3600.0) for t_ in cl_tasks if t_.date_deadline and t_.planned_date_begin])"/>
+          <t t-set="cl_vehs" t-value="len(set([t.x_studio_transport.id for t in cl_tasks if t.x_studio_transport]))"/>
+          <div class="ptj-col" t-att-data-client="cname_col">
+            <div class="ptj-col-band" t-attf-style="background:{{ccol_col}};"/>
             <div class="ptj-col-h">
-              <div class="ptj-col-title"><t t-esc="carrier.display_name.replace('Transport ', '') if carrier.display_name.startswith('Transport ') else carrier.display_name"/></div>
+              <div class="ptj-col-title">🏢 <t t-esc="cname_col"/></div>
               <div class="ptj-col-sub">
-                <t t-esc="len(veh_tasks)"/> tâche<t t-if="len(veh_tasks) != 1">s</t>
-                <t t-if="veh_tasks"> · <t t-esc="veh_tasks[0].planned_date_begin.strftime('%H:%M')"/> → <t t-esc="(veh_tasks[-1].date_deadline or veh_tasks[-1].planned_date_begin).strftime('%H:%M')"/></t>
-                <t t-if="veh_hours &gt; 0"> · <t t-esc="'%.1f' % veh_hours"/> h</t>
+                <t t-esc="len(cl_tasks)"/> tâche<t t-if="len(cl_tasks) != 1">s</t>
+                <t t-if="cl_tasks"> · <t t-esc="cl_tasks[0].planned_date_begin.strftime('%H:%M')"/> → <t t-esc="(cl_tasks[-1].date_deadline or cl_tasks[-1].planned_date_begin).strftime('%H:%M')"/></t>
+                <t t-if="cl_hours &gt; 0"> · <t t-esc="'%.1f' % cl_hours"/> h</t>
+                <t t-if="cl_vehs"> · 🚛 <t t-esc="cl_vehs"/></t>
               </div>
             </div>
             <div class="ptj-col-body">
-              <t t-if="not veh_tasks"><div class="ptj-empty">Rien de planifié</div></t>
-              <t t-foreach="veh_tasks" t-as="tache"><t t-call="website.ptj_task_card"/></t>
+              <t t-foreach="cl_tasks" t-as="tache"><t t-call="website.ptj_task_card"/></t>
             </div>
           </div>
         </t>
-
-        <!-- Sans véhicule -->
-        <div class="ptj-col tp-cell" t-att-data-day="day.strftime('%Y-%m-%d')" data-engin="0">
-          <div class="ptj-col-h" style="background:#FEF3C7;">
-            <div class="ptj-col-title">VÉHICULE NON ASSIGNÉ</div>
-            <div class="ptj-col-sub"><t t-esc="len(no_carrier_tasks)"/> tâche<t t-if="len(no_carrier_tasks) != 1">s</t></div>
-          </div>
-          <div class="ptj-col-body">
-            <t t-if="not no_carrier_tasks"><div class="ptj-empty">Rien de planifié</div></t>
-            <t t-foreach="no_carrier_tasks" t-as="tache"><t t-call="website.ptj_task_card"/></t>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -247,66 +189,20 @@
           var url = new URL(window.location); url.searchParams.set('day', pick.value);
           window.location.href = url.toString();
         }); }
-        function pms(s) { var a = s.split(/[- :]/); return Date.UTC(+a[0], +a[1] - 1, +a[2], +a[3] || 0, +a[4] || 0, +a[5] || 0); }
-        function fmtUTC(ms) {
-          var d = new Date(ms);
-          function z(n) { return (n &lt; 10 ? '0' : '') + n; }
-          return d.getUTCFullYear() + '-' + z(d.getUTCMonth() + 1) + '-' + z(d.getUTCDate()) + ' ' + z(d.getUTCHours()) + ':' + z(d.getUTCMinutes()) + ':' + z(d.getUTCSeconds());
-        }
-        function rpcWrite(taskId, vals, cb) {
-          fetch('/web/dataset/call_kw', {method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({jsonrpc: '2.0', method: 'call', params: {model: 'project.task', method: 'write', args: [[taskId], vals], kwargs: {}}})
-          }).then(function (r) { return r.json(); }).then(function (data) {
-            if (data.error) { cb(false, data.error.data &amp;&amp; data.error.data.message || data.error.message); } else { cb(true); }
-          }).catch(function (e) { cb(false, String(e)); });
-        }
-        var dragged = null;
-        function applyDrop(card, cell) {
-          var taskId = parseInt(card.getAttribute('data-id'));
-          var day = cell.getAttribute('data-day');
-          var engin = parseInt(cell.getAttribute('data-engin'));
-          var begin = card.getAttribute('data-begin');
-          var fromBacklog = !begin;
-          var time = begin ? begin.split(' ')[1] : '08:00:00';
-          var newBegin = day + ' ' + time;
-          var vals = { planned_date_begin: newBegin, x_studio_transport: engin &gt; 0 ? engin : false };
-          var end = card.getAttribute('data-end');
-          if (end) { vals.date_deadline = fmtUTC(pms(newBegin) + (pms(end) - pms(begin))); }
-          else if (fromBacklog) { vals.date_deadline = fmtUTC(pms(newBegin) + 3600000); }
-          var origin = card.parentNode;
-          cell.querySelector('.ptj-col-body').appendChild(card);
-          card.setAttribute('data-begin', newBegin);
-          if (vals.date_deadline) { card.setAttribute('data-end', vals.date_deadline); }
-          rpcWrite(taskId, vals, function (ok, msg) {
-            if (!ok) { origin.appendChild(card); alert('Échec : ' + msg); }
-            else { window.location.reload(); }
-          });
-        }
-        document.querySelectorAll('.tp-card').forEach(function(card){
-          card.setAttribute('draggable', 'true');
+        document.querySelectorAll('.ttx[data-id]').forEach(function(card){
           card.addEventListener('click', function (ev) {
             if (ev.target.closest('a')) { return; }
             window.open('/web#id=' + card.getAttribute('data-id') + '&amp;view_type=form&amp;model=project.task', '_blank');
           });
-          card.addEventListener('dragstart', function () { dragged = card; card.style.opacity = '0.4'; });
-          card.addEventListener('dragend', function () { card.style.opacity = '1'; });
-        });
-        document.querySelectorAll('.tp-cell').forEach(function(cell){
-          cell.addEventListener('dragover', function (ev) { ev.preventDefault(); cell.style.background = '#DBEAFE'; });
-          cell.addEventListener('dragleave', function () { cell.style.background = ''; });
-          cell.addEventListener('drop', function (ev) {
-            ev.preventDefault(); cell.style.background = '';
-            if (dragged) { applyDrop(dragged, cell); dragged = null; }
-          });
         });
 
-        // Vignettes clients : filtre les cartes déjà planifiées (la colonne "à planifier" reste toujours visible)
+        // Vignettes clients : affiche/masque la colonne du client
         var clChips = document.querySelectorAll('.ptj-cl-chip');
         var active = {};
         clChips.forEach(function(chip){ active[chip.getAttribute('data-client')] = true; });
         function applyClFilter(){
-          document.querySelectorAll('.ptj-board &gt; div:not(.ptj-col-blog) .tp-card[data-client]').forEach(function(card){
-            card.style.display = active[card.getAttribute('data-client')] ? '' : 'none';
+          document.querySelectorAll('.ptj-col[data-client]').forEach(function(col){
+            col.style.display = active[col.getAttribute('data-client')] ? '' : 'none';
           });
           clChips.forEach(function(chip){
             chip.classList.toggle('off', !active[chip.getAttribute('data-client')]);

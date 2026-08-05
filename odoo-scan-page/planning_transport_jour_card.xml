@@ -18,16 +18,23 @@
   <t t-set="st_label" t-value="{'annule': '❌ ANNULÉ', 'paye': '💰 PAYÉ', 'facture': '✅ FACTURÉ', 'brouillon': '🧾 FACTURE BROUILLON', 'afacturer': '🧾 À FACTURER'}.get(st_key, '')"/>
   <t t-set="st_color" t-value="{'annule': '#dc3545', 'paye': '#0d6efd', 'facture': '#198754', 'brouillon': '#eab308', 'afacturer': '#fd7e14'}.get(st_key, '')"/>
   <t t-set="dur" t-value="((tache.date_deadline - tache.planned_date_begin).total_seconds() / 3600.0) if (tache.date_deadline and tache.planned_date_begin) else 0"/>
-  <t t-set="cname" t-value="tache.partner_id.display_name if tache.partner_id else 'Sans client'"/>
-  <t t-set="ccol" t-value="palette[sum([ord(ch) for ch in cname]) % len(palette)]"/>
-  <div class="ttx tp-card" t-att-data-id="tache.id" t-att-data-client="cname" t-attf-style="border-left:5px solid {{ccol}};" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''">
+  <t t-set="vehnm" t-value="(tache.x_studio_transport.display_name.replace('Transport ', '') if tache.x_studio_transport.display_name.startswith('Transport ') else tache.x_studio_transport.display_name) if tache.x_studio_transport else ''"/>
+  <div class="ttx" t-att-data-id="tache.id">
     <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" class="ttx-open" title="Ouvrir la tâche">🔗</a>
     <t t-if="st_label"><div class="ttx-status" t-attf-style="background:{{st_color}};"><t t-esc="st_label"/></div></t>
     <div class="ttx-head"><t t-esc="tache.name"/></div>
     <div class="ttx-body">
-      <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
-      <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
-      <div class="ttx-dur" t-if="dur &gt; 0"><t t-esc="'%.1f' % dur"/> h estimée<t t-if="dur &gt;= 2">s</t></div>
+      <div class="ttx-row">
+        <t t-if="vehnm"><span class="ttx-veh">🚛 <t t-esc="vehnm"/></span></t>
+        <t t-else=""><span class="ttx-veh none">⚠ Sans véhicule</span></t>
+      </div>
+      <div class="ttx-row">
+        <span class="ttx-driver">👤 <t t-esc="chnm"/></span>
+      </div>
+      <div class="ttx-row">
+        <span class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></span>
+        <span class="ttx-dur" t-if="dur &gt; 0">· <t t-esc="'%.1f' % dur"/> h</span>
+      </div>
       <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t>
       <t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
       <t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc">
