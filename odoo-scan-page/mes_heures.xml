@@ -121,6 +121,7 @@
         <t t-set="mois_noms_fr" t-value="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']"/>
         <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
         <t t-set="cal" t-value="emp.resource_calendar_id"/>
+        <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
         <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
         <t t-set="saisies" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]))"/>
         <div class="mh-brand">
@@ -260,6 +261,14 @@
                   <t t-elif="s.x_type == 'recup'">Récupération</t>
                   <t t-else="">Repos</t>
                   <small>Saisi par la direction — pas d'heures à renseigner. En cas d'erreur, prévenez le bureau.</small>
+                </span>
+              </div>
+            </t>
+            <t t-elif="verrou and dstr &lt;= verrou">
+              <div class="mh-lock l-repos">
+                <span style="font-size:20px;">🔒</span>
+                <span>Journée verrouillée
+                  <small>La paie de cette période est établie : plus de modification possible ici. Contactez le bureau pour toute correction.</small>
                 </span>
               </div>
             </t>
@@ -493,9 +502,7 @@
                co_ville:document.getElementById('mh-co-ville').value,
                co_urg_nom:document.getElementById('mh-co-urgnom').value,
                co_urg_tel:document.getElementById('mh-co-urgtel').value};
-    fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2048]],kwargs:{context:ctx}}})
-    }).then(function(r){return r.json();}).then(function(d){
+    rpcAction(2048, ctx).then(function(r){return r.json();}).then(function(d){
       cogo.disabled = false;
       if(d.error){ handleErr(d); return; }
       var n = (d.result || {}).changed || 0;

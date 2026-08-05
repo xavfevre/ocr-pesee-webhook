@@ -82,6 +82,25 @@ Odoo et vérifie le marqueur du relais en relecture).
   de travail. Tout salarié à horaire particulier doit avoir son calendrier.
 - Évolutions possibles : verrouillage du mois après export, signature salarié.
 
+## Verrou de paie (05/08)
+Bouton **🔒 Figer** sur `/heures-admin` (à côté de l'export paie) : Charlotte
+choisit une date et fige toutes les feuilles d'heures **jusqu'à cette date
+incluse**. Les salariés ne peuvent plus modifier ces journées (refus côté
+serveur dans l'action 2012 + bannière « Journée verrouillée » sur leur page) ;
+**le bureau reste libre** de corriger. Bouton « Déverrouiller » pour retirer
+le verrou. Stocké dans `ir.config_parameter maquignon.heures_verrou`,
+posé/levé par l'action **2050** (clé responsables, via le relais Render).
+Usage type : après l'export paie du mois, figer au dernier jour du mois.
+
+## Présences Odoo : détection d'absences désactivée (05/08)
+Le module Présences n'est **pas alimenté** par les feuilles d'heures (ce
+sont les pages web + export paie qui font foi). Le cron Odoo « Attendance:
+Detect Absences » créait chaque nuit des pointages techniques d'1 seconde
+(blocs rouges 0h dans Présences) pour tous les salariés sans badge — du
+bruit, puisque personne ne badge. Cron désactivé, les 21 pointages
+techniques supprimés. À réactiver seulement si un jour le badgeage kiosque
+est utilisé.
+
 ## Vue mensuelle salarié (05/08)
 Basculeur **Semaine / Mois** en haut de `/mes-heures`. La vue mois affiche
 le calendrier du salarié en lecture : heures des jours travaillés (vert),

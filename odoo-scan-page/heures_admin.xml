@@ -76,6 +76,16 @@
         </t>
         <t t-set="xk" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_key') or ''"/>
         <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
+        <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;">
+          <span style="font-weight:800;font-size:12.5px;color:#334155;" t-att-title="'Les salariés ne peuvent plus modifier leurs heures jusqu\'à cette date incluse (le bureau reste libre)'">
+            <t t-if="verrou">🔒 Figé jusqu'au <t t-esc="datetime.datetime.strptime(verrou, '%Y-%m-%d').strftime('%d/%m/%Y')"/></t>
+            <t t-else="">🔓 Pas de verrou paie</t>
+          </span>
+          <input type="date" id="ha-vl-date" t-att-value="verrou or (monday - datetime.timedelta(days=1)).strftime('%Y-%m-%d')" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 6px;font-weight:700;font-size:12px;"/>
+          <button type="button" id="ha-vl-set" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;font-size:12px;padding:5px 9px;cursor:pointer;">🔒 Figer</button>
+          <button type="button" id="ha-vl-clear" t-if="verrou" style="border:none;border-radius:8px;background:#fee2e2;color:#991b1b;font-weight:800;font-size:12px;padding:5px 9px;cursor:pointer;">Déverrouiller</button>
+        </span>
       </div>
       <table class="ha">
         <tr><th class="emp">Salarié</th>
@@ -191,6 +201,22 @@
       done(d.result||{});
     }).catch(function(){ alert('Échec réseau'); });
   }
+  function vlSet(dateStr){
+    rpcAction(2050, {active_model:'x_heures_jour', hj_k:KK, vl_date:dateStr}).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ alert('Échec réseau'); });
+  }
+  var vlSetBtn = document.getElementById('ha-vl-set');
+  if(vlSetBtn){ vlSetBtn.addEventListener('click', function(){
+    var dv = document.getElementById('ha-vl-date').value;
+    if(!dv){ alert('Choisissez la date de fin de verrouillage.'); return; }
+    if(confirm('Figer toutes les feuilles d\'heures jusqu\'au ' + dv.split('-').reverse().join('/') + ' inclus ?\nLes salariés ne pourront plus modifier ces journées (le bureau reste libre).')){ vlSet(dv); }
+  }); }
+  var vlClearBtn = document.getElementById('ha-vl-clear');
+  if(vlClearBtn){ vlClearBtn.addEventListener('click', function(){
+    if(confirm('Retirer le verrou de paie ? Les salariés pourront de nouveau modifier ces journées.')){ vlSet(''); }
+  }); }
   document.addEventListener('click', function(e){
     var cell = e.target.closest('.ha-cell');
     if(cell){
