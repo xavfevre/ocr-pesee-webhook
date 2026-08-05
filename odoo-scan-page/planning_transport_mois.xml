@@ -59,13 +59,13 @@
 
       <div class="trm-topcard">
       <div class="text-center mb-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
-        <a t-attf-href="?month={{prev_m}}&amp;client={{selected_client}}" class="btn btn-outline-primary btn-sm"><i class="fa fa-chevron-left"/> Préc.</a>
+        <a t-attf-href="?month={{prev_m}}&amp;{{keep_query('client')}}" class="btn btn-outline-primary btn-sm"><i class="fa fa-chevron-left"/> Préc.</a>
         <span class="fw-bold" style="font-size:17px;color:#15324f;min-width:170px;"><t t-esc="mois_noms[first.month - 1]"/> <t t-esc="first.year"/></span>
-        <a t-attf-href="?month={{next_m}}&amp;client={{selected_client}}" class="btn btn-outline-primary btn-sm">Suiv. <i class="fa fa-chevron-right"/></a>
+        <a t-attf-href="?month={{next_m}}&amp;{{keep_query('client')}}" class="btn btn-outline-primary btn-sm">Suiv. <i class="fa fa-chevron-right"/></a>
         <input type="month" id="trmMonthPick" t-att-value="first.strftime('%Y-%m')" class="form-control form-control-sm w-auto" style="font-weight:700;border-radius:10px;border-color:#cbd5e1;" title="Aller directement à un mois"/>
-        <a t-attf-href="?client={{selected_client}}" class="btn btn-success btn-sm">Mois en cours</a>
-        <a t-attf-href="/planning-transport-jour?client={{selected_client}}" class="btn btn-outline-secondary btn-sm">📆 Vue jour</a>
-        <a t-attf-href="/model/tache?client={{selected_client}}&amp;limit=1000" class="btn btn-outline-secondary btn-sm">🗓️ Vue semaine</a>
+        <a t-attf-href="?{{keep_query('client')}}" class="btn btn-success btn-sm">Mois en cours</a>
+        <a t-attf-href="/planning-transport-jour?{{keep_query('client')}}" class="btn btn-outline-secondary btn-sm">📆 Vue jour</a>
+        <a t-attf-href="/model/tache?limit=1000&amp;{{keep_query('client')}}" class="btn btn-outline-secondary btn-sm">🗓️ Vue semaine</a>
         <button id="trmRefresh" type="button" class="btn btn-primary btn-sm">🔄 Actualiser</button>
         <t t-set="clients_f" t-value="sorted(set(t.partner_id.display_name for t in all_records if t.partner_id))"/>
         
@@ -112,7 +112,7 @@
                 <t t-else="">
                 <t t-set="day_tasks" t-value="all_records.filtered(lambda t: t.planned_date_begin.date() == cd)"/>
                 <td t-attf-class="trm-cell {{'trm-today' if is_today else ''}}">
-                  <div class="trm-daynum"><a t-attf-href="/planning-transport-jour?day={{cd.strftime('%Y-%m-%d')}}&amp;client={{selected_client}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour"><t t-esc="cd.day"/><t t-if="is_today"> ⭐</t></a></div>
+                  <div class="trm-daynum"><a t-attf-href="/planning-transport-jour?day={{cd.strftime('%Y-%m-%d')}}&amp;{{keep_query('client')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour"><t t-esc="cd.day"/><t t-if="is_today"> ⭐</t></a></div>
                   <t t-foreach="day_tasks" t-as="task">
                     <t t-set="st_key" t-value="'autre'"/>
                     <t t-if="task.stage_id and ('annul' in task.stage_id.name.lower() or 'cancel' in task.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>

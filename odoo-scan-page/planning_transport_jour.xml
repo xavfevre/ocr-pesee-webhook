@@ -108,16 +108,16 @@
     <div class="ptj-wrap">
       <div class="ptj-topbar">
         <div class="ptj-head">
-          <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn">◀ Préc.</a>
+          <a t-attf-href="/planning-transport-jour?day={{prev_d}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn">◀ Préc.</a>
           <div class="ptj-datebox">
             📅 <t t-esc="jours_noms[day.weekday()]"/> <t t-esc="day.day"/> <t t-esc="mois_noms[day.month - 1]"/> <t t-esc="day.year"/>
             <small><t t-if="is_today">Aujourd'hui</t><t t-else="">Semaine <t t-esc="day.isocalendar()[1]"/></t></small>
           </div>
-          <a t-attf-href="/planning-transport-jour?day={{next_d}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn">Suiv. ▶</a>
-          <a t-attf-href="/planning-transport-jour?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
+          <a t-attf-href="/planning-transport-jour?day={{next_d}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn">Suiv. ▶</a>
+          <a t-attf-href="/planning-transport-jour?{{keep_query('chauffeur', 'client')}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
           <input type="date" id="ptjPick" t-att-value="day.strftime('%Y-%m-%d')"/>
-          <a t-attf-href="/model/tache?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}&amp;limit=1000" class="btn">🗓️ Vue semaine</a>
-          <a t-attf-href="/planning-transport-mois?client={{selected_client}}" class="btn">📆 Vue mois</a>
+          <a t-attf-href="/model/tache?limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn">🗓️ Vue semaine</a>
+          <a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn">📆 Vue mois</a>
         </div>
 
         <div class="ptj-summary">

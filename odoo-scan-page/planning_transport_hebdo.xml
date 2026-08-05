@@ -38,7 +38,7 @@
 
         <!-- Ligne 1 : navigation (desktop) -->
         <div class="d-none d-md-flex justify-content-center align-items-center gap-2 flex-wrap">
-          <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
+          <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-outline-primary btn-sm">
             <i class="fa fa-chevron-left"/> Préc.
           </a>
           <div style="min-width:230px;line-height:1.25;">
@@ -52,13 +52,13 @@
               · Sem. <t t-esc="week_start.isocalendar()[1]"/>
             </span>
           </div>
-          <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
+          <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-outline-primary btn-sm">
             Suiv. <i class="fa fa-chevron-right"/>
           </a>
-          <a t-attf-href="?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-success btn-sm">Semaine en cours</a>
+          <a t-attf-href="?limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-success btn-sm">Semaine en cours</a>
           <input type="week" id="tpWeekPick" t-attf-value="{{week_start.isocalendar()[0]}}-W{{'%02d' % week_start.isocalendar()[1]}}" class="form-control form-control-sm w-auto" style="font-weight:700;border-radius:10px;border-color:#cbd5e1;" title="Aller directement à une semaine"/>
-          <a t-attf-href="/planning-transport-jour?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}" class="btn btn-warning btn-sm">📆 Vue jour</a>
-          <a t-attf-href="/planning-transport-mois?client={{request.params.get('client', '')}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
+          <a t-attf-href="/planning-transport-jour?{{keep_query('chauffeur', 'client')}}" class="btn btn-warning btn-sm">📆 Vue jour</a>
+          <a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
           <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
         </div>
 
@@ -283,7 +283,7 @@
                     </td>
                   </t>
                   <td class="fw-bold small align-top pt-2" style="width: 100px;">
-                    <a t-attf-href="/planning-transport-jour?day={{current_date.strftime('%Y-%m-%d')}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour">
+                    <a t-attf-href="/planning-transport-jour?day={{current_date.strftime('%Y-%m-%d')}}&amp;{{keep_query('chauffeur', 'client')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour">
                       <t t-if="day_name_en == 'Monday'">Lun</t>
                       <t t-if="day_name_en == 'Tuesday'">Mar</t>
                       <t t-if="day_name_en == 'Wednesday'">Mer</t>
@@ -414,7 +414,7 @@
         <t t-set="m_off" t-value="int(request.params.get('day_offset') or 0)"/>
         <t t-set="current_date" t-value="datetime.datetime.now() + datetime.timedelta(days=m_off)"/>
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-          <a t-attf-href="?day_offset={{m_off - 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">◀ Préc.</a>
+          <a t-attf-href="?day_offset={{m_off - 1}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">◀ Préc.</a>
           <div class="text-center" style="line-height:1.2;">
             <strong>
               <t t-if="current_date.strftime('%A') == 'Monday'">Lundi</t>
@@ -427,9 +427,9 @@
             </strong><br/>
             <span class="small text-muted"><t t-esc="current_date.strftime('%d/%m/%Y')"/></span>
           </div>
-          <a t-attf-href="?day_offset={{m_off + 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
+          <a t-attf-href="?day_offset={{m_off + 1}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
         </div>
-        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a t-attf-href="/planning-transport-mois?client={{selected_client}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
+        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?{{keep_query('chauffeur', 'client')}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
           <t t-set="day_name_en" t-value="current_date.strftime('%A')"/>
           <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
           
