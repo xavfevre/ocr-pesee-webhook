@@ -72,12 +72,32 @@ contrôle applicable (— si non applicable à ce véhicule). Couleur de case :
 - ⬜ gris = jamais renseigné
 
 Compteurs cliquables en haut (filtrent le tableau par état), filtres par
-catégorie de véhicule. **Clic sur une case** → popup, saisie de la date du
-dernier contrôle, calcul automatique de la prochaine échéance affiché
-(date + périodicité). Bouton Effacer pour vider une date. Écriture directe
-via `/web/dataset/call_kw` (page interne, accessible aux utilisateurs
-connectés à Odoo — pas de lien signé nécessaire, contrairement aux pages
-salariés).
+catégorie de véhicule (fonctionnels : chaque ligne du planning porte
+désormais sa catégorie, champ `x_categorie` sur `x_controle_vehicule`).
+**Clic sur une case** → popup, saisie de la date du dernier contrôle (ou
+bouton **« ✓ Valider aujourd'hui »**), calcul automatique de la prochaine
+échéance affiché (date + périodicité). Bouton Effacer pour vider une date.
+Écriture directe via `/web/dataset/call_kw` (page interne, accessible aux
+utilisateurs connectés à Odoo — pas de lien signé nécessaire, contrairement
+aux pages salariés).
+
+### Synchronisation bidirectionnelle avec l'onglet Services (Fleet natif)
+La date affichée sur le planning est désormais lue en priorité depuis
+l'historique natif `fleet.vehicle.log.services` (dernière ligne à l'état
+« Terminé » pour le couple véhicule/type de contrôle) — une saisie faite
+directement dans l'onglet Services d'un véhicule remonte donc sur la page
+web sans ressaisie.
+
+À chaque validation d'un contrôle sur le planning web (bouton « Valider »
+ou date saisie manuellement), l'action serveur **2055** :
+1. crée une ligne « Terminé » dans l'historique Fleet à la date saisie ;
+2. **planifie automatiquement le contrôle suivant** : crée une ligne
+   « Nouveau » dans l'onglet Services, datée de la prochaine échéance
+   (date + périodicité), visible directement dans le planning natif Fleet ;
+3. annule (sans supprimer) l'ancienne ligne planifiée du même type si elle
+   existait, pour éviter les doublons.
+Effacer une date annule la planification automatique associée mais
+conserve l'historique déjà créé.
 
 Accessible depuis le menu **Parc automobile → 🚗 Contrôles obligatoires**
 (en tête de menu).
