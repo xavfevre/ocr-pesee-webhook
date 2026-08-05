@@ -1,0 +1,43 @@
+<t t-name="website.ptj_task_card">
+  <t t-set="chnm" t-value="tache.x_studio_chauffeur.display_name if tache.x_studio_chauffeur else 'Non assigné'"/>
+  <t t-set="st_key" t-value="''"/>
+  <t t-if="tache.stage_id and ('annul' in tache.stage_id.name.lower() or 'cancel' in tache.stage_id.name.lower())"><t t-set="st_key" t-value="'annule'"/></t>
+  <t t-if="not st_key">
+    <t t-set="_so" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+    <t t-if="_so">
+      <t t-set="_inv" t-value="_so.invoice_ids.filtered(lambda m: m.state == 'posted' and m.move_type == 'out_invoice')"/>
+      <t t-if="_inv">
+        <t t-set="_ps" t-value="set(_inv.mapped('payment_state'))"/>
+        <t t-if="_ps and all(s in ('paid', 'in_payment', 'reversed') for s in _ps)"><t t-set="st_key" t-value="'paye'"/></t>
+        <t t-else=""><t t-set="st_key" t-value="'facture'"/></t>
+      </t>
+      <t t-elif="_so.invoice_ids.filtered(lambda m: m.state == 'draft' and m.move_type == 'out_invoice')"><t t-set="st_key" t-value="'brouillon'"/></t>
+      <t t-elif="_so.invoice_status == 'to invoice'"><t t-set="st_key" t-value="'afacturer'"/></t>
+    </t>
+  </t>
+  <t t-set="st_label" t-value="{'annule': '❌ ANNULÉ', 'paye': '💰 PAYÉ', 'facture': '✅ FACTURÉ', 'brouillon': '🧾 FACTURE BROUILLON', 'afacturer': '🧾 À FACTURER'}.get(st_key, '')"/>
+  <t t-set="st_color" t-value="{'annule': '#dc3545', 'paye': '#0d6efd', 'facture': '#198754', 'brouillon': '#eab308', 'afacturer': '#fd7e14'}.get(st_key, '')"/>
+  <t t-set="dur" t-value="((tache.date_deadline - tache.planned_date_begin).total_seconds() / 3600.0) if (tache.date_deadline and tache.planned_date_begin) else 0"/>
+  <t t-set="cname" t-value="tache.partner_id.display_name if tache.partner_id else 'Sans client'"/>
+  <t t-set="ccol" t-value="palette[sum([ord(ch) for ch in cname]) % len(palette)]"/>
+  <div class="ttx tp-card" t-att-data-id="tache.id" t-att-data-client="cname" t-attf-style="border-left:5px solid {{ccol}};" t-att-data-begin="tache.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="tache.date_deadline and tache.date_deadline.strftime('%Y-%m-%d %H:%M:%S') or ''">
+    <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" class="ttx-open" title="Ouvrir la tâche">🔗</a>
+    <t t-if="st_label"><div class="ttx-status" t-attf-style="background:{{st_color}};"><t t-esc="st_label"/></div></t>
+    <div class="ttx-head"><t t-esc="tache.name"/></div>
+    <div class="ttx-body">
+      <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
+      <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+      <div class="ttx-dur" t-if="dur &gt; 0"><t t-esc="'%.1f' % dur"/> h estimée<t t-if="dur &gt;= 2">s</t></div>
+      <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t>
+      <t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/>
+      <t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc">
+        <div class="ttx-links">
+          <t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t>
+          <t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t>
+          <t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t>
+          <t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t>
+        </div>
+      </t>
+    </div>
+  </div>
+</t>
