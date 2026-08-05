@@ -62,7 +62,9 @@
             <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}">Ce mois</a>
             <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}&amp;mois={{(d2 + datetime.timedelta(days=1)).strftime('%Y-%m')}}">▶</a>
             <t t-foreach="request.env['res.company'].sudo().search([])" t-as="co">
-              <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{co.id}}&amp;mois={{d1.strftime('%Y-%m')}}" t-att-style="'background:#0f172a;color:#fff;' if compp == str(co.id) else ''" t-esc="co.name.split(' ')[0]"/>
+              <t t-if="request.env['hr.employee'].sudo().search_count([('company_id','=',co.id),('active','=',True)])">
+                <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{co.id}}&amp;mois={{d1.strftime('%Y-%m')}}" t-att-style="'background:#0f172a;color:#fff;' if compp == str(co.id) else ''" t-esc="co.name"/>
+              </t>
             </t>
             <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">🗓 Heures</a>
           </div>
