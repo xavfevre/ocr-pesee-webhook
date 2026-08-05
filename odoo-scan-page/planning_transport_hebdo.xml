@@ -94,6 +94,7 @@
         <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
           <span class="d-none d-md-inline">Suiv.</span> <i class="fa fa-chevron-right"/>
         </a>
+        <input type="week" id="tpWeekPick" t-attf-value="{{week_start.isocalendar()[0]}}-W{{'%02d' % week_start.isocalendar()[1]}}" class="form-control form-control-sm w-auto" style="font-weight:700;border-radius:10px;border-color:#cbd5e1;" title="Aller directement à une semaine"/>
         <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
         <a href="/planning-transport-jour" class="btn btn-warning btn-sm">📆 Vue jour</a>
         <a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
@@ -651,6 +652,29 @@
       }
       function toggleTP(){ localStorage.setItem('tpHidden', localStorage.getItem('tpHidden') === '1' ? '0' : '1'); applyFilters(); }
       function filterByStatus(v){ localStorage.setItem('tpStatus', v); applyFilters(); }
+      // Aller directement à une semaine (calcule week_offset depuis la semaine courante)
+      window.addEventListener('DOMContentLoaded', function(){
+        var wp = document.getElementById('tpWeekPick');
+        if(!wp){ return; }
+        wp.addEventListener('change', function(){
+          var m = /^(\d{4})-W(\d{2})$/.exec(wp.value || '');
+          if(!m){ return; }
+          var y = parseInt(m[1]), w = parseInt(m[2]);
+          function isoMonday(yy, ww){
+            var jan4 = new Date(Date.UTC(yy, 0, 4));
+            var day = jan4.getUTCDay() || 7;
+            return Date.UTC(yy, 0, 4 - (day - 1)) + (ww - 1) * 604800000;
+          }
+          var now = new Date();
+          var nd = now.getDay() || 7;
+          var mondayNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - (nd - 1));
+          var offset = Math.round((isoMonday(y, w) - mondayNow) / 604800000);
+          var url = new URL(window.location);
+          url.searchParams.set('week_offset', offset);
+          url.searchParams.set('limit', '1000');
+          window.location.href = url.toString();
+        });
+      });
       window.addEventListener('DOMContentLoaded', applyFilters);
       window.addEventListener('resize', tpRenderCounts);
 
