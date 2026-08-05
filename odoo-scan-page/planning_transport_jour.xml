@@ -127,7 +127,7 @@
           <a t-attf-href="/planning-transport-jour?{{keep_query('chauffeur', 'client')}}" class="btn" style="background:#198754;color:#fff;border-color:#198754;">Aujourd'hui</a>
           <input type="date" id="ptjPick" t-att-value="day.strftime('%Y-%m-%d')"/>
           <a t-attf-href="/model/tache?limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn">🗓️ Vue semaine</a>
-          <a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn">📆 Vue mois</a>
+          <a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn">📅 Vue mois</a>
         </div>
 
         <div class="ptj-summary">
