@@ -24,28 +24,57 @@
     </style>
     <div class="container-fluid px-2 px-md-2">
       <h2 class="mb-3 text-center d-none d-md-block" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 300; color: #2c3e50; letter-spacing: 1px;">
-        📅 Planning Hebdomadaire – Transport
+        📅 Planning Transport — Vue semaine
       </h2>
       <h5 class="mb-2 text-center d-md-none" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 300; color: #2c3e50;">
         📅 Planning Transport
       </h5>
       
-      <!-- Bandeau infos semaine + filtres côte à côte -->
+      <!-- Bandeau : navigation puis filtres (même organisation que la vue jour) -->
       <div class="text-center small mb-2 p-2 bg-light rounded">
         <t t-set="today" t-value="datetime.datetime.now()"/>
         <t t-set="week_start" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(weeks=current_week_offset)"/>
         <t t-set="week_end" t-value="week_start + datetime.timedelta(days=6)"/>
 
-        <strong><t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
-        <span class="text-muted">
-          <t t-if="current_week_offset == 0">Semaine courante</t>
-          <t t-elif="current_week_offset == -1">Semaine dernière</t>
-          <t t-elif="current_week_offset == 1">Semaine prochaine</t>
-          <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
-          <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
-        </span>
+        <!-- Ligne 1 : navigation (desktop) -->
+        <div class="d-none d-md-flex justify-content-center align-items-center gap-2 flex-wrap">
+          <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-outline-primary btn-sm">
+            <i class="fa fa-chevron-left"/> Préc.
+          </a>
+          <div style="min-width:230px;line-height:1.25;">
+            <strong style="font-size:17px;color:#15324f;">📅 <t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
+            <span class="text-muted" style="font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;">
+              <t t-if="current_week_offset == 0">Semaine courante</t>
+              <t t-elif="current_week_offset == -1">Semaine dernière</t>
+              <t t-elif="current_week_offset == 1">Semaine prochaine</t>
+              <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
+              <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
+              · Sem. <t t-esc="week_start.isocalendar()[1]"/>
+            </span>
+          </div>
+          <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-outline-primary btn-sm">
+            Suiv. <i class="fa fa-chevron-right"/>
+          </a>
+          <a t-attf-href="?limit=1000&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-success btn-sm">Semaine en cours</a>
+          <input type="week" id="tpWeekPick" t-attf-value="{{week_start.isocalendar()[0]}}-W{{'%02d' % week_start.isocalendar()[1]}}" class="form-control form-control-sm w-auto" style="font-weight:700;border-radius:10px;border-color:#cbd5e1;" title="Aller directement à une semaine"/>
+          <a t-attf-href="/planning-transport-jour?{{keep_query('chauffeur', 'client')}}" class="btn btn-warning btn-sm">📆 Vue jour</a>
+          <a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
+          <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
+        </div>
 
-        <!-- Filtres côte à côte -->
+        <!-- Dates (mobile) -->
+        <div class="d-md-none">
+          <strong><t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong><br/>
+          <span class="text-muted">
+            <t t-if="current_week_offset == 0">Semaine courante</t>
+            <t t-elif="current_week_offset == -1">Semaine dernière</t>
+            <t t-elif="current_week_offset == 1">Semaine prochaine</t>
+            <t t-elif="current_week_offset &lt; 0">Il y a <t t-esc="abs(current_week_offset)"/> sem.</t>
+            <t t-else="">Dans <t t-esc="current_week_offset"/> sem.</t>
+          </span>
+        </div>
+
+        <!-- Ligne 2 : filtres -->
         <div class="mt-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
           <t t-set="selected_chauffeur" t-value="request.params.get('chauffeur', '')"/>
           <t t-set="chauffeurs_list" t-value="sorted(set([t.x_studio_chauffeur.display_name for t in all_records if t.x_studio_chauffeur and t.planned_date_begin]))"/>
@@ -83,20 +112,6 @@
       <!-- Compteur factures par statut (recalculé selon les filtres) -->
       <div id="tpCountBar" class="d-flex flex-wrap justify-content-center align-items-center gap-1 mb-2"></div>
 
-      <!-- Navigation semaine : Préc / Semaine en cours / Suiv -->
-      <div class="text-center mb-2 d-none d-md-flex justify-content-center align-items-center gap-2">
-        <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
-          <i class="fa fa-chevron-left"/> <span class="d-none d-md-inline">Préc.</span>
-        </a>
-        <a t-attf-href="?chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-success btn-sm">
-          <i class="fa fa-calendar-check d-none d-md-inline"/> Semaine en cours
-        </a>
-        <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;chauffeur={{request.params.get('chauffeur', '')}}&amp;client={{request.params.get('client', '')}}&amp;limit=1000" class="btn btn-outline-primary btn-sm">
-          <span class="d-none d-md-inline">Suiv.</span> <i class="fa fa-chevron-right"/>
-        </a>
-        <button id="tpToggleBtn" type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleTP()">🏗️ Masquer TP</button>
-        <a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
-      </div>
 
       <!-- Demandes à traiter - Version responsive -->
       <div class="alert alert-info mb-2 py-2">
@@ -155,15 +170,28 @@
       </t>
       <t t-set="filtered_records" t-value="[t for t in filtered_records if t.planned_date_begin]"/>
 
+      <!-- Tâches à planifier (sans date), groupées par client -->
+      <t t-set="backlog_all" t-value="[t for t in all_records if not t.planned_date_begin and t.stage_id and t.stage_id.name == 'Nouvelle demande']"/>
+      <t t-set="backlog" t-value="backlog_all"/>
+      <t t-if="selected_chauffeur">
+        <t t-set="backlog" t-value="[t for t in backlog if t.x_studio_chauffeur and t.x_studio_chauffeur.display_name == selected_chauffeur]"/>
+      </t>
+      <t t-if="selected_client">
+        <t t-set="backlog" t-value="[t for t in backlog if t.partner_id and t.partner_id.display_name == selected_client]"/>
+      </t>
+      <t t-set="backlog_clients" t-value="sorted(set([(t.partner_id.id, t.partner_id.display_name) for t in backlog if t.partner_id]), key=lambda c: (-len([x for x in backlog if x.partner_id and x.partner_id.id == c[0]]), c[1]))"/>
+      <t t-set="backlog_no_client" t-value="[t for t in backlog if not t.partner_id]"/>
+
       <!-- VERSION DESKTOP : Table avec bandeau fixe -->
       <div id="tpDesktop" class="d-none d-md-block">
         <!-- Bandeau fixe des transports -->
         <t t-set="immats" t-value="sorted(set([t.x_studio_transport.display_name for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]))"/>
         <t t-set="immats" t-value="list(immats) + ['SANS TRANSPORT']"/>
         <t t-set="carriers" t-value="sorted(set([t.x_studio_transport for t in all_records if t.x_studio_transport and t.planned_date_begin and t.x_studio_transport.active]), key=lambda c: c.display_name)"/>
-        
+
         <div id="stickyHeader" class="d-none d-md-block sticky-header" style="display: none;">
-          <div class="d-flex bg-dark text-white py-2" style="min-width: 1400px;">
+          <div class="d-flex bg-dark text-white py-2" style="min-width: 1630px;">
+            <div class="header-cell" style="width: 230px; min-width: 230px; background:#7f1d1d;">⚠ À planifier</div>
             <div class="header-cell" style="width: 100px; min-width: 100px;">Jour</div>
             <t t-foreach="immats" t-as="immat">
               <div class="header-cell" style="min-width: 180px; flex: 1;">
@@ -180,9 +208,10 @@
         </div>
 
         <div class="table-responsive d-none d-md-block tt-scroll">
-          <table id="mainTable" class="table table-sm table-bordered text-center align-middle" style="min-width: 1400px;">
+          <table id="mainTable" class="table table-sm table-bordered text-center align-middle" style="min-width: 1630px;">
             <thead class="table-dark small">
               <tr>
+                <th style="width: 230px; min-width: 230px; background:#7f1d1d;">⚠ À planifier (<t t-esc="len(backlog)"/>)</th>
                 <th style="width: 100px;">Jour</th>
                 <t t-foreach="immats" t-as="immat">
                   <th style="min-width: 180px;">
@@ -205,16 +234,66 @@
                 <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
                 
                 <tr t-attf-class="{{is_today and 'table-warning' or ''}}" style="height: 120px;">
+                  <t t-if="day_offset == 0">
+                    <td rowspan="7" class="align-top p-1" style="min-width:230px;max-width:230px;background:#FBEAEA;vertical-align:top;">
+                      <div style="max-height:900px;overflow-y:auto;">
+                        <h6 class="text-danger mb-2" style="position:sticky;top:0;background:#FBEAEA;z-index:4;padding:4px 0;margin:0;font-size:13px;">⚠ À planifier (<t t-esc="len(backlog)"/>)</h6>
+                        <t t-foreach="backlog_clients" t-as="bc">
+                          <t t-set="bc_id" t-value="bc[0]"/>
+                          <t t-set="bc_name" t-value="bc[1]"/>
+                          <t t-set="bc_tasks" t-value="[t for t in backlog if t.partner_id and t.partner_id.id == bc_id]"/>
+                          <t t-set="bc_color" t-value="palette[sum([ord(ch) for ch in bc_name]) % len(palette)]"/>
+                          <div t-attf-style="border-left:4px solid {{bc_color}};border-radius:4px;margin-bottom:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);">
+                            <div t-attf-style="background:{{bc_color}}22;color:{{bc_color}};font-weight:800;font-size:10.5px;padding:3px 6px;border-radius:0 3px 0 0;">
+                              🏢 <t t-esc="bc_name"/> (<t t-esc="len(bc_tasks)"/>)
+                            </div>
+                            <div style="padding:3px;">
+                              <t t-foreach="bc_tasks" t-as="tache">
+                                <div class="tp-card border rounded mb-1 p-1 small text-start hover-shadow" style="font-size:10.5px;cursor:grab;position:relative;background:#fff;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" data-status="autre" t-att-data-id="tache.id" data-begin="" data-end="">
+                                  <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:9px;text-decoration:none;" title="Ouvrir la tâche">🔗</a>
+                                  <strong class="d-block text-truncate" style="padding-right:14px;"><t t-esc="tache.name"/></strong>
+                                  <div class="text-muted" style="font-size:9.5px;">
+                                    <t t-esc="tache.stage_id.name if tache.stage_id else 'Sans étape'"/>
+                                    <t t-if="tache.create_date"> · <t t-esc="tache.create_date.strftime('%d/%m/%y')"/></t>
+                                  </div>
+                                  <div t-if="tache.x_studio_chauffeur" class="text-truncate" style="font-size:9.5px;color:#0369a1;">👤 <t t-esc="tache.x_studio_chauffeur.display_name"/></div>
+                                </div>
+                              </t>
+                            </div>
+                          </div>
+                        </t>
+                        <t t-if="backlog_no_client">
+                          <div style="border-left:4px solid #94a3b8;border-radius:4px;margin-bottom:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);">
+                            <div style="background:#94a3b822;color:#475569;font-weight:800;font-size:10.5px;padding:3px 6px;">🏢 Sans client (<t t-esc="len(backlog_no_client)"/>)</div>
+                            <div style="padding:3px;">
+                              <t t-foreach="backlog_no_client" t-as="tache">
+                                <div class="tp-card border rounded mb-1 p-1 small text-start hover-shadow" style="font-size:10.5px;cursor:grab;position:relative;background:#fff;" t-att-data-tp="'1' if 1 in tache.tag_ids.ids else '0'" data-status="autre" t-att-data-id="tache.id" data-begin="" data-end="">
+                                  <a t-attf-href="/web#id={{tache.id}}&amp;view_type=form&amp;model=project.task" target="_blank" style="position:absolute;top:1px;right:4px;font-size:9px;text-decoration:none;" title="Ouvrir la tâche">🔗</a>
+                                  <strong class="d-block text-truncate" style="padding-right:14px;"><t t-esc="tache.name"/></strong>
+                                  <div class="text-muted" style="font-size:9.5px;">
+                                    <t t-esc="tache.stage_id.name if tache.stage_id else 'Sans étape'"/>
+                                    <t t-if="tache.create_date"> · <t t-esc="tache.create_date.strftime('%d/%m/%y')"/></t>
+                                  </div>
+                                </div>
+                              </t>
+                            </div>
+                          </div>
+                        </t>
+                      </div>
+                    </td>
+                  </t>
                   <td class="fw-bold small align-top pt-2" style="width: 100px;">
-                    <t t-if="day_name_en == 'Monday'">Lun</t>
-                    <t t-if="day_name_en == 'Tuesday'">Mar</t>
-                    <t t-if="day_name_en == 'Wednesday'">Mer</t>
-                    <t t-if="day_name_en == 'Thursday'">Jeu</t>
-                    <t t-if="day_name_en == 'Friday'">Ven</t>
-                    <t t-if="day_name_en == 'Saturday'">Sam</t>
-                    <t t-if="day_name_en == 'Sunday'">Dim</t>
-                    <t t-if="is_today"><i class="fa fa-star text-warning ms-1"/></t>
-                    <br/><small class="text-muted"><t t-esc="current_date.strftime('%d/%m')"/></small>
+                    <a t-attf-href="/planning-transport-jour?day={{current_date.strftime('%Y-%m-%d')}}&amp;{{keep_query('chauffeur', 'client')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour">
+                      <t t-if="day_name_en == 'Monday'">Lun</t>
+                      <t t-if="day_name_en == 'Tuesday'">Mar</t>
+                      <t t-if="day_name_en == 'Wednesday'">Mer</t>
+                      <t t-if="day_name_en == 'Thursday'">Jeu</t>
+                      <t t-if="day_name_en == 'Friday'">Ven</t>
+                      <t t-if="day_name_en == 'Saturday'">Sam</t>
+                      <t t-if="day_name_en == 'Sunday'">Dim</t>
+                      <t t-if="is_today"><i class="fa fa-star text-warning ms-1"/></t>
+                      <br/><small class="text-muted"><t t-esc="current_date.strftime('%d/%m')"/></small>
+                    </a>
                   </td>
                   
                   <!-- Colonnes véhicules -->
@@ -335,7 +414,7 @@
         <t t-set="m_off" t-value="int(request.params.get('day_offset') or 0)"/>
         <t t-set="current_date" t-value="datetime.datetime.now() + datetime.timedelta(days=m_off)"/>
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-          <a t-attf-href="?day_offset={{m_off - 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">◀ Préc.</a>
+          <a t-attf-href="?day_offset={{m_off - 1}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">◀ Préc.</a>
           <div class="text-center" style="line-height:1.2;">
             <strong>
               <t t-if="current_date.strftime('%A') == 'Monday'">Lundi</t>
@@ -348,9 +427,9 @@
             </strong><br/>
             <span class="small text-muted"><t t-esc="current_date.strftime('%d/%m/%Y')"/></span>
           </div>
-          <a t-attf-href="?day_offset={{m_off + 1}}&amp;chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
+          <a t-attf-href="?day_offset={{m_off + 1}}&amp;{{keep_query('chauffeur', 'client')}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
         </div>
-        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?chauffeur={{selected_chauffeur}}&amp;client={{selected_client}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a href="/planning-transport-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
+        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?{{keep_query('chauffeur', 'client')}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a t-attf-href="/planning-transport-mois?{{keep_query('client')}}" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
           <t t-set="day_name_en" t-value="current_date.strftime('%A')"/>
           <t t-set="is_today" t-value="current_date.date() == datetime.datetime.now().date()"/>
           
@@ -578,7 +657,7 @@
         defs.forEach(function(d){
           var active = (d[0] === st) || (d[0] === '' &amp;&amp; !st);
           var chip = document.createElement('span');
-          chip.style.cssText = 'cursor:pointer;border:1.5px solid ' + d[2] + ';border-radius:14px;padding:2px 10px;font-size:12px;font-weight:700;' + (active ? ('background:' + d[2] + ';color:#fff;') : ('background:#fff;color:' + d[2] + ';'));
+          chip.style.cssText = 'cursor:pointer;border:1.5px solid ' + d[2] + ';border-radius:16px;padding:4px 13px;font-size:12.5px;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.05);user-select:none;' + (active ? ('background:' + d[2] + ';color:#fff;') : ('background:#fff;color:' + d[2] + ';'));
           chip.textContent = d[1] + '  ' + d[3];
           chip.addEventListener('click', function(){ filterByStatus(d[0]); });
           bar.appendChild(chip);
@@ -586,6 +665,29 @@
       }
       function toggleTP(){ localStorage.setItem('tpHidden', localStorage.getItem('tpHidden') === '1' ? '0' : '1'); applyFilters(); }
       function filterByStatus(v){ localStorage.setItem('tpStatus', v); applyFilters(); }
+      // Aller directement à une semaine (calcule week_offset depuis la semaine courante)
+      window.addEventListener('DOMContentLoaded', function(){
+        var wp = document.getElementById('tpWeekPick');
+        if(!wp){ return; }
+        wp.addEventListener('change', function(){
+          var m = /^(\d{4})-W(\d{2})$/.exec(wp.value || '');
+          if(!m){ return; }
+          var y = parseInt(m[1]), w = parseInt(m[2]);
+          function isoMonday(yy, ww){
+            var jan4 = new Date(Date.UTC(yy, 0, 4));
+            var day = jan4.getUTCDay() || 7;
+            return Date.UTC(yy, 0, 4 - (day - 1)) + (ww - 1) * 604800000;
+          }
+          var now = new Date();
+          var nd = now.getDay() || 7;
+          var mondayNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - (nd - 1));
+          var offset = Math.round((isoMonday(y, w) - mondayNow) / 604800000);
+          var url = new URL(window.location);
+          url.searchParams.set('week_offset', offset);
+          url.searchParams.set('limit', '1000');
+          window.location.href = url.toString();
+        });
+      });
       window.addEventListener('DOMContentLoaded', applyFilters);
       window.addEventListener('resize', tpRenderCounts);
 
@@ -677,17 +779,20 @@
           var day = cell.getAttribute('data-day');
           var engin = parseInt(cell.getAttribute('data-engin'));
           var begin = card.getAttribute('data-begin');
-          var time = begin.split(' ')[1];
+          var fromBacklog = !begin;
+          var time = begin ? begin.split(' ')[1] : '08:00:00';
           var newBegin = day + ' ' + time;
           var vals = { planned_date_begin: newBegin, x_studio_transport: engin &gt; 0 ? engin : false };
           var end = card.getAttribute('data-end');
           if (end) { vals.date_deadline = fmtUTC(pms(newBegin) + (pms(end) - pms(begin))); }
+          else if (fromBacklog) { vals.date_deadline = fmtUTC(pms(newBegin) + 3600000); }
           var origin = card.parentNode;
           cell.appendChild(card);
           card.setAttribute('data-begin', newBegin);
-          if (end) { card.setAttribute('data-end', vals.date_deadline); }
+          if (vals.date_deadline) { card.setAttribute('data-end', vals.date_deadline); }
           rpcWrite(taskId, vals, function (ok, msg) {
             if (!ok) { origin.appendChild(card); alert('Échec : ' + msg); }
+            else if (fromBacklog) { window.location.reload(); }
           });
         }
         var cards = document.querySelectorAll('.tp-card');
@@ -825,6 +930,27 @@
         scrollbar-width: none;
       }
       
+      /* ===== Refonte UX/UI (alignée sur la vue jour) ===== */
+      body{background:#eef2f6 !important;}
+      .container-fluid{padding-top:10px;}
+      h2.mb-3{font-weight:800 !important;color:#15324f !important;letter-spacing:0 !important;font-size:24px;margin-bottom:.6rem !important;}
+      .container-fluid &gt; .bg-light.rounded{background:#fff !important;border-radius:14px !important;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px !important;}
+      .form-select-sm{border-radius:10px !important;font-weight:700;border-color:#cbd5e1 !important;}
+      .btn-sm{border-radius:10px !important;font-weight:800 !important;}
+      .container-fluid &gt; .alert-info{background:#fff !important;border:1.5px solid #bfdbfe !important;border-radius:12px !important;box-shadow:0 1px 4px rgba(0,0,0,.08);color:#0f172a !important;}
+      #demandesContent .btn-outline-secondary{border-radius:10px !important;background:#f8fafc;}
+      .tt-scroll{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);}
+      #mainTable{margin-bottom:0;}
+      #mainTable thead th{background:#0f172a !important;border-color:#1f2937 !important;font-weight:800;padding-top:8px;padding-bottom:8px;}
+      .tt-scroll thead th{background:#0f172a !important;}
+      #mainTable td{border-color:#eef2f6 !important;}
+      .tp-cell{background:#fbfcfe;}
+      tr.table-warning &gt; td{background:#FFFBEB !important;}
+      tr.table-warning &gt; td.fw-bold{background:#FEF3C7 !important;}
+      .ttx{border-radius:10px !important;border-color:#e5eaf0 !important;}
+      .ttx:hover{box-shadow:0 4px 12px rgba(0,0,0,.14) !important;transform:translateY(-1px);}
+      #tpCountBar{gap:6px !important;}
+
       @media (max-width: 768px) {
         .container-fluid {
           padding-left: 0.5rem !important;

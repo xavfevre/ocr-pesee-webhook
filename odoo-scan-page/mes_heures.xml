@@ -17,13 +17,24 @@
       .mh-tot{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 14px;display:flex;gap:18px;justify-content:center;font-weight:800;font-size:15px;margin-bottom:10px;flex-wrap:wrap;}
       .mh-tot b{color:#5eead4;}
       .mh-day{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px;margin-bottom:10px;border-left:6px solid #cbd5e1;}
-      .mh-day.t-travail{border-left-color:#16a34a;}
-      .mh-day.t-cp{border-left-color:#f59e0b;}
-      .mh-day.t-maladie{border-left-color:#dc2626;}
-      .mh-day.t-ferie{border-left-color:#7c3aed;}
-      .mh-day.t-absence{border-left-color:#ef4444;}
-      .mh-day.t-recup{border-left-color:#0ea5e9;}
-      .mh-day.t-repos{border-left-color:#94a3b8;}
+      .mh-day.t-travail{border-left-color:#16a34a;background:#dcfce7;}
+      .mh-day.t-cp{border-left-color:#f59e0b;background:#fbbf24;}
+      .mh-day.t-cp .mh-state{color:#7c2d12;}
+      .mh-day.t-cp .mh-theo{color:#92400e;}
+      .mh-day.t-maladie{border-left-color:#dc2626;background:#f87171;}
+      .mh-day.t-maladie .mh-state{color:#7f1d1d;}
+      .mh-day.t-maladie .mh-theo{color:#7f1d1d;}
+      .mh-day.t-ferie{border-left-color:#7c3aed;background:#c4b5fd;}
+      .mh-day.t-ferie .mh-state{color:#4c1d95;}
+      .mh-day.t-ferie .mh-theo{color:#5b21b6;}
+      .mh-day.t-absence{border-left-color:#ef4444;background:#b91c1c;}
+      .mh-day.t-absence .mh-dname{color:#fff;}
+      .mh-day.t-absence .mh-state{color:#fecaca;}
+      .mh-day.t-absence .mh-theo{color:#fecaca;}
+      .mh-day.t-recup{border-left-color:#0ea5e9;background:#7dd3fc;}
+      .mh-day.t-recup .mh-state{color:#0c4a6e;}
+      .mh-day.t-recup .mh-theo{color:#075985;}
+      .mh-day.t-repos{border-left-color:#94a3b8;background:#e2e8f0;}
       .mh-dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
       .mh-dname{font-size:16px;font-weight:900;color:#0f172a;text-transform:capitalize;}
       .mh-state{font-size:13.5px;font-weight:800;color:#475569;}
@@ -51,6 +62,39 @@
       .mh-pick{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;}
       .mh-pick a{display:inline-block;margin:3px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;color:#0f172a;}
       .mh-soc{font-weight:900;color:#334155;margin:10px 0 4px;font-size:14px;text-transform:uppercase;}
+      .mh-cal{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed;}
+      .mh-cal th{font-size:10.5px;color:#64748b;font-weight:800;text-align:center;padding:2px;}
+      .mh-cal td{background:#f8fafc;border-radius:8px;height:54px;vertical-align:top;padding:0;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+      .mh-cal td.out{background:transparent;box-shadow:none;}
+      .mh-cal td.off{background:#eef2f6;box-shadow:none;}
+      .mh-cal td.today{outline:2px solid #f59e0b;}
+      .mh-cal td a{display:block;height:100%;padding:4px 5px;color:inherit;text-decoration:none;}
+      .mh-cal .dn{font-size:10.5px;font-weight:800;color:#94a3b8;}
+      .mh-cal .val{font-size:12px;font-weight:900;margin-top:1px;white-space:nowrap;}
+      .mh-cal td.c-travail{background:#dcfce7;}
+      .mh-cal td.c-travail .dn{color:#166534;}
+      .mh-cal td.c-cp{background:#fbbf24;}
+      .mh-cal td.c-cp .dn{color:#92400e;} .mh-cal td.c-cp .val{color:#7c2d12 !important;}
+      .mh-cal td.c-maladie{background:#f87171;}
+      .mh-cal td.c-maladie .dn{color:#fee2e2;} .mh-cal td.c-maladie .val{color:#7f1d1d !important;}
+      .mh-cal td.c-ferie{background:#c4b5fd;}
+      .mh-cal td.c-ferie .dn{color:#5b21b6;} .mh-cal td.c-ferie .val{color:#4c1d95 !important;}
+      .mh-cal td.c-absence{background:#b91c1c;}
+      .mh-cal td.c-absence .dn{color:#fecaca;} .mh-cal td.c-absence .val{color:#fff !important;}
+      .mh-cal td.c-recup{background:#7dd3fc;}
+      .mh-cal td.c-recup .dn{color:#075985;} .mh-cal td.c-recup .val{color:#0c4a6e !important;}
+      .mh-cal td.c-repos{background:#e2e8f0;}
+      .mh-cal td.c-repos .dn{color:#64748b;}
+      .mh-days-mois{display:block !important;}
+      /* ===== Vue ordinateur automatique (≥ 992px) : jours en grille + panneau latéral ===== */
+      @media (min-width: 992px) {
+        .mh-wrap{max-width:1240px;}
+        .mh-grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start;}
+        .mh-days{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start;}
+        .mh-day{margin-bottom:0;}
+        .mh-side > div{margin:0 0 14px 0 !important;}
+        .mh-brand .n{font-size:24px;}
+      }
     </style>
     <div class="mh-wrap">
       <t t-set="empp" t-value="request.params.get('emp')"/>
@@ -70,8 +114,14 @@
         <t t-set="semp" t-value="request.params.get('sem')"/>
         <t t-set="today" t-value="datetime.date.today()"/>
         <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
+        <t t-set="vue" t-value="request.params.get('vue') or 'sem'"/>
+        <t t-set="m1" t-value="datetime.datetime.strptime((request.params.get('mois') or today.strftime('%Y-%m')) + '-01', '%Y-%m-%d').date()"/>
+        <t t-set="m_prev" t-value="(m1 - datetime.timedelta(days=1)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="m_next" t-value="(m1 + datetime.timedelta(days=32)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="mois_noms_fr" t-value="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']"/>
         <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
         <t t-set="cal" t-value="emp.resource_calendar_id"/>
+        <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
         <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
         <t t-set="saisies" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]))"/>
         <div class="mh-brand">
@@ -86,15 +136,80 @@
             <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/></div>
           </div>
           <div class="mh-nav">
-            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
-            <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
-            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+            <t t-if="vue == 'mois'">
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;vue=mois&amp;mois={{m_prev}}">◀</a>
+              <span class="mh-week" style="text-transform:capitalize;"><t t-esc="mois_noms_fr[m1.month - 1]"/> <t t-esc="m1.year"/></span>
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;vue=mois&amp;mois={{m_next}}">▶</a>
+            </t>
+            <t t-else="">
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
+              <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+            </t>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}" t-att-style="'background:#0f172a;color:#fff;' if vue != 'mois' else ''">Semaine</a>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;vue=mois&amp;mois={{monday.strftime('%Y-%m')}}" t-att-style="'background:#0f172a;color:#fff;' if vue == 'mois' else ''">Mois</a>
           </div>
         </div>
-        <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
-        <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
-          ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
-        </div>
+        <t t-if="vue != 'mois'">
+          <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
+          <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
+            ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
+          </div>
+        </t>
+        <t t-if="vue == 'mois'">
+          <t t-set="mstart" t-value="m1 - datetime.timedelta(days=m1.weekday())"/>
+          <t t-set="msai" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',mstart.strftime('%Y-%m-%d')),('x_date','&lt;=',(mstart + datetime.timedelta(days=41)).strftime('%Y-%m-%d'))]))"/>
+          <t t-set="mrows" t-value="[r for r in msai.values() if r.x_date.month == m1.month and r.x_date.year == m1.year]"/>
+          <t t-set="mm_eff" t-value="sum(r.x_heures for r in mrows if r.x_type == 'travail')"/>
+          <t t-set="mm_theo" t-value="sum(r.x_theo for r in mrows if r.x_type == 'travail')"/>
+          <t t-set="mm_cp" t-value="len([r for r in mrows if r.x_type == 'cp'])"/>
+          <t t-set="mm_mal" t-value="len([r for r in mrows if r.x_type == 'maladie'])"/>
+          <t t-set="mm_fer" t-value="len([r for r in mrows if r.x_type == 'ferie'])"/>
+          <t t-set="mm_rec" t-value="len([r for r in mrows if r.x_type == 'recup'])"/>
+          <t t-set="mm_abs" t-value="len([r for r in mrows if r.x_type == 'absence'])"/>
+          <div class="mh-tot">Effectué <b><t t-esc="'%.2f' % mm_eff"/> h</b> · Théorique <b><t t-esc="'%.2f' % mm_theo"/> h</b> · Écart <b><t t-esc="('+' if mm_eff &gt;= mm_theo else '') + ('%.2f' % (mm_eff - mm_theo))"/> h</b><t t-if="mm_cp"> · 🏖 <b><t t-esc="mm_cp"/></b></t><t t-if="mm_mal"> · 🤒 <b><t t-esc="mm_mal"/></b></t><t t-if="mm_fer"> · 🎉 <b><t t-esc="mm_fer"/></b></t><t t-if="mm_rec"> · 🔄 <b><t t-esc="mm_rec"/></b></t><t t-if="mm_abs"> · ⛔ <b><t t-esc="mm_abs"/></b></t></div>
+        </t>
+        <div class="mh-grid">
+        <div t-attf-class="mh-days {{'mh-days-mois' if vue == 'mois' else ''}}">
+        <t t-if="vue == 'mois'">
+          <div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:8px;">
+            <table class="mh-cal">
+              <tr><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th><th>D</th></tr>
+              <t t-foreach="range(6)" t-as="w">
+                <t t-if="any((mstart + datetime.timedelta(days=w*7+dd)).month == m1.month for dd in range(7))">
+                  <tr>
+                    <t t-foreach="range(7)" t-as="wd">
+                      <t t-set="d" t-value="mstart + datetime.timedelta(days=w*7+wd)"/>
+                      <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
+                      <t t-set="s" t-value="msai.get(dstr)"/>
+                      <t t-set="dwt" t-value="str(((d - datetime.timedelta(days=d.weekday())) - datetime.date(1970,1,5)).days // 7 % 2)"/>
+                      <t t-set="dtheo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == dwt)]) if cal else 0"/>
+                      <t t-if="d.month != m1.month"><td class="out"/></t>
+                      <t t-else="">
+                        <td t-attf-class="{{'c-' + s.x_type if s else ''}} {{'off' if (dtheo &lt;= 0 and not s) else ''}} {{'today' if d == today else ''}}">
+                          <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(d - datetime.timedelta(days=d.weekday())).strftime('%Y-%m-%d')}}" t-att-title="'Ouvrir la semaine du ' + (d - datetime.timedelta(days=d.weekday())).strftime('%d/%m')">
+                            <span class="dn"><t t-esc="d.day"/></span>
+                            <t t-if="s and s.x_type == 'travail'"><div class="val" style="color:#15803d;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h</div></t>
+                            <t t-elif="s and s.x_type == 'cp'"><div class="val" style="color:#b45309;">🏖 CP</div></t>
+                            <t t-elif="s and s.x_type == 'maladie'"><div class="val" style="color:#b91c1c;">🤒 Mal.</div></t>
+                            <t t-elif="s and s.x_type == 'ferie'"><div class="val" style="color:#7c3aed;">🎉 Férié</div></t>
+                            <t t-elif="s and s.x_type == 'absence'"><div class="val" style="color:#7f1d1d;">⛔ Abs.</div></t>
+                            <t t-elif="s and s.x_type == 'recup'"><div class="val" style="color:#075985;">🔄 Récup</div></t>
+                            <t t-elif="s"><div class="val" style="color:#64748b;">💤</div></t>
+                            <t t-elif="dtheo &gt; 0 and d &lt;= today"><div class="val" style="color:#d97706;">!</div></t>
+                            <t t-elif="dtheo &gt; 0"><div class="val" style="color:#cbd5e1;">(<t t-esc="'%g' % dtheo"/> h)</div></t>
+                          </a>
+                        </td>
+                      </t>
+                    </t>
+                  </tr>
+                </t>
+              </t>
+            </table>
+            <div style="color:#94a3b8;font-size:11px;font-weight:600;margin-top:6px;padding:0 4px;">Cliquez sur un jour pour ouvrir sa semaine et saisir. <b style="color:#d97706;">!</b> = jour ouvré passé sans saisie · gris = pas d'horaire prévu.</div>
+          </div>
+        </t>
+        <t t-else="">
         <t t-foreach="range(7)" t-as="i">
           <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
           <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
@@ -149,6 +264,14 @@
                 </span>
               </div>
             </t>
+            <t t-elif="verrou and dstr &lt;= verrou">
+              <div class="mh-lock l-repos">
+                <span style="font-size:20px;">🔒</span>
+                <span>Journée verrouillée
+                  <small>La paie de cette période est établie : plus de modification possible ici. Contactez le bureau pour toute correction.</small>
+                </span>
+              </div>
+            </t>
             <t t-else="">
               <div class="mh-btns" t-if="theo &gt; 0">
                 <button type="button" class="mh-b mh-b-ok" data-act="normal">✓ Journée normale</button>
@@ -165,6 +288,73 @@
             </t>
           </div>
         </t>
+        </t>
+        </div>
+        <div class="mh-side">
+        <!-- ===== Mes congés (compteurs période 01/06 → 31/05) ===== -->
+        <t t-set="per_start" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/>
+        <t t-set="per_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',per_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="n_cp" t-value="len(per_rows.filtered(lambda r: r.x_type == 'cp'))"/>
+        <t t-set="n_rec" t-value="len(per_rows.filtered(lambda r: r.x_type == 'recup'))"/>
+        <t t-set="n_mal" t-value="len(per_rows.filtered(lambda r: r.x_type == 'maladie'))"/>
+        <t t-set="n_abs" t-value="len(per_rows.filtered(lambda r: r.x_type == 'absence'))"/>
+        <t t-set="allocs" t-value="request.env['hr.leave.allocation'].sudo().search([('employee_id','=',emp.id),('state','=','validate'),('holiday_status_id.name','=','Congés payés'),('date_from','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="allocs" t-value="allocs.filtered(lambda a: not a.date_to or a.date_to &gt;= today)"/>
+        <t t-set="droit" t-value="sum(allocs.mapped('number_of_days'))"/>
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🏖 Mes congés</div>
+          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Période du <t t-esc="per_start.strftime('%d/%m/%Y')"/> à aujourd'hui</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <t t-if="droit &gt; 0">
+              <div style="flex:1;min-width:100px;background:#ECFDF5;border-radius:10px;padding:8px 10px;text-align:center;">
+                <div style="font-size:22px;font-weight:900;color:#047857;"><t t-esc="'%g' % (droit - n_cp)"/></div>
+                <div style="font-size:11px;font-weight:800;color:#065F46;">CP restants</div>
+                <div style="font-size:10px;color:#94a3b8;">sur <t t-esc="'%g' % droit"/> acquis</div>
+              </div>
+            </t>
+            <div style="flex:1;min-width:90px;background:#FEF3C7;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="n_cp"/></div>
+              <div style="font-size:11px;font-weight:800;color:#92400e;">CP pris</div>
+            </div>
+            <div style="flex:1;min-width:90px;background:#E0F2FE;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#075985;"><t t-esc="n_rec"/></div>
+              <div style="font-size:11px;font-weight:800;color:#075985;">Récups</div>
+            </div>
+            <div style="flex:1;min-width:90px;background:#FEE2E2;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#991b1b;"><t t-esc="n_mal"/></div>
+              <div style="font-size:11px;font-weight:800;color:#991b1b;">Maladie</div>
+            </div>
+            <div t-if="n_abs" style="flex:1;min-width:90px;background:#FECACA;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#7f1d1d;"><t t-esc="n_abs"/></div>
+              <div style="font-size:11px;font-weight:800;color:#7f1d1d;">Absences</div>
+            </div>
+          </div>
+          <div t-if="not droit" style="margin-top:8px;color:#94a3b8;font-size:11.5px;">Le solde de CP restants sera affiché ici dès que le bureau aura enregistré votre droit annuel. En attendant, le compteur « CP pris » fait foi — voir le bureau pour votre solde exact.</div>
+        </div>
+
+        <!-- ===== Mon mois ===== -->
+        <t t-set="m_start" t-value="today.replace(day=1)"/>
+        <t t-set="m_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',m_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="m_eff" t-value="sum(m_rows.filtered(lambda r: r.x_type == 'travail').mapped('x_heures'))"/>
+        <t t-set="m_theo" t-value="sum(m_rows.filtered(lambda r: r.x_type == 'travail').mapped('x_theo'))"/>
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">📊 Mon mois — <t t-esc="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][today.month - 1]"/></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:100px;background:#f1f5f9;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:20px;font-weight:900;color:#0f172a;"><t t-esc="'%.1f' % m_eff"/> h</div>
+              <div style="font-size:11px;font-weight:800;color:#64748b;">effectuées</div>
+            </div>
+            <div style="flex:1;min-width:100px;background:#f1f5f9;border-radius:10px;padding:8px 10px;text-align:center;">
+              <div style="font-size:20px;font-weight:900;color:#0f172a;"><t t-esc="'%.1f' % m_theo"/> h</div>
+              <div style="font-size:11px;font-weight:800;color:#64748b;">théorique saisi</div>
+            </div>
+            <div t-attf-style="flex:1;min-width:100px;background:{{'#ECFDF5' if m_eff &gt;= m_theo else '#FEF3C7'}};border-radius:10px;padding:8px 10px;text-align:center;">
+              <div t-attf-style="font-size:20px;font-weight:900;color:{{'#047857' if m_eff &gt;= m_theo else '#92400e'}};"><t t-esc="('+' if m_eff &gt;= m_theo else '') + ('%.1f' % (m_eff - m_theo))"/> h</div>
+              <div style="font-size:11px;font-weight:800;color:#64748b;">écart</div>
+            </div>
+          </div>
+        </div>
+
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
           <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🏖 Demander des congés</div>
           <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
@@ -195,6 +385,32 @@
             </t>
           </div>
         </div>
+        <!-- ===== Mes coordonnées ===== -->
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">📇 Mes coordonnées</div>
+          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Tenez-les à jour : elles servent au bureau pour vous joindre (et en cas d'urgence).</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
+            <label style="font-weight:800;color:#64748b;font-size:13px;">📱 Portable</label>
+            <input type="tel" id="mh-co-mobile" t-att-value="emp.private_phone or ''" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">✉️ Email perso</label>
+            <input type="email" id="mh-co-email" t-att-value="emp.private_email or ''" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">🏠 Adresse</label>
+            <input type="text" id="mh-co-rue" t-att-value="emp.private_street or ''" placeholder="rue" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;"></label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="mh-co-cp" t-att-value="emp.private_zip or ''" placeholder="CP" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;width:90px;"/>
+              <input type="text" id="mh-co-ville" t-att-value="emp.private_city or ''" placeholder="ville" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;flex:1;"/>
+            </div>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">🆘 Urgence</label>
+            <input type="text" id="mh-co-urgnom" t-att-value="emp.emergency_contact or ''" placeholder="personne à prévenir" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;"></label>
+            <input type="tel" id="mh-co-urgtel" t-att-value="emp.emergency_phone or ''" placeholder="son téléphone" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+          </div>
+          <button type="button" id="mh-co-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#0f172a;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">💾 Enregistrer mes coordonnées</button>
+        </div>
+        </div>
+        </div>
+
         <div t-att-data-emp="emp.id" t-att-data-tok="tok" id="mh-data" style="display:none;"/>
         <script>
 (function(){
@@ -204,6 +420,7 @@
   function fromDec(h){ if(!h){ return ''; } var H=Math.floor(h), M=Math.round((h-H)*60); return ('0'+H).slice(-2)+':'+('0'+M).slice(-2); }
   var LBL = {travail:'✓', cp:'🏖 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
   function totals(){
+    if(!document.getElementById('mh-t-eff')){ return; }
     var eff=0, theo=0;
     document.querySelectorAll('.mh-day').forEach(function(c){
       theo += parseFloat(c.getAttribute('data-theo')||0);
@@ -273,6 +490,26 @@
       alert('✓ Demande envoyée à votre responsable.');
       location.reload();
     }).catch(function(){ dcgo.disabled = false; alert('Échec réseau'); });
+  }); }
+  var cogo = document.getElementById('mh-co-go');
+  if(cogo){ cogo.addEventListener('click', function(){
+    cogo.disabled = true;
+    var ctx = {active_model:'hr.employee', co_emp:EMP, co_token:TOK,
+               co_mobile:document.getElementById('mh-co-mobile').value,
+               co_email:document.getElementById('mh-co-email').value,
+               co_rue:document.getElementById('mh-co-rue').value,
+               co_cp:document.getElementById('mh-co-cp').value,
+               co_ville:document.getElementById('mh-co-ville').value,
+               co_urg_nom:document.getElementById('mh-co-urgnom').value,
+               co_urg_tel:document.getElementById('mh-co-urgtel').value};
+    rpcAction(2048, ctx).then(function(r){return r.json();}).then(function(d){
+      cogo.disabled = false;
+      if(d.error){ handleErr(d); return; }
+      var n = (d.result || {}).changed || 0;
+      cogo.textContent = n ? '✓ Coordonnées enregistrées' : '✓ Rien à modifier';
+      cogo.style.background = '#15803d';
+      setTimeout(function(){ cogo.textContent = '💾 Enregistrer mes coordonnées'; cogo.style.background = '#0f172a'; }, 2500);
+    }).catch(function(){ cogo.disabled = false; alert('Échec réseau'); });
   }); }
 })();
         </script>

@@ -80,8 +80,47 @@ Odoo et vérifie le marqueur du relais en relecture).
 ## Notes
 - Les horaires de référence se règlent dans Odoo : fiche employé → Horaires
   de travail. Tout salarié à horaire particulier doit avoir son calendrier.
-- Évolutions possibles : jours fériés automatiques, verrouillage du mois après
-  export, signature salarié.
+- Évolutions possibles : verrouillage du mois après export, signature salarié.
+
+## Verrou de paie (05/08)
+Bouton **🔒 Figer** sur `/heures-admin` (à côté de l'export paie) : Charlotte
+choisit une date et fige toutes les feuilles d'heures **jusqu'à cette date
+incluse**. Les salariés ne peuvent plus modifier ces journées (refus côté
+serveur dans l'action 2012 + bannière « Journée verrouillée » sur leur page) ;
+**le bureau reste libre** de corriger. Bouton « Déverrouiller » pour retirer
+le verrou. Stocké dans `ir.config_parameter maquignon.heures_verrou`,
+posé/levé par l'action **2050** (clé responsables, via le relais Render).
+Usage type : après l'export paie du mois, figer au dernier jour du mois.
+
+## Présences Odoo : détection d'absences désactivée (05/08)
+Le module Présences n'est **pas alimenté** par les feuilles d'heures (ce
+sont les pages web + export paie qui font foi). Le cron Odoo « Attendance:
+Detect Absences » créait chaque nuit des pointages techniques d'1 seconde
+(blocs rouges 0h dans Présences) pour tous les salariés sans badge — du
+bruit, puisque personne ne badge. Cron désactivé, les 21 pointages
+techniques supprimés. À réactiver seulement si un jour le badgeage kiosque
+est utilisé.
+
+## Vue mensuelle salarié (05/08)
+Basculeur **Semaine / Mois** en haut de `/mes-heures`. La vue mois affiche
+le calendrier du salarié en lecture : heures des jours travaillés (vert),
+CP / Maladie / Férié / Absence / Récup en couleur, **« ! » ambre sur les
+jours ouvrés passés sans saisie**, théorique pâle sur les jours à venir,
+jours sans horaire grisés. Bandeau de totaux du mois (effectué, théorique,
+écart + compteurs par type). Un clic sur un jour ouvre la semaine
+correspondante pour saisir — la saisie reste exclusivement hebdomadaire.
+
+## Jours fériés automatiques (05/08)
+Action serveur **2049** + cron mensuel (**122**) : pour les ~120 prochains
+jours, crée une ligne « férié » dans la feuille d'heures de chaque salarié
+dont c'est un **jour ouvré selon son calendrier** (parité 2 semaines gérée,
+théorique du jour renseigné). Fériés France calculés (11 jours, Pâques par
+algorithme — pas de dépendance) ; ne touche jamais un jour déjà saisi, le
+bureau peut requalifier un férié travaillé via /heures-admin. Première
+exécution : 15/08 créé pour les 2 salariées du samedi, 01/11 (dimanche)
+pour personne, 11/11 pour les 33 fiches. Les fériés apparaissent partout
+(grille admin, planning, page salarié en bandeau violet, export paie
+mention FERIE).
 
 ## Raccourcis dans le module Présences (30/07)
 Menu **Présences → Heures & congés** (déplacé depuis Employés) :
@@ -156,6 +195,22 @@ Audit du même jour sur **tous** les salariés : aucun autre congé validé non
 couvert par une attribution, et le test à blanc de changement d'horaire passe
 pour les **32 fiches actives sur 32** (la 33ᵉ était le doublon DISTRI BETON de
 Christophe MAQUIGNON, archivé le même jour).
+
+## Enrichissement de la page salarié (05/08)
+Trois nouveaux blocs sur `/mes-heures`, sous la semaine :
+- **🏖 Mes congés** : compteurs de la période CP en cours (01/06 → 31/05) —
+  CP pris, récups, maladie, absences — calculés depuis la feuille d'heures
+  (`x_heures_jour`, la source fiable du groupe). Le **solde de CP restants**
+  ne s'affiche que si une attribution Odoo validée couvre la date du jour
+  (droit − pris) ; sinon un message renvoie vers le bureau. Pour que le
+  solde apparaisse pour tous, créer les attributions annuelles dans Congés.
+- **📊 Mon mois** : heures effectuées vs théorique saisi du mois, écart
+  coloré.
+- **📇 Mes coordonnées** : le salarié met à jour lui-même portable, email
+  perso, adresse, contact d'urgence. Enregistrement via l'action serveur
+  **2048** (jeton vérifié, champs limités à cette liste blanche) ; chaque
+  modification est **tracée dans le journal de la fiche salarié** (ancienne
+  et nouvelle valeur), visible par Charlotte et Isabelle.
 
 ## Bug corrigé (30/07) — le lundi n'était pas enregistré
 **Symptôme** : tout horaire saisi via /heures-horaires perdait le lundi ;
