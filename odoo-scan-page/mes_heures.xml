@@ -60,6 +60,20 @@
       .mh-cal td a{display:block;height:100%;padding:4px 5px;color:inherit;text-decoration:none;}
       .mh-cal .dn{font-size:10.5px;font-weight:800;color:#94a3b8;}
       .mh-cal .val{font-size:12px;font-weight:900;margin-top:1px;white-space:nowrap;}
+      .mh-cal td.c-travail{background:#dcfce7;}
+      .mh-cal td.c-travail .dn{color:#166534;}
+      .mh-cal td.c-cp{background:#fbbf24;}
+      .mh-cal td.c-cp .dn{color:#92400e;} .mh-cal td.c-cp .val{color:#7c2d12 !important;}
+      .mh-cal td.c-maladie{background:#f87171;}
+      .mh-cal td.c-maladie .dn{color:#fee2e2;} .mh-cal td.c-maladie .val{color:#7f1d1d !important;}
+      .mh-cal td.c-ferie{background:#c4b5fd;}
+      .mh-cal td.c-ferie .dn{color:#5b21b6;} .mh-cal td.c-ferie .val{color:#4c1d95 !important;}
+      .mh-cal td.c-absence{background:#b91c1c;}
+      .mh-cal td.c-absence .dn{color:#fecaca;} .mh-cal td.c-absence .val{color:#fff !important;}
+      .mh-cal td.c-recup{background:#7dd3fc;}
+      .mh-cal td.c-recup .dn{color:#075985;} .mh-cal td.c-recup .val{color:#0c4a6e !important;}
+      .mh-cal td.c-repos{background:#e2e8f0;}
+      .mh-cal td.c-repos .dn{color:#64748b;}
       .mh-days-mois{display:block !important;}
       /* ===== Vue ordinateur automatique (≥ 992px) : jours en grille + panneau latéral ===== */
       @media (min-width: 992px) {
@@ -160,7 +174,7 @@
                       <t t-set="dtheo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == dwt)]) if cal else 0"/>
                       <t t-if="d.month != m1.month"><td class="out"/></t>
                       <t t-else="">
-                        <td t-attf-class="{{'off' if (dtheo &lt;= 0 and not s) else ''}} {{'today' if d == today else ''}}">
+                        <td t-attf-class="{{'c-' + s.x_type if s else ''}} {{'off' if (dtheo &lt;= 0 and not s) else ''}} {{'today' if d == today else ''}}">
                           <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(d - datetime.timedelta(days=d.weekday())).strftime('%Y-%m-%d')}}" t-att-title="'Ouvrir la semaine du ' + (d - datetime.timedelta(days=d.weekday())).strftime('%d/%m')">
                             <span class="dn"><t t-esc="d.day"/></span>
                             <t t-if="s and s.x_type == 'travail'"><div class="val" style="color:#15803d;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h</div></t>
