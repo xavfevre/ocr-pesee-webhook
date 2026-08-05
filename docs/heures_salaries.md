@@ -82,6 +82,15 @@ Odoo et vérifie le marqueur du relais en relecture).
   de travail. Tout salarié à horaire particulier doit avoir son calendrier.
 - Évolutions possibles : verrouillage du mois après export, signature salarié.
 
+## Vue mensuelle salarié (05/08)
+Basculeur **Semaine / Mois** en haut de `/mes-heures`. La vue mois affiche
+le calendrier du salarié en lecture : heures des jours travaillés (vert),
+CP / Maladie / Férié / Absence / Récup en couleur, **« ! » ambre sur les
+jours ouvrés passés sans saisie**, théorique pâle sur les jours à venir,
+jours sans horaire grisés. Bandeau de totaux du mois (effectué, théorique,
+écart + compteurs par type). Un clic sur un jour ouvre la semaine
+correspondante pour saisir — la saisie reste exclusivement hebdomadaire.
+
 ## Jours fériés automatiques (05/08)
 Action serveur **2049** + cron mensuel (**122**) : pour les ~120 prochains
 jours, crée une ligne « férié » dans la feuille d'heures de chaque salarié

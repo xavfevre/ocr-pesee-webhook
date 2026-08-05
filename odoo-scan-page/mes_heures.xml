@@ -51,6 +51,16 @@
       .mh-pick{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;}
       .mh-pick a{display:inline-block;margin:3px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;color:#0f172a;}
       .mh-soc{font-weight:900;color:#334155;margin:10px 0 4px;font-size:14px;text-transform:uppercase;}
+      .mh-cal{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed;}
+      .mh-cal th{font-size:10.5px;color:#64748b;font-weight:800;text-align:center;padding:2px;}
+      .mh-cal td{background:#f8fafc;border-radius:8px;height:54px;vertical-align:top;padding:0;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+      .mh-cal td.out{background:transparent;box-shadow:none;}
+      .mh-cal td.off{background:#eef2f6;box-shadow:none;}
+      .mh-cal td.today{outline:2px solid #f59e0b;}
+      .mh-cal td a{display:block;height:100%;padding:4px 5px;color:inherit;text-decoration:none;}
+      .mh-cal .dn{font-size:10.5px;font-weight:800;color:#94a3b8;}
+      .mh-cal .val{font-size:12px;font-weight:900;margin-top:1px;white-space:nowrap;}
+      .mh-days-mois{display:block !important;}
       /* ===== Vue ordinateur automatique (≥ 992px) : jours en grille + panneau latéral ===== */
       @media (min-width: 992px) {
         .mh-wrap{max-width:1240px;}
@@ -79,6 +89,11 @@
         <t t-set="semp" t-value="request.params.get('sem')"/>
         <t t-set="today" t-value="datetime.date.today()"/>
         <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
+        <t t-set="vue" t-value="request.params.get('vue') or 'sem'"/>
+        <t t-set="m1" t-value="datetime.datetime.strptime((request.params.get('mois') or today.strftime('%Y-%m')) + '-01', '%Y-%m-%d').date()"/>
+        <t t-set="m_prev" t-value="(m1 - datetime.timedelta(days=1)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="m_next" t-value="(m1 + datetime.timedelta(days=32)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="mois_noms_fr" t-value="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']"/>
         <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
         <t t-set="cal" t-value="emp.resource_calendar_id"/>
         <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
@@ -95,17 +110,80 @@
             <div class="mh-theo"><t t-esc="emp.company_id.name"/> · <t t-esc="cal.name or 'sans horaire'"/></div>
           </div>
           <div class="mh-nav">
-            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
-            <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
-            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+            <t t-if="vue == 'mois'">
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;vue=mois&amp;mois={{m_prev}}">◀</a>
+              <span class="mh-week" style="text-transform:capitalize;"><t t-esc="mois_noms_fr[m1.month - 1]"/> <t t-esc="m1.year"/></span>
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;vue=mois&amp;mois={{m_next}}">▶</a>
+            </t>
+            <t t-else="">
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀</a>
+              <span class="mh-week">Sem. <t t-esc="monday.isocalendar()[1]"/><br/><t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="(monday + datetime.timedelta(days=6)).strftime('%d/%m')"/></span>
+              <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">▶</a>
+            </t>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}" t-att-style="'background:#0f172a;color:#fff;' if vue != 'mois' else ''">Semaine</a>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;vue=mois&amp;mois={{monday.strftime('%Y-%m')}}" t-att-style="'background:#0f172a;color:#fff;' if vue == 'mois' else ''">Mois</a>
           </div>
         </div>
-        <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
-        <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
-          ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
-        </div>
+        <t t-if="vue != 'mois'">
+          <div class="mh-tot" id="mh-tot">Effectué <b id="mh-t-eff">–</b> · Théorique <b id="mh-t-theo">–</b> · Écart <b id="mh-t-hs">–</b></div>
+          <div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#64748b;font-size:12.5px;font-weight:600;">
+            ℹ️ Vous saisissez uniquement vos <b>heures travaillées</b>. Congés, maladie, jours fériés et absences sont enregistrés par le bureau — pour un congé, utilisez <b>« Demander des congés »</b> en bas de page.
+          </div>
+        </t>
+        <t t-if="vue == 'mois'">
+          <t t-set="mstart" t-value="m1 - datetime.timedelta(days=m1.weekday())"/>
+          <t t-set="msai" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',mstart.strftime('%Y-%m-%d')),('x_date','&lt;=',(mstart + datetime.timedelta(days=41)).strftime('%Y-%m-%d'))]))"/>
+          <t t-set="mrows" t-value="[r for r in msai.values() if r.x_date.month == m1.month and r.x_date.year == m1.year]"/>
+          <t t-set="mm_eff" t-value="sum(r.x_heures for r in mrows if r.x_type == 'travail')"/>
+          <t t-set="mm_theo" t-value="sum(r.x_theo for r in mrows if r.x_type == 'travail')"/>
+          <t t-set="mm_cp" t-value="len([r for r in mrows if r.x_type == 'cp'])"/>
+          <t t-set="mm_mal" t-value="len([r for r in mrows if r.x_type == 'maladie'])"/>
+          <t t-set="mm_fer" t-value="len([r for r in mrows if r.x_type == 'ferie'])"/>
+          <t t-set="mm_rec" t-value="len([r for r in mrows if r.x_type == 'recup'])"/>
+          <t t-set="mm_abs" t-value="len([r for r in mrows if r.x_type == 'absence'])"/>
+          <div class="mh-tot">Effectué <b><t t-esc="'%.2f' % mm_eff"/> h</b> · Théorique <b><t t-esc="'%.2f' % mm_theo"/> h</b> · Écart <b><t t-esc="('+' if mm_eff &gt;= mm_theo else '') + ('%.2f' % (mm_eff - mm_theo))"/> h</b><t t-if="mm_cp"> · 🏖 <b><t t-esc="mm_cp"/></b></t><t t-if="mm_mal"> · 🤒 <b><t t-esc="mm_mal"/></b></t><t t-if="mm_fer"> · 🎉 <b><t t-esc="mm_fer"/></b></t><t t-if="mm_rec"> · 🔄 <b><t t-esc="mm_rec"/></b></t><t t-if="mm_abs"> · ⛔ <b><t t-esc="mm_abs"/></b></t></div>
+        </t>
         <div class="mh-grid">
-        <div class="mh-days">
+        <div t-attf-class="mh-days {{'mh-days-mois' if vue == 'mois' else ''}}">
+        <t t-if="vue == 'mois'">
+          <div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:8px;">
+            <table class="mh-cal">
+              <tr><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th><th>D</th></tr>
+              <t t-foreach="range(6)" t-as="w">
+                <t t-if="any((mstart + datetime.timedelta(days=w*7+dd)).month == m1.month for dd in range(7))">
+                  <tr>
+                    <t t-foreach="range(7)" t-as="wd">
+                      <t t-set="d" t-value="mstart + datetime.timedelta(days=w*7+wd)"/>
+                      <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
+                      <t t-set="s" t-value="msai.get(dstr)"/>
+                      <t t-set="dwt" t-value="str(((d - datetime.timedelta(days=d.weekday())) - datetime.date(1970,1,5)).days // 7 % 2)"/>
+                      <t t-set="dtheo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == dwt)]) if cal else 0"/>
+                      <t t-if="d.month != m1.month"><td class="out"/></t>
+                      <t t-else="">
+                        <td t-attf-class="{{'off' if (dtheo &lt;= 0 and not s) else ''}} {{'today' if d == today else ''}}">
+                          <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(d - datetime.timedelta(days=d.weekday())).strftime('%Y-%m-%d')}}" t-att-title="'Ouvrir la semaine du ' + (d - datetime.timedelta(days=d.weekday())).strftime('%d/%m')">
+                            <span class="dn"><t t-esc="d.day"/></span>
+                            <t t-if="s and s.x_type == 'travail'"><div class="val" style="color:#15803d;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h</div></t>
+                            <t t-elif="s and s.x_type == 'cp'"><div class="val" style="color:#b45309;">🏖 CP</div></t>
+                            <t t-elif="s and s.x_type == 'maladie'"><div class="val" style="color:#b91c1c;">🤒 Mal.</div></t>
+                            <t t-elif="s and s.x_type == 'ferie'"><div class="val" style="color:#7c3aed;">🎉 Férié</div></t>
+                            <t t-elif="s and s.x_type == 'absence'"><div class="val" style="color:#7f1d1d;">⛔ Abs.</div></t>
+                            <t t-elif="s and s.x_type == 'recup'"><div class="val" style="color:#075985;">🔄 Récup</div></t>
+                            <t t-elif="s"><div class="val" style="color:#64748b;">💤</div></t>
+                            <t t-elif="dtheo &gt; 0 and d &lt;= today"><div class="val" style="color:#d97706;">!</div></t>
+                            <t t-elif="dtheo &gt; 0"><div class="val" style="color:#cbd5e1;">(<t t-esc="'%g' % dtheo"/> h)</div></t>
+                          </a>
+                        </td>
+                      </t>
+                    </t>
+                  </tr>
+                </t>
+              </t>
+            </table>
+            <div style="color:#94a3b8;font-size:11px;font-weight:600;margin-top:6px;padding:0 4px;">Cliquez sur un jour pour ouvrir sa semaine et saisir. <b style="color:#d97706;">!</b> = jour ouvré passé sans saisie · gris = pas d'horaire prévu.</div>
+          </div>
+        </t>
+        <t t-else="">
         <t t-foreach="range(7)" t-as="i">
           <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
           <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
@@ -175,6 +253,7 @@
               <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
             </t>
           </div>
+        </t>
         </t>
         </div>
         <div class="mh-side">
@@ -307,6 +386,7 @@
   function fromDec(h){ if(!h){ return ''; } var H=Math.floor(h), M=Math.round((h-H)*60); return ('0'+H).slice(-2)+':'+('0'+M).slice(-2); }
   var LBL = {travail:'✓', cp:'🏖 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
   function totals(){
+    if(!document.getElementById('mh-t-eff')){ return; }
     var eff=0, theo=0;
     document.querySelectorAll('.mh-day').forEach(function(c){
       theo += parseFloat(c.getAttribute('data-theo')||0);
