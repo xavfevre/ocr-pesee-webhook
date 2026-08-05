@@ -17,13 +17,24 @@
       .mh-tot{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 14px;display:flex;gap:18px;justify-content:center;font-weight:800;font-size:15px;margin-bottom:10px;flex-wrap:wrap;}
       .mh-tot b{color:#5eead4;}
       .mh-day{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px;margin-bottom:10px;border-left:6px solid #cbd5e1;}
-      .mh-day.t-travail{border-left-color:#16a34a;}
-      .mh-day.t-cp{border-left-color:#f59e0b;}
-      .mh-day.t-maladie{border-left-color:#dc2626;}
-      .mh-day.t-ferie{border-left-color:#7c3aed;}
-      .mh-day.t-absence{border-left-color:#ef4444;}
-      .mh-day.t-recup{border-left-color:#0ea5e9;}
-      .mh-day.t-repos{border-left-color:#94a3b8;}
+      .mh-day.t-travail{border-left-color:#16a34a;background:#dcfce7;}
+      .mh-day.t-cp{border-left-color:#f59e0b;background:#fbbf24;}
+      .mh-day.t-cp .mh-state{color:#7c2d12;}
+      .mh-day.t-cp .mh-theo{color:#92400e;}
+      .mh-day.t-maladie{border-left-color:#dc2626;background:#f87171;}
+      .mh-day.t-maladie .mh-state{color:#7f1d1d;}
+      .mh-day.t-maladie .mh-theo{color:#7f1d1d;}
+      .mh-day.t-ferie{border-left-color:#7c3aed;background:#c4b5fd;}
+      .mh-day.t-ferie .mh-state{color:#4c1d95;}
+      .mh-day.t-ferie .mh-theo{color:#5b21b6;}
+      .mh-day.t-absence{border-left-color:#ef4444;background:#b91c1c;}
+      .mh-day.t-absence .mh-dname{color:#fff;}
+      .mh-day.t-absence .mh-state{color:#fecaca;}
+      .mh-day.t-absence .mh-theo{color:#fecaca;}
+      .mh-day.t-recup{border-left-color:#0ea5e9;background:#7dd3fc;}
+      .mh-day.t-recup .mh-state{color:#0c4a6e;}
+      .mh-day.t-recup .mh-theo{color:#075985;}
+      .mh-day.t-repos{border-left-color:#94a3b8;background:#e2e8f0;}
       .mh-dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
       .mh-dname{font-size:16px;font-weight:900;color:#0f172a;text-transform:capitalize;}
       .mh-state{font-size:13.5px;font-weight:800;color:#475569;}
