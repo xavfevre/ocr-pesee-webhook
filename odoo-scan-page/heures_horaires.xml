@@ -11,6 +11,11 @@
       .hh-emp{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 14px;margin-bottom:7px;}
       .hh-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
       .hh-top &gt; div:first-child{flex:1 1 auto;}
+      .hh-sched{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px;align-items:stretch;}
+      .hh-day{background:#f1f5f9;border-radius:7px;padding:3px 8px;font-size:10.5px;font-weight:700;color:#334155;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.25;min-width:56px;}
+      .hh-day b{font-size:11px;color:#0f172a;}
+      .hh-day.off{opacity:.35;}
+      .hh-day.wk{background:#e0e7ff;color:#3730a3;min-width:44px;}
       .hh-cp{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:#334155;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:5px 9px;margin-left:auto;}
       .hh-cp input{width:64px;border:1.5px solid #cbd5e1;border-radius:7px;padding:4px 6px;font-weight:800;text-align:center;}
       .hh-cpsave{background:#166534;color:#fff;font-weight:800;font-size:12.5px;padding:6px 12px;border-radius:8px;white-space:nowrap;}
@@ -85,6 +90,21 @@
                 <button type="button" class="hh-b hh-cpsave" title="Enregistrer les congés acquis">Enregistrer</button>
               </div>
               <button type="button" class="hh-edit">✏️ Modifier</button>
+            </div>
+            <div t-if="cal" class="hh-sched">
+              <t t-foreach="(['0','1'] if cal.two_weeks_calendar else ['0'])" t-as="vwt">
+                <span t-if="cal.two_weeks_calendar" class="hh-day wk"><b>Sem. <t t-esc="'A' if vwt == '0' else 'B'"/></b></span>
+                <t t-foreach="range(7)" t-as="vi">
+                  <t t-set="vmor" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(vi) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == vwt)]"/>
+                  <t t-set="vaft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(vi) and not a.display_type and a.day_period == 'afternoon' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == vwt)]"/>
+                  <span t-attf-class="hh-day {{'off' if not (vmor or vaft) else ''}}">
+                    <b t-esc="['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'][vi]"/>
+                    <t t-if="vmor"><span t-esc="fmt(min([a.hour_from for a in vmor])) + '–' + fmt(max([a.hour_to for a in vmor]))"/></t>
+                    <t t-if="vaft"><span t-esc="fmt(min([a.hour_from for a in vaft])) + '–' + fmt(max([a.hour_to for a in vaft]))"/></t>
+                    <t t-if="not (vmor or vaft)"><span>—</span></t>
+                  </span>
+                </t>
+              </t>
             </div>
             <div class="hh-form">
               <label style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:13.5px;color:#334155;margin-bottom:8px;cursor:pointer;">
