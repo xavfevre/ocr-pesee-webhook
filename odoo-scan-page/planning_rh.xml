@@ -54,7 +54,7 @@
         <t t-set="pend" t-value="request.env['x_demande_conge'].sudo().search([('x_statut','=','attente'),('x_employee_id','in',emps.ids)], order='x_du')"/>
         <t t-set="nbj" t-value="(d2 - d1).days + 1"/>
         <t t-set="jl" t-value="['L','M','M','J','V','S','D']"/>
-        <t t-set="typlbl" t-value="{'cp': 'CP', 'recup': 'Récup', 'sans_solde': 'Sans solde'}"/>
+        <t t-set="typlbl" t-value="{'cp': 'CP', 'recup': 'Récup', 'sans_solde': 'Sans solde', 'maternite': 'Maternité', 'paternite': 'Paternité', 'evt_familial': 'Évén. familial', 'enfant_malade': 'Enfant malade'}"/>
         <div class="pr-head">
           <h4 style="font-weight:300;margin:0;">📅 Planning RH — <b t-esc="d1.strftime('%B %Y')"/></h4>
           <div class="pr-nav">

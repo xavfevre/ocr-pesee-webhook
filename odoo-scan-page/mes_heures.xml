@@ -367,6 +367,10 @@
               <option value="cp">Congés payés</option>
               <option value="recup">Récupération</option>
               <option value="sans_solde">Sans solde</option>
+              <option value="maternite">Congé maternité</option>
+              <option value="paternite">Congé paternité</option>
+              <option value="evt_familial">Événement familial (mariage, naissance, décès…)</option>
+              <option value="enfant_malade">Enfant malade</option>
             </select>
             <label style="font-weight:800;color:#64748b;font-size:13px;">Motif</label>
             <input type="text" id="mh-dc-motif" placeholder="facultatif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
@@ -377,7 +381,7 @@
             <div style="font-weight:800;color:#64748b;font-size:12.5px;margin-bottom:4px;">MES DEMANDES</div>
             <t t-foreach="dems" t-as="dc">
               <div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:5px 0;border-top:1px solid #f1f5f9;">
-                <span><b><t t-esc="dc.x_du.strftime('%d/%m')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></b> · <t t-esc="dict([('cp','CP'),('recup','Récup'),('sans_solde','Sans solde')]).get(dc.x_type, dc.x_type)"/><t t-if="dc.x_motif"> · <t t-esc="dc.x_motif"/></t></span>
+                <span><b><t t-esc="dc.x_du.strftime('%d/%m')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></b> · <t t-esc="dict([('cp','CP'),('recup','Récup'),('sans_solde','Sans solde'),('maternite','Maternité'),('paternite','Paternité'),('evt_familial','Évén. familial'),('enfant_malade','Enfant malade')]).get(dc.x_type, dc.x_type)"/><t t-if="dc.x_motif"> · <t t-esc="dc.x_motif"/></t></span>
                 <span t-if="dc.x_statut == 'attente'" style="color:#b45309;font-weight:800;">⏳ En attente</span>
                 <span t-elif="dc.x_statut == 'approuve'" style="color:#15803d;font-weight:800;">✓ Approuvé</span>
                 <span t-else="" style="color:#b91c1c;font-weight:800;" t-att-title="dc.x_reponse or ''">✗ Refusé</span>

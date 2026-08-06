@@ -941,6 +941,7 @@ HEURES_ACTIONS_AUTORISEES = {
     2021,  # horaires par défaut d'un salarié (clé responsables)
     2048,  # coordonnées personnelles du salarié (jeton salarié)
     2050,  # verrou de paie : figer/défiger les feuilles (clé responsables)
+    2069,  # décision manager sur une demande de congés (jeton de la demande)
 }
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
 

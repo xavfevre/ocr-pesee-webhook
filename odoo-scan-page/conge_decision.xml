@@ -1,0 +1,83 @@
+<t t-name="website.conge_decision">
+  <t t-call="website.layout">
+    <t t-set="dc_id" t-value="request.params.get('id', '')"/>
+    <t t-set="tok" t-value="request.params.get('t', '')"/>
+    <t t-set="dec" t-value="request.params.get('d', '')"/>
+    <t t-set="dc" t-value="request.env['x_demande_conge'].sudo().browse(int(dc_id)) if dc_id.isdigit() else None"/>
+    <t t-set="valide" t-value="bool(dc and dc.exists() and tok and dc.x_token and dc.x_token == tok)"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#eef2f6;}
+      .cd-wrap{max-width:480px;margin:40px auto;padding:0 14px;font-family:'Segoe UI',sans-serif;}
+      .cd-card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.09);padding:26px;}
+      .cd-card h3{font-weight:900;color:#15324f;margin:0 0 14px;font-size:20px;}
+      .cd-row{display:flex;gap:10px;padding:5px 0;font-size:14.5px;}
+      .cd-row .l{color:#64748b;font-weight:700;min-width:90px;}
+      .cd-row .v{font-weight:800;color:#0f172a;}
+      .cd-btns{display:flex;gap:10px;margin-top:18px;}
+      .cd-btns button{flex:1;border:none;border-radius:11px;padding:13px;font-weight:900;font-size:15px;cursor:pointer;}
+      .cd-ok{background:#16a34a;color:#fff;}
+      .cd-ko{background:#dc2626;color:#fff;}
+      .cd-note{color:#64748b;font-size:12.5px;margin-top:12px;}
+      .cd-badge{display:inline-block;border-radius:9px;padding:6px 14px;font-weight:900;font-size:15px;}
+      .cd-badge.approuve{background:#dcfce7;color:#166534;}
+      .cd-badge.refuse{background:#fee2e2;color:#991b1b;}
+      .cd-com{width:100%;border:1.5px solid #cbd5e1;border-radius:9px;padding:9px;font-weight:600;margin-top:12px;box-sizing:border-box;}
+    </style>
+
+    <div class="cd-wrap">
+      <div class="cd-card">
+        <t t-if="not valide">
+          <h3>🌴 Demande de congés</h3>
+          <p style="color:#991b1b;font-weight:700;">Lien invalide ou expiré.</p>
+          <p class="cd-note">La demande a peut-être été supprimée, ou le lien n'est plus valable.</p>
+        </t>
+        <t t-else="">
+          <h3>🌴 Demande de congés</h3>
+          <div class="cd-row"><span class="l">Salarié</span><span class="v" t-esc="dc.x_employee_id.name"/></div>
+          <div class="cd-row"><span class="l">Période</span><span class="v"><t t-esc="dc.x_du.strftime('%d/%m/%Y')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></span></div>
+          <div class="cd-row"><span class="l">Type</span><span class="v" t-esc="{'cp': 'Congés payés', 'recup': 'Récupération', 'sans_solde': 'Sans solde', 'maternite': 'Congé maternité', 'paternite': 'Congé paternité', 'evt_familial': 'Événement familial', 'enfant_malade': 'Enfant malade'}.get(dc.x_type, dc.x_type)"/></div>
+          <div class="cd-row" t-if="dc.x_motif"><span class="l">Motif</span><span class="v" t-esc="dc.x_motif"/></div>
+
+          <t t-if="dc.x_statut != 'attente'">
+            <div style="margin-top:16px;">
+              <span t-attf-class="cd-badge {{dc.x_statut}}"><t t-esc="'✓ Approuvée' if dc.x_statut == 'approuve' else '✕ Refusée'"/></span>
+              <t t-if="dc.x_reponse"><div class="cd-note" t-esc="dc.x_reponse"/></t>
+            </div>
+          </t>
+          <t t-else="">
+            <input type="text" class="cd-com" id="cdCom" placeholder="Commentaire (facultatif)"/>
+            <div class="cd-btns">
+              <button type="button" class="cd-ok" id="cdOk">✓ Approuver</button>
+              <button type="button" class="cd-ko" id="cdKo">✕ Refuser</button>
+            </div>
+            <p class="cd-note">L'approbation pose automatiquement les jours sur le planning du salarié.</p>
+            <script>
+              (function(){
+                var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+                var DC = <t t-esc="dc.id"/>, TOK = '<t t-esc="dc.x_token"/>';
+                function decide(dec){
+                  document.getElementById('cdOk').disabled = true;
+                  document.getElementById('cdKo').disabled = true;
+                  fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({action_id: 2069, ctx: {active_model:'x_demande_conge', dc_id: DC, dc_token: TOK, dc_decision: dec, dc_reponse: document.getElementById('cdCom').value || ''}})
+                  }).then(function(r){ return r.json(); }).then(function(d){
+                    if(d.error){ alert('Échec : ' + d.error.message); document.getElementById('cdOk').disabled = false; document.getElementById('cdKo').disabled = false; return; }
+                    location.reload();
+                  }).catch(function(){ alert('Échec réseau'); document.getElementById('cdOk').disabled = false; document.getElementById('cdKo').disabled = false; });
+                }
+                document.getElementById('cdOk').addEventListener('click', function(){ decide('approuve'); });
+                document.getElementById('cdKo').addEventListener('click', function(){ decide('refuse'); });
+                var d0 = '<t t-esc="dec"/>';
+                if(d0 === 'refuse'){ document.getElementById('cdKo').style.outline = '3px solid #7f1d1d'; }
+                if(d0 === 'approuve'){ document.getElementById('cdOk').style.outline = '3px solid #14532d'; }
+              })();
+            </script>
+          </t>
+        </t>
+      </div>
+    </div>
+  </t>
+</t>

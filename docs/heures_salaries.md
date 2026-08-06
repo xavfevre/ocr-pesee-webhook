@@ -250,3 +250,33 @@ Liens, Horaires) détectent maintenant ce cas précis et affichent
 puis rechargent automatiquement la page. La saisie en cours doit être
 refaite après le rechargement (elle n'était de toute façon pas enregistrée),
 mais le salarié comprend quoi faire au lieu de rester bloqué.
+
+## Validation des congés par le manager (06/08)
+- **Types de demande étendus** : CP, récupération, sans solde + **congé
+  maternité, congé paternité, événement familial (mariage, naissance,
+  décès…), enfant malade** (sélection `x_type` de `x_demande_conge`, options
+  du formulaire /mes-heures, libellés /planning-rh). À l'approbation, les
+  nouveaux types posent des jours « absence » avec le libellé exact en note
+  (action 2014).
+- **Email au manager attitré** à chaque création de demande (automatisation
+  86 + action 2070) : détails de la demande + boutons **✓ Approuver / ✕
+  Refuser**. Destinataire = champ « Manager » de la fiche employé
+  (`parent_id.work_email`) ; à défaut, repli sur le paramètre
+  `maquignon.conge_alerte_email` (isabelle@maquignon.com). ⚠ 14 salariés
+  n'ont pas de manager renseigné — à compléter sur les fiches employés pour
+  que le bon responsable reçoive les demandes.
+- **Page `/conge-decision?id=…&t=…`** (vue 7974, page 90) : lien signé par
+  un jeton propre à chaque demande (`x_token`, généré à la création). La
+  page affiche la demande et demande une **confirmation par clic** (rien ne
+  se valide à l'ouverture du lien — protection contre les scanners
+  d'emails). Décision via l'action **2069** (vérifie jeton + statut
+  « attente », puis délègue à la logique métier de 2014 : pose des jours,
+  purge des pointages). Une demande déjà traitée affiche son badge et ne
+  peut pas être re-décidée.
+- **Relais Render** : action 2069 ajoutée à `HEURES_ACTIONS_AUTORISEES`
+  (app.py) — les boutons de la page passent par le relais (les managers ne
+  sont pas forcément connectés à Odoo). **Actif après merge + déploiement
+  Render.**
+- Testé bout-en-bout en prod (demande créée puis nettoyée) : jeton généré,
+  email envoyé, page OK, mauvais jeton rejeté, approbation → jours posés
+  avec libellé, re-décision bloquée, badge affiché.
