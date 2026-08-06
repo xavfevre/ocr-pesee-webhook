@@ -306,3 +306,15 @@ re-posée en « travail 13h30–17h30 » avec note.
 
 L'email du manager contient aussi un lien **📅 planning global des congés**
 (/planning-rh avec la clé responsables).
+
+## Planning RH : congés partiels visibles + historique (06/08)
+- Une journée avec congé partiel approuvé (matin/après-midi/horaires)
+  s'affiche en **case bicolore orange/vert** avec « 4½ » (heures travaillées
+  + ½) ; le survol de la case affiche le détail (« Récupération — matin en
+  congé (demande N) »). Légende mise à jour.
+- Bloc dépliable **« 🗂 Historique des demandes »** sous les demandes en
+  attente : les 30 dernières demandes traitées (badge ✓/✕, salarié, type,
+  période, motif, réponse du responsable, date de traitement).
+- Rattrapage effectué : les 3 demandes en attente d'avant la mise en place
+  (TRINQUARD ×2, DESPUJOLS) ont reçu leur email de validation manager
+  (boutons actifs, relais déployé).
