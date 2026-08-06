@@ -167,7 +167,7 @@
           <t t-set="mm_fer" t-value="len([r for r in mrows if r.x_type == 'ferie'])"/>
           <t t-set="mm_rec" t-value="len([r for r in mrows if r.x_type == 'recup'])"/>
           <t t-set="mm_abs" t-value="len([r for r in mrows if r.x_type == 'absence'])"/>
-          <div class="mh-tot">Effectué <b><t t-esc="'%.2f' % mm_eff"/> h</b> · Théorique <b><t t-esc="'%.2f' % mm_theo"/> h</b> · Écart <b><t t-esc="('+' if mm_eff &gt;= mm_theo else '') + ('%.2f' % (mm_eff - mm_theo))"/> h</b><t t-if="mm_cp"> · 🏖 <b><t t-esc="mm_cp"/></b></t><t t-if="mm_mal"> · 🤒 <b><t t-esc="mm_mal"/></b></t><t t-if="mm_fer"> · 🎉 <b><t t-esc="mm_fer"/></b></t><t t-if="mm_rec"> · 🔄 <b><t t-esc="mm_rec"/></b></t><t t-if="mm_abs"> · ⛔ <b><t t-esc="mm_abs"/></b></t></div>
+          <div class="mh-tot">Effectué <b><t t-esc="'%.2f' % mm_eff"/> h</b> · Théorique <b><t t-esc="'%.2f' % mm_theo"/> h</b> · Écart <b><t t-esc="('+' if mm_eff &gt;= mm_theo else '') + ('%.2f' % (mm_eff - mm_theo))"/> h</b><t t-if="mm_cp"> · 🌴 <b><t t-esc="mm_cp"/></b></t><t t-if="mm_mal"> · 🤒 <b><t t-esc="mm_mal"/></b></t><t t-if="mm_fer"> · 🎉 <b><t t-esc="mm_fer"/></b></t><t t-if="mm_rec"> · 🔄 <b><t t-esc="mm_rec"/></b></t><t t-if="mm_abs"> · ⛔ <b><t t-esc="mm_abs"/></b></t></div>
         </t>
         <div class="mh-grid">
         <div t-attf-class="mh-days {{'mh-days-mois' if vue == 'mois' else ''}}">
@@ -190,7 +190,7 @@
                           <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(d - datetime.timedelta(days=d.weekday())).strftime('%Y-%m-%d')}}" t-att-title="'Ouvrir la semaine du ' + (d - datetime.timedelta(days=d.weekday())).strftime('%d/%m')">
                             <span class="dn"><t t-esc="d.day"/></span>
                             <t t-if="s and s.x_type == 'travail'"><div class="val" style="color:#15803d;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h</div></t>
-                            <t t-elif="s and s.x_type == 'cp'"><div class="val" style="color:#b45309;">🏖 CP</div></t>
+                            <t t-elif="s and s.x_type == 'cp'"><div class="val" style="color:#b45309;">🌴 CP</div></t>
                             <t t-elif="s and s.x_type == 'maladie'"><div class="val" style="color:#b91c1c;">🤒 Mal.</div></t>
                             <t t-elif="s and s.x_type == 'ferie'"><div class="val" style="color:#7c3aed;">🎉 Férié</div></t>
                             <t t-elif="s and s.x_type == 'absence'"><div class="val" style="color:#7f1d1d;">⛔ Abs.</div></t>
@@ -231,7 +231,7 @@
               <span class="mh-state" t-att-data-role="'state'">
                 <t t-if="s">
                   <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h</t>
-                  <t t-elif="s.x_type == 'cp'">🏖 Congés</t>
+                  <t t-elif="s.x_type == 'cp'">🌴 Congés</t>
                   <t t-elif="s.x_type == 'maladie'">🤒 Maladie</t>
                   <t t-elif="s.x_type == 'ferie'">🎉 Férié</t>
                   <t t-elif="s.x_type == 'absence'">⛔ Absence</t>
@@ -246,7 +246,7 @@
             <t t-if="lock">
               <div t-attf-class="mh-lock l-{{s.x_type}}">
                 <span style="font-size:20px;">
-                  <t t-if="s.x_type == 'cp'">🏖</t>
+                  <t t-if="s.x_type == 'cp'">🌴</t>
                   <t t-elif="s.x_type == 'maladie'">🤒</t>
                   <t t-elif="s.x_type == 'ferie'">🎉</t>
                   <t t-elif="s.x_type == 'absence'">⛔</t>
@@ -304,7 +304,7 @@
         <t t-set="droit_n1" t-value="sum(request.env['hr.leave.allocation'].sudo().search([('employee_id','=',emp.id),('state','=','validate'),('holiday_status_id.name','=','Congés Payés N-1')]).mapped('number_of_days'))"/>
         <t t-set="droit" t-value="droit_n + droit_n1"/>
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
-          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🏖 Mes congés</div>
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🌴 Mes congés</div>
           <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Période du <t t-esc="per_start.strftime('%d/%m/%Y')"/> à aujourd'hui</div>
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
             <t t-if="droit &gt; 0">
@@ -359,7 +359,7 @@
         </div>
 
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
-          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🏖 Demander des congés</div>
+          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🌴 Demander des congés</div>
           <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
             <label style="font-weight:800;color:#64748b;font-size:13px;">Du</label>
             <input type="date" id="mh-dc-du" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
@@ -438,7 +438,7 @@
   var TOK = document.getElementById('mh-data').getAttribute('data-tok');
   function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
   function fromDec(h){ if(!h){ return ''; } var H=Math.floor(h), M=Math.round((h-H)*60); return ('0'+H).slice(-2)+':'+('0'+M).slice(-2); }
-  var LBL = {travail:'✓', cp:'🏖 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
+  var LBL = {travail:'✓', cp:'🌴 Congés', maladie:'🤒 Maladie', ferie:'🎉 Férié', absence:'⛔ Absence', recup:'🔄 Récup', repos:'💤 Repos'};
   function totals(){
     if(!document.getElementById('mh-t-eff')){ return; }
     var eff=0, theo=0;
