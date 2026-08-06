@@ -55,14 +55,23 @@ disparaissent.
 qu'une section « en cours » à la fois, sans notion de hiérarchie. Dès qu'il
 y a plus d'un niveau de section consécutif, seul le dernier survit.
 
-**Correctif (validé sur base de test testmaq060826, PAS ENCORE EN PROD)** :
-- Action serveur **2063** « Facturation : reprendre les sections imbriquées
-  du bon de commande » : compare la facture avec sa/ses commande(s)
-  d'origine (`invoice_origin`), détecte les sections parentes manquantes et
-  les réinsère au bon endroit, puis reséquence proprement (pas de doublons,
-  idempotent, ne touche jamais les montants, fonctionne sur facture validée).
-- Automatisation **base.automation 84** : déclenche l'action à chaque
-  **création** de facture.
+**Correctif (DÉPLOYÉ EN PROD le 06/08)** :
+- Action serveur **2065** en prod (2063 sur la base de test) « Facturation :
+  reprendre les sections imbriquées du bon de commande » : compare la
+  facture avec sa/ses commande(s) d'origine (`invoice_origin`), détecte les
+  sections parentes manquantes et les réinsère au bon endroit, puis
+  reséquence proprement (pas de doublons, idempotent, ne touche jamais les
+  montants, fonctionne sur facture validée). Code :
+  `odoo-scan-page/action_sections_facture_2065.py`.
+- Automatisation **base.automation 84** (prod et test) : déclenche l'action
+  à chaque **création** de facture.
+- Garde-fou ajouté après incident de rattrapage : une section parente est
+  considérée déjà présente si elle est liée à la commande OU si son
+  intitulé (préfixe avant « - ») figure déjà dans une section existante de
+  la facture — indispensable pour les factures **réparées à la main** (ex.
+  FAC/26-27/0585 : sections ajoutées/renommées manuellement sans lien ; le
+  premier rattrapage avait créé des doublons, nettoyés depuis, et le re-run
+  avec le garde-fou n'insère plus rien).
 - Note v19 : `display_type` vaut `'product'` (et non `False`) sur les lignes
   produit — le filtre doit tester l'appartenance à
   `('line_section', 'line_note')`.
@@ -72,6 +81,7 @@ idempotence (double exécution sans doublon), et bout-en-bout (duplication de
 la commande → confirmation → facturation → la facture brouillon sort
 directement complète avec ses 3 niveaux de sections).
 
-**À faire** : déploiement en prod (action + automatisation) sur accord du
-client + rattrapage des factures déjà émises concernées (profondeur à
-confirmer avec lui).
+**Rattrapage des factures déjà émises** : non lancé en masse — les factures
+réparées manuellement sont désormais sans risque grâce au garde-fou, mais le
+client n'a pas demandé de rattrapage global ; à faire au cas par cas sur
+demande (exécuter l'action serveur 2065 sur la facture concernée).
