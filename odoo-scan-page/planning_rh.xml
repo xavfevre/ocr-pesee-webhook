@@ -54,7 +54,7 @@
         <t t-set="pend" t-value="request.env['x_demande_conge'].sudo().search([('x_statut','=','attente'),('x_employee_id','in',emps.ids)], order='x_du')"/>
         <t t-set="nbj" t-value="(d2 - d1).days + 1"/>
         <t t-set="jl" t-value="['L','M','M','J','V','S','D']"/>
-        <t t-set="typlbl" t-value="{'cp': 'CP', 'recup': 'Récup', 'sans_solde': 'Sans solde'}"/>
+        <t t-set="typlbl" t-value="{'cp': 'CP', 'recup': 'Récup', 'sans_solde': 'Sans solde', 'maternite': 'Maternité', 'paternite': 'Paternité', 'evt_familial': 'Évén. familial', 'enfant_malade': 'Enfant malade'}"/>
         <div class="pr-head">
           <h4 style="font-weight:300;margin:0;">📅 Planning RH — <b t-esc="d1.strftime('%B %Y')"/></h4>
           <div class="pr-nav">
@@ -73,7 +73,7 @@
           <div style="font-weight:900;margin-bottom:4px;">📨 Demandes de congés en attente (<t t-esc="len(pend)"/>)</div>
           <t t-foreach="pend" t-as="dc">
             <div class="pr-dem-l">
-              <span><b t-esc="dc.x_employee_id.name"/> · <t t-esc="typlbl.get(dc.x_type, dc.x_type)"/> du <b t-esc="dc.x_du.strftime('%d/%m')"/> au <b t-esc="dc.x_au.strftime('%d/%m/%Y')"/><t t-if="dc.x_motif"> · « <t t-esc="dc.x_motif"/> »</t></span>
+              <span><b t-esc="dc.x_employee_id.name"/> · <t t-esc="typlbl.get(dc.x_type, dc.x_type)"/> du <b t-esc="dc.x_du.strftime('%d/%m')"/> au <b t-esc="dc.x_au.strftime('%d/%m/%Y')"/><t t-if="dc.x_periode == 'matin'"> · <b>matin uniquement</b></t><t t-elif="dc.x_periode == 'apresmidi'"> · <b>après-midi uniquement</b></t><t t-elif="dc.x_periode == 'horaires'"> · <b>de <t t-esc="'%.2g' % dc.x_h_de"/>h à <t t-esc="'%.2g' % dc.x_h_a"/>h</b></t><t t-if="dc.x_motif"> · « <t t-esc="dc.x_motif"/> »</t></span>
               <span>
                 <button type="button" class="pr-ok" t-att-data-id="dc.id">✓ Approuver</button>
                 <button type="button" class="pr-no" t-att-data-id="dc.id">✗ Refuser</button>

@@ -3,6 +3,7 @@
     <t t-set="today" t-value="datetime.date.today()"/>
     <t t-set="selected_cat" t-value="request.params.get('cat', '')"/>
     <t t-set="selected_etat" t-value="request.params.get('etat', '')"/>
+    <t t-set="vue" t-value="request.params.get('vue', 'tableau')"/>
 
     <t t-set="rows" t-value="request.env['x_controle_vehicule'].sudo().search([], order='x_vehicule_id')"/>
     <t t-set="types" t-value="request.env['x_type_controle'].sudo().search([], order='id')"/>
@@ -23,6 +24,26 @@
       <t t-set="_x" t-value="by_veh.setdefault(r.x_vehicule_id.id, {}).update({r.x_type_id.id: r})"/>
     </t>
     <t t-set="derniere_date" t-value="lambda r: last_log.get((r.x_vehicule_id.id, r.x_type_id.x_fleet_service_type_id.id)) if r.x_type_id.x_fleet_service_type_id else None or r.x_derniere_date"/>
+    <t t-set="veh_short" t-value="lambda n: n.split('/')[-2] if '/' in n else n"/>
+
+    <!-- Échéances calculées (pour les vues calendaires), filtrées par catégorie/état -->
+    <t t-set="echeances" t-value="[]"/>
+    <t t-foreach="rows" t-as="r">
+      <t t-if="not selected_cat or r.x_categorie == selected_cat">
+        <t t-set="dd" t-value="derniere_date(r)"/>
+        <t t-if="dd">
+          <t t-set="ech" t-value="dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)"/>
+          <t t-set="e_etat" t-value="'retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')"/>
+          <t t-if="not selected_etat or selected_etat == e_etat">
+            <t t-set="_x" t-value="echeances.append((ech, veh_short(r.x_vehicule_id.name), r.x_type_id.x_name, e_etat, r.x_vehicule_id.license_plate or ''))"/>
+          </t>
+        </t>
+      </t>
+    </t>
+    <t t-set="ech_par_jour" t-value="{}"/>
+    <t t-foreach="echeances" t-as="e">
+      <t t-set="_x" t-value="ech_par_jour.setdefault(e[0], []).append(e)"/>
+    </t>
 
     <t t-set="palette" t-value="{'ct_leger': '#1d4ed8', 'antipol_vul': '#0891b2', 'ct_pl': '#7c3aed', 'chrono': '#c2410c', 'limiteur': '#b45309', 'extincteur': '#dc2626', 'vgp_an': '#15803d', 'vgp_sem': '#0f766e'}"/>
 
@@ -56,10 +77,34 @@
       .pc-cell.proche{background:#fde68a;color:#78350f;}
       .pc-cell.ok{background:#bbf7d0;color:#14532d;}
       .pc-cell.vide{background:#f1f5f9;color:#94a3b8;}
+      .pc-cell.cv{background:#fbcfe8;color:#831843;}
       .pc-cell:hover{filter:brightness(.95);}
       .pc-legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:10px;font-size:11.5px;font-weight:700;color:#475569;}
       .pc-legend span{display:inline-flex;align-items:center;gap:5px;}
       .pc-legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+      .pc-viewnav{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;margin-top:10px;}
+      .pc-viewnav a{border:1.5px solid #cbd5e1;border-radius:10px;padding:5px 14px;font-size:12.5px;font-weight:800;text-decoration:none;color:#334155;background:#fff;}
+      .pc-viewnav a.on{background:#0f172a;color:#fff;border-color:#0f172a;}
+      .pc-viewnav input, .pc-viewnav select{border:1.5px solid #cbd5e1;border-radius:8px;padding:4px 8px;font-weight:700;font-size:12.5px;}
+      .pc-navarr{font-size:15px;padding:5px 10px !important;}
+      .pc-cal{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;}
+      .pc-cal h5{text-align:center;font-weight:900;color:#15324f;margin:0 0 12px;}
+      table.pc-grid{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;}
+      .pc-grid th{background:#0f172a;color:#fff;font-size:14px;font-weight:800;padding:9px 4px;text-align:center;}
+      .pc-grid td{border:1px solid #eef2f6;vertical-align:top;padding:5px;min-height:70px;height:70px;}
+      .pc-grid td .dnum{font-weight:800;color:#64748b;font-size:13.5px;margin-bottom:4px;}
+      .pc-grid td.aut{background:#f8fafc;}
+      .pc-grid td.auj .dnum{color:#fff;background:#0f172a;border-radius:6px;display:inline-block;padding:1px 7px;}
+      .pc-ev{display:block;border-radius:8px;padding:6px 9px;font-size:14px;font-weight:800;line-height:1.35;margin-bottom:5px;}
+      .pc-ev.retard{background:#fecaca;color:#7f1d1d;}
+      .pc-ev.proche{background:#fde68a;color:#78350f;}
+      .pc-ev.ok{background:#bbf7d0;color:#14532d;}
+      .pc-ev small{display:block;font-weight:700;opacity:.85;font-size:12px;}
+      .pc-annee{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+      .pc-mois-card{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;}
+      .pc-mois-card h6{font-weight:900;color:#15324f;margin:0 0 10px;text-align:center;font-size:16.5px;text-transform:capitalize;}
+      .pc-mois-card .vide{color:#94a3b8;font-size:13px;font-weight:700;text-align:center;padding:8px 0;}
+      .pc-ev .evdate{float:right;font-weight:900;}
       .pc-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;align-items:center;justify-content:center;}
       .pc-pop.show{display:flex;}
       .pc-pop-box{background:#fff;border-radius:14px;padding:20px;width:340px;max-width:92vw;}
@@ -101,13 +146,20 @@
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{'' if selected_etat == 'vide' else 'vide'}}" t-attf-class="pc-kpi vide {{'on' if selected_etat == 'vide' else ''}}" style="text-decoration:none;">? À renseigner <b><t t-esc="all_states.count('vide')"/></b></a>
         </div>
         <div class="pc-filters">
-          <a t-attf-href="/parc-controles?etat={{selected_etat}}" t-attf-class="{{'on' if not selected_cat else ''}}">Toutes catégories</a>
+          <a t-attf-href="/parc-controles?etat={{selected_etat}}&amp;vue={{vue}}" t-attf-class="{{'on' if not selected_cat else ''}}">Toutes catégories</a>
           <t t-foreach="[('vp','Voitures'),('vul','Utilitaires'),('pl_porteur','Camions porteurs'),('pl_tracteur','Tracteurs routiers'),('remorque','Remorques'),('terrassement','Engins de terrassement'),('levage','Levage (chariots/télescopiques)')]" t-as="cc">
-            <a t-attf-href="/parc-controles?cat={{cc[0]}}&amp;etat={{selected_etat}}" t-attf-class="{{'on' if selected_cat == cc[0] else ''}}" t-esc="cc[1]"/>
+            <a t-attf-href="/parc-controles?cat={{cc[0]}}&amp;etat={{selected_etat}}&amp;vue={{vue}}" t-attf-class="{{'on' if selected_cat == cc[0] else ''}}" t-esc="cc[1]"/>
           </t>
+        </div>
+        <div class="pc-viewnav">
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}" t-attf-class="{{'on' if vue == 'tableau' else ''}}">📋 Tableau</a>
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=semaine" t-attf-class="{{'on' if vue == 'semaine' else ''}}">📅 Semaine</a>
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=mois" t-attf-class="{{'on' if vue == 'mois' else ''}}">🗓 Mois</a>
+          <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=annee" t-attf-class="{{'on' if vue == 'annee' else ''}}">🗂 Année</a>
         </div>
       </div>
 
+      <t t-if="vue == 'tableau'">
       <div style="overflow-x:auto;">
       <table class="pc">
         <thead>
@@ -149,8 +201,11 @@
                     <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
                     <t t-set="etat" t-value="'vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok'))"/>
                     <td>
-                      <button type="button" t-attf-class="pc-cell {{etat}}" t-att-data-id="r.id" t-att-data-veh="v.name" t-att-data-type="ty.x_name" t-att-data-mois="ty.x_periodicite_mois" t-att-data-date="dd or ''">
-                        <t t-if="dd">
+                      <button type="button" t-attf-class="pc-cell {{'cv' if r.x_cv_limite else etat}}" t-att-data-id="r.id" t-att-data-veh="v.name" t-att-data-vehid="v.id" t-att-data-type="ty.x_name" t-att-data-mois="ty.x_periodicite_mois" t-att-data-date="dd or ''" t-att-data-cv="r.x_cv_limite or ''">
+                        <t t-if="r.x_cv_limite">
+                          ⚠ CONTRE-VISITE<br/>avant <t t-esc="r.x_cv_limite.strftime('%d/%m/%y')"/>
+                        </t>
+                        <t t-elif="dd">
                           <t t-esc="dd.strftime('%d/%m/%y')"/><br/>
                           <t t-if="ech">→ <t t-esc="ech.strftime('%d/%m/%y')"/></t>
                         </t>
@@ -176,8 +231,103 @@
         <span><i style="background:#fde68a;"/> Échéance sous 30 jours</span>
         <span><i style="background:#bbf7d0;"/> À jour</span>
         <span><i style="background:#f1f5f9;"/> Jamais renseigné</span>
+        <span><i style="background:#fbcfe8;"/> Contre-visite à passer</span>
         <span>Cliquez sur une case pour saisir la date du dernier contrôle</span>
       </div>
+      </t>
+
+      <!-- ===================== VUE SEMAINE ===================== -->
+      <t t-if="vue == 'semaine'">
+        <t t-set="sem" t-value="request.params.get('sem', '')"/>
+        <t t-set="lundi" t-value="datetime.date.fromisocalendar(int(sem.split('-W')[0]), int(sem.split('-W')[1]), 1) if sem and '-W' in sem else (today - datetime.timedelta(days=today.weekday()))"/>
+        <t t-set="sem_str" t-value="'%s-W%02d' % (lundi.isocalendar()[0], lundi.isocalendar()[1])"/>
+        <div class="pc-cal">
+          <div class="pc-viewnav" style="margin:0 0 10px;">
+            <a class="pc-navarr" t-attf-href="/parc-controles?vue=semaine&amp;cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;sem={{'%s-W%02d' % ((lundi - datetime.timedelta(days=7)).isocalendar()[0], (lundi - datetime.timedelta(days=7)).isocalendar()[1])}}">◀</a>
+            <input type="week" id="pcSem" t-att-value="sem_str"/>
+            <a class="pc-navarr" t-attf-href="/parc-controles?vue=semaine&amp;cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;sem={{'%s-W%02d' % ((lundi + datetime.timedelta(days=7)).isocalendar()[0], (lundi + datetime.timedelta(days=7)).isocalendar()[1])}}">▶</a>
+          </div>
+          <h5>Semaine <t t-esc="lundi.isocalendar()[1]"/> — du <t t-esc="lundi.strftime('%d/%m')"/> au <t t-esc="(lundi + datetime.timedelta(days=6)).strftime('%d/%m/%Y')"/></h5>
+          <table class="pc-grid">
+            <thead><tr>
+              <t t-foreach="range(7)" t-as="d">
+                <th><t t-esc="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][d]"/> <t t-esc="(lundi + datetime.timedelta(days=d)).strftime('%d/%m')"/></th>
+              </t>
+            </tr></thead>
+            <tbody><tr>
+              <t t-foreach="range(7)" t-as="d">
+                <t t-set="jd" t-value="lundi + datetime.timedelta(days=d)"/>
+                <td t-attf-class="{{'auj' if jd == today else ''}}" style="height:220px;">
+                  <t t-foreach="sorted(ech_par_jour.get(jd, []), key=lambda e: e[1])" t-as="e">
+                    <span t-attf-class="pc-ev {{e[3]}}"><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
+                  </t>
+                </td>
+              </t>
+            </tr></tbody>
+          </table>
+        </div>
+      </t>
+
+      <!-- ===================== VUE MOIS ===================== -->
+      <t t-if="vue == 'mois'">
+        <t t-set="mois_p" t-value="request.params.get('mois', '')"/>
+        <t t-set="m1" t-value="datetime.date(int(mois_p.split('-')[0]), int(mois_p.split('-')[1]), 1) if mois_p and '-' in mois_p else datetime.date(today.year, today.month, 1)"/>
+        <t t-set="m_next" t-value="datetime.date(m1.year + 1, 1, 1) if m1.month == 12 else datetime.date(m1.year, m1.month + 1, 1)"/>
+        <t t-set="m_prev" t-value="datetime.date(m1.year - 1, 12, 1) if m1.month == 1 else datetime.date(m1.year, m1.month - 1, 1)"/>
+        <t t-set="grille_debut" t-value="m1 - datetime.timedelta(days=m1.weekday())"/>
+        <div class="pc-cal">
+          <div class="pc-viewnav" style="margin:0 0 10px;">
+            <a class="pc-navarr" t-attf-href="/parc-controles?vue=mois&amp;cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;mois={{m_prev.strftime('%Y-%m')}}">◀</a>
+            <input type="month" id="pcMois" t-att-value="m1.strftime('%Y-%m')"/>
+            <a class="pc-navarr" t-attf-href="/parc-controles?vue=mois&amp;cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;mois={{m_next.strftime('%Y-%m')}}">▶</a>
+          </div>
+          <h5><t t-esc="['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m1.month]"/> <t t-esc="m1.year"/></h5>
+          <table class="pc-grid">
+            <thead><tr><th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th><th>Dim</th></tr></thead>
+            <tbody>
+              <t t-foreach="range(6)" t-as="w">
+                <t t-if="(grille_debut + datetime.timedelta(days=7*w)) &lt; m_next">
+                <tr>
+                  <t t-foreach="range(7)" t-as="d">
+                    <t t-set="jd" t-value="grille_debut + datetime.timedelta(days=7*w + d)"/>
+                    <td t-attf-class="{{'aut' if jd.month != m1.month else ''}} {{'auj' if jd == today else ''}}">
+                      <div class="dnum" t-esc="jd.day"/>
+                      <t t-foreach="sorted(ech_par_jour.get(jd, []), key=lambda e: e[1])" t-as="e">
+                        <span t-attf-class="pc-ev {{e[3]}}"><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
+                      </t>
+                    </td>
+                  </t>
+                </tr>
+                </t>
+              </t>
+            </tbody>
+          </table>
+        </div>
+      </t>
+
+      <!-- ===================== VUE ANNÉE ===================== -->
+      <t t-if="vue == 'annee'">
+        <t t-set="an" t-value="int(request.params.get('an', today.year))"/>
+        <div class="pc-cal" style="background:none;box-shadow:none;padding:0;">
+          <div class="pc-viewnav" style="margin:0 0 12px;">
+            <a class="pc-navarr" t-attf-href="/parc-controles?vue=annee&amp;cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;an={{an - 1}}">◀</a>
+            <span style="font-weight:900;color:#15324f;font-size:17px;padding:0 8px;"><t t-esc="an"/></span>
+            <a class="pc-navarr" t-attf-href="/parc-controles?vue=annee&amp;cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;an={{an + 1}}">▶</a>
+          </div>
+          <div class="pc-annee">
+            <t t-foreach="range(1, 13)" t-as="m">
+              <t t-set="evts" t-value="sorted([e for e in echeances if e[0].year == an and e[0].month == m], key=lambda e: (e[0], e[1]))"/>
+              <div class="pc-mois-card">
+                <h6><t t-esc="['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m]"/> <t t-esc="an"/><t t-if="evts"> · <t t-esc="len(evts)"/></t></h6>
+                <t t-if="not evts"><div class="vide">—</div></t>
+                <t t-foreach="evts" t-as="e">
+                  <span t-attf-class="pc-ev {{e[3]}}"><span class="evdate" t-esc="e[0].strftime('%d/%m')"/><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
+                </t>
+              </div>
+            </t>
+          </div>
+        </div>
+      </t>
     </div>
 
     <div class="pc-pop" id="pcPop">
@@ -188,6 +338,31 @@
         <input type="date" id="pcPopDate"/>
         <div class="sub" id="pcPopNext" style="margin-bottom:12px;"/>
         <button type="button" class="pc-btn-valid" id="pcPopValid" style="width:100%;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;background:#dcfce7;color:#166534;margin-bottom:10px;">✓ Valider aujourd'hui — planifie le prochain contrôle</button>
+
+        <div id="pcCvPending" style="display:none;background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:10px;padding:10px;margin-bottom:10px;">
+          <div style="font-weight:900;color:#831843;margin-bottom:6px;">⚠ Contre-visite à passer avant le <span id="pcCvLim"/></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="date" id="pcCvDoneDate" style="margin:0;flex:1;"/>
+            <button type="button" id="pcCvDoneBtn" style="border:none;border-radius:8px;background:#831843;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">✓ Contre-visite passée</button>
+          </div>
+        </div>
+        <div id="pcCvSet" style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:10px;margin-bottom:10px;">
+          <div style="font-weight:800;color:#9a3412;margin-bottom:6px;">Résultat défavorable ? Contre-visite avant le :</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="date" id="pcCvLimite" style="margin:0;flex:1;"/>
+            <button type="button" id="pcCvSetBtn" style="border:none;border-radius:8px;background:#9a3412;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">Planifier</button>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:12px;">
+          <div style="font-weight:800;color:#334155;margin-bottom:6px;">📎 Documents du véhicule</div>
+          <div id="pcDocList" style="font-size:12.5px;margin-bottom:8px;color:#64748b;">…</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="file" id="pcDocFile" style="flex:1;font-size:12px;margin:0;border:none;padding:0;"/>
+            <button type="button" id="pcDocUp" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">Ajouter</button>
+          </div>
+        </div>
+
         <div class="row">
           <button type="button" class="pc-btn-cancel" id="pcPopCancel">Annuler</button>
           <button type="button" class="pc-btn-clear" id="pcPopClear">Effacer</button>
@@ -199,7 +374,34 @@
     <script>
       (function(){
         var pop = document.getElementById('pcPop');
-        var curId = null, curMois = 0;
+        var curId = null, curMois = 0, curVehId = null;
+        function rpc(model, method, args, kwargs){
+          return fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:kwargs || {}}})
+          }).then(function(r){ return r.json(); }).then(function(d){
+            if(d.error){ throw new Error(d.error.data &amp;&amp; d.error.data.message || d.error.message); }
+            return d.result;
+          });
+        }
+        function loadDocs(){
+          var box = document.getElementById('pcDocList');
+          box.textContent = 'Chargement…';
+          rpc('ir.attachment', 'search_read', [[['res_model','=','fleet.vehicle'],['res_id','=',parseInt(curVehId,10)]]], {fields:['id','name'], order:'id desc', limit:15}).then(function(res){
+            box.textContent = '';
+            if(!res.length){ box.textContent = 'Aucun document.'; return; }
+            res.forEach(function(a){
+              var d = document.createElement('div');
+              var link = document.createElement('a');
+              link.href = '/web/content/' + a.id + '?download=true';
+              link.target = '_blank';
+              link.style.cssText = 'color:#0f172a;font-weight:700;';
+              link.textContent = a.name;
+              d.appendChild(document.createTextNode('📄 '));
+              d.appendChild(link);
+              box.appendChild(d);
+            });
+          }).catch(function(){ box.textContent = 'Erreur de chargement.'; });
+        }
         function nextEch(dateVal){
           if(!dateVal || !curMois){ return ''; }
           var d = new Date(dateVal + 'T00:00:00');
@@ -213,14 +415,29 @@
         }
         function openPop(btn){
           curId = btn.getAttribute('data-id');
+          curVehId = btn.getAttribute('data-vehid');
           curMois = parseInt(btn.getAttribute('data-mois'), 10) || 0;
           document.getElementById('pcPopVeh').textContent = btn.getAttribute('data-veh');
           document.getElementById('pcPopType').textContent = btn.getAttribute('data-type') + ' — périodicité ' + btn.getAttribute('data-mois') + ' mois';
           document.getElementById('pcPopDate').value = btn.getAttribute('data-date') || '';
+          var cv = btn.getAttribute('data-cv') || '';
+          var t = new Date();
+          if(cv){
+            document.getElementById('pcCvPending').style.display = 'block';
+            document.getElementById('pcCvSet').style.display = 'none';
+            document.getElementById('pcCvLim').textContent = cv.split('-').reverse().join('/');
+            document.getElementById('pcCvDoneDate').value = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+          } else {
+            document.getElementById('pcCvPending').style.display = 'none';
+            document.getElementById('pcCvSet').style.display = 'block';
+            var lim = new Date(t); lim.setMonth(lim.getMonth() + 2);
+            document.getElementById('pcCvLimite').value = lim.getFullYear() + '-' + String(lim.getMonth()+1).padStart(2,'0') + '-' + String(lim.getDate()).padStart(2,'0');
+          }
+          loadDocs();
           refreshNext();
           pop.classList.add('show');
         }
-        function closePop(){ pop.classList.remove('show'); curId = null; curMois = 0; }
+        function closePop(){ pop.classList.remove('show'); curId = null; curMois = 0; curVehId = null; }
         document.querySelectorAll('.pc-cell').forEach(function(b){ b.addEventListener('click', function(){ openPop(b); }); });
         document.getElementById('pcPopCancel').addEventListener('click', closePop);
         document.getElementById('pcPopDate').addEventListener('change', refreshNext);
@@ -241,6 +458,46 @@
           save(iso);
         });
         document.getElementById('pcPopClear').addEventListener('click', function(){ if(confirm('Effacer la date de ce contrôle ?\n(la ligne d\'historique déjà créée dans l\'onglet Services du véhicule ne sera pas supprimée, et le prochain contrôle planifié automatiquement sera annulé)')){ save(''); } });
+        function runCtx(ctx){
+          ctx.active_model = 'x_controle_vehicule';
+          ctx.pc_id = curId;
+          rpc('ir.actions.server', 'run', [[2055]], {context: ctx}).then(function(){ location.reload(); })
+            .catch(function(e){ alert('Échec : ' + e.message); });
+        }
+        document.getElementById('pcCvSetBtn').addEventListener('click', function(){
+          var lim = document.getElementById('pcCvLimite').value;
+          if(!lim){ alert('Choisissez la date limite de la contre-visite.'); return; }
+          runCtx({pc_cv_limite: lim});
+        });
+        document.getElementById('pcCvDoneBtn').addEventListener('click', function(){
+          runCtx({pc_cv_done: 1, pc_date: document.getElementById('pcCvDoneDate').value || ''});
+        });
+        document.getElementById('pcDocUp').addEventListener('click', function(){
+          var f = document.getElementById('pcDocFile').files[0];
+          if(!f){ alert('Choisissez un fichier.'); return; }
+          if(f.size > 20 * 1024 * 1024){ alert('Fichier trop volumineux (20 Mo max).'); return; }
+          var reader = new FileReader();
+          reader.onload = function(){
+            var b64 = reader.result.split(',')[1];
+            rpc('ir.attachment', 'create', [{
+              name: f.name,
+              datas: b64,
+              res_model: 'fleet.vehicle',
+              res_id: parseInt(curVehId, 10),
+            }]).then(function(){ document.getElementById('pcDocFile').value = ''; loadDocs(); })
+              .catch(function(e){ alert('Échec de l\'envoi : ' + e.message); });
+          };
+          reader.readAsDataURL(f);
+        });
+        function pcNav(params){
+          var q = new URLSearchParams(location.search);
+          Object.keys(params).forEach(function(k){ q.set(k, params[k]); });
+          location = '/parc-controles?' + q.toString();
+        }
+        var semPick = document.getElementById('pcSem');
+        if(semPick){ semPick.addEventListener('change', function(){ if(semPick.value){ pcNav({vue:'semaine', sem:semPick.value}); } }); }
+        var moisPick = document.getElementById('pcMois');
+        if(moisPick){ moisPick.addEventListener('change', function(){ if(moisPick.value){ pcNav({vue:'mois', mois:moisPick.value}); } }); }
         var emSave = document.getElementById('pcEmailsSave');
         if(emSave){ emSave.addEventListener('click', function(){
           fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},

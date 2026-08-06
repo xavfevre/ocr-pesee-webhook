@@ -102,6 +102,36 @@ conserve l'historique déjà créé.
 Accessible depuis le menu **Parc automobile → 🚗 Contrôles obligatoires**
 (en tête de menu).
 
+### Contre-visite (06/08)
+Depuis la popup d'une case : bouton **« Résultat défavorable ? »** avec date
+limite (pré-remplie à +2 mois) → la case passe en rose « ⚠ CONTRE-VISITE
+avant le … », un rendez-vous « Nouveau » est créé dans l'onglet Services du
+véhicule, et l'alerte email hebdomadaire liste les contre-visites en
+attente (sujet enrichi). Quand elle est passée : bouton **« ✓ Contre-visite
+passée »** (date au choix) → historique « Terminé » dans Services, le
+drapeau tombe, la case revient à l'affichage normal (la validité du
+contrôle reste calculée depuis la visite initiale). Une nouvelle validation
+normale du contrôle lève aussi le drapeau. Champ : `x_cv_limite` sur
+`x_controle_vehicule` ; logique dans l'action serveur 2055.
+
+### Documents du véhicule (06/08)
+Dans la même popup, bloc **« 📎 Documents du véhicule »** : liste des pièces
+jointes du véhicule (téléchargeables) + envoi d'un fichier (compte rendu de
+visite, rapport CT…, 20 Mo max). Stockage en pièce jointe native du
+véhicule (`ir.attachment` sur `fleet.vehicle`) → visibles aussi dans le
+chatter de la fiche véhicule du module Parc automobile.
+
+### Vues calendaires (06/08)
+Sélecteur en haut de page : **📋 Tableau / 📅 Semaine / 🗓 Mois / 🗂 Année**
+(paramètre `vue=`). Les vues calendaires affichent les **échéances
+calculées** (dernier contrôle + périodicité, source : historique Fleet
+natif) avec les mêmes couleurs (rouge retard / jaune sous 30 j / vert à
+jour). Les filtres catégorie et état restent actifs dans toutes les vues.
+- Semaine : 7 colonnes, sélecteur `type=week` + flèches ◀ ▶ ;
+- Mois : grille calendaire, sélecteur `type=month` + flèches ;
+- Année : 12 cartes mensuelles avec compteur d'échéances — la vue la plus
+  utile pour planifier les CT/VGP de l'année.
+
 ## Alerte email hebdomadaire
 Action serveur **2053** + cron hebdomadaire (**123**, tous les lundis) :
 parcourt les 106 lignes, calcule les échéances, et envoie un email (si et
