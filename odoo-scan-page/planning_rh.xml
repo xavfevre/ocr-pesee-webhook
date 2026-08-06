@@ -21,6 +21,7 @@
       .d-off{background:#f1f5f9;color:#cbd5e1;}
       .d-t{background:#dcfce7;color:#14532d;}
       .d-cp{background:#fbbf24;color:#7c2d12;}
+      .d-demi{background:linear-gradient(135deg,#fbbf24 0 50%,#dcfce7 50% 100%);color:#7c2d12;font-weight:800;}
       .d-mal{background:#f87171;color:#7f1d1d;}
       .d-fer{background:#c4b5fd;color:#4c1d95;}
       .d-abs{background:#b91c1c;color:#fff;}
@@ -81,6 +82,21 @@
             </div>
           </t>
         </div>
+        <t t-set="histo" t-value="request.env['x_demande_conge'].sudo().search([('x_statut','!=','attente'),('x_employee_id','in',emps.ids)], order='write_date desc', limit=30)"/>
+        <details t-if="histo" class="pr-dem" style="background:#f8fafc;border:1px solid #e2e8f0;">
+          <summary style="font-weight:900;cursor:pointer;padding:2px 0;">🗂 Historique des demandes (<t t-esc="len(histo)"/> dernières)</summary>
+          <t t-foreach="histo" t-as="dc">
+            <div class="pr-dem-l" style="border-bottom:1px solid #eef2f6;">
+              <span>
+                <span t-attf-style="display:inline-block;border-radius:7px;padding:1px 9px;font-weight:900;font-size:11.5px;margin-right:6px;{{'background:#dcfce7;color:#166534;' if dc.x_statut == 'approuve' else 'background:#fee2e2;color:#991b1b;'}}"><t t-esc="'✓' if dc.x_statut == 'approuve' else '✕'"/></span>
+                <b t-esc="dc.x_employee_id.name"/> · <t t-esc="typlbl.get(dc.x_type, dc.x_type)"/> du <b t-esc="dc.x_du.strftime('%d/%m')"/> au <b t-esc="dc.x_au.strftime('%d/%m/%Y')"/><t t-if="dc.x_periode == 'matin'"> · matin</t><t t-elif="dc.x_periode == 'apresmidi'"> · après-midi</t><t t-elif="dc.x_periode == 'horaires'"> · <t t-esc="'%.2g' % dc.x_h_de"/>h–<t t-esc="'%.2g' % dc.x_h_a"/>h</t>
+                <t t-if="dc.x_motif"> · « <t t-esc="dc.x_motif"/> »</t>
+                <t t-if="dc.x_reponse"> · <i style="color:#64748b;" t-esc="dc.x_reponse"/></t>
+                <span style="color:#94a3b8;font-size:11.5px;"> — traitée le <t t-esc="dc.write_date.strftime('%d/%m/%Y')"/></span>
+              </span>
+            </div>
+          </t>
+        </details>
         <t t-set="pendmap" t-value="dict(((dc.x_employee_id.id, (d1 + datetime.timedelta(days=n)).day), 1) for dc in pend for n in range(nbj) if dc.x_du &lt;= (d1 + datetime.timedelta(days=n)) and (d1 + datetime.timedelta(days=n)) &lt;= dc.x_au)"/>
         <div class="pr-scroll">
         <table class="pr">
@@ -104,9 +120,11 @@
                 <t t-set="wt" t-value="str((((dd - datetime.timedelta(days=dd.weekday())) - datetime.date(1970,1,5)).days // 7) % 2)"/>
                 <t t-set="theo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(dd.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]) if cal else 0"/>
                 <t t-set="s" t-value="sk.get((e.id, dd.day))"/>
-                <t t-set="cls" t-value="(s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
-                <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-title="e.name + ' ' + dd.strftime('%d/%m')">
-                  <t t-if="s and s.x_type == 'travail'"><t t-esc="('%g' % round(s.x_heures, 1))"/></t>
+                <t t-set="demi" t-value="bool(s and s.x_type == 'travail' and s.x_note and '— ' in s.x_note and '(demande' in s.x_note)"/>
+                <t t-set="cls" t-value="('d-demi' if demi else '') or (s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
+                <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-title="e.name + ' ' + dd.strftime('%d/%m') + ((' — ' + s.x_note) if s and s.x_note else '')">
+                  <t t-if="demi"><t t-esc="('%g' % round(s.x_heures, 1))"/>½</t>
+                  <t t-elif="s and s.x_type == 'travail'"><t t-esc="('%g' % round(s.x_heures, 1))"/></t>
                   <t t-elif="s and s.x_type == 'cp'">CP</t>
                   <t t-elif="s and s.x_type == 'maladie'">M</t>
                   <t t-elif="s and s.x_type == 'ferie'">F</t>
@@ -124,6 +142,7 @@
           <span style="color:#cbd5e1;border:1px solid #e2e8f0;">théorique (pas encore saisi)</span>
           <span class="d-cp">CP</span><span class="d-mal">Maladie</span><span class="d-fer">Férié</span>
           <span class="d-abs">Absence</span><span class="d-rec">Récup</span><span class="d-off">jour non travaillé</span>
+          <span class="d-demi">4½ congé partiel (matin/après-midi/horaires — survoler pour le détail)</span>
           <span class="d-pend" style="background:#fff;">demande en attente</span>
         </div>
         <div id="pr-k" t-att-data-k="kk" style="display:none;"/>

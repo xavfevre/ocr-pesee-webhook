@@ -62,3 +62,12 @@ cohérents.
   confirmé par les données).
 - Gabions pré-remplis, « Tuffeau/Haims/Richemont - A l'unité », dallages :
   restent à l'unité (confirmé par les factures : quantités entières).
+
+## Annexe — Tuffeau d'Usseau (06/08)
+À la demande du client, sur les commandes S08675, S09148, S08047, S10296,
+S09388, S10995, S11020, S08126 : les produits tuffeau génériques remplacés
+par les produits **« (U) » (Usseau)** à variante identique (18 lignes de
+commande + 16 lignes de factures comptabilisées, via SQL — montants,
+libellés imprimés et totaux inchangés : 8 152,68 € vérifiés). Mapping :
+552→6053, 554→6055, 556→6057, 557→6058, 558→6059, 745→6061, 744→6070.
+L'historique de stock/fabrication n'a volontairement pas été modifié.

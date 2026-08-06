@@ -306,3 +306,32 @@ re-posée en « travail 13h30–17h30 » avec note.
 
 L'email du manager contient aussi un lien **📅 planning global des congés**
 (/planning-rh avec la clé responsables).
+
+## Planning RH : congés partiels visibles + historique (06/08)
+- Une journée avec congé partiel approuvé (matin/après-midi/horaires)
+  s'affiche en **case bicolore orange/vert** avec « 4½ » (heures travaillées
+  + ½) ; le survol de la case affiche le détail (« Récupération — matin en
+  congé (demande N) »). Légende mise à jour.
+- Bloc dépliable **« 🗂 Historique des demandes »** sous les demandes en
+  attente : les 30 dernières demandes traitées (badge ✓/✕, salarié, type,
+  période, motif, réponse du responsable, date de traitement).
+- Rattrapage effectué : les 3 demandes en attente d'avant la mise en place
+  (TRINQUARD ×2, DESPUJOLS) ont reçu leur email de validation manager
+  (boutons actifs, relais déployé).
+
+## Congés acquis N / N-1 (06/08, suite)
+- **Page salarié** : la tuile « CP restants » affiche désormais le total
+  N + N-1 avec le détail « (N : 27,5 · N-1 : 10) ».
+- **Page ⏰ Horaires par défaut** : chaque carte salarié porte deux champs
+  « 🏖 CP acquis N / N-1 » + bouton Enregistrer — écrit les allocations
+  Odoo (ajuste la plus récente validée, ou en crée une validée s'il n'y en
+  a pas). Action 2021 étendue (`cp_mode`), déjà autorisée au relais.
+- **Cumul automatique** : le plan « Congés payés (2,5 jours par mois) »
+  existait mais **était arrêté depuis le 31/05/2025** (allocations bornées
+  à la période 2024-2025 ; l'acquisition n'a jamais tourné sur 2025-2026).
+  Relancé le 06/08/2026 pour 18 salariés actifs : bornes levées, ancrage
+  lastcall 31/07/2026 → reprise à 2,5 j/mois à partir d'août, **sans
+  rattrapage rétroactif** (soldes vérifiés intacts). 14 actifs restent hors
+  plan (comptes techniques, dirigeants, et quelques salariés : BERROYER,
+  CLAVELLE, GUERIN, JOLLY, LANGLOIS, ORILLARD, VRILLON, BAULU) — à
+  rattacher au plan dans Congés → Configuration si souhaité.
