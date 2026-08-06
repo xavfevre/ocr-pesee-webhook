@@ -186,10 +186,14 @@
                       <t t-set="dtheo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == dwt)]) if cal else 0"/>
                       <t t-if="d.month != m1.month"><td class="out"/></t>
                       <t t-else="">
-                        <td t-attf-class="{{'c-' + s.x_type if s else ''}} {{'off' if (dtheo &lt;= 0 and not s) else ''}} {{'today' if d == today else ''}}">
-                          <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(d - datetime.timedelta(days=d.weekday())).strftime('%Y-%m-%d')}}" t-att-title="'Ouvrir la semaine du ' + (d - datetime.timedelta(days=d.weekday())).strftime('%d/%m')">
+                        <t t-set="mdemi" t-value="bool(s and s.x_type == 'travail' and s.x_note and '— ' in s.x_note and ('(demande' in s.x_note or '(bureau)' in s.x_note or 'congé partiel' in s.x_note))"/>
+                        <t t-set="mdcol" t-value="{'Récupération': '#7dd3fc', 'Congés payés': '#fbbf24', 'Maladie': '#f87171', 'Férié': '#c4b5fd'}.get((s.x_note or '').split(' — ')[0], '#fca5a5') if mdemi else ''"/>
+                        <t t-set="mdsty" t-value="(('background:linear-gradient(90deg, %s 0%% 50%%, #dcfce7 50%% 100%%);' % mdcol) if 'matin en congé' in s.x_note else (('background:linear-gradient(90deg, #dcfce7 0%% 50%%, %s 50%% 100%%);' % mdcol) if 'après-midi en congé' in s.x_note else ('background:linear-gradient(135deg, %s 0%% 50%%, #dcfce7 50%% 100%%);' % mdcol))) if mdemi else ''"/>
+                        <td t-attf-class="{{'c-' + s.x_type if s else ''}} {{'off' if (dtheo &lt;= 0 and not s) else ''}} {{'today' if d == today else ''}}" t-att-style="mdsty or None">
+                          <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{tok}}&amp;sem={{(d - datetime.timedelta(days=d.weekday())).strftime('%Y-%m-%d')}}" t-att-title="(((s.x_note + ' — ') if s and s.x_note else '') + 'Ouvrir la semaine du ' + (d - datetime.timedelta(days=d.weekday())).strftime('%d/%m'))">
                             <span class="dn"><t t-esc="d.day"/></span>
-                            <t t-if="s and s.x_type == 'travail'"><div class="val" style="color:#15803d;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h</div></t>
+                            <t t-if="mdemi"><div class="val" style="color:#0f172a;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h ½</div></t>
+                            <t t-elif="s and s.x_type == 'travail'"><div class="val" style="color:#15803d;"><t t-esc="'%g' % round(s.x_heures, 2)"/> h</div></t>
                             <t t-elif="s and s.x_type == 'cp'"><div class="val" style="color:#b45309;">🌴 CP</div></t>
                             <t t-elif="s and s.x_type == 'maladie'"><div class="val" style="color:#b91c1c;">🤒 Mal.</div></t>
                             <t t-elif="s and s.x_type == 'ferie'"><div class="val" style="color:#7c3aed;">🎉 Férié</div></t>
@@ -242,6 +246,20 @@
               </span>
             </div>
             <div class="mh-theo" t-if="theo &gt; 0">Horaire habituel : <t t-esc="fmt(tmd)"/>-<t t-esc="fmt(tmf)"/><t t-if="taf"> / <t t-esc="fmt(tad)"/>-<t t-esc="fmt(taf)"/></t> (<t t-esc="'%.2f' % theo"/> h)</div>
+            <t t-set="jdemi" t-value="bool(s and s.x_type == 'travail' and s.x_note and '— ' in s.x_note and ('(demande' in s.x_note or '(bureau)' in s.x_note or 'congé partiel' in s.x_note))"/>
+            <t t-if="jdemi">
+              <t t-set="jdlbl" t-value="(s.x_note or '').split(' — ')[0]"/>
+              <div t-attf-class="mh-lock {{'l-recup' if jdlbl == 'Récupération' else ('l-cp' if jdlbl == 'Congés payés' else ('l-maladie' if jdlbl == 'Maladie' else ('l-ferie' if jdlbl == 'Férié' else 'l-absence')))}}">
+                <span style="font-size:20px;">
+                  <t t-if="jdlbl == 'Récupération'">🔄</t>
+                  <t t-elif="jdlbl == 'Congés payés'">🌴</t>
+                  <t t-elif="jdlbl == 'Maladie'">🤒</t>
+                  <t t-elif="jdlbl == 'Férié'">🎉</t>
+                  <t t-else="">⛔</t>
+                </span>
+                <span><t t-esc="s.x_note.split(' (')[0]"/><small>Le reste de la journée est en travail — saisissez vos heures ci-dessous.</small></span>
+              </div>
+            </t>
             <div class="mh-theo" t-else="">Pas d'horaire prévu ce jour</div>
             <t t-if="lock">
               <div t-attf-class="mh-lock l-{{s.x_type}}">
