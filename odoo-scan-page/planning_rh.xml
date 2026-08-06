@@ -31,6 +31,29 @@
       .pr-leg{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;font-weight:700;color:#475569;}
       .pr-leg span{padding:2px 9px;border-radius:6px;}
       .pr-scroll{overflow-x:auto;}
+      .pr td[data-emp]{cursor:pointer;}
+      .pr td[data-emp]:hover{outline:2px solid #0f172a;outline-offset:-2px;}
+      .pr-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:300;align-items:center;justify-content:center;}
+      .pr-pop.show{display:flex;}
+      .pr-pop-box{background:#fff;border-radius:14px;padding:20px;width:360px;max-width:92vw;}
+      .pr-pop-box h5{margin:0 0 12px;font-weight:900;font-size:16px;}
+      .pr-typ{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px;}
+      .pr-typ button{border:2px solid transparent;border-radius:10px;padding:9px;font-weight:800;font-size:13px;cursor:pointer;}
+      .pr-typ button.on{border-color:#0f172a;}
+      .pr-typ .b-travail{background:#dcfce7;color:#166534;}
+      .pr-typ .b-cp{background:#fbbf24;color:#7c2d12;}
+      .pr-typ .b-recup{background:#7dd3fc;color:#0c4a6e;}
+      .pr-typ .b-maladie{background:#fecaca;color:#7f1d1d;}
+      .pr-typ .b-ferie{background:#c4b5fd;color:#4c1d95;}
+      .pr-typ .b-absence{background:#fca5a5;color:#7f1d1d;}
+      .pr-typ .b-repos{background:#e2e8f0;color:#475569;}
+      .pr-hzone{display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 8px;align-items:center;margin-bottom:12px;}
+      .pr-hzone label{font-size:12.5px;font-weight:800;color:#64748b;}
+      .pr-hzone input{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-weight:700;width:100%;box-sizing:border-box;}
+      .pr-pop-row{display:flex;gap:8px;}
+      .pr-pop-row button{flex:1;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;}
+      .pr-pop-cancel{background:#f1f5f9;color:#334155;}
+      .pr-pop-save{background:#0f172a;color:#fff;}
     </style>
     <div class="pr-wrap">
       <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
@@ -122,7 +145,7 @@
                 <t t-set="s" t-value="sk.get((e.id, dd.day))"/>
                 <t t-set="demi" t-value="bool(s and s.x_type == 'travail' and s.x_note and '— ' in s.x_note and '(demande' in s.x_note)"/>
                 <t t-set="cls" t-value="('d-demi' if demi else '') or (s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
-                <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-title="e.name + ' ' + dd.strftime('%d/%m') + ((' — ' + s.x_note) if s and s.x_note else '')">
+                <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-title="e.name + ' ' + dd.strftime('%d/%m') + ((' — ' + s.x_note) if s and s.x_note else '')" t-att-data-emp="e.id" t-att-data-ename="e.name" t-att-data-date="dd.strftime('%Y-%m-%d')" t-att-data-type="(s and s.x_type) or ''" t-att-data-md="(s and s.x_m_deb) or 0" t-att-data-mf="(s and s.x_m_fin) or 0" t-att-data-ad="(s and s.x_am_deb) or 0" t-att-data-af="(s and s.x_am_fin) or 0">
                   <t t-if="demi"><t t-esc="('%g' % round(s.x_heures, 1))"/>½</t>
                   <t t-elif="s and s.x_type == 'travail'"><t t-esc="('%g' % round(s.x_heures, 1))"/></t>
                   <t t-elif="s and s.x_type == 'cp'">CP</t>
@@ -145,6 +168,32 @@
           <span class="d-demi">4½ congé partiel (matin/après-midi/horaires — survoler pour le détail)</span>
           <span class="d-pend" style="background:#fff;">demande en attente</span>
         </div>
+        <div class="pr-pop" id="prPop">
+          <div class="pr-pop-box">
+            <h5 id="prPopT"/>
+            <div class="pr-typ" id="prTyp">
+              <button type="button" class="b-travail" data-t="travail">Travail</button>
+              <button type="button" class="b-cp" data-t="cp">CP</button>
+              <button type="button" class="b-recup" data-t="recup">Récup</button>
+              <button type="button" class="b-maladie" data-t="maladie">Maladie</button>
+              <button type="button" class="b-ferie" data-t="ferie">Férié</button>
+              <button type="button" class="b-absence" data-t="absence">Absence</button>
+              <button type="button" class="b-repos" data-t="repos">Repos</button>
+            </div>
+            <div class="pr-hzone" id="prHzone" style="display:none;">
+              <label>Matin</label>
+              <input type="time" id="prM1"/>
+              <input type="time" id="prM2"/>
+              <label>Ap.-midi</label>
+              <input type="time" id="prA1"/>
+              <input type="time" id="prA2"/>
+            </div>
+            <div class="pr-pop-row">
+              <button type="button" class="pr-pop-cancel" id="prPopCancel">Annuler</button>
+              <button type="button" class="pr-pop-save" id="prPopSave">Enregistrer</button>
+            </div>
+          </div>
+        </div>
         <div id="pr-k" t-att-data-k="kk" style="display:none;"/>
         <script>
 (function(){
@@ -166,11 +215,56 @@
       location.reload();
     }).catch(function(){ alert('Échec réseau'); });
   }
+  var pop = document.getElementById('prPop');
+  var curEmp = null, curDate = null, curType = 'travail';
+  function f2t(v){
+    v = parseFloat(v || 0);
+    if(!v){ return ''; }
+    var h = Math.floor(v), m = Math.round((v - h) * 60);
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  }
+  function t2f(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1],10)/60; }
+  function selType(t){
+    curType = t;
+    document.querySelectorAll('#prTyp button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-t') === t); });
+    document.getElementById('prHzone').style.display = (t === 'travail') ? 'grid' : 'none';
+  }
+  function openCell(td){
+    curEmp = td.getAttribute('data-emp');
+    curDate = td.getAttribute('data-date');
+    var dd = curDate.split('-');
+    document.getElementById('prPopT').textContent = td.getAttribute('data-ename') + ' — ' + dd[2] + '/' + dd[1] + '/' + dd[0];
+    document.getElementById('prM1').value = f2t(td.getAttribute('data-md'));
+    document.getElementById('prM2').value = f2t(td.getAttribute('data-mf'));
+    document.getElementById('prA1').value = f2t(td.getAttribute('data-ad'));
+    document.getElementById('prA2').value = f2t(td.getAttribute('data-af'));
+    selType(td.getAttribute('data-type') || 'travail');
+    pop.classList.add('show');
+  }
+  document.getElementById('prPopCancel').addEventListener('click', function(){ pop.classList.remove('show'); });
+  pop.addEventListener('click', function(e){ if(e.target === pop){ pop.classList.remove('show'); } });
+  document.getElementById('prPopSave').addEventListener('click', function(){
+    if(!curEmp){ return; }
+    var btn = document.getElementById('prPopSave');
+    btn.disabled = true;
+    rpcAction(2012, {active_model:'x_heures_jour', hj_emp:parseInt(curEmp,10), hj_date:curDate, hj_type:curType,
+      hj_m_deb:t2f(document.getElementById('prM1').value), hj_m_fin:t2f(document.getElementById('prM2').value),
+      hj_am_deb:t2f(document.getElementById('prA1').value), hj_am_fin:t2f(document.getElementById('prA2').value),
+      hj_k:KK}).then(function(r){return r.json();}).then(function(d){
+      btn.disabled = false;
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ btn.disabled = false; alert('Échec réseau'); });
+  });
   document.addEventListener('click', function(e){
     var ok = e.target.closest('.pr-ok');
     if(ok){ if(confirm('Approuver cette demande ? Les jours seront inscrits automatiquement.')){ repond(parseInt(ok.getAttribute('data-id')), 'approuve', ''); } return; }
     var no = e.target.closest('.pr-no');
-    if(no){ var m = prompt('Motif du refus (transmis au salarié) :', ''); if(m !== null){ repond(parseInt(no.getAttribute('data-id')), 'refuse', m); } }
+    if(no){ var m = prompt('Motif du refus (transmis au salarié) :', ''); if(m !== null){ repond(parseInt(no.getAttribute('data-id')), 'refuse', m); } return; }
+    var tb = e.target.closest('#prTyp button');
+    if(tb){ selType(tb.getAttribute('data-t')); return; }
+    var td = e.target.closest('td[data-emp]');
+    if(td){ openCell(td); }
   });
 })();
         </script>
