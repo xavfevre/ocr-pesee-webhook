@@ -1,0 +1,18 @@
+<!-- Vue ir.ui.view 7973 (prod) / 7971 (base de test) — « Facture - civilite avant nom client »
+     Hérite de account.report_invoice_document (vue 2370), mode extension, priorité 16.
+     Insère la civilité (champ res.partner x_studio_civilit_type_socit) au-dessus du nom
+     du client dans le bloc adresse, sur les TROIS branches du modèle natif :
+     livraison ≠ client, livraison = client, pas d'adresse de livraison.
+     (Le premier essai ne visait que la première branche : quasi toutes les factures
+     Maquignon ont livraison = client, d'où une civilité invisible.) -->
+<data>
+  <xpath expr="//div[@name='address_not_same_as_shipping']//address[@t-field='o.partner_id']" position="before">
+    <div t-if="o.partner_id.x_studio_civilit_type_socit"><span t-field="o.partner_id.x_studio_civilit_type_socit"/></div>
+  </xpath>
+  <xpath expr="//div[@name='address_same_as_shipping']//address[@t-field='o.partner_id']" position="before">
+    <div t-if="o.partner_id.x_studio_civilit_type_socit"><span t-field="o.partner_id.x_studio_civilit_type_socit"/></div>
+  </xpath>
+  <xpath expr="//div[@name='no_shipping']//address[@t-field='o.partner_id']" position="before">
+    <div t-if="o.partner_id.x_studio_civilit_type_socit"><span t-field="o.partner_id.x_studio_civilit_type_socit"/></div>
+  </xpath>
+</data>

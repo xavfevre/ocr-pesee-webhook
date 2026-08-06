@@ -143,9 +143,9 @@
       <attribute name="style">display:none</attribute>
     </xpath><xpath position="after" expr="/t[@t-name='account.report_invoice_document']//div[contains(@class,'invoice_main')]">
       <style>
-        table.o_ignore_layout_styling { direction: rtl; }
-        table.o_ignore_layout_styling h2 { text-align: left !important; }
-        table.o_ignore_layout_styling td { direction: ltr; }
+        .article table.o_ignore_layout_styling { direction: rtl; }
+        .article table.o_ignore_layout_styling h2 { text-align: left !important; }
+        .article table.o_ignore_layout_styling td { direction: ltr; }
       </style>
     </xpath><xpath position="attributes" expr="//div[@id='right-elements']">
                 <attribute name="style">margin-right: 0px;</attribute>
