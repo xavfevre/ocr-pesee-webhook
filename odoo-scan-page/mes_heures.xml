@@ -360,13 +360,13 @@
 
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
           <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🌴 Demander des congés</div>
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;">
+          <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 10px;align-items:center;">
             <label style="font-weight:800;color:#64748b;font-size:13px;">Du</label>
-            <input type="date" id="mh-dc-du" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <input type="date" id="mh-dc-du" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
             <label style="font-weight:800;color:#64748b;font-size:13px;">Au</label>
-            <input type="date" id="mh-dc-au" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;"/>
+            <input type="date" id="mh-dc-au" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
             <label style="font-weight:800;color:#64748b;font-size:13px;">Type</label>
-            <select id="mh-dc-type" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;">
+            <select id="mh-dc-type" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;">
               <option value="cp">Congés payés</option>
               <option value="recup">Récupération</option>
               <option value="sans_solde">Sans solde</option>
@@ -376,7 +376,7 @@
               <option value="enfant_malade">Enfant malade</option>
             </select>
             <label style="font-weight:800;color:#64748b;font-size:13px;">Période</label>
-            <select id="mh-dc-periode" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;">
+            <select id="mh-dc-periode" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;">
               <option value="journee">Journée(s) complète(s)</option>
               <option value="matin">Matin uniquement</option>
               <option value="apresmidi">Après-midi uniquement</option>
@@ -389,7 +389,7 @@
               <input type="time" id="mh-dc-ha" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-weight:700;flex:1;"/>
             </div>
             <label style="font-weight:800;color:#64748b;font-size:13px;">Motif</label>
-            <input type="text" id="mh-dc-motif" placeholder="facultatif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
+            <input type="text" id="mh-dc-motif" placeholder="facultatif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;width:100%;box-sizing:border-box;min-width:0;"/>
           </div>
           <button type="button" id="mh-dc-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#f59e0b;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">📨 Envoyer la demande</button>
           <t t-set="dems" t-value="request.env['x_demande_conge'].sudo().search([('x_employee_id','=',emp.id)], order='id desc', limit=6)"/>
