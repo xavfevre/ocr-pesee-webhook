@@ -89,20 +89,20 @@
       .pc-cal{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;}
       .pc-cal h5{text-align:center;font-weight:900;color:#15324f;margin:0 0 12px;}
       table.pc-grid{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;}
-      .pc-grid th{background:#0f172a;color:#fff;font-size:11.5px;font-weight:800;padding:7px 4px;text-align:center;}
-      .pc-grid td{border:1px solid #eef2f6;vertical-align:top;padding:4px;min-height:70px;height:70px;}
-      .pc-grid td .dnum{font-weight:800;color:#64748b;font-size:11.5px;margin-bottom:3px;}
+      .pc-grid th{background:#0f172a;color:#fff;font-size:14px;font-weight:800;padding:9px 4px;text-align:center;}
+      .pc-grid td{border:1px solid #eef2f6;vertical-align:top;padding:5px;min-height:70px;height:70px;}
+      .pc-grid td .dnum{font-weight:800;color:#64748b;font-size:13.5px;margin-bottom:4px;}
       .pc-grid td.aut{background:#f8fafc;}
-      .pc-grid td.auj .dnum{color:#fff;background:#0f172a;border-radius:6px;display:inline-block;padding:1px 6px;}
-      .pc-ev{display:block;border-radius:7px;padding:3px 6px;font-size:10.5px;font-weight:800;line-height:1.3;margin-bottom:3px;}
+      .pc-grid td.auj .dnum{color:#fff;background:#0f172a;border-radius:6px;display:inline-block;padding:1px 7px;}
+      .pc-ev{display:block;border-radius:8px;padding:6px 9px;font-size:14px;font-weight:800;line-height:1.35;margin-bottom:5px;}
       .pc-ev.retard{background:#fecaca;color:#7f1d1d;}
       .pc-ev.proche{background:#fde68a;color:#78350f;}
       .pc-ev.ok{background:#bbf7d0;color:#14532d;}
-      .pc-ev small{display:block;font-weight:700;opacity:.85;}
-      .pc-annee{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
-      .pc-mois-card{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:12px;}
-      .pc-mois-card h6{font-weight:900;color:#15324f;margin:0 0 8px;text-align:center;font-size:14px;text-transform:capitalize;}
-      .pc-mois-card .vide{color:#94a3b8;font-size:11.5px;font-weight:700;text-align:center;padding:8px 0;}
+      .pc-ev small{display:block;font-weight:700;opacity:.85;font-size:12px;}
+      .pc-annee{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+      .pc-mois-card{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;}
+      .pc-mois-card h6{font-weight:900;color:#15324f;margin:0 0 10px;text-align:center;font-size:16.5px;text-transform:capitalize;}
+      .pc-mois-card .vide{color:#94a3b8;font-size:13px;font-weight:700;text-align:center;padding:8px 0;}
       .pc-ev .evdate{float:right;font-weight:900;}
       .pc-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;align-items:center;justify-content:center;}
       .pc-pop.show{display:flex;}
