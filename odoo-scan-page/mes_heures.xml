@@ -336,12 +336,22 @@
         </div>
 
         <!-- ===== Mon mois ===== -->
-        <t t-set="m_start" t-value="today.replace(day=1)"/>
-        <t t-set="m_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',m_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
+        <t t-set="mm_p" t-value="request.params.get('mm', '')"/>
+        <t t-set="m_start" t-value="datetime.date(int(mm_p.split('-')[0]), int(mm_p.split('-')[1]), 1) if mm_p and '-' in mm_p else today.replace(day=1)"/>
+        <t t-set="m_prec" t-value="datetime.date(m_start.year - 1, 12, 1) if m_start.month == 1 else datetime.date(m_start.year, m_start.month - 1, 1)"/>
+        <t t-set="m_suiv" t-value="datetime.date(m_start.year + 1, 1, 1) if m_start.month == 12 else datetime.date(m_start.year, m_start.month + 1, 1)"/>
+        <t t-set="m_fin" t-value="min(m_suiv - datetime.timedelta(days=1), today)"/>
+        <t t-set="m_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',m_start.strftime('%Y-%m-%d')),('x_date','&lt;=',m_fin.strftime('%Y-%m-%d'))])"/>
         <t t-set="m_eff" t-value="sum(m_rows.filtered(lambda r: r.x_type == 'travail').mapped('x_heures'))"/>
         <t t-set="m_theo" t-value="sum(m_rows.filtered(lambda r: r.x_type == 'travail').mapped('x_theo'))"/>
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
-          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">📊 Mon mois — <t t-esc="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][today.month - 1]"/></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+            <div style="font-weight:900;font-size:16px;">📊 Mon mois — <t t-esc="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][m_start.month - 1]"/><t t-if="m_start.year != today.year"> <t t-esc="m_start.year"/></t></div>
+            <div style="display:flex;gap:5px;">
+              <a t-attf-href="/mes-heures?{{keep_query('emp','t','sem','vue','mois')}}&amp;mm={{m_prec.strftime('%Y-%m')}}" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 10px;font-weight:900;text-decoration:none;color:#0f172a;background:#f8fafc;">◀</a>
+              <a t-if="m_start &lt; today.replace(day=1)" t-attf-href="/mes-heures?{{keep_query('emp','t','sem','vue','mois')}}&amp;mm={{m_suiv.strftime('%Y-%m')}}" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 10px;font-weight:900;text-decoration:none;color:#0f172a;background:#f8fafc;">▶</a>
+            </div>
+          </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <div style="flex:1;min-width:100px;background:#f1f5f9;border-radius:10px;padding:8px 10px;text-align:center;">
               <div style="font-size:20px;font-weight:900;color:#0f172a;"><t t-esc="'%.1f' % m_eff"/> h</div>
