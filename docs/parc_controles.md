@@ -102,6 +102,17 @@ conserve l'historique déjà créé.
 Accessible depuis le menu **Parc automobile → 🚗 Contrôles obligatoires**
 (en tête de menu).
 
+### Vues calendaires (06/08)
+Sélecteur en haut de page : **📋 Tableau / 📅 Semaine / 🗓 Mois / 🗂 Année**
+(paramètre `vue=`). Les vues calendaires affichent les **échéances
+calculées** (dernier contrôle + périodicité, source : historique Fleet
+natif) avec les mêmes couleurs (rouge retard / jaune sous 30 j / vert à
+jour). Les filtres catégorie et état restent actifs dans toutes les vues.
+- Semaine : 7 colonnes, sélecteur `type=week` + flèches ◀ ▶ ;
+- Mois : grille calendaire, sélecteur `type=month` + flèches ;
+- Année : 12 cartes mensuelles avec compteur d'échéances — la vue la plus
+  utile pour planifier les CT/VGP de l'année.
+
 ## Alerte email hebdomadaire
 Action serveur **2053** + cron hebdomadaire (**123**, tous les lundis) :
 parcourt les 106 lignes, calcule les échéances, et envoie un email (si et
