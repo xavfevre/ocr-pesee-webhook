@@ -387,10 +387,19 @@
           var box = document.getElementById('pcDocList');
           box.textContent = 'Chargement…';
           rpc('ir.attachment', 'search_read', [[['res_model','=','fleet.vehicle'],['res_id','=',parseInt(curVehId,10)]]], {fields:['id','name'], order:'id desc', limit:15}).then(function(res){
+            box.textContent = '';
             if(!res.length){ box.textContent = 'Aucun document.'; return; }
-            box.innerHTML = res.map(function(a){
-              return '<div>📄 <a href="/web/content/' + a.id + '?download=true" target="_blank" style="color:#0f172a;font-weight:700;">' + a.name.replace(/</g,'&amp;lt;') + '</a></div>';
-            }).join('');
+            res.forEach(function(a){
+              var d = document.createElement('div');
+              var link = document.createElement('a');
+              link.href = '/web/content/' + a.id + '?download=true';
+              link.target = '_blank';
+              link.style.cssText = 'color:#0f172a;font-weight:700;';
+              link.textContent = a.name;
+              d.appendChild(document.createTextNode('📄 '));
+              d.appendChild(link);
+              box.appendChild(d);
+            });
           }).catch(function(){ box.textContent = 'Erreur de chargement.'; });
         }
         function nextEch(dateVal){
