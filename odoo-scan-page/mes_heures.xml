@@ -372,6 +372,19 @@
               <option value="evt_familial">Événement familial (mariage, naissance, décès…)</option>
               <option value="enfant_malade">Enfant malade</option>
             </select>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Période</label>
+            <select id="mh-dc-periode" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;">
+              <option value="journee">Journée(s) complète(s)</option>
+              <option value="matin">Matin uniquement</option>
+              <option value="apresmidi">Après-midi uniquement</option>
+              <option value="horaires">Horaires précis</option>
+            </select>
+            <div id="mh-dc-hzone" style="display:none;gap:8px;align-items:center;">
+              <span style="font-weight:700;color:#64748b;font-size:13px;">de</span>
+              <input type="time" id="mh-dc-hde" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-weight:700;flex:1;"/>
+              <span style="font-weight:700;color:#64748b;font-size:13px;">à</span>
+              <input type="time" id="mh-dc-ha" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-weight:700;flex:1;"/>
+            </div>
             <label style="font-weight:800;color:#64748b;font-size:13px;">Motif</label>
             <input type="text" id="mh-dc-motif" placeholder="facultatif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;"/>
           </div>
@@ -381,7 +394,7 @@
             <div style="font-weight:800;color:#64748b;font-size:12.5px;margin-bottom:4px;">MES DEMANDES</div>
             <t t-foreach="dems" t-as="dc">
               <div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:5px 0;border-top:1px solid #f1f5f9;">
-                <span><b><t t-esc="dc.x_du.strftime('%d/%m')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></b> · <t t-esc="dict([('cp','CP'),('recup','Récup'),('sans_solde','Sans solde'),('maternite','Maternité'),('paternite','Paternité'),('evt_familial','Évén. familial'),('enfant_malade','Enfant malade')]).get(dc.x_type, dc.x_type)"/><t t-if="dc.x_motif"> · <t t-esc="dc.x_motif"/></t></span>
+                <span><b><t t-esc="dc.x_du.strftime('%d/%m')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></b> · <t t-esc="dict([('cp','CP'),('recup','Récup'),('sans_solde','Sans solde'),('maternite','Maternité'),('paternite','Paternité'),('evt_familial','Évén. familial'),('enfant_malade','Enfant malade')]).get(dc.x_type, dc.x_type)"/><t t-if="dc.x_periode == 'matin'"> (matin)</t><t t-elif="dc.x_periode == 'apresmidi'"> (après-midi)</t><t t-elif="dc.x_periode == 'horaires'"> (<t t-esc="'%.2g' % dc.x_h_de"/>h–<t t-esc="'%.2g' % dc.x_h_a"/>h)</t><t t-if="dc.x_motif"> · <t t-esc="dc.x_motif"/></t></span>
                 <span t-if="dc.x_statut == 'attente'" style="color:#b45309;font-weight:800;">⏳ En attente</span>
                 <span t-elif="dc.x_statut == 'approuve'" style="color:#15803d;font-weight:800;">✓ Approuvé</span>
                 <span t-else="" style="color:#b91c1c;font-weight:800;" t-att-title="dc.x_reponse or ''">✗ Refusé</span>
@@ -483,12 +496,20 @@
     } else if(act !== 'save'){ return; }
     save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value));
   });
+  var perSel = document.getElementById('mh-dc-periode');
+  if(perSel){ perSel.addEventListener('change', function(){
+    document.getElementById('mh-dc-hzone').style.display = (perSel.value === 'horaires') ? 'flex' : 'none';
+  }); }
   var dcgo = document.getElementById('mh-dc-go');
   if(dcgo){ dcgo.addEventListener('click', function(){
     var du = document.getElementById('mh-dc-du').value, au = document.getElementById('mh-dc-au').value;
     if(!du || !au || du &gt; au){ alert('Choisissez des dates valides (Du ≤ Au).'); return; }
     dcgo.disabled = true;
-    rpcAction(2013, {active_model:'x_demande_conge',dc_emp:EMP,dc_token:TOK,dc_du:du,dc_au:au,dc_type:document.getElementById('mh-dc-type').value,dc_motif:document.getElementById('mh-dc-motif').value}).then(function(r){return r.json();}).then(function(d){
+    var per = document.getElementById('mh-dc-periode').value;
+    function t2f(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1],10)/60; }
+    var hde = t2f(document.getElementById('mh-dc-hde').value), ha = t2f(document.getElementById('mh-dc-ha').value);
+    if(per === 'horaires' &amp;&amp; !(hde &lt; ha)){ alert('Indiquez des horaires valides (début avant fin).'); dcgo.disabled = false; return; }
+    rpcAction(2013, {active_model:'x_demande_conge',dc_emp:EMP,dc_token:TOK,dc_du:du,dc_au:au,dc_type:document.getElementById('mh-dc-type').value,dc_periode:per,dc_h_de:hde,dc_h_a:ha,dc_motif:document.getElementById('mh-dc-motif').value}).then(function(r){return r.json();}).then(function(d){
       dcgo.disabled = false;
       if(d.error){ handleErr(d); return; }
       alert('✓ Demande envoyée à votre responsable.');

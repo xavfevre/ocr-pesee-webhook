@@ -280,3 +280,29 @@ mais le salarié comprend quoi faire au lieu de rester bloqué.
 - Testé bout-en-bout en prod (demande créée puis nettoyée) : jeton généré,
   email envoyé, page OK, mauvais jeton rejeté, approbation → jours posés
   avec libellé, re-décision bloquée, badge affiché.
+
+## Congés : période (jours ET horaires) — 06/08
+Nouveaux champs sur `x_demande_conge` : `x_periode` (journée complète /
+matin / après-midi / horaires précis) + `x_h_de` / `x_h_a`. Formulaire
+/mes-heures : sélecteur de période, champs « de … à … » affichés si
+« horaires précis » (action 2013 étendue, horaires validés côté serveur).
+Affichage de la période partout : liste « mes demandes », planning RH,
+email manager, page /conge-decision.
+
+**À l'approbation (action 2014)** :
+- journée(s) complète(s) : comportement historique (jour typé CP/absence,
+  pointages purgés) ;
+- matin / après-midi / horaires précis : le jour reste en **travail** avec
+  les créneaux **complémentaires** pré-remplis depuis l'horaire contractuel
+  (ex. « matin en récup » → après-midi 13h30–17h30 posé), théorique aligné
+  (pas de fausses heures sup), note explicite « Récupération — matin en
+  congé (demande N) ». Les créneaux sont rognés autour des horaires
+  demandés ; 2 créneaux affichables max (les 2 plus longs), pointages non
+  purgés.
+
+Cas réel corrigé dans la foulée : la demande de Céline (récup « uniquement
+le matin » du 01/09), approuvée en journée pleine avant la fonctionnalité,
+re-posée en « travail 13h30–17h30 » avec note.
+
+L'email du manager contient aussi un lien **📅 planning global des congés**
+(/planning-rh avec la clé responsables).

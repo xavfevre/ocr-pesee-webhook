@@ -39,6 +39,7 @@
           <div class="cd-row"><span class="l">Salarié</span><span class="v" t-esc="dc.x_employee_id.name"/></div>
           <div class="cd-row"><span class="l">Période</span><span class="v"><t t-esc="dc.x_du.strftime('%d/%m/%Y')"/> → <t t-esc="dc.x_au.strftime('%d/%m/%Y')"/></span></div>
           <div class="cd-row"><span class="l">Type</span><span class="v" t-esc="{'cp': 'Congés payés', 'recup': 'Récupération', 'sans_solde': 'Sans solde', 'maternite': 'Congé maternité', 'paternite': 'Congé paternité', 'evt_familial': 'Événement familial', 'enfant_malade': 'Enfant malade'}.get(dc.x_type, dc.x_type)"/></div>
+          <div class="cd-row" t-if="dc.x_periode and dc.x_periode != 'journee'"><span class="l">Période</span><span class="v" t-esc="{'matin': 'Matin uniquement', 'apresmidi': 'Après-midi uniquement', 'horaires': 'de %.2gh à %.2gh' % (dc.x_h_de or 0, dc.x_h_a or 0)}.get(dc.x_periode)"/></div>
           <div class="cd-row" t-if="dc.x_motif"><span class="l">Motif</span><span class="v" t-esc="dc.x_motif"/></div>
 
           <t t-if="dc.x_statut != 'attente'">
