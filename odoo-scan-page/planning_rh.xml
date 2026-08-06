@@ -22,6 +22,10 @@
       .d-t{background:#dcfce7;color:#14532d;}
       .d-cp{background:#fbbf24;color:#7c2d12;}
       .d-demi{background:linear-gradient(135deg,#fbbf24 0 50%,#dcfce7 50% 100%);color:#7c2d12;font-weight:800;}
+      .d-demi-rec{background:linear-gradient(135deg,#7dd3fc 0 50%,#dcfce7 50% 100%);color:#0c4a6e;font-weight:800;}
+      .d-demi-mal{background:linear-gradient(135deg,#f87171 0 50%,#dcfce7 50% 100%);color:#7f1d1d;font-weight:800;}
+      .d-demi-fer{background:linear-gradient(135deg,#c4b5fd 0 50%,#dcfce7 50% 100%);color:#4c1d95;font-weight:800;}
+      .d-demi-abs{background:linear-gradient(135deg,#fca5a5 0 50%,#dcfce7 50% 100%);color:#7f1d1d;font-weight:800;}
       .d-mal{background:#f87171;color:#7f1d1d;}
       .d-fer{background:#c4b5fd;color:#4c1d95;}
       .d-abs{background:#b91c1c;color:#fff;}
@@ -144,7 +148,8 @@
                 <t t-set="theo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(dd.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]) if cal else 0"/>
                 <t t-set="s" t-value="sk.get((e.id, dd.day))"/>
                 <t t-set="demi" t-value="bool(s and s.x_type == 'travail' and s.x_note and '— ' in s.x_note and ('(demande' in s.x_note or 'congé partiel' in s.x_note))"/>
-                <t t-set="cls" t-value="('d-demi' if demi else '') or (s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
+                <t t-set="demi_cls" t-value="('d-demi-rec' if s.x_note.startswith('Récupération') else ('d-demi-mal' if s.x_note.startswith('Maladie') else ('d-demi-fer' if s.x_note.startswith('Férié') else ('d-demi-abs' if s.x_note.startswith('Absence') else 'd-demi')))) if demi else ''"/>
+                <t t-set="cls" t-value="(demi_cls if demi else '') or (s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
                 <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-title="e.name + ' ' + dd.strftime('%d/%m') + ((' — ' + s.x_note) if s and s.x_note else '')" t-att-data-emp="e.id" t-att-data-ename="e.name" t-att-data-date="dd.strftime('%Y-%m-%d')" t-att-data-type="(s and s.x_type) or ''" t-att-data-md="(s and s.x_m_deb) or 0" t-att-data-mf="(s and s.x_m_fin) or 0" t-att-data-ad="(s and s.x_am_deb) or 0" t-att-data-af="(s and s.x_am_fin) or 0">
                   <t t-if="demi"><t t-esc="('%g' % round(s.x_heures, 1))"/>½</t>
                   <t t-elif="s and s.x_type == 'travail'"><t t-esc="('%g' % round(s.x_heures, 1))"/></t>
@@ -180,7 +185,17 @@
               <button type="button" class="b-absence" data-t="absence">Absence</button>
               <button type="button" class="b-repos" data-t="repos">Repos</button>
             </div>
-            <div id="prHint" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:700;color:#9a3412;margin-bottom:8px;">Congé <b>partiel</b> ? Renseignez ci-dessous les heures <b>encore travaillées</b> ce jour-là. Laissez vide pour une journée entière.</div>
+            <div id="prPer" class="pr-typ" style="display:none;">
+              <button type="button" class="b-repos" data-p="journee">Journée entière</button>
+              <button type="button" class="b-repos" data-p="matin">Matin</button>
+              <button type="button" class="b-repos" data-p="apresmidi">Après-midi</button>
+              <button type="button" class="b-repos" data-p="horaires">Horaires précis</button>
+            </div>
+            <div class="pr-hzone" id="prCz" style="display:none;">
+              <label>Congé de</label>
+              <input type="time" id="prC1"/>
+              <input type="time" id="prC2"/>
+            </div>
             <div class="pr-hzone" id="prHzone">
               <label>Matin</label>
               <input type="time" id="prM1"/>
@@ -225,16 +240,20 @@
     return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
   }
   function t2f(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1],10)/60; }
+  var curPer = 'journee';
+  function selPer(pp){
+    curPer = pp;
+    document.querySelectorAll('#prPer button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-p') === pp); });
+    document.getElementById('prCz').style.display = (pp === 'horaires') ? 'grid' : 'none';
+  }
   function selType(t){
     curType = t;
     document.querySelectorAll('#prTyp button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-t') === t); });
     var conge = (t !== 'travail' &amp;&amp; t !== 'repos');
-    document.getElementById('prHint').style.display = conge ? 'block' : 'none';
-    document.getElementById('prHzone').style.display = (t === 'repos') ? 'none' : 'grid';
-    if(conge &amp;&amp; !prOuverture){
-      document.getElementById('prM1').value = ''; document.getElementById('prM2').value = '';
-      document.getElementById('prA1').value = ''; document.getElementById('prA2').value = '';
-    }
+    document.getElementById('prPer').style.display = conge ? 'grid' : 'none';
+    document.getElementById('prHzone').style.display = (t === 'travail') ? 'grid' : 'none';
+    if(!conge){ document.getElementById('prCz').style.display = 'none'; }
+    else { selPer(curPer); }
   }
   var prOuverture = false;
   function openCell(td){
@@ -247,6 +266,8 @@
     document.getElementById('prM2').value = f2t(td.getAttribute('data-mf'));
     document.getElementById('prA1').value = f2t(td.getAttribute('data-ad'));
     document.getElementById('prA2').value = f2t(td.getAttribute('data-af'));
+    curPer = 'journee';
+    selPer('journee');
     selType(td.getAttribute('data-type') || 'travail');
     prOuverture = false;
     pop.classList.add('show');
@@ -257,9 +278,19 @@
     if(!curEmp){ return; }
     var btn = document.getElementById('prPopSave');
     btn.disabled = true;
+    var conge = (curType !== 'travail' &amp;&amp; curType !== 'repos');
+    if(conge &amp;&amp; curPer === 'horaires'){
+      var cd = t2f(document.getElementById('prC1').value), ca = t2f(document.getElementById('prC2').value);
+      if(!(cd &lt; ca)){ alert('Renseignez les horaires du congé (début avant fin).'); return; }
+    }
     rpcAction(2012, {active_model:'x_heures_jour', hj_emp:parseInt(curEmp,10), hj_date:curDate, hj_type:curType,
-      hj_m_deb:t2f(document.getElementById('prM1').value), hj_m_fin:t2f(document.getElementById('prM2').value),
-      hj_am_deb:t2f(document.getElementById('prA1').value), hj_am_fin:t2f(document.getElementById('prA2').value),
+      hj_periode:(conge ? curPer : 'journee'),
+      hj_c_de:(conge ? t2f(document.getElementById('prC1').value) : 0),
+      hj_c_a:(conge ? t2f(document.getElementById('prC2').value) : 0),
+      hj_m_deb:(curType === 'travail' ? t2f(document.getElementById('prM1').value) : 0),
+      hj_m_fin:(curType === 'travail' ? t2f(document.getElementById('prM2').value) : 0),
+      hj_am_deb:(curType === 'travail' ? t2f(document.getElementById('prA1').value) : 0),
+      hj_am_fin:(curType === 'travail' ? t2f(document.getElementById('prA2').value) : 0),
       hj_k:KK}).then(function(r){return r.json();}).then(function(d){
       btn.disabled = false;
       if(d.error){ handleErr(d); return; }
@@ -273,6 +304,8 @@
     if(no){ var m = prompt('Motif du refus (transmis au salarié) :', ''); if(m !== null){ repond(parseInt(no.getAttribute('data-id')), 'refuse', m); } return; }
     var tb = e.target.closest('#prTyp button');
     if(tb){ selType(tb.getAttribute('data-t')); return; }
+    var pb = e.target.closest('#prPer button');
+    if(pb){ selPer(pb.getAttribute('data-p')); return; }
     var td = e.target.closest('td[data-emp]');
     if(td){ openCell(td); }
   });
