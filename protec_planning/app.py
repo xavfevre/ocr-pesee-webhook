@@ -1223,6 +1223,8 @@ def tarifs_client():
             client_pl_id = 0
 
     error, ok = None, request.args.get("ok")
+    if request.args.get("err"):
+        error = "Erreur pendant l'import — aucune ligne n'a été enregistrée, réessayez."
     if request.method == "POST":
         f = request.form
         try:
@@ -1677,49 +1679,61 @@ def tarifs_import_valider():
     du = f.get("du", "").strip()
     with_histo = bool(f.get("with_histo"))
     created = 0
-    for i in range(n):
-        if not f.get(f"chk_{i}"):
-            continue
-        tmpl = int(f.get(f"tmpl_{i}") or 0)
-        try:
-            prix = float((f.get(f"prix_{i}") or "").replace(",", "."))
-        except ValueError:
-            continue
-        if not tmpl or prix <= 0:
-            continue
-        if not client_pl_id:
+    try:
+        # prépare toutes les lignes puis crée en UN SEUL appel batch : des
+        # centaines de créations une à une dépassaient le timeout Gunicorn
+        vals_list = []
+        need_pl = False
+        for i in range(n):
+            if not f.get(f"chk_{i}"):
+                continue
+            tmpl = int(f.get(f"tmpl_{i}") or 0)
+            try:
+                prix = float((f.get(f"prix_{i}") or "").replace(",", "."))
+            except ValueError:
+                continue
+            if not tmpl or prix <= 0:
+                continue
+            need_pl = True
+            vals = {"applied_on": "1_product", "product_tmpl_id": tmpl,
+                    "compute_price": "fixed", "fixed_price": prix}
+            if du:
+                vals["date_start"] = _tarifs_paris_to_utc(du)
+            vals_list.append(vals)
+            if with_histo:
+                # tarifs des années passées : items datés 01/01/N → 31/12/N,
+                # inertes pour les devis mais visibles dans l'onglet Évolution
+                for part in (f.get(f"hist_{i}") or "").split(";"):
+                    if ":" not in part:
+                        continue
+                    try:
+                        y, p = part.split(":", 1)
+                        y, p = int(y), float(p)
+                    except ValueError:
+                        continue
+                    if p <= 0:
+                        continue
+                    vals_list.append({
+                        "applied_on": "1_product", "product_tmpl_id": tmpl,
+                        "compute_price": "fixed", "fixed_price": p,
+                        "date_start": _tarifs_paris_to_utc(f"{y}-01-01"),
+                        "date_end": _tarifs_paris_to_utc(f"{y}-12-31", end=True)})
+        if need_pl and not client_pl_id:
             created_pl = q("product.pricelist", "create",
                 [{"name": partner["name"], "company_id": TARIFS_COMPANY_ID}])
             client_pl_id = created_pl[0] if isinstance(created_pl, list) else created_pl
             q("res.partner", "write", [pid],
               {"property_product_pricelist": client_pl_id}, context=CTX)
-        vals = {"pricelist_id": client_pl_id, "applied_on": "1_product",
-                "product_tmpl_id": tmpl, "compute_price": "fixed",
-                "fixed_price": prix}
-        if du:
-            vals["date_start"] = _tarifs_paris_to_utc(du)
-        q("product.pricelist.item", "create", [vals])
-        created += 1
-        if with_histo:
-            # tarifs des années passées : items datés 01/01/N → 31/12/N,
-            # inertes pour les devis mais visibles dans l'onglet Évolution
-            for part in (f.get(f"hist_{i}") or "").split(";"):
-                if ":" not in part:
-                    continue
-                try:
-                    y, p = part.split(":", 1)
-                    y, p = int(y), float(p)
-                except ValueError:
-                    continue
-                if p <= 0:
-                    continue
-                q("product.pricelist.item", "create", [{
-                    "pricelist_id": client_pl_id, "applied_on": "1_product",
-                    "product_tmpl_id": tmpl, "compute_price": "fixed",
-                    "fixed_price": p,
-                    "date_start": _tarifs_paris_to_utc(f"{y}-01-01"),
-                    "date_end": _tarifs_paris_to_utc(f"{y}-12-31", end=True)}])
-                created += 1
+        if vals_list:
+            for v in vals_list:
+                v["pricelist_id"] = client_pl_id
+            q("product.pricelist.item", "create", vals_list)
+            created = len(vals_list)
+    except Exception:
+        args = {"token": SECRET, "c": pid, "err": 1}
+        if src:
+            args["src"] = src
+        return redirect(url_for(".tarifs_client", **args))
     args = {"token": SECRET, "c": pid, "ok": created}
     if src:
         args["src"] = src
