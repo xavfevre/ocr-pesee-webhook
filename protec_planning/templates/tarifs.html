@@ -92,7 +92,8 @@
     {% if src == 'test' %} · BASE DE TEST{% endif %}</span>
 </header>
 
-{% if ok %}<div class="banner ok">✓ Tarif spécifique enregistré</div>
+{% if ok and ok != '1' %}<div class="banner ok">✓ {{ ok }} tarif(s) spécifique(s) importé(s)</div>
+{% elif ok %}<div class="banner ok">✓ Tarif spécifique enregistré</div>
 {% elif error %}<div class="banner err">⚠ {{ error }}</div>{% endif %}
 
 <div class="wrap">
@@ -102,6 +103,14 @@
     <span class="chip"><b>{{ nb_fact }}</b> produits déjà facturés</span>
     <input id="search" type="search" placeholder="Filtrer par nom ou code produit…"
            oninput="filterRows(this.value)"/>
+    <form method="POST" enctype="multipart/form-data"
+          action="{{ BASE }}/tarifs/import?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}"
+          style="display:flex; gap:8px; align-items:center;">
+      <input type="file" name="fichier" id="xlfile" accept=".xls,.xlsx" style="display:none;"
+             onchange="this.form.submit()"/>
+      <button type="button" class="btn-add" style="padding:8px 14px; font-size:13px;"
+              onclick="document.getElementById('xlfile').click()">📥 Importer Excel client</button>
+    </form>
   </div>
 
   <div class="card">

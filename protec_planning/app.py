@@ -1343,6 +1343,202 @@ def tarifs_client():
                            token=SECRET, ok=ok, error=error,
                            today=date.today().isoformat())
 
+# ── Import Excel des tarifs client (Manon, client par client) ───────────────
+def _tarifs_norm(s):
+    """Normalise un libellé pour le rapprochement (minuscules, sans accents,
+    abréviations métier développées)."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
+    s = re.sub(r"[^a-z0-9 ]", " ", s.lower())
+    s = re.sub(r"\bwe\b", "week end", s)
+    s = re.sub(r"\bp en c\b", "prise en charge", s)
+    s = re.sub(r"\bdmv\b", "matieres de vidange", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+_TARIFS_STOPWORDS = {"de", "des", "du", "la", "le", "les", "l", "d", "et", "en",
+                     "sur", "a", "au", "aux", "pour", "avec", "ou"}
+
+def _tarifs_score(nlabel, nname):
+    """Score de rapprochement : séquence + proportion de mots-clés retrouvés."""
+    from difflib import SequenceMatcher
+    seq = SequenceMatcher(None, nlabel, nname).ratio()
+    ltoks = {t for t in nlabel.split() if t not in _TARIFS_STOPWORDS}
+    ntoks = {t for t in nname.split() if t not in _TARIFS_STOPWORDS}
+    common = {t for t in ltoks & ntoks if len(t) > 2}
+    tok = len(common) / len(ltoks) if ltoks and common else 0.0
+    return max(seq, tok)
+
+def _tarifs_parse_excel(data, filename):
+    """Extrait [(libellé, unité, prix, année)] de la 1ère feuille du fichier.
+    Prend, pour chaque ligne, le prix de l'année la plus récente renseignée."""
+    import io
+    rows = []
+    if filename.lower().endswith(".xls"):
+        import xlrd
+        wb = xlrd.open_workbook(file_contents=data)
+        ws = wb.sheet_by_index(0)
+        grid = [[ws.cell_value(r, c) for c in range(ws.ncols)] for r in range(ws.nrows)]
+        sheet_name = ws.name
+    else:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
+        ws = wb.worksheets[0]
+        grid = [[c.value for c in row] for row in ws.iter_rows()]
+        sheet_name = ws.title
+    header_i, year_cols, unit_col = None, [], None
+    for i, row in enumerate(grid):
+        cells = [str(v or "").strip().upper() for v in row]
+        if any("NATURE" in c and "PRESTATION" in c for c in cells):
+            header_i = i
+            for j, v in enumerate(row):
+                try:
+                    y = int(float(v))
+                    if 1990 <= y <= 2100:
+                        year_cols.append((y, j))
+                except (TypeError, ValueError):
+                    pass
+                if str(v or "").strip().lower().startswith("unit"):
+                    unit_col = j
+            break
+    if header_i is None:
+        return sheet_name, []
+    year_cols.sort(reverse=True)  # année la plus récente d'abord
+    for row in grid[header_i + 1:]:
+        label = str(row[0] or "").strip()
+        if not label:
+            continue
+        unit = str(row[unit_col] or "").strip() if unit_col is not None and unit_col < len(row) else ""
+        price, year = None, None
+        for y, j in year_cols:
+            if j < len(row):
+                try:
+                    v = float(str(row[j]).replace(",", ".").replace("€", "").replace(" ", ""))
+                    if v > 0:
+                        price, year = v, y
+                        break
+                except (TypeError, ValueError):
+                    continue
+        if price is not None:
+            rows.append((label, unit, price, year))
+    return sheet_name, rows
+
+@bp.route("/tarifs/import", methods=["POST"])
+def tarifs_import():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    f = request.files.get("fichier")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    partner = q("res.partner", "read", [pid], fields=["name"], context=CTX)[0]
+
+    if not f or not f.filename:
+        return redirect(url_for(".tarifs_client", token=SECRET, c=pid,
+                                **({"src": src} if src else {})))
+    try:
+        sheet_name, lignes = _tarifs_parse_excel(f.read(), f.filename)
+    except Exception:
+        sheet_name, lignes = "?", []
+
+    # catalogue (templates) + prix standard pour le rapprochement
+    products = q("product.template", "search_read",
+                 [["sale_ok", "=", True], ["active", "=", True],
+                  "|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID]],
+                 fields=["name", "default_code", "list_price"])
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    std_tmpl = {}
+    if default_pl:
+        for it in q("product.pricelist.item", "search_read",
+                    [["pricelist_id", "=", default_pl[0]], ["compute_price", "=", "fixed"]],
+                    fields=["product_tmpl_id", "fixed_price"]):
+            if it["product_tmpl_id"]:
+                std_tmpl.setdefault(it["product_tmpl_id"][0], it["fixed_price"])
+    catalog = sorted(
+        [{"tmpl": p["id"], "name": p["name"], "code": p["default_code"] or "",
+          "std": std_tmpl.get(p["id"], p["list_price"])} for p in products],
+        key=lambda c: c["name"].lower())
+
+    # rapprochement automatique libellé Excel → produit Odoo
+    norm_cat = [(c, _tarifs_norm(c["name"])) for c in catalog]
+    review = []
+    for label, unit, price, year in lignes:
+        nlabel = _tarifs_norm(label.split("\n")[0])
+        best, best_score = None, 0.0
+        for c, nname in norm_cat:
+            score = _tarifs_score(nlabel, nname)
+            if score > best_score:
+                best, best_score = c, score
+        matched = best if best_score >= 0.45 else None
+        std = matched["std"] if matched else None
+        differs = matched is not None and abs(price - std) > 0.005
+        review.append({"label": label, "unit": unit, "prix": price, "annee": year,
+                        "tmpl": matched["tmpl"] if matched else 0,
+                        "score": round(best_score * 100),
+                        "std": std, "differs": differs})
+    return render_template("tarifs_import.html", partner=partner, pid=pid, src=src,
+                           token=SECRET, sheet=sheet_name, review=review,
+                           catalog=catalog, filename=f.filename,
+                           today=date.today().isoformat())
+
+@bp.route("/tarifs/import/valider", methods=["POST"])
+def tarifs_import_valider():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    f = request.form
+    partner = q("res.partner", "read", [pid],
+                fields=["name", "property_product_pricelist"], context=CTX)[0]
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    default_pl_id = default_pl[0] if default_pl else 0
+    prop = partner.get("property_product_pricelist")
+    client_pl_id = prop[0] if prop and prop[0] != default_pl_id else 0
+    if client_pl_id:
+        pli = q("product.pricelist", "read", [client_pl_id], fields=["company_id"])
+        if pli and pli[0]["company_id"] and pli[0]["company_id"][0] != TARIFS_COMPANY_ID:
+            client_pl_id = 0
+    n = int(f.get("n") or 0)
+    du = f.get("du", "").strip()
+    created = 0
+    for i in range(n):
+        if not f.get(f"chk_{i}"):
+            continue
+        tmpl = int(f.get(f"tmpl_{i}") or 0)
+        try:
+            prix = float((f.get(f"prix_{i}") or "").replace(",", "."))
+        except ValueError:
+            continue
+        if not tmpl or prix <= 0:
+            continue
+        if not client_pl_id:
+            created_pl = q("product.pricelist", "create",
+                [{"name": partner["name"], "company_id": TARIFS_COMPANY_ID}])
+            client_pl_id = created_pl[0] if isinstance(created_pl, list) else created_pl
+            q("res.partner", "write", [pid],
+              {"property_product_pricelist": client_pl_id}, context=CTX)
+        vals = {"pricelist_id": client_pl_id, "applied_on": "1_product",
+                "product_tmpl_id": tmpl, "compute_price": "fixed",
+                "fixed_price": prix}
+        if du:
+            vals["date_start"] = _tarifs_paris_to_utc(du)
+        q("product.pricelist.item", "create", [vals])
+        created += 1
+    args = {"token": SECRET, "c": pid, "ok": created}
+    if src:
+        args["src"] = src
+    return redirect(url_for(".tarifs_client", **args))
+
 # ─── LIENS CHAUFFEURS (admin) ────────────────────────────────────────────────
 @bp.route("/liens")
 def liens():

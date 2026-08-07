@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Import tarifs — {{ partner.name }}</title>
+  <style>
+    :root { --cy: #2bb3ab; --cy-dk: #1d7f79; --cy-lt: #e3f6f4; --border: #dbe8e7;
+            --text: #163a3d; --muted: #6b8a89; --amber-lt: #fdf3df; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #eef6f6; color: var(--text); font-size: 14px; }
+    header { background: linear-gradient(135deg, var(--cy), var(--cy-dk)); color: #fff;
+             padding: 14px 28px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    header h1 { font-size: 17px; font-weight: 800; }
+    header .sub { font-size: 12px; opacity: .85; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 24px; }
+    .note { background: var(--cy-lt); border-left: 4px solid var(--cy); border-radius: 0 8px 8px 0;
+            padding: 10px 14px; font-size: 12.5px; margin-bottom: 14px; color: #0b5560; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(23,67,74,.06);
+            border: 1px solid #e4eeed; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { text-align: left; background: var(--cy-lt); color: var(--cy-dk); font-weight: 800;
+               padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+    th.num, td.num { text-align: right; }
+    td { padding: 7px 12px; border-top: 1px solid #f0f5f5; vertical-align: middle; }
+    tr.differs td { background: var(--amber-lt); }
+    tr.nomatch td { background: #fdecea; }
+    td select, td input[type=text] { border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 8px; font-size: 12.5px; font-family: inherit; max-width: 340px; width: 100%; }
+    td input.prix { width: 90px; text-align: right; }
+    td input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--cy-dk); }
+    .score { font-size: 10.5px; color: var(--muted); }
+    .label-x { max-width: 320px; white-space: pre-line; font-size: 12.5px; }
+    .unit { color: var(--muted); font-size: 11px; }
+    .actionbar { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    .btn-save { background: var(--cy); color: #fff; border: none; font-size: 14px;
+                font-weight: 800; border-radius: 8px; padding: 12px 22px; cursor: pointer; }
+    .btn-save:hover { background: var(--cy-dk); }
+    .btn-cancel { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 13px; }
+    .fld-date { display: flex; gap: 8px; align-items: center; font-size: 12.5px; font-weight: 700;
+                color: var(--muted); }
+    .fld-date input { border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+                      font-family: inherit; }
+    .empty { padding: 30px; text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>📥 Import tarifs — {{ partner.name }}</h1>
+  <span class="sub">{{ filename }} · feuille « {{ sheet }} »{% if src == 'test' %} · BASE DE TEST{% endif %}</span>
+</header>
+
+<div class="wrap">
+  {% if review %}
+  <div class="note">
+    Vérifiez chaque ligne : le produit Odoo proposé vient d'un rapprochement automatique
+    (% de correspondance affiché). Seules les lignes <b>cochées</b> seront importées comme
+    tarif spécifique (prix fixe) — par défaut, celles dont le prix diffère du standard.
+    Le prix retenu est celui de l'<b>année la plus récente</b> renseignée dans le fichier.
+  </div>
+
+  <form method="POST" action="{{ BASE }}/tarifs/import/valider?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">
+    <input type="hidden" name="n" value="{{ review|length }}"/>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th></th><th>Ligne du fichier</th><th class="num">Prix fichier</th>
+          <th>Produit Odoo</th><th class="num">Prix standard</th>
+        </tr></thead>
+        <tbody>
+        {% for r in review %}
+        <tr class="{{ 'differs' if r.differs else ('nomatch' if not r.tmpl else '') }}">
+          <td><input type="checkbox" name="chk_{{ loop.index0 }}" value="1"
+                     {% if r.differs %}checked{% endif %}/></td>
+          <td class="label-x">{{ r.label }}{% if r.unit %} <span class="unit">({{ r.unit }}{% if r.annee %} · {{ r.annee }}{% endif %})</span>{% endif %}</td>
+          <td class="num"><input class="prix" type="text" name="prix_{{ loop.index0 }}"
+                                 value="{{ '%.2f'|format(r.prix) }}"/></td>
+          <td>
+            <select name="tmpl_{{ loop.index0 }}">
+              <option value="">— non importé —</option>
+              {% for c in catalog %}
+              <option value="{{ c.tmpl }}" {% if c.tmpl == r.tmpl %}selected{% endif %}>
+                {{ c.name }}{% if c.code %} [{{ c.code }}]{% endif %}</option>
+              {% endfor %}
+            </select>
+            {% if r.tmpl %}<div class="score">correspondance {{ r.score }} %</div>
+            {% else %}<div class="score">aucune correspondance trouvée — choisir manuellement</div>{% endif %}
+          </td>
+          <td class="num">{% if r.std is not none %}{{ "%.2f"|format(r.std)|replace(".", ",") }} €{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="actionbar">
+      <button type="submit" class="btn-save">✓ Importer les lignes cochées</button>
+      <div class="fld-date">Applicable à partir du
+        <input type="date" name="du" value="{{ today }}"/></div>
+      <a class="btn-cancel" href="{{ BASE }}/tarifs?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">Annuler</a>
+    </div>
+  </form>
+  {% else %}
+  <div class="card"><div class="empty">
+    Aucun prix exploitable trouvé dans ce fichier (feuille « {{ sheet }} »).<br/>
+    Vérifiez que les colonnes d'années contiennent bien des montants.
+  </div></div>
+  <div class="actionbar">
+    <a class="btn-cancel" href="{{ BASE }}/tarifs?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">← Retour aux tarifs</a>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
