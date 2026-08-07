@@ -139,6 +139,29 @@ def odoo_connect():
 def x(models, uid, model, method, *params, **kw):
     return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, method, list(params), kw)
 
+# Base de test (validation des tarifs clients avant bascule en production)
+TEST_ODOO_URL = os.environ.get("PROTEC_TEST_ODOO_URL", "https://testprotec070826.odoo.com")
+TEST_ODOO_DB  = os.environ.get("PROTEC_TEST_ODOO_DB",  "testprotec070826")
+_uid_cache_test = {"uid": None}
+
+def odoo_connect_src(src=""):
+    """Connexion Odoo production (défaut) ou base de test (src='test').
+    Renvoie (uid, models, db) — utiliser avec xq() qui prend le db explicite."""
+    if src != "test":
+        uid, models = odoo_connect()
+        return uid, models, ODOO_DB
+    models = xmlrpc.client.ServerProxy(f"{TEST_ODOO_URL}/xmlrpc/2/object")
+    if not _uid_cache_test["uid"]:
+        common = xmlrpc.client.ServerProxy(f"{TEST_ODOO_URL}/xmlrpc/2/common")
+        uid = common.authenticate(TEST_ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+        if not uid:
+            raise ValueError("Authentification Odoo (base test) échouée")
+        _uid_cache_test["uid"] = uid
+    return _uid_cache_test["uid"], models, TEST_ODOO_DB
+
+def xq(db, models, uid, model, method, *params, **kw):
+    return models.execute_kw(db, uid, ODOO_PASSWORD, model, method, list(params), kw)
+
 def utc_to_local(dt_str):
     if not dt_str:
         return None
@@ -1147,6 +1170,412 @@ def icon(size):
         _icon_cache[size] = buf.getvalue()
     return Response(_icon_cache[size], mimetype="image/png",
                     headers={"Cache-Control": "public, max-age=86400"})
+
+# ─── TARIFS CLIENTS (admin/bureau) ───────────────────────────────────────────
+# Page ouverte par les smart boutons « Tarifs client » (fiche contact + devis).
+# Tarif standard = liste de prix par défaut PROTEC ; tarifs spécifiques =
+# liste de prix propre au client (items à prix fixe, avec plage de validité).
+# La page permet aussi d'ajouter un tarif spécifique sur une plage donnée.
+TARIFS_COMPANY_ID = 2
+
+def _tarifs_paris_to_utc(day_str, end=False):
+    """'2026-08-07' → chaîne datetime UTC pour date_start/date_end d'un item."""
+    d = date.fromisoformat(day_str)
+    t = datetime(d.year, d.month, d.day, 23, 59, 59, tzinfo=TZ) if end else \
+        datetime(d.year, d.month, d.day, 0, 0, 0, tzinfo=TZ)
+    return t.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S")
+
+def _tarifs_fmt_dt(dt_str):
+    dt = utc_to_local(dt_str)
+    return dt.strftime("%d/%m/%Y") if dt else ""
+
+@bp.route("/tarifs", methods=["GET", "POST"])
+def tarifs_client():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    if not pid:
+        abort(404)
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+
+    partner = q("res.partner", "read", [pid],
+                fields=["name", "property_product_pricelist"], context=CTX)
+    if not partner:
+        abort(404)
+    partner = partner[0]
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    default_pl_id = default_pl[0] if default_pl else 0
+    prop_pl = partner.get("property_product_pricelist")
+    client_pl_id = prop_pl[0] if prop_pl else 0
+    # une liste "générique" (défaut PROTEC ou d'une autre société) ≠ tarif spécifique
+    client_pl_name = prop_pl[1] if prop_pl else ""
+    if client_pl_id:
+        pl_info = q("product.pricelist", "read", [client_pl_id], fields=["company_id"])
+        if client_pl_id == default_pl_id or \
+           (pl_info and pl_info[0]["company_id"] and
+            pl_info[0]["company_id"][0] != TARIFS_COMPANY_ID):
+            client_pl_id = 0
+
+    error, ok = None, request.args.get("ok")
+    if request.method == "POST":
+        f = request.form
+        try:
+            tmpl_id = int(f.get("tmpl") or 0)
+            prix = float((f.get("prix") or "").replace(",", ".").replace(" ", ""))
+            du, au = f.get("du", "").strip(), f.get("au", "").strip()
+            if not tmpl_id or prix <= 0:
+                raise ValueError("Produit et prix sont obligatoires.")
+            if not client_pl_id:
+                created = q("product.pricelist", "create",
+                    [{"name": partner["name"], "company_id": TARIFS_COMPANY_ID}])
+                client_pl_id = created[0] if isinstance(created, list) else created
+                q("res.partner", "write", [pid],
+                  {"property_product_pricelist": client_pl_id}, context=CTX)
+            vals = {"pricelist_id": client_pl_id, "applied_on": "1_product",
+                    "product_tmpl_id": tmpl_id, "compute_price": "fixed",
+                    "fixed_price": prix}
+            if du:
+                vals["date_start"] = _tarifs_paris_to_utc(du)
+            if au:
+                vals["date_end"] = _tarifs_paris_to_utc(au, end=True)
+            q("product.pricelist.item", "create", [vals])
+            args = {"token": SECRET, "c": pid, "ok": 1}
+            if src:
+                args["src"] = src
+            return redirect(url_for(".tarifs_client", **args))
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    # ── catalogue + prix standard ──
+    products = q("product.product", "search_read",
+                 [["sale_ok", "=", True], ["active", "=", True],
+                  "|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID]],
+                 fields=["display_name", "default_code", "list_price", "product_tmpl_id"])
+    std_var, std_tmpl = {}, {}
+    if default_pl_id:
+        for it in q("product.pricelist.item", "search_read",
+                    [["pricelist_id", "=", default_pl_id], ["compute_price", "=", "fixed"]],
+                    fields=["applied_on", "product_id", "product_tmpl_id", "fixed_price"]):
+            if it["applied_on"] == "0_product_variant" and it["product_id"]:
+                std_var[it["product_id"][0]] = it["fixed_price"]
+            elif it["product_tmpl_id"]:
+                std_tmpl[it["product_tmpl_id"][0]] = it["fixed_price"]
+
+    # ── items spécifiques du client (avec plages de validité) ──
+    cli_var, cli_tmpl = {}, {}
+    if client_pl_id:
+        for it in q("product.pricelist.item", "search_read",
+                    [["pricelist_id", "=", client_pl_id]],
+                    fields=["applied_on", "product_id", "product_tmpl_id",
+                            "compute_price", "fixed_price", "percent_price",
+                            "date_start", "date_end", "min_quantity"],
+                    order="date_start desc, id desc"):
+            if it["applied_on"] == "0_product_variant" and it["product_id"]:
+                cli_var.setdefault(it["product_id"][0], []).append(it)
+            elif it["applied_on"] == "1_product" and it["product_tmpl_id"]:
+                cli_tmpl.setdefault(it["product_tmpl_id"][0], []).append(it)
+
+    # ── historique facturé (postées, société PROTEC) ──
+    hist_by_prod = {}
+    for l in q("account.move.line", "search_read",
+               [["parent_state", "=", "posted"],
+                ["move_id.move_type", "in", ["out_invoice", "out_refund"]],
+                ["partner_id", "child_of", pid],
+                ["company_id", "=", TARIFS_COMPANY_ID],
+                ["product_id", "!=", False]],
+               fields=["date", "move_name", "product_id", "quantity",
+                       "price_unit", "discount"],
+               order="date desc, id desc", limit=3000):
+        hist_by_prod.setdefault(l["product_id"][0], []).append(l)
+
+    now_utc = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
+    rows = []
+    for p in products:
+        vid, tid = p["id"], p["product_tmpl_id"][0]
+        std = std_var.get(vid, std_tmpl.get(tid, p["list_price"]))
+        items = cli_var.get(vid, []) + cli_tmpl.get(tid, [])
+        current = next((i for i in items
+                        if (not i["date_start"] or i["date_start"] <= now_utc)
+                        and (not i["date_end"] or i["date_end"] >= now_utc)), None)
+        future = min((i for i in items if i["date_start"] and i["date_start"] > now_utc),
+                     key=lambda i: i["date_start"], default=None)
+        shown = current or future
+        cli_price, validity = None, ""
+        if shown:
+            if shown["compute_price"] == "fixed":
+                cli_price = shown["fixed_price"]
+            elif shown["compute_price"] == "percentage":
+                cli_price = round(std * (1 - shown["percent_price"] / 100), 2)
+            ds, de = shown["date_start"], shown["date_end"]
+            if shown is future:
+                validity = f"à partir du {_tarifs_fmt_dt(ds)}"
+            elif ds and de:
+                validity = f"du {_tarifs_fmt_dt(ds)} au {_tarifs_fmt_dt(de)}"
+            elif de:
+                validity = f"jusqu'au {_tarifs_fmt_dt(de)}"
+            elif ds:
+                validity = f"depuis le {_tarifs_fmt_dt(ds)}"
+        hist = hist_by_prod.get(vid, [])
+        rows.append({
+            "vid": vid, "tmpl": tid, "name": p["display_name"],
+            "code": p["default_code"] or "", "std": std,
+            "specific": bool(items), "cli_price": cli_price, "validity": validity,
+            "nb_items": len(items),
+            "ecart": round((cli_price - std) / std * 100, 1) if (cli_price is not None and std) else None,
+            "hist": [{"date": h["date"], "piece": h["move_name"],
+                      "qte": h["quantity"], "pu": h["price_unit"],
+                      "remise": h["discount"]} for h in hist[:30]],
+        })
+    rows.sort(key=lambda r: (not r["specific"], r["name"].lower()))
+    nb_spec = sum(1 for r in rows if r["specific"])
+    nb_fact = sum(1 for r in rows if r["hist"])
+    return render_template("tarifs.html", partner=partner, rows=rows,
+                           nb_spec=nb_spec, nb_fact=nb_fact, pid=pid, src=src,
+                           client_pl_name=client_pl_name if client_pl_id else "",
+                           token=SECRET, ok=ok, error=error,
+                           today=date.today().isoformat())
+
+# ── Import Excel des tarifs client (Manon, client par client) ───────────────
+def _tarifs_norm(s):
+    """Normalise un libellé pour le rapprochement (minuscules, sans accents,
+    abréviations métier développées)."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
+    s = re.sub(r"[^a-z0-9 ]", " ", s.lower())
+    s = re.sub(r"\bwe\b", "week end", s)
+    s = re.sub(r"\bp en c\b", "prise en charge", s)
+    s = re.sub(r"\bdmv\b", "matieres de vidange", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+_TARIFS_STOPWORDS = {"de", "des", "du", "la", "le", "les", "l", "d", "et", "en",
+                     "sur", "a", "au", "aux", "pour", "avec", "ou"}
+
+def _tarifs_score(nlabel, nname):
+    """Score de rapprochement : séquence + proportion de mots-clés retrouvés."""
+    from difflib import SequenceMatcher
+    seq = SequenceMatcher(None, nlabel, nname).ratio()
+    ltoks = {t for t in nlabel.split() if t not in _TARIFS_STOPWORDS}
+    ntoks = {t for t in nname.split() if t not in _TARIFS_STOPWORDS}
+    common = {t for t in ltoks & ntoks if len(t) > 2}
+    tok = len(common) / len(ltoks) if ltoks and common else 0.0
+    return max(seq, tok)
+
+def _tarifs_header_year(v):
+    """Année portée par une cellule d'entête : 2026, n° de série Excel
+    (44743 → 2022) ou texte contenant une année (« du 1er mai au 31/12/2025 »)."""
+    try:
+        n = float(v)
+        if 1990 <= n <= 2100:
+            return int(n)
+        if 30000 <= n <= 60000:  # date Excel (jours depuis 30/12/1899)
+            return (datetime(1899, 12, 30) + timedelta(days=int(n))).year
+    except (TypeError, ValueError):
+        pass
+    mo = re.search(r"\b(19|20)\d{2}\b", str(v or ""))
+    return int(mo.group(0)) if mo else None
+
+def _tarifs_parse_excel(data, filename):
+    """Extrait les blocs tarifaires du fichier « Évolution des tarifs ».
+    Chaque feuille peut contenir plusieurs blocs (un par client/contrat),
+    délimités par leur ligne d'entête NATURE PRESTATION précédée d'une ligne
+    « Client : … ». Pour chaque prestation : prix de l'année la plus récente.
+    Renvoie [(feuille, client, [(libellé, unité, prix, année), …]), …]"""
+    import io
+    grids = []
+    if filename.lower().endswith(".xls"):
+        import xlrd
+        wb = xlrd.open_workbook(file_contents=data)
+        for ws in wb.sheets():
+            if ws.nrows:
+                grids.append((ws.name, [[ws.cell_value(r, c) for c in range(ws.ncols)]
+                                         for r in range(ws.nrows)]))
+    else:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
+        for ws in wb.worksheets:
+            if ws.max_row:
+                grids.append((ws.title, [[c.value for c in row] for row in ws.iter_rows()]))
+
+    blocks = []
+    for sheet_name, grid in grids:
+        headers = []
+        for i, row in enumerate(grid):
+            cells = [str(v or "").strip().upper() for v in row]
+            if any("NATURE" in c and "PRESTATION" in c for c in cells):
+                headers.append(i)
+        for hi, header_i in enumerate(headers):
+            end_i = headers[hi + 1] if hi + 1 < len(headers) else len(grid)
+            # ligne « Client : … » au-dessus de l'entête
+            client = ""
+            for k in range(header_i - 1, max(header_i - 4, -1), -1):
+                c0 = str(grid[k][0] or "").strip()
+                if c0.lower().startswith("client"):
+                    client = c0.split(":", 1)[-1].strip().split("\n")[0]
+                    break
+            hrow = grid[header_i]
+            year_cols, unit_col = [], None
+            for j, v in enumerate(hrow):
+                sv = str(v or "").strip().lower()
+                if sv.startswith("unit"):
+                    unit_col = j
+                    continue
+                if sv in ("ced", "onu", "etiq.", "danger", "g.e."):
+                    continue
+                y = _tarifs_header_year(v)
+                if y:
+                    year_cols.append((y, j))
+            # année la plus récente d'abord ; à année égale, colonne la plus à gauche
+            year_cols.sort(key=lambda t: (-t[0], t[1]))
+            rows = []
+            for row in grid[header_i + 1:end_i]:
+                label = str(row[0] or "").strip()
+                if not label or label.lower().startswith("client"):
+                    continue
+                unit = str(row[unit_col] or "").strip() \
+                    if unit_col is not None and unit_col < len(row) else ""
+                price, year = None, None
+                for y, j in year_cols:
+                    if j < len(row):
+                        try:
+                            v = float(str(row[j]).replace(",", ".").replace("€", "").replace(" ", ""))
+                            if v > 0:
+                                price, year = v, y
+                                break
+                        except (TypeError, ValueError):
+                            continue
+                if price is not None:
+                    rows.append((label, unit, price, year))
+            if rows:
+                blocks.append((sheet_name, client, rows))
+    return blocks
+
+@bp.route("/tarifs/import", methods=["POST"])
+def tarifs_import():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    f = request.files.get("fichier")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    partner = q("res.partner", "read", [pid], fields=["name"], context=CTX)[0]
+
+    if not f or not f.filename:
+        return redirect(url_for(".tarifs_client", token=SECRET, c=pid,
+                                **({"src": src} if src else {})))
+    try:
+        blocks = _tarifs_parse_excel(f.read(), f.filename)
+    except Exception:
+        blocks = []
+
+    # catalogue (templates) + prix standard pour le rapprochement
+    products = q("product.template", "search_read",
+                 [["sale_ok", "=", True], ["active", "=", True],
+                  "|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID]],
+                 fields=["name", "default_code", "list_price"])
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    std_tmpl = {}
+    if default_pl:
+        for it in q("product.pricelist.item", "search_read",
+                    [["pricelist_id", "=", default_pl[0]], ["compute_price", "=", "fixed"]],
+                    fields=["product_tmpl_id", "fixed_price"]):
+            if it["product_tmpl_id"]:
+                std_tmpl.setdefault(it["product_tmpl_id"][0], it["fixed_price"])
+    catalog = sorted(
+        [{"tmpl": p["id"], "name": p["name"], "code": p["default_code"] or "",
+          "std": std_tmpl.get(p["id"], p["list_price"])} for p in products],
+        key=lambda c: c["name"].lower())
+
+    # rapprochement automatique libellé Excel → produit Odoo, bloc par bloc
+    norm_cat = [(c, _tarifs_norm(c["name"])) for c in catalog]
+    review = []
+    for bi, (sheet_name, client, lignes) in enumerate(blocks):
+        bloc_label = f"Feuille « {sheet_name} »" + (f" — {client}" if client else "")
+        for label, unit, price, year in lignes:
+            nlabel = _tarifs_norm(label.split("\n")[0])
+            best, best_score = None, 0.0
+            for c, nname in norm_cat:
+                score = _tarifs_score(nlabel, nname)
+                if score > best_score:
+                    best, best_score = c, score
+            matched = best if best_score >= 0.45 else None
+            std = matched["std"] if matched else None
+            differs = matched is not None and abs(price - std) > 0.005
+            review.append({"bloc": bi, "bloc_label": bloc_label,
+                            "label": label, "unit": unit, "prix": price, "annee": year,
+                            "tmpl": matched["tmpl"] if matched else 0,
+                            "score": round(best_score * 100),
+                            "std": std, "differs": differs})
+    return render_template("tarifs_import.html", partner=partner, pid=pid, src=src,
+                           token=SECRET, review=review, nb_blocs=len(blocks),
+                           catalog=catalog, filename=f.filename,
+                           today=date.today().isoformat())
+
+@bp.route("/tarifs/import/valider", methods=["POST"])
+def tarifs_import_valider():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    f = request.form
+    partner = q("res.partner", "read", [pid],
+                fields=["name", "property_product_pricelist"], context=CTX)[0]
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    default_pl_id = default_pl[0] if default_pl else 0
+    prop = partner.get("property_product_pricelist")
+    client_pl_id = prop[0] if prop and prop[0] != default_pl_id else 0
+    if client_pl_id:
+        pli = q("product.pricelist", "read", [client_pl_id], fields=["company_id"])
+        if pli and pli[0]["company_id"] and pli[0]["company_id"][0] != TARIFS_COMPANY_ID:
+            client_pl_id = 0
+    n = int(f.get("n") or 0)
+    du = f.get("du", "").strip()
+    created = 0
+    for i in range(n):
+        if not f.get(f"chk_{i}"):
+            continue
+        tmpl = int(f.get(f"tmpl_{i}") or 0)
+        try:
+            prix = float((f.get(f"prix_{i}") or "").replace(",", "."))
+        except ValueError:
+            continue
+        if not tmpl or prix <= 0:
+            continue
+        if not client_pl_id:
+            created_pl = q("product.pricelist", "create",
+                [{"name": partner["name"], "company_id": TARIFS_COMPANY_ID}])
+            client_pl_id = created_pl[0] if isinstance(created_pl, list) else created_pl
+            q("res.partner", "write", [pid],
+              {"property_product_pricelist": client_pl_id}, context=CTX)
+        vals = {"pricelist_id": client_pl_id, "applied_on": "1_product",
+                "product_tmpl_id": tmpl, "compute_price": "fixed",
+                "fixed_price": prix}
+        if du:
+            vals["date_start"] = _tarifs_paris_to_utc(du)
+        q("product.pricelist.item", "create", [vals])
+        created += 1
+    args = {"token": SECRET, "c": pid, "ok": created}
+    if src:
+        args["src"] = src
+    return redirect(url_for(".tarifs_client", **args))
 
 # ─── LIENS CHAUFFEURS (admin) ────────────────────────────────────────────────
 @bp.route("/liens")

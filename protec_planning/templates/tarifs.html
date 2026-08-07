@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarifs — {{ partner.name }}</title>
+  <style>
+    :root { --cy: #2bb3ab; --cy-dk: #1d7f79; --cy-lt: #e3f6f4; --border: #dbe8e7;
+            --text: #163a3d; --muted: #6b8a89; --green: #2eb85c; --red: #e0483e;
+            --amber: #d99a1f; --amber-lt: #fdf3df; --spec: #fff7e0; --spec-bd: #f0dca6; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #eef6f6; color: var(--text); font-size: 14px; }
+    header { background: linear-gradient(135deg, var(--cy), var(--cy-dk)); color: #fff;
+             padding: 14px 28px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    header h1 { font-size: 17px; font-weight: 800; }
+    header .sub { font-size: 12px; opacity: .85; }
+    .banner { text-align: center; font-weight: 700; padding: 9px 16px; font-size: 13px; }
+    .banner.ok { background: var(--green); color: #fff; }
+    .banner.err { background: var(--red); color: #fff; }
+
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 24px; }
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip { background: #fff; border: 1px solid var(--border); border-radius: 20px;
+            padding: 5px 13px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+    .chip b { color: var(--text); }
+    .chip.spec { background: var(--spec); border-color: var(--spec-bd); color: #7a5b0d; }
+    #search { flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 8px;
+              padding: 8px 12px; font-size: 13.5px; font-family: inherit; background: #fff; }
+    #search:focus { outline: none; border-color: var(--cy); box-shadow: 0 0 0 3px rgba(43,179,171,.12); }
+
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(23,67,74,.06);
+            border: 1px solid #e4eeed; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { position: sticky; top: 0; z-index: 1; text-align: left; background: var(--cy-lt);
+               color: var(--cy-dk); font-weight: 800; padding: 9px 12px; font-size: 11px;
+               text-transform: uppercase; letter-spacing: .3px; }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td { padding: 8px 12px; border-top: 1px solid #f0f5f5; vertical-align: middle; }
+    tr.prod { cursor: pointer; }
+    tr.prod:hover td { background: #f4faf9; }
+    tr.prod.spec td { background: var(--spec); }
+    tr.prod.spec:hover td { background: #fdf0cf; }
+    .badge { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 10px;
+             padding: 2px 8px; text-transform: uppercase; letter-spacing: .3px; }
+    .badge.spec { background: var(--amber); color: #fff; }
+    .badge.hist { background: var(--cy-lt); color: var(--cy-dk); }
+    .validity { font-size: 11px; color: #7a5b0d; font-weight: 600; }
+    .code { color: var(--muted); font-size: 11.5px; }
+    .ecart-moins { color: var(--green); font-weight: 700; }
+    .ecart-plus { color: var(--red); font-weight: 700; }
+    .btn-add { border: 1px solid var(--cy); background: #fff; color: var(--cy-dk);
+               font-weight: 800; border-radius: 6px; padding: 4px 10px; font-size: 12px;
+               cursor: pointer; white-space: nowrap; }
+    .btn-add:hover { background: var(--cy); color: #fff; }
+
+    tr.hist-row { display: none; }
+    tr.hist-row.show { display: table-row; }
+    tr.hist-row > td { background: #f8fbfa; padding: 10px 16px 14px; }
+    .hist-table { width: auto; min-width: 480px; font-size: 12px; }
+    .hist-table th { background: none; position: static; color: var(--muted); font-size: 10.5px;
+                     padding: 3px 10px; border-bottom: 1px solid var(--border); }
+    .hist-table td { padding: 3px 10px; border-top: none; }
+    .no-hist { color: var(--muted); font-size: 12px; font-style: italic; }
+
+    /* modal ajout tarif */
+    #overlay { display: none; position: fixed; inset: 0; background: rgba(22,58,61,.45); z-index: 50; }
+    #overlay.show { display: flex; align-items: center; justify-content: center; }
+    .modal { background: #fff; border-radius: 12px; padding: 20px 22px; width: 400px;
+             box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+    .modal h2 { font-size: 14px; font-weight: 800; color: var(--cy-dk); margin-bottom: 4px; }
+    .modal .prodname { font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+    .fld { margin-bottom: 12px; }
+    .fld label { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted);
+                 text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
+    .fld input { width: 100%; border: 1px solid var(--border); border-radius: 6px;
+                 padding: 8px 10px; font-size: 14px; font-family: inherit; }
+    .fld input:focus { outline: none; border-color: var(--cy); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .btn-save { flex: 1; background: var(--cy); color: #fff; border: none; font-size: 13.5px;
+                font-weight: 700; border-radius: 7px; padding: 10px; cursor: pointer; }
+    .btn-save:hover { background: var(--cy-dk); }
+    .btn-cancel { background: #fff; border: 1px solid var(--border); color: var(--muted);
+                  border-radius: 7px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>💶 Tarifs — {{ partner.name }}</h1>
+  <span class="sub">{% if client_pl_name %}Liste de prix : {{ client_pl_name }}{% else %}Aucun tarif spécifique — tarif standard PROTEC{% endif %}
+    {% if src == 'test' %} · BASE DE TEST{% endif %}</span>
+</header>
+
+{% if ok and ok != '1' %}<div class="banner ok">✓ {{ ok }} tarif(s) spécifique(s) importé(s)</div>
+{% elif ok %}<div class="banner ok">✓ Tarif spécifique enregistré</div>
+{% elif error %}<div class="banner err">⚠ {{ error }}</div>{% endif %}
+
+<div class="wrap">
+  <div class="bar">
+    <span class="chip"><b>{{ rows|length }}</b> produits</span>
+    <span class="chip spec"><b>{{ nb_spec }}</b> tarifs spécifiques</span>
+    <span class="chip"><b>{{ nb_fact }}</b> produits déjà facturés</span>
+    <input id="search" type="search" placeholder="Filtrer par nom ou code produit…"
+           oninput="filterRows(this.value)"/>
+    <form method="POST" enctype="multipart/form-data"
+          action="{{ BASE }}/tarifs/import?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}"
+          style="display:flex; gap:8px; align-items:center;">
+      <input type="file" name="fichier" id="xlfile" accept=".xls,.xlsx" style="display:none;"
+             onchange="this.form.submit()"/>
+      <button type="button" class="btn-add" style="padding:8px 14px; font-size:13px;"
+              onclick="document.getElementById('xlfile').click()">📥 Importer Excel client</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Produit</th><th></th>
+        <th class="num">Prix standard</th><th class="num">Prix client</th>
+        <th class="num">Écart</th><th>Validité</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for r in rows %}
+      <tr class="prod{{ ' spec' if r.specific }}" data-name="{{ (r.name ~ ' ' ~ r.code)|lower }}"
+          onclick="toggleHist({{ r.vid }})">
+        <td><div>{{ r.name }}</div><div class="code">{{ r.code }}</div></td>
+        <td>
+          {% if r.specific %}<span class="badge spec">Spécifique</span>{% endif %}
+          {% if r.hist %}<span class="badge hist">{{ r.hist|length }} fact.</span>{% endif %}
+        </td>
+        <td class="num">{{ "%.2f"|format(r.std)|replace(".", ",") }} €</td>
+        <td class="num">{% if r.cli_price is not none %}<b>{{ "%.2f"|format(r.cli_price)|replace(".", ",") }} €</b>{% else %}—{% endif %}</td>
+        <td class="num">{% if r.ecart is not none %}<span class="{{ 'ecart-moins' if r.ecart < 0 else 'ecart-plus' }}">{{ '%+.1f'|format(r.ecart)|replace('.', ',') }} %</span>{% endif %}</td>
+        <td><span class="validity">{{ r.validity }}</span></td>
+        <td onclick="event.stopPropagation();">
+          <button type="button" class="btn-add"
+                  onclick="openModal({{ r.tmpl }}, {{ r.name|tojson }})">＋ Tarif</button>
+        </td>
+      </tr>
+      <tr class="hist-row" id="hist-{{ r.vid }}">
+        <td colspan="7">
+          {% if r.hist %}
+          <table class="hist-table">
+            <tr><th>Date</th><th>Pièce</th><th class="num">Qté</th><th class="num">PU facturé</th><th class="num">Remise</th></tr>
+            {% for h in r.hist %}
+            <tr>
+              <td>{{ h.date }}</td><td>{{ h.piece }}</td>
+              <td class="num">{{ "%g"|format(h.qte) }}</td>
+              <td class="num">{{ "%.2f"|format(h.pu)|replace(".", ",") }} €</td>
+              <td class="num">{{ ("%g"|format(h.remise) ~ ' %') if h.remise else '' }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% else %}
+          <span class="no-hist">Jamais facturé à ce client.</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="overlay" onclick="if(event.target===this)closeModal()">
+  <form class="modal" method="POST"
+        action="{{ BASE }}/tarifs?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">
+    <h2>Nouveau tarif spécifique</h2>
+    <div class="prodname" id="m-prod"></div>
+    <input type="hidden" name="tmpl" id="m-tmpl"/>
+    <div class="fld">
+      <label>Prix HT (€)</label>
+      <input type="text" name="prix" id="m-prix" inputmode="decimal" required autocomplete="off"/>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>Valable du</label><input type="date" name="du" value="{{ today }}"/></div>
+      <div class="fld"><label>Jusqu'au (optionnel)</label><input type="date" name="au"/></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button type="submit" class="btn-save">Enregistrer le tarif</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function filterRows(v) {
+  v = v.toLowerCase().trim();
+  document.querySelectorAll('tr.prod').forEach(function (tr) {
+    var show = !v || tr.dataset.name.indexOf(v) !== -1;
+    tr.style.display = show ? '' : 'none';
+    var h = document.getElementById('hist-' + tr.getAttribute('onclick').match(/\d+/)[0]);
+    if (h && !show) { h.classList.remove('show'); }
+  });
+}
+function toggleHist(vid) {
+  document.getElementById('hist-' + vid).classList.toggle('show');
+}
+function openModal(tmpl, name) {
+  document.getElementById('m-tmpl').value = tmpl;
+  document.getElementById('m-prod').textContent = name;
+  document.getElementById('m-prix').value = '';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('m-prix').focus();
+}
+function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
