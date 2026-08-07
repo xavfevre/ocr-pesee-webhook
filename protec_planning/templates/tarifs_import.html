@@ -48,7 +48,7 @@
 <body>
 <header>
   <h1>📥 Import tarifs — {{ partner.name }}</h1>
-  <span class="sub">{{ filename }} · feuille « {{ sheet }} »{% if src == 'test' %} · BASE DE TEST{% endif %}</span>
+  <span class="sub">{{ filename }}{% if src == 'test' %} · BASE DE TEST{% endif %}</span>
 </header>
 
 <div class="wrap">
@@ -56,8 +56,11 @@
   <div class="note">
     Vérifiez chaque ligne : le produit Odoo proposé vient d'un rapprochement automatique
     (% de correspondance affiché). Seules les lignes <b>cochées</b> seront importées comme
-    tarif spécifique (prix fixe) — par défaut, celles dont le prix diffère du standard.
-    Le prix retenu est celui de l'<b>année la plus récente</b> renseignée dans le fichier.
+    tarif spécifique (prix fixe). Le prix retenu est celui de l'<b>année la plus récente</b>
+    renseignée dans le fichier.
+    {% if nb_blocs > 1 %}<br/><b>⚠ Ce fichier contient {{ nb_blocs }} blocs tarifaires
+    (plusieurs contrats/feuilles)</b> — cochez uniquement le bloc qui correspond à ce client
+    (bouton « tout cocher » de chaque bloc).{% endif %}
   </div>
 
   <form method="POST" action="{{ BASE }}/tarifs/import/valider?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">
@@ -69,10 +72,21 @@
           <th>Produit Odoo</th><th class="num">Prix standard</th>
         </tr></thead>
         <tbody>
+        {% set ns = namespace(bloc=-1) %}
         {% for r in review %}
+        {% if r.bloc != ns.bloc %}
+        {% set ns.bloc = r.bloc %}
+        <tr class="bloc-head"><td colspan="5" style="background:var(--cy-lt); font-weight:800; color:var(--cy-dk);">
+          {{ r.bloc_label }}
+          <button type="button" onclick="toggleBloc({{ r.bloc }}, true)"
+                  style="margin-left:12px; border:1px solid var(--cy); background:#fff; color:var(--cy-dk); border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700; cursor:pointer;">tout cocher</button>
+          <button type="button" onclick="toggleBloc({{ r.bloc }}, false)"
+                  style="border:1px solid var(--border); background:#fff; color:var(--muted); border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700; cursor:pointer;">tout décocher</button>
+        </td></tr>
+        {% endif %}
         <tr class="{{ 'differs' if r.differs else ('nomatch' if not r.tmpl else '') }}">
-          <td><input type="checkbox" name="chk_{{ loop.index0 }}" value="1"
-                     {% if r.differs %}checked{% endif %}/></td>
+          <td><input type="checkbox" name="chk_{{ loop.index0 }}" value="1" data-bloc="{{ r.bloc }}"
+                     {% if r.differs and nb_blocs == 1 %}checked{% endif %}/></td>
           <td class="label-x">{{ r.label }}{% if r.unit %} <span class="unit">({{ r.unit }}{% if r.annee %} · {{ r.annee }}{% endif %})</span>{% endif %}</td>
           <td class="num"><input class="prix" type="text" name="prix_{{ loop.index0 }}"
                                  value="{{ '%.2f'|format(r.prix) }}"/></td>
@@ -102,7 +116,7 @@
   </form>
   {% else %}
   <div class="card"><div class="empty">
-    Aucun prix exploitable trouvé dans ce fichier (feuille « {{ sheet }} »).<br/>
+    Aucun prix exploitable trouvé dans ce fichier.<br/>
     Vérifiez que les colonnes d'années contiennent bien des montants.
   </div></div>
   <div class="actionbar">
@@ -110,5 +124,12 @@
   </div>
   {% endif %}
 </div>
+<script>
+function toggleBloc(b, on) {
+  document.querySelectorAll('input[type=checkbox][data-bloc="' + b + '"]').forEach(function (cb) {
+    cb.checked = on;
+  });
+}
+</script>
 </body>
 </html>
