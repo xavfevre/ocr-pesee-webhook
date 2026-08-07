@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <title>Astreinte — PROTEC</title>
+  <style>
+    :root { --or: #ea580c; --or-dk: #c2410c; --or-lt: #fff1e7; --border: #f0ddd2;
+            --text: #431407; --muted: #9a6a52; --red: #e0483e; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #fdf6f1; color: var(--text);
+           padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+    header { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, var(--or), var(--or-dk));
+             color: #fff; padding: calc(12px + env(safe-area-inset-top)) 16px 14px;
+             display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+    header a.back { width: 38px; height: 38px; flex: none; display: flex; align-items: center;
+                    justify-content: center; background: rgba(255,255,255,.18); border-radius: 50%;
+                    color: #fff; text-decoration: none; font-size: 19px; }
+    header .titles { flex: 1; min-width: 0; }
+    header .t1 { font-size: 11.5px; font-weight: 700; opacity: .85; text-transform: uppercase;
+                 letter-spacing: .4px; }
+    header .t2 { font-size: 19px; font-weight: 900; letter-spacing: .2px; }
+
+    .banner.err { background: var(--red); color: #fff; text-align: center; font-weight: 800;
+                  padding: 12px 16px; font-size: 14.5px; }
+
+    .wrap { max-width: 560px; margin: 0 auto; padding: 14px 12px 4px; }
+    .note { background: var(--or-lt); border: 1px solid var(--border); border-radius: 12px;
+            padding: 11px 13px; font-size: 13px; color: var(--muted); margin-bottom: 12px;
+            font-weight: 600; line-height: 1.45; }
+
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 10px rgba(67,20,7,.07);
+            padding: 16px; margin-bottom: 12px; border: 1px solid #f7ece5; }
+    .fld { margin-bottom: 14px; }
+    .fld:last-child { margin-bottom: 0; }
+    .fld label { display: block; font-size: 12.5px; font-weight: 800; color: var(--or-dk);
+                 margin-bottom: 5px; }
+    .fld input, .fld textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 13px 14px; font-size: 17px; font-weight: 600; font-family: inherit;
+      color: var(--text); background: #fffdfb; }
+    .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--or); background: #fff; }
+    .fld input::placeholder, .fld textarea::placeholder { color: #d3b3a2; font-weight: 400; }
+    .fld textarea { min-height: 90px; resize: vertical; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    .actionbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+                 padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+                 background: rgba(253,246,241,.94); backdrop-filter: blur(6px);
+                 border-top: 1px solid var(--border); }
+    .actionbar .inner { max-width: 560px; margin: 0 auto; }
+    .btn-save { width: 100%; background: var(--or); color: #fff; border: none; font-size: 17px;
+                font-weight: 900; border-radius: 14px; padding: 16px; cursor: pointer;
+                box-shadow: 0 3px 10px rgba(234,88,12,.35); }
+    .btn-save:active { background: var(--or-dk); transform: scale(.985); }
+    .btn-save:disabled { opacity: .6; }
+  </style>
+</head>
+<body>
+<header>
+  <a class="back" href="{{ BASE }}/ma-tournee?c={{ emp_id }}&s={{ sig }}">‹</a>
+  <div class="titles">
+    <div class="t1">{{ emp_name }}</div>
+    <div class="t2">🚨 Astreinte</div>
+  </div>
+</header>
+
+{% if error %}<div class="banner err">⚠ {{ error }}</div>{% endif %}
+
+<div class="wrap">
+  <div class="note">Opération non prévue au planning : décrivez l'intervention,
+    elle sera créée à votre nom et vous enchaînerez directement sur la fiche de fin de travaux.</div>
+
+  <form method="POST" action="{{ BASE }}/astreinte?c={{ emp_id }}&s={{ sig }}" id="aform">
+    <div class="card">
+      <div class="fld">
+        <label>Intervention (client, lieu, nature…)</label>
+        <textarea name="description" required
+                  placeholder="ex : Débouchage urgent — Mairie de Loches, rue des Halles"></textarea>
+      </div>
+      <div class="fld">
+        <label>Date</label>
+        <input type="date" name="date" value="{{ today }}" required/>
+      </div>
+      <div class="row2">
+        <div class="fld">
+          <label>Heure début</label>
+          <input type="time" name="heure_debut" value="{{ now_h }}" required/>
+        </div>
+        <div class="fld">
+          <label>Heure fin</label>
+          <input type="time" name="heure_fin"/>
+        </div>
+      </div>
+      <div class="hint">Heure de fin vide : 2 h par défaut — modifiable ensuite sur la fiche.</div>
+    </div>
+  </form>
+</div>
+
+<div class="actionbar">
+  <div class="inner">
+    <button type="submit" form="aform" class="btn-save" id="saveBtn">🚨 Créer l'astreinte → fiche</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('aform').addEventListener('submit', function () {
+  var btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Création…';
+});
+</script>
+</body>
+</html>
