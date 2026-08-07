@@ -20,14 +20,29 @@
     .banner.err { background: var(--red); color: #fff; }
 
     .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 24px; }
-    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-btn { border: 1px solid var(--border); background: #fff; color: var(--muted);
+               font-weight: 800; font-size: 13px; border-radius: 8px;
+               padding: 9px 18px; cursor: pointer; }
+    .tab-btn.active { background: var(--cy); border-color: var(--cy); color: #fff; }
+
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
     .chip { background: #fff; border: 1px solid var(--border); border-radius: 20px;
-            padding: 5px 13px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+            padding: 5px 13px; font-size: 12.5px; font-weight: 700; color: var(--muted);
+            cursor: pointer; user-select: none; }
     .chip b { color: var(--text); }
     .chip.spec { background: var(--spec); border-color: var(--spec-bd); color: #7a5b0d; }
+    .chip.on { outline: 2px solid var(--cy-dk); }
     #search { flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 8px;
               padding: 8px 12px; font-size: 13.5px; font-family: inherit; background: #fff; }
     #search:focus { outline: none; border-color: var(--cy); box-shadow: 0 0 0 3px rgba(43,179,171,.12); }
+
+    .cats { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .cats .lbl { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+    .cat-chip { border: 1px solid var(--border); background: #fff; color: var(--muted);
+                border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700;
+                cursor: pointer; user-select: none; }
+    .cat-chip.on { background: var(--cy-dk); border-color: var(--cy-dk); color: #fff; }
 
     .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(23,67,74,.06);
             border: 1px solid #e4eeed; overflow: hidden; }
@@ -41,6 +56,7 @@
     tr.prod:hover td { background: #f4faf9; }
     tr.prod.spec td { background: var(--spec); }
     tr.prod.spec:hover td { background: #fdf0cf; }
+    tr.evo.spec td { background: var(--spec); }
     .badge { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 10px;
              padding: 2px 8px; text-transform: uppercase; letter-spacing: .3px; }
     .badge.spec { background: var(--amber); color: #fff; }
@@ -53,6 +69,9 @@
                font-weight: 800; border-radius: 6px; padding: 4px 10px; font-size: 12px;
                cursor: pointer; white-space: nowrap; }
     .btn-add:hover { background: var(--cy); color: #fff; }
+    .tarif-cell { font-weight: 800; color: var(--cy-dk); }
+    .fact-cell { color: var(--muted); font-style: italic; }
+    .evo-note { font-size: 12px; color: var(--muted); margin: 10px 2px; }
 
     tr.hist-row { display: none; }
     tr.hist-row.show { display: table-row; }
@@ -63,7 +82,6 @@
     .hist-table td { padding: 3px 10px; border-top: none; }
     .no-hist { color: var(--muted); font-size: 12px; font-style: italic; }
 
-    /* modal ajout tarif */
     #overlay { display: none; position: fixed; inset: 0; background: rgba(22,58,61,.45); z-index: 50; }
     #overlay.show { display: flex; align-items: center; justify-content: center; }
     .modal { background: #fff; border-radius: 12px; padding: 20px 22px; width: 400px;
@@ -97,12 +115,17 @@
 {% elif error %}<div class="banner err">⚠ {{ error }}</div>{% endif %}
 
 <div class="wrap">
+  <div class="tabs">
+    <button type="button" class="tab-btn active" id="tabbtn-actuel" onclick="showTab('actuel')">Tarifs actuels</button>
+    <button type="button" class="tab-btn" id="tabbtn-evo" onclick="showTab('evo')">📈 Évolution des tarifs</button>
+  </div>
+
   <div class="bar">
-    <span class="chip"><b>{{ rows|length }}</b> produits</span>
-    <span class="chip spec"><b>{{ nb_spec }}</b> tarifs spécifiques</span>
-    <span class="chip"><b>{{ nb_fact }}</b> produits déjà facturés</span>
+    <span class="chip mode on" data-mode="tous"><b>{{ rows|length }}</b> produits</span>
+    <span class="chip mode spec" data-mode="spec"><b>{{ nb_spec }}</b> tarifs spécifiques</span>
+    <span class="chip mode" data-mode="fact"><b>{{ nb_fact }}</b> produits déjà facturés</span>
     <input id="search" type="search" placeholder="Filtrer par nom ou code produit…"
-           oninput="filterRows(this.value)"/>
+           oninput="applyFilters()"/>
     <form method="POST" enctype="multipart/form-data"
           action="{{ BASE }}/tarifs/import?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}"
           style="display:flex; gap:8px; align-items:center;">
@@ -113,7 +136,14 @@
     </form>
   </div>
 
-  <div class="card">
+  <div class="cats">
+    <span class="lbl">Catégories :</span>
+    {% for cat in categories %}
+    <span class="cat-chip" data-cat="{{ cat }}">{{ cat }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="card" id="tab-actuel">
     <table>
       <thead><tr>
         <th>Produit</th><th></th>
@@ -123,6 +153,8 @@
       <tbody>
       {% for r in rows %}
       <tr class="prod{{ ' spec' if r.specific }}" data-name="{{ (r.name ~ ' ' ~ r.code)|lower }}"
+          data-cat="{{ r.categ }}" data-spec="{{ 1 if r.specific else 0 }}"
+          data-fact="{{ 1 if r.hist else 0 }}" data-vid="{{ r.vid }}"
           onclick="toggleHist({{ r.vid }})">
         <td><div>{{ r.name }}</div><div class="code">{{ r.code }}</div></td>
         <td>
@@ -134,8 +166,8 @@
         <td class="num">{% if r.ecart is not none %}<span class="{{ 'ecart-moins' if r.ecart < 0 else 'ecart-plus' }}">{{ '%+.1f'|format(r.ecart)|replace('.', ',') }} %</span>{% endif %}</td>
         <td><span class="validity">{{ r.validity }}</span></td>
         <td onclick="event.stopPropagation();">
-          <button type="button" class="btn-add"
-                  onclick="openModal({{ r.tmpl }}, {{ r.name|tojson }})">＋ Tarif</button>
+          <button type="button" class="btn-add" data-tmpl="{{ r.tmpl }}"
+                  data-name="{{ r.name }}" onclick="openModalBtn(this)">＋ Tarif</button>
         </td>
       </tr>
       <tr class="hist-row" id="hist-{{ r.vid }}">
@@ -161,6 +193,40 @@
       </tbody>
     </table>
   </div>
+
+  <div id="tab-evo" style="display:none;">
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th>Produit</th>
+          {% for y in years %}<th class="num">{{ y }}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for r in evo_rows %}
+        <tr class="evo{{ ' spec' if r.specific }}" data-name="{{ (r.name ~ ' ' ~ r.code)|lower }}"
+            data-cat="{{ r.categ }}" data-spec="{{ 1 if r.specific else 0 }}" data-fact="1">
+          <td><div>{{ r.name }}</div><div class="code">{{ r.code }}</div></td>
+          {% for cell in r.cells %}
+          <td class="num">
+            {% if cell.tarif is not none %}<span class="tarif-cell">{{ "%.2f"|format(cell.tarif)|replace(".", ",") }}</span>
+            {% elif cell.fact is not none %}<span class="fact-cell">~ {{ "%.2f"|format(cell.fact)|replace(".", ",") }}</span>
+            {% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% else %}
+        <tr><td colspan="{{ 1 + years|length }}" style="color:var(--muted); padding:24px; text-align:center;">
+          Aucun tarif spécifique ni facturation pour ce client.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="evo-note">
+      <span class="tarif-cell">Prix en couleur</span> = tarif spécifique en vigueur cette année-là ·
+      <span class="fact-cell">~ prix en italique</span> = moyenne des prix réellement facturés
+      (aucun tarif spécifique défini) · les montants sont en € HT.
+    </div>
+  </div>
 </div>
 
 <div id="overlay" onclick="if(event.target===this)closeModal()">
@@ -185,21 +251,64 @@
 </div>
 
 <script>
-function filterRows(v) {
-  v = v.toLowerCase().trim();
+// ── onglets ──
+function showTab(t) {
+  document.getElementById('tab-actuel').style.display = t === 'actuel' ? '' : 'none';
+  document.getElementById('tab-evo').style.display = t === 'evo' ? '' : 'none';
+  document.getElementById('tabbtn-actuel').classList.toggle('active', t === 'actuel');
+  document.getElementById('tabbtn-evo').classList.toggle('active', t === 'evo');
+}
+
+// ── filtres combinés : mode (tous/spécifiques/facturés) + catégories + recherche ──
+var mode = 'tous';
+var cats = new Set();
+document.querySelectorAll('.chip.mode').forEach(function (ch) {
+  ch.addEventListener('click', function () {
+    mode = ch.dataset.mode;
+    document.querySelectorAll('.chip.mode').forEach(function (c) {
+      c.classList.toggle('on', c === ch);
+    });
+    applyFilters();
+  });
+});
+document.querySelectorAll('.cat-chip').forEach(function (ch) {
+  ch.addEventListener('click', function () {
+    var c = ch.dataset.cat;
+    if (cats.has(c)) { cats.delete(c); ch.classList.remove('on'); }
+    else { cats.add(c); ch.classList.add('on'); }
+    applyFilters();
+  });
+});
+function rowVisible(tr, q) {
+  if (q && tr.dataset.name.indexOf(q) === -1) return false;
+  if (cats.size && !cats.has(tr.dataset.cat)) return false;
+  if (mode === 'spec' && tr.dataset.spec !== '1') return false;
+  if (mode === 'fact' && tr.dataset.fact !== '1') return false;
+  return true;
+}
+function applyFilters() {
+  var q = document.getElementById('search').value.toLowerCase().trim();
   document.querySelectorAll('tr.prod').forEach(function (tr) {
-    var show = !v || tr.dataset.name.indexOf(v) !== -1;
+    var show = rowVisible(tr, q);
     tr.style.display = show ? '' : 'none';
-    var h = document.getElementById('hist-' + tr.getAttribute('onclick').match(/\d+/)[0]);
-    if (h && !show) { h.classList.remove('show'); }
+    if (!show) {
+      var h = document.getElementById('hist-' + tr.dataset.vid);
+      if (h) { h.classList.remove('show'); }
+    }
+  });
+  document.querySelectorAll('tr.evo').forEach(function (tr) {
+    tr.style.display = rowVisible(tr, q) ? '' : 'none';
   });
 }
+
 function toggleHist(vid) {
   document.getElementById('hist-' + vid).classList.toggle('show');
 }
-function openModal(tmpl, name) {
-  document.getElementById('m-tmpl').value = tmpl;
-  document.getElementById('m-prod').textContent = name;
+
+// ── modal ajout tarif ──
+function openModalBtn(btn) {
+  document.getElementById('m-tmpl').value = btn.dataset.tmpl;
+  document.getElementById('m-prod').textContent = btn.dataset.name;
   document.getElementById('m-prix').value = '';
   document.getElementById('overlay').classList.add('show');
   document.getElementById('m-prix').focus();

@@ -1258,7 +1258,8 @@ def tarifs_client():
     products = q("product.product", "search_read",
                  [["sale_ok", "=", True], ["active", "=", True],
                   "|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID]],
-                 fields=["display_name", "default_code", "list_price", "product_tmpl_id"])
+                 fields=["display_name", "default_code", "list_price",
+                         "product_tmpl_id", "categ_id"])
     std_var, std_tmpl = {}, {}
     if default_pl_id:
         for it in q("product.pricelist.item", "search_read",
@@ -1326,19 +1327,67 @@ def tarifs_client():
         hist = hist_by_prod.get(vid, [])
         rows.append({
             "vid": vid, "tmpl": tid, "name": p["display_name"],
-            "code": p["default_code"] or "", "std": std,
+            "code": p["default_code"] or "",
+            "categ": p["categ_id"][1] if p.get("categ_id") else "Autre",
+            "std": std,
             "specific": bool(items), "cli_price": cli_price, "validity": validity,
-            "nb_items": len(items),
+            "nb_items": len(items), "items": items,
             "ecart": round((cli_price - std) / std * 100, 1) if (cli_price is not None and std) else None,
             "hist": [{"date": h["date"], "piece": h["move_name"],
                       "qte": h["quantity"], "pu": h["price_unit"],
                       "remise": h["discount"]} for h in hist[:30]],
+            "hist_all": hist,
         })
     rows.sort(key=lambda r: (not r["specific"], r["name"].lower()))
     nb_spec = sum(1 for r in rows if r["specific"])
     nb_fact = sum(1 for r in rows if r["hist"])
+    categories = sorted({r["categ"] for r in rows}, key=str.lower)
+
+    # ── onglet Évolution : prix par année (tarif spécifique, sinon facturé) ──
+    def _year_of(dt_str):
+        return int(dt_str[:4]) if dt_str else None
+    years_set = set()
+    for r in rows:
+        for it in r["items"]:
+            for k in ("date_start", "date_end"):
+                y = _year_of(it[k])
+                if y:
+                    years_set.add(y)
+        for h in r["hist_all"]:
+            y = _year_of(h["date"])
+            if y:
+                years_set.add(y)
+    this_year = date.today().year
+    years = sorted(y for y in years_set if y <= this_year)[-8:] or [this_year]
+    evo_rows = []
+    for r in rows:
+        if not r["items"] and not r["hist_all"]:
+            continue
+        cells = []
+        has_data = False
+        for y in years:
+            y_start, y_end = f"{y}-01-01 00:00:00", f"{y}-12-31 23:59:59"
+            tarif = None
+            applicable = [it for it in r["items"]
+                          if it["compute_price"] == "fixed"
+                          and (not it["date_start"] or it["date_start"] <= y_end)
+                          and (not it["date_end"] or it["date_end"] >= y_start)]
+            if applicable:
+                applicable.sort(key=lambda it: it["date_start"] or "", reverse=True)
+                tarif = applicable[0]["fixed_price"]
+            pus = [h["price_unit"] for h in r["hist_all"] if _year_of(h["date"]) == y]
+            fact = round(sum(pus) / len(pus), 2) if pus else None
+            if tarif is not None or fact is not None:
+                has_data = True
+            cells.append({"tarif": tarif, "fact": fact})
+        if has_data:
+            evo_rows.append({"name": r["name"], "code": r["code"],
+                              "categ": r["categ"], "specific": r["specific"],
+                              "cells": cells})
+
     return render_template("tarifs.html", partner=partner, rows=rows,
                            nb_spec=nb_spec, nb_fact=nb_fact, pid=pid, src=src,
+                           categories=categories, years=years, evo_rows=evo_rows,
                            client_pl_name=client_pl_name if client_pl_id else "",
                            token=SECRET, ok=ok, error=error,
                            today=date.today().isoformat())
