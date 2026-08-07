@@ -1325,11 +1325,27 @@ def tarifs_client():
             elif ds:
                 validity = f"depuis le {_tarifs_fmt_dt(ds)}"
         hist = hist_by_prod.get(vid, [])
+        items_edit = []
+        for it in items:
+            if it["compute_price"] != "fixed":
+                continue
+            du_l = utc_to_local(it["date_start"])
+            au_l = utc_to_local(it["date_end"])
+            lbl = f"{it['fixed_price']:.2f} €".replace(".", ",")
+            if du_l:
+                lbl += f" — du {du_l.strftime('%d/%m/%Y')}"
+            if au_l:
+                lbl += f" au {au_l.strftime('%d/%m/%Y')}"
+            items_edit.append({"id": it["id"], "prix": f"{it['fixed_price']:.2f}",
+                                "du": du_l.date().isoformat() if du_l else "",
+                                "au": au_l.date().isoformat() if au_l else "",
+                                "label": lbl})
         rows.append({
             "vid": vid, "tmpl": tid, "name": p["display_name"],
             "code": p["default_code"] or "",
             "categ": p["categ_id"][1] if p.get("categ_id") else "Autre",
             "std": std,
+            "items_edit": items_edit,
             "specific": bool(items), "cli_price": cli_price, "validity": validity,
             "nb_items": len(items), "items": items,
             "ecart": round((cli_price - std) / std * 100, 1) if (cli_price is not None and std) else None,
@@ -1385,12 +1401,71 @@ def tarifs_client():
                               "categ": r["categ"], "specific": r["specific"],
                               "cells": cells})
 
+    edit_map = {r["vid"]: r["items_edit"] for r in rows if r["items_edit"]}
     return render_template("tarifs.html", partner=partner, rows=rows,
                            nb_spec=nb_spec, nb_fact=nb_fact, pid=pid, src=src,
                            categories=categories, years=years, evo_rows=evo_rows,
+                           edit_map=edit_map,
                            client_pl_name=client_pl_name if client_pl_id else "",
                            token=SECRET, ok=ok, error=error,
                            today=date.today().isoformat())
+
+# ── Modification / suppression d'un tarif spécifique existant ───────────────
+def _tarifs_item_ok(q, item_id):
+    """L'item existe et appartient bien à une liste de prix PROTEC."""
+    it = q("product.pricelist.item", "read", [item_id], fields=["pricelist_id"])
+    if not it:
+        return False
+    pl = q("product.pricelist", "read", [it[0]["pricelist_id"][0]], fields=["company_id"])
+    return bool(pl and pl[0]["company_id"] and pl[0]["company_id"][0] == TARIFS_COMPANY_ID)
+
+@bp.route("/tarifs/item/modifier", methods=["POST"])
+def tarifs_item_modifier():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    f = request.form
+    item_id = int(f.get("item_id") or 0)
+    ok = "mod"
+    try:
+        prix = float((f.get("prix") or "").replace(",", ".").replace(" ", ""))
+        if not item_id or prix <= 0 or not _tarifs_item_ok(q, item_id):
+            raise ValueError()
+        du, au = f.get("du", "").strip(), f.get("au", "").strip()
+        q("product.pricelist.item", "write", [item_id], {
+            "fixed_price": prix,
+            "date_start": _tarifs_paris_to_utc(du) if du else False,
+            "date_end": _tarifs_paris_to_utc(au, end=True) if au else False,
+        })
+    except (ValueError, TypeError):
+        ok = None
+    args = {"token": SECRET, "c": pid}
+    if ok:
+        args["ok"] = ok
+    if src:
+        args["src"] = src
+    return redirect(url_for(".tarifs_client", **args))
+
+@bp.route("/tarifs/item/supprimer", methods=["POST"])
+def tarifs_item_supprimer():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    item_id = int(request.form.get("item_id") or 0)
+    if item_id and _tarifs_item_ok(q, item_id):
+        q("product.pricelist.item", "unlink", [item_id])
+    args = {"token": SECRET, "c": pid, "ok": "del"}
+    if src:
+        args["src"] = src
+    return redirect(url_for(".tarifs_client", **args))
 
 # ── Import Excel des tarifs client (Manon, client par client) ───────────────
 def _tarifs_norm(s):
