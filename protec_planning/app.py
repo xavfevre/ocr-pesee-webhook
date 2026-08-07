@@ -1565,18 +1565,18 @@ def _tarifs_parse_excel(data, filename):
                     continue
                 unit = str(row[unit_col] or "").strip() \
                     if unit_col is not None and unit_col < len(row) else ""
-                price, year = None, None
+                all_prices = {}  # année -> prix (1ère colonne rencontrée par année)
                 for y, j in year_cols:
-                    if j < len(row):
+                    if j < len(row) and y not in all_prices:
                         try:
                             v = float(str(row[j]).replace(",", ".").replace("€", "").replace(" ", ""))
                             if v > 0:
-                                price, year = v, y
-                                break
+                                all_prices[y] = v
                         except (TypeError, ValueError):
                             continue
-                if price is not None:
-                    rows.append((label, unit, price, year))
+                if all_prices:
+                    year = max(all_prices)
+                    rows.append((label, unit, all_prices[year], year, all_prices))
             if rows:
                 blocks.append((sheet_name, client, rows))
     return blocks
@@ -1627,7 +1627,7 @@ def tarifs_import():
     review = []
     for bi, (sheet_name, client, lignes) in enumerate(blocks):
         bloc_label = f"Feuille « {sheet_name} »" + (f" — {client}" if client else "")
-        for label, unit, price, year in lignes:
+        for label, unit, price, year, all_prices in lignes:
             nlabel = _tarifs_norm(label.split("\n")[0])
             best, best_score = None, 0.0
             for c, nname in norm_cat:
@@ -1637,11 +1637,14 @@ def tarifs_import():
             matched = best if best_score >= 0.45 else None
             std = matched["std"] if matched else None
             differs = matched is not None and abs(price - std) > 0.005
+            histo = ";".join(f"{y}:{p}" for y, p in sorted(all_prices.items(), reverse=True)
+                             if y != year)
             review.append({"bloc": bi, "bloc_label": bloc_label,
                             "label": label, "unit": unit, "prix": price, "annee": year,
                             "tmpl": matched["tmpl"] if matched else 0,
                             "score": round(best_score * 100),
-                            "std": std, "differs": differs})
+                            "std": std, "differs": differs,
+                            "histo": histo, "nb_histo": histo.count(":")})
     return render_template("tarifs_import.html", partner=partner, pid=pid, src=src,
                            token=SECRET, review=review, nb_blocs=len(blocks),
                            catalog=catalog, filename=f.filename,
@@ -1672,6 +1675,7 @@ def tarifs_import_valider():
             client_pl_id = 0
     n = int(f.get("n") or 0)
     du = f.get("du", "").strip()
+    with_histo = bool(f.get("with_histo"))
     created = 0
     for i in range(n):
         if not f.get(f"chk_{i}"):
@@ -1696,6 +1700,26 @@ def tarifs_import_valider():
             vals["date_start"] = _tarifs_paris_to_utc(du)
         q("product.pricelist.item", "create", [vals])
         created += 1
+        if with_histo:
+            # tarifs des années passées : items datés 01/01/N → 31/12/N,
+            # inertes pour les devis mais visibles dans l'onglet Évolution
+            for part in (f.get(f"hist_{i}") or "").split(";"):
+                if ":" not in part:
+                    continue
+                try:
+                    y, p = part.split(":", 1)
+                    y, p = int(y), float(p)
+                except ValueError:
+                    continue
+                if p <= 0:
+                    continue
+                q("product.pricelist.item", "create", [{
+                    "pricelist_id": client_pl_id, "applied_on": "1_product",
+                    "product_tmpl_id": tmpl, "compute_price": "fixed",
+                    "fixed_price": p,
+                    "date_start": _tarifs_paris_to_utc(f"{y}-01-01"),
+                    "date_end": _tarifs_paris_to_utc(f"{y}-12-31", end=True)}])
+                created += 1
     args = {"token": SECRET, "c": pid, "ok": created}
     if src:
         args["src"] = src

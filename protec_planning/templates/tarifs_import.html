@@ -87,7 +87,8 @@
         <tr class="{{ 'differs' if r.differs else ('nomatch' if not r.tmpl else '') }}">
           <td><input type="checkbox" name="chk_{{ loop.index0 }}" value="1" data-bloc="{{ r.bloc }}"
                      {% if r.differs and nb_blocs == 1 %}checked{% endif %}/></td>
-          <td class="label-x">{{ r.label }}{% if r.unit %} <span class="unit">({{ r.unit }}{% if r.annee %} · {{ r.annee }}{% endif %})</span>{% endif %}</td>
+          <td class="label-x">{{ r.label }}{% if r.unit or r.annee %} <span class="unit">({{ r.unit }}{% if r.annee %}{% if r.unit %} · {% endif %}{{ r.annee }}{% endif %}{% if r.nb_histo %} · +{{ r.nb_histo }} années d'historique{% endif %})</span>{% endif %}
+            <input type="hidden" name="hist_{{ loop.index0 }}" value="{{ r.histo }}"/></td>
           <td class="num"><input class="prix" type="text" name="prix_{{ loop.index0 }}"
                                  value="{{ '%.2f'|format(r.prix) }}"/></td>
           <td>
@@ -111,6 +112,13 @@
       <button type="submit" class="btn-save">✓ Importer les lignes cochées</button>
       <div class="fld-date">Applicable à partir du
         <input type="date" name="du" value="{{ today }}"/></div>
+      <label class="fld-date" style="cursor:pointer;">
+        <input type="checkbox" name="with_histo" value="1" checked
+               style="width:16px; height:16px; accent-color:var(--cy-dk);"/>
+        Importer aussi l'historique des années précédentes
+        <span style="font-weight:400;">(tarifs datés par année — alimente l'onglet Évolution,
+        sans effet sur les devis)</span>
+      </label>
       <a class="btn-cancel" href="{{ BASE }}/tarifs?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">Annuler</a>
     </div>
   </form>
