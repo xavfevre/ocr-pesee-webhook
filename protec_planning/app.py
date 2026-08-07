@@ -33,6 +33,7 @@ UTC = ZoneInfo("UTC")
 
 # Employés à exclure (comptes techniques)
 EXCLUDED_EMPLOYEE_IDS = {1, 3, 8, 9}  # compte technique + Manon + Natacha (hors terrain)
+CHAUFFEUR_TAG_ID = 1  # étiquette RH « CHAUFFEUR OPÉRATEUR » — seuls ces employés sont listés
 
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
@@ -189,7 +190,7 @@ def get_all_employees(uid, models):
     if _emp_cache["data"] is not None and now - _emp_cache["t"] < 600:
         return _emp_cache["data"]
     emps = x(models, uid, "hr.employee", "search_read",
-        [["active", "=", True]],
+        [["active", "=", True], ["category_ids", "in", [CHAUFFEUR_TAG_ID]]],
         fields=["id", "name"], order="name asc", limit=100)
     data = sorted([e for e in emps if e["id"] not in EXCLUDED_EMPLOYEE_IDS],
                   key=lambda e: (OMAP.get(e["id"], 99), e["name"]))
