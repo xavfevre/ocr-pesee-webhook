@@ -1398,6 +1398,17 @@ def tarifs_client():
             if tarif is not None or fact is not None:
                 has_data = True
             cells.append({"tarif": tarif, "fact": fact})
+        # % d'évolution vs l'année précédente renseignée
+        prev_val = None
+        for cell in cells:
+            val = cell["tarif"] if cell["tarif"] is not None else cell["fact"]
+            cell["pct"] = None
+            if val is not None and prev_val:
+                pct = (val - prev_val) / prev_val * 100
+                if abs(pct) >= 0.05:
+                    cell["pct"] = round(pct, 1)
+            if val is not None:
+                prev_val = val
         if has_data:
             evo_rows.append({"name": r["name"], "code": r["code"],
                               "categ": r["categ"], "specific": r["specific"],
