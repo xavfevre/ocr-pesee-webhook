@@ -942,6 +942,62 @@ def plein():
                            vehicles=vehicles, today=date.today().isoformat(),
                            last_cuve=_last_cuve(uid, models), result=result, error=error)
 
+# ─── ASTREINTE (opération non prévue) ────────────────────────────────────────
+# Le chauffeur crée lui-même la tâche planning depuis son téléphone, puis
+# enchaîne directement sur la fiche de fin de travaux correspondante.
+@bp.route("/astreinte", methods=["GET", "POST"])
+def astreinte():
+    emp_id = request.args.get("c", type=int)
+    sig = request.args.get("s", "")
+    if not emp_id or not check_sig(f"driver:{emp_id}", sig):
+        abort(403)
+    uid, models = odoo_connect()
+    emp_name = emp_name_map(uid, models).get(emp_id) or f"Chauffeur {emp_id}"
+
+    error = None
+    if request.method == "POST":
+        f = request.form
+        try:
+            desc = (f.get("description") or "").strip()
+            if not desc:
+                raise ValueError("Décrivez l'intervention (client, lieu…).")
+            jour = date.fromisoformat(f.get("date") or date.today().isoformat())
+            h1 = f.get("heure_debut") or "08:00"
+            h2 = f.get("heure_fin") or ""
+            hh1, mm1 = int(h1[:2]), int(h1[3:5])
+            start_l = datetime(jour.year, jour.month, jour.day, hh1, mm1, tzinfo=TZ)
+            if h2:
+                hh2, mm2 = int(h2[:2]), int(h2[3:5])
+                end_l = datetime(jour.year, jour.month, jour.day, hh2, mm2, tzinfo=TZ)
+                if end_l <= start_l:
+                    end_l += timedelta(days=1)
+            else:
+                end_l = start_l + timedelta(hours=2)
+            emp = x(models, uid, "hr.employee", "read", [emp_id],
+                    fields=["resource_id", "company_id"])[0]
+            vals = {
+                "name": f"ASTREINTE — {desc}",
+                "start_datetime": start_l.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S"),
+                "end_datetime": end_l.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S"),
+                "company_id": emp["company_id"][0] if emp.get("company_id") else 2,
+            }
+            if emp.get("resource_id"):
+                vals["resource_ids"] = [(6, 0, [emp["resource_id"][0]])]
+            created = x(models, uid, "planning.slot", "create", [vals])
+            slot_id = created[0] if isinstance(created, list) else created
+            back = url_for(".ma_tournee", c=emp_id, s=sig)
+            return redirect(url_for(".fiche", slot_id=slot_id,
+                                    t=fiche_token(slot_id), back=back))
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide — vérifiez les valeurs."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    now_l = datetime.now(TZ)
+    return render_template("astreinte.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
+                           today=date.today().isoformat(),
+                           now_h=now_l.strftime("%H:%M"), error=error)
+
 def _shift_month(mois, delta):
     y, mo = int(mois[:4]), int(mois[5:7])
     mo += delta
