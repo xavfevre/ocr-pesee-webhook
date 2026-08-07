@@ -1207,20 +1207,7 @@ def tarifs_client():
     if not partner:
         abort(404)
     partner = partner[0]
-    default_pl = q("product.pricelist", "search",
-                   [["name", "=", "Liste de prix par défaut"],
-                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
-    default_pl_id = default_pl[0] if default_pl else 0
-    prop_pl = partner.get("property_product_pricelist")
-    client_pl_id = prop_pl[0] if prop_pl else 0
-    # une liste "générique" (défaut PROTEC ou d'une autre société) ≠ tarif spécifique
-    client_pl_name = prop_pl[1] if prop_pl else ""
-    if client_pl_id:
-        pl_info = q("product.pricelist", "read", [client_pl_id], fields=["company_id"])
-        if client_pl_id == default_pl_id or \
-           (pl_info and pl_info[0]["company_id"] and
-            pl_info[0]["company_id"][0] != TARIFS_COMPANY_ID):
-            client_pl_id = 0
+    default_pl_id, client_pl_id, client_pl_name = _tarifs_resolve_pl(q, partner)
 
     error, ok = None, request.args.get("ok")
     if request.args.get("err"):
@@ -1256,6 +1243,17 @@ def tarifs_client():
         except Exception:
             error = "Erreur d'enregistrement — réessayez."
 
+    ds = _tarifs_dataset(q, pid, default_pl_id, client_pl_id)
+    edit_map = {r["vid"]: r["items_edit"] for r in ds["rows"] if r["items_edit"]}
+    return render_template("tarifs.html", partner=partner, pid=pid, src=src,
+                           edit_map=edit_map,
+                           client_pl_name=client_pl_name if client_pl_id else "",
+                           token=SECRET, ok=ok, error=error,
+                           today=date.today().isoformat(), **ds)
+
+def _tarifs_dataset(q, pid, default_pl_id, client_pl_id):
+    """Catalogue, tarifs client, historique facturé et évolution par année —
+    assemblage partagé entre la page web et l'export Excel."""
     # ── catalogue + prix standard ──
     products = q("product.product", "search_read",
                  [["sale_ok", "=", True], ["active", "=", True],
@@ -1414,14 +1412,107 @@ def tarifs_client():
                               "categ": r["categ"], "specific": r["specific"],
                               "cells": cells})
 
-    edit_map = {r["vid"]: r["items_edit"] for r in rows if r["items_edit"]}
-    return render_template("tarifs.html", partner=partner, rows=rows,
-                           nb_spec=nb_spec, nb_fact=nb_fact, pid=pid, src=src,
-                           categories=categories, years=years, evo_rows=evo_rows,
-                           edit_map=edit_map,
-                           client_pl_name=client_pl_name if client_pl_id else "",
-                           token=SECRET, ok=ok, error=error,
-                           today=date.today().isoformat())
+    return {"rows": rows, "evo_rows": evo_rows, "years": years,
+            "categories": categories, "nb_spec": nb_spec, "nb_fact": nb_fact}
+
+def _tarifs_resolve_pl(q, partner):
+    """(default_pl_id, client_pl_id, client_pl_name) pour un partenaire lu."""
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    default_pl_id = default_pl[0] if default_pl else 0
+    prop_pl = partner.get("property_product_pricelist")
+    client_pl_id = prop_pl[0] if prop_pl else 0
+    client_pl_name = prop_pl[1] if prop_pl else ""
+    if client_pl_id:
+        pl_info = q("product.pricelist", "read", [client_pl_id], fields=["company_id"])
+        if client_pl_id == default_pl_id or \
+           (pl_info and pl_info[0]["company_id"] and
+            pl_info[0]["company_id"][0] != TARIFS_COMPANY_ID):
+            client_pl_id = 0
+    return default_pl_id, client_pl_id, client_pl_name
+
+@bp.route("/tarifs/export")
+def tarifs_export():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    pid = request.args.get("c", type=int)
+    src = request.args.get("src", "")
+    if not pid:
+        abort(404)
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    partner = q("res.partner", "read", [pid],
+                fields=["name", "property_product_pricelist"], context=CTX)
+    if not partner:
+        abort(404)
+    partner = partner[0]
+    default_pl_id, client_pl_id, _pl_name = _tarifs_resolve_pl(q, partner)
+    ds = _tarifs_dataset(q, pid, default_pl_id, client_pl_id)
+
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = Workbook()
+    H_FILL = PatternFill("solid", fgColor="0B7285")
+    H_FONT = Font(bold=True, color="FFFFFF")
+    SPEC_FILL = PatternFill("solid", fgColor="FFF7E0")
+    TARIF_FONT = Font(bold=True, color="1D7F79")
+    FACT_FONT = Font(italic=True, color="6B8A89")
+
+    ws = wb.active
+    ws.title = "Tarifs actuels"
+    ws.append(["Produit", "Code", "Catégorie", "Prix standard HT",
+               "Prix client HT", "Écart %", "Validité", "Tarif spécifique"])
+    for c in ws[1]:
+        c.fill, c.font = H_FILL, H_FONT
+    for r in ds["rows"]:
+        ws.append([r["name"], r["code"], r["categ"], r["std"],
+                   r["cli_price"] if r["cli_price"] is not None else "",
+                   r["ecart"] if r["ecart"] is not None else "",
+                   r["validity"], "Oui" if r["specific"] else ""])
+        if r["specific"]:
+            for c in ws[ws.max_row]:
+                c.fill = SPEC_FILL
+    for col, w in zip("ABCDEFGH", (52, 14, 18, 16, 14, 10, 26, 14)):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "A2"
+
+    ws2 = wb.create_sheet("Évolution")
+    ws2.append(["Produit", "Code"] + [str(y) for y in ds["years"]])
+    for c in ws2[1]:
+        c.fill, c.font = H_FILL, H_FONT
+    for r in ds["evo_rows"]:
+        ws2.append([r["name"], r["code"]] +
+                   [(cell["tarif"] if cell["tarif"] is not None else cell["fact"])
+                    if (cell["tarif"] is not None or cell["fact"] is not None) else ""
+                    for cell in r["cells"]])
+        row_i = ws2.max_row
+        for j, cell in enumerate(r["cells"]):
+            xc = ws2.cell(row=row_i, column=3 + j)
+            xc.alignment = Alignment(horizontal="right")
+            if cell["tarif"] is not None:
+                xc.font = TARIF_FONT
+            elif cell["fact"] is not None:
+                xc.font = FACT_FONT
+        if r["specific"]:
+            ws2.cell(row=row_i, column=1).fill = SPEC_FILL
+    ws2.append([])
+    ws2.append(["Prix en gras/couleur = tarif spécifique en vigueur · "
+                "prix en italique = moyenne des prix facturés · montants en € HT"])
+    ws2.column_dimensions["A"].width = 52
+    ws2.column_dimensions["B"].width = 14
+    ws2.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    fname = re.sub(r"[^A-Za-z0-9_-]+", "_", partner["name"]).strip("_")
+    return Response(buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition":
+                 f'attachment; filename="Tarifs_{fname}_{date.today().isoformat()}.xlsx"'})
 
 # ── Modification / suppression d'un tarif spécifique existant ───────────────
 def _tarifs_item_ok(q, item_id):
