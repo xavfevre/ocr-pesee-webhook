@@ -139,6 +139,8 @@
       <button type="button" class="btn-add" style="padding:8px 14px; font-size:13px;"
               onclick="document.getElementById('xlfile').click()">📥 Importer Excel client</button>
     </form>
+    <a class="btn-add" style="padding:8px 14px; font-size:13px; text-decoration:none;"
+       href="{{ BASE }}/tarifs/export?token={{ token }}&c={{ pid }}{% if src %}&src={{ src }}{% endif %}">📤 Exporter Excel</a>
   </div>
 
   <div class="cats">
