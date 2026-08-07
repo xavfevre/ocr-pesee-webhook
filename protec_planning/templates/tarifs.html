@@ -71,6 +71,9 @@
     .btn-add:hover { background: var(--cy); color: #fff; }
     .tarif-cell { font-weight: 800; color: var(--cy-dk); }
     .fact-cell { color: var(--muted); font-style: italic; }
+    .pct { font-size: 10px; font-weight: 700; }
+    .pct-up { color: var(--green); }
+    .pct-down { color: var(--red); }
     .evo-note { font-size: 12px; color: var(--muted); margin: 10px 2px; }
 
     tr.hist-row { display: none; }
@@ -218,6 +221,9 @@
             {% if cell.tarif is not none %}<span class="tarif-cell">{{ "%.2f"|format(cell.tarif)|replace(".", ",") }}</span>
             {% elif cell.fact is not none %}<span class="fact-cell">~ {{ "%.2f"|format(cell.fact)|replace(".", ",") }}</span>
             {% else %}—{% endif %}
+            {% if cell.pct is not none %}
+            <div class="pct {{ 'pct-up' if cell.pct > 0 else 'pct-down' }}">{{ '%+.1f'|format(cell.pct)|replace('.', ',') }} %</div>
+            {% endif %}
           </td>
           {% endfor %}
         </tr>
@@ -231,7 +237,9 @@
     <div class="evo-note">
       <span class="tarif-cell">Prix en couleur</span> = tarif spécifique en vigueur cette année-là ·
       <span class="fact-cell">~ prix en italique</span> = moyenne des prix réellement facturés
-      (aucun tarif spécifique défini) · les montants sont en € HT.
+      (aucun tarif spécifique défini) · <span class="pct pct-up">+x %</span> /
+      <span class="pct pct-down">−x %</span> = évolution vs l'année précédente ·
+      les montants sont en € HT.
     </div>
   </div>
 </div>
