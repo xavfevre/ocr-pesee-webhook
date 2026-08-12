@@ -535,3 +535,16 @@ bornes 0–300 ; vide = retour au calcul automatique). Renseigné à **190 h**
 pour les 6 chauffeurs permanents (COLLET, DURAND, MAQUIGNON Franck,
 MAQUIGNON Théo, ORILLARD, SEGUIN) — les 3 chauffeurs intérimaires ne sont
 pas concernés. H. sup structurelles chauffeurs : 190 − 151,67 = 38,33 h.
+
+## Finitions Horaires par défaut + validité des allocations (12/08)
+- **Mise en page** : la colonne nom/étiquettes replie son contenu
+  (`flex:1 1 0`) — le bloc CP et « Modifier » restent à droite ; les
+  **étiquettes sont toujours sur leur propre ligne sous le nom**.
+- **Validité des allocations** : les allocations créées/ajustées par la
+  saisie CP portaient `date_from` du jour → Odoo refusait les congés
+  antérieurs (BERROYER 10-11/08 en échec de miroir). Action 2021 corrigée
+  (date_from = début de période 01/06) + 15 allocations existantes
+  élargies + relance : BERROYER complet (10 congés natifs N-1).
+- Balayage général des jours d'août sans miroir : il ne reste que les
+  10 jours CP d'**Isabelle MAQUIGNON** (son allocation est à 0 — sa
+  propre saisie CP les débloquera automatiquement).
