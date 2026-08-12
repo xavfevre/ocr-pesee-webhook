@@ -522,3 +522,16 @@ page. Saisie à 0 = toutes les allocations refusées.
   kanban Odoo ; **Intérimaire** en rose vif bordé pour être repérable au
   premier coup d'œil.
 - **/heures-admin** : badge « INTÉRIM » à côté du nom des intérimaires.
+
+## Contrat mensuel saisi — chauffeurs 190 h (12/08)
+Les chauffeurs sont mensualisés au **temps de service transport : 190 h/mois**,
+qui ne se déduit pas de l'horaire hebdo × 52 ÷ 12. Champ
+`x_contrat_mensuel` (h) sur la fiche employé : s'il est renseigné, il
+**prime sur le calcul automatique** partout — carte ⏰ Horaires par défaut
+(« 190,00 h/mois (contrat saisi) »), tuile « Mon mois » de /mes-heures,
+colonnes Contrat mensuel / H. sup structurelles de l'export paie. Saisie :
+champ « 🕐 h/mois » à côté du matricule (action 2021, clé `contrat_mensuel`,
+bornes 0–300 ; vide = retour au calcul automatique). Renseigné à **190 h**
+pour les 6 chauffeurs permanents (COLLET, DURAND, MAQUIGNON Franck,
+MAQUIGNON Théo, ORILLARD, SEGUIN) — les 3 chauffeurs intérimaires ne sont
+pas concernés. H. sup structurelles chauffeurs : 190 − 151,67 = 38,33 h.

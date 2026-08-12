@@ -407,7 +407,8 @@
           <t t-set="mcal" t-value="emp.resource_calendar_id"/>
           <t t-set="mhebA" t-value="sum([(a.hour_to - a.hour_from) for a in mcal.attendance_ids if not a.display_type and (not mcal.two_weeks_calendar or not a.week_type or a.week_type == '0')]) if mcal else 0"/>
           <t t-set="mhebB" t-value="sum([(a.hour_to - a.hour_from) for a in mcal.attendance_ids if not a.display_type and a.week_type == '1']) if (mcal and mcal.two_weeks_calendar) else 0"/>
-          <t t-set="mcontrat" t-value="(((mhebA + mhebB) / 2) if (mcal and mcal.two_weeks_calendar) else mhebA) * 52 / 12"/>
+          <!-- le contrat mensuel saisi (chauffeurs 190 h…) prime sur hebdo × 52/12 -->
+          <t t-set="mcontrat" t-value="emp.x_contrat_mensuel or ((((mhebA + mhebB) / 2) if (mcal and mcal.two_weeks_calendar) else mhebA) * 52 / 12)"/>
           <div t-if="mcontrat" style="margin-top:7px;color:#64748b;font-size:11px;font-weight:700;">Contrat : <b style="color:#0f172a;"><t t-esc="'%.2f' % mcontrat"/> h/mois</b> — base légale 151,67 h<t t-if="mcontrat &gt; 151.67"> + <b style="color:#b45309;"><t t-esc="'%.2f' % (mcontrat - 151.67)"/> h sup structurelles</b></t></div>
         </div>
 
