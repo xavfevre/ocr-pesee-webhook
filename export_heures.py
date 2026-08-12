@@ -58,7 +58,7 @@ def build(call, mois, comp='all'):
         dom.append(('company_id', '=', int(comp)))
     emps = call('hr.employee', 'search_read', dom,
                 fields=['name', 'company_id', 'resource_calendar_id', 'x_matricule_paie',
-                        'x_recup_solde', 'x_cp_ref_date'],
+                        'x_recup_solde', 'x_cp_ref_date', 'x_contrat_mensuel'],
                 order='company_id, name')
     cal_ids = sorted(set(e['resource_calendar_id'][0] for e in emps if e['resource_calendar_id']))
     cals = {c['id']: c for c in call('resource.calendar', 'read', cal_ids,
@@ -162,7 +162,9 @@ def build(call, mois, comp='all'):
                     heb_b += dur
                 else:
                     heb_a += dur
-        contrat_mensuel = (((heb_a + heb_b) / 2) if (cal and cal['two_weeks_calendar']) else heb_a) * 52 / 12
+        # le contrat mensuel saisi sur la fiche (chauffeurs : 190 h) prime sur hebdo x 52/12
+        contrat_mensuel = e.get('x_contrat_mensuel') or \
+            ((((heb_a + heb_b) / 2) if (cal and cal['two_weeks_calendar']) else heb_a) * 52 / 12)
         hs_struct = max(0.0, contrat_mensuel - BASE_LEGALE)
         # récup en heures : mises dans le mois, récupérées dans le mois, solde courant
         ref = e.get('x_cp_ref_date') or ''
