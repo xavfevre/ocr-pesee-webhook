@@ -110,7 +110,8 @@
       .pc-ev[data-id]:hover{filter:brightness(.93);}
       .pc-annee{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
       .pc-mois-card{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;}
-      .pc-mois-card h6{font-weight:900;color:#15324f;margin:0 0 10px;text-align:center;font-size:16.5px;text-transform:capitalize;}
+      .pc-mois-card h6{font-weight:900;color:#15324f;margin:0 0 10px;text-align:center;font-size:16.5px;text-transform:capitalize;position:relative;}
+      .pc-count{position:absolute;right:0;top:50%;transform:translateY(-50%);background:#eef2f6;color:#475569;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:800;}
       .pc-mois-card .vide{color:#94a3b8;font-size:13px;font-weight:700;text-align:center;padding:8px 0;}
       .pc-ev .evdate{float:right;font-weight:900;}
       .pc-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;align-items:center;justify-content:center;}
@@ -342,7 +343,7 @@
             <t t-foreach="range(1, 13)" t-as="m">
               <t t-set="evts" t-value="sorted([e for e in echeances if e[0].year == an and e[0].month == m], key=lambda e: (e[0], e[1]))"/>
               <div class="pc-mois-card">
-                <h6><t t-esc="['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m]"/> <t t-esc="an"/><t t-if="evts"> · <t t-esc="len(evts)"/></t></h6>
+                <h6><t t-esc="['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m]"/> <t t-esc="an"/><span t-if="evts" class="pc-count" t-esc="len(evts)"/></h6>
                 <t t-if="not evts"><div class="vide">—</div></t>
                 <t t-foreach="evts" t-as="e">
                   <span t-attf-class="pc-ev {{e[3]}}" t-att-data-id="e[5]" t-att-data-veh="e[7]" t-att-data-vehid="e[6]" t-att-data-type="e[2]" t-att-data-mois="e[8]" t-att-data-date="e[9]" t-att-data-cv="e[10]" t-att-data-combo="e[11]" t-att-data-attelid="e[12]" t-att-data-attelname="e[13]"><span class="evdate" t-esc="e[0].strftime('%d/%m')"/><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
