@@ -68,6 +68,16 @@
         <a t-attf-href="/model/tache?limit=1000&amp;{{keep_query('client')}}" class="btn btn-outline-secondary btn-sm">🗓️ Vue semaine</a>
         <button id="trmRefresh" type="button" class="btn btn-primary btn-sm">🔄 Actualiser</button>
         <button id="trmSede" type="button" class="btn btn-sm" style="background:#7c3aed;color:#fff;font-weight:800;border-radius:10px;" title="VEOLIA AGRICULTURE (LA SEDE) : pour chaque transport du mois affiché sans bon de commande, crée le BC confirmé avec l'article « Location Semi Fond-mouvant - par jours » (qté 1) et la section Bon de pesée. Tâches annulées et BC existants ignorés.">⚡ SEDE</button>
+      </div>
+      <div class="text-center mb-2 d-flex flex-wrap justify-content-center align-items-center gap-1">
+        <span class="text-muted small me-1">BC automatiques du mois :</span>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="longue_lac" data-lbl="Fine Longué et le Lac" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="CULTURES FRANCE CHAMPIGNON LONGUE + COOP DU LAC : Terre de gobetage (Tonne) + Transport gobetage (Tonne), quantités = tonnage du bon, section sans produit.">⚡ Longué + Lac</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="prieure" data-lbl="Fine Le Prieuré" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="LE PRIEURE : gobetage + transport (tonnage), Libellé Client « Tuffeau broyé 0/15 - 0/20 (en tonnes) » sur la ligne Terre de gobetage, section sans produit.">⚡ Prieuré</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="besnault" data-lbl="Besnault" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="BESNAULT FRERES : Transport Appro (Départ Eurovia - Luché), quantité = tonnage, section sans produit.">⚡ Besnault</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="machefers" data-lbl="Machefers" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="VEOLIA PROPRETÉ POITOU CHARENTES : Transport de machefers (forfait, qté 1), section sans produit.">⚡ Machefers</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="gsm" data-lbl="GSM" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="Heidelberg Materials (GSM) : Transport de granulats (Tonne), quantité = tonnage, section standard.">⚡ GSM</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="chatel" data-lbl="Châtel'Granulats" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="CHATEL'GRANULATS : APPRO → variante selon le départ (Barré, Bailly, Roy, Morin, Luché, Haims, Usseau, Kidimat, Imerys, Samin, Pouzzo — produit de section réduit à 4 caractères) · DÉBLAIS → granulats (Tonne) · sinon livraison → granulats (Forfait, qté 1, nom de tâche inséré dans la section).">⚡ Châtel</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="haims" data-lbl="Haims" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="CARRIERE D'HAIMS : granulats (Tonne, tonnage) — tâches TRANSFERT → Transfert de matériel (Heure, qté 1 à ajuster). Nom de tâche inséré dans la section.">⚡ Haims</button>
         <t t-set="clients_f" t-value="sorted(set(t.partner_id.display_name for t in all_records if t.partner_id))"/>
         
       </div>
@@ -233,6 +243,30 @@
             location.reload();
           }).catch(function(){ sd.disabled = false; sd.textContent = '⚡ SEDE'; alert('Échec réseau — êtes-vous connecté à Odoo ?'); });
         }); }
+        document.querySelectorAll('.trm-rec').forEach(function(b){ b.addEventListener('click', function(){
+          var mp0 = document.getElementById('trmMonthPick');
+          var m = (mp0 &amp;&amp; mp0.value) || '';
+          if(!/^\d{4}-\d{2}$/.test(m)){ alert('Mois affiché introuvable.'); return; }
+          if(!confirm('Générer les bons de commande « ' + b.getAttribute('data-lbl') + ' » pour ' + m + ' ?\n\nPour chaque transport du mois SANS bon de commande : BC confirmé + articles de la recette + section Bon de pesée.\nTâches annulées et BC déjà existants ignorés.')){ return; }
+          var old = b.textContent;
+          b.disabled = true; b.textContent = '…';
+          var y = parseInt(m.slice(0,4),10), mo = parseInt(m.slice(5,7),10);
+          var au = m + '-' + ('0' + (new Date(y, mo, 0).getDate())).slice(-2);
+          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2081]], kwargs:{context:{active_model:'project.task', tb_recette: b.getAttribute('data-rec'), tb_du: m + '-01', tb_au: au}}}})})
+          .then(function(r){ return r.json(); }).then(function(d){
+            b.disabled = false; b.textContent = old;
+            if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
+            var r = d.result || {};
+            var msg = b.getAttribute('data-lbl') + ' — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
+            if(r.deja){ msg += '\n' + r.deja + ' tâche(s) avec BC déjà existant (ignorées)'; }
+            if(r.annulees){ msg += '\n' + r.annulees + ' tâche(s) annulée(s) (ignorées)'; }
+            if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
+            if(r.a_verifier &amp;&amp; r.a_verifier.length){ msg += '\n⚠ À vérifier : ' + r.a_verifier.join(' · '); }
+            alert(msg);
+            location.reload();
+          }).catch(function(){ b.disabled = false; b.textContent = old; alert('Échec réseau — êtes-vous connecté à Odoo ?'); });
+        }); });
         var mp=document.getElementById('trmMonthPick'); if(mp){ mp.addEventListener('change', function(){
           if(!/^\d{4}-\d{2}$/.test(mp.value || '')){ return; }
           var url = new URL(window.location);
