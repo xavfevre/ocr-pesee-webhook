@@ -175,7 +175,7 @@
         <td class="num">{% if r.ecart is not none %}<span class="{{ 'ecart-moins' if r.ecart < 0 else 'ecart-plus' }}">{{ '%+.1f'|format(r.ecart)|replace('.', ',') }} %</span>{% endif %}</td>
         <td><span class="validity">{{ r.validity }}</span></td>
         <td onclick="event.stopPropagation();" style="white-space:nowrap;">
-          <button type="button" class="btn-add" data-tmpl="{{ r.tmpl }}"
+          <button type="button" class="btn-add" data-vid="{{ r.vid }}"
                   data-name="{{ r.name }}" data-uom="{{ r.uom }}" onclick="openModalBtn(this)">＋ Tarif</button>
           {% if r.items_edit %}
           <button type="button" class="btn-add" data-vid="{{ r.vid }}"
@@ -259,7 +259,7 @@
       nom sera créée (elle reprend tous les prix de l'ancienne liste, seuls les tarifs
       saisis ici changent).</div>
     {% endif %}
-    <input type="hidden" name="tmpl" id="m-tmpl"/>
+    <input type="hidden" name="vid" id="m-vid"/>
     <div class="fld">
       <label id="m-prix-lbl">Prix HT (€)</label>
       <input type="text" name="prix" id="m-prix" inputmode="decimal" required autocomplete="off"/>
@@ -360,7 +360,7 @@ function toggleHist(vid) {
 }
 
 function openModalBtn(btn) {
-  document.getElementById('m-tmpl').value = btn.dataset.tmpl;
+  document.getElementById('m-vid').value = btn.dataset.vid;
   document.getElementById('m-prod').textContent = btn.dataset.name;
   document.getElementById('m-prix-lbl').textContent = btn.dataset.uom ? 'Prix HT (€ / ' + btn.dataset.uom + ')' : 'Prix HT (€)';
   document.getElementById('m-prix').value = '';

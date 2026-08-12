@@ -166,10 +166,12 @@ def tarifs_client():
     if request.method == "POST":
         f = request.form
         try:
-            tmpl_id = int(f.get("tmpl") or 0)
+            # tarif au niveau de la VARIANTE (product_id) — un prix par variante,
+            # pas un prix partagé par toutes les variantes du modèle
+            var_id = int(f.get("vid") or 0)
             prix = float((f.get("prix") or "").replace(",", ".").replace(" ", ""))
             du, au = f.get("du", "").strip(), f.get("au", "").strip()
-            if not tmpl_id or prix <= 0:
+            if not var_id or prix <= 0:
                 raise ValueError("Produit et prix sont obligatoires.")
             if not pl_dediee:
                 # liste partagée (ou aucune) : liste dédiée au client, avec un
@@ -188,8 +190,8 @@ def tarifs_client():
                 _q("res.partner", "write", [pid],
                    {"property_product_pricelist": new_pl}, context=CTX)
                 client_pl_id = new_pl
-            vals = {"pricelist_id": client_pl_id, "applied_on": "1_product",
-                    "product_tmpl_id": tmpl_id, "compute_price": "fixed",
+            vals = {"pricelist_id": client_pl_id, "applied_on": "0_product_variant",
+                    "product_id": var_id, "compute_price": "fixed",
                     "fixed_price": prix}
             if du:
                 vals["date_start"] = _paris_to_utc(du)

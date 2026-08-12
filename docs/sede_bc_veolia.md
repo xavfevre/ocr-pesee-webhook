@@ -84,3 +84,17 @@ des devis/BC ouverts : **409 lignes** (154 Jours, 144 Forfait, 111 Tour) —
 dont les locations SEDE « par jours » (UdF = Jours) et les livraisons
 granulats (Forfait). L'UdF se propage aux factures via l'automatisation
 59 existante.
+
+## Tarification & garde-fous supplémentaires (12/08)
+- **Prix** : les lignes sont créées sans prix imposé → Odoo applique la
+  liste de prix du client (règles variante comprises). Vérifié sur toutes
+  les recettes (728 € SEDE, 12,76/7,81 € gobetage, 6,80 € Besnault,
+  125 € machefers, 6,09 € appro Chatel…).
+- **Date du BC = date du transport** : `action_confirm` remettait la date
+  du jour — elle est recalée après confirmation pour que les listes de
+  prix datées (grilles septembre) s'appliquent au jour de la prestation.
+- **Transports futurs ignorés** (pas encore de bon de pesée) — compteur
+  affiché dans le récapitulatif.
+- **Prix à 0 signalés** « à vérifier » : les forfaits de livraison Châtel
+  se tarifent à la main livraison par livraison (64–174 € constatés,
+  aucune règle de liste) — le BC est créé, le bureau pose le prix.

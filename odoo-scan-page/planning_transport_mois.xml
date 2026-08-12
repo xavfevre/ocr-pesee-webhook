@@ -261,6 +261,7 @@
             var msg = b.getAttribute('data-lbl') + ' — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
             if(r.deja){ msg += '\n' + r.deja + ' tâche(s) avec BC déjà existant (ignorées)'; }
             if(r.annulees){ msg += '\n' + r.annulees + ' tâche(s) annulée(s) (ignorées)'; }
+            if(r.futurs){ msg += '\n' + r.futurs + ' transport(s) à venir (ignorés — pas encore de bon de pesée)'; }
             if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
             if(r.a_verifier &amp;&amp; r.a_verifier.length){ msg += '\n⚠ À vérifier : ' + r.a_verifier.join(' · '); }
             alert(msg);
