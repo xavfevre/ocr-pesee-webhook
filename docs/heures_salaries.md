@@ -362,3 +362,26 @@ mois (ex. 39 h/sem → 169 h/mois → 17,33 h sup).
 - **Export paie** : 3 nouvelles colonnes dans le récap mensuel de chaque
   onglet salarié : Contrat mensuel (h), Base légale (h), H. sup
   structurelles/mois (actif au prochain déploiement Render).
+
+## Date de référence des compteurs CP / récup (12/08)
+Les soldes saisis par le bureau (CP acquis N / N-1, heures à récupérer)
+sont des **arrêtés à une date** (typiquement la fin de mois de la dernière
+fiche de paie, ex. « à fin juillet 2026 »). Champ `x_cp_ref_date` (date)
+sur `hr.employee`.
+- **Saisie** : page ⏰ Horaires par défaut, champ date « au JJ/MM/AAAA » à
+  côté de Récup (h), prérempli avec la dernière date enregistrée (sinon
+  aujourd'hui). Enregistré par le même bouton (action 2021, clé `cp_date` ;
+  sans date fournie → date du jour).
+- **Calcul** : sur /mes-heures, « CP restants » = acquis − CP pris
+  **strictement après** la date de référence (les congés antérieurs sont
+  déjà intégrés dans le solde saisi — plus de double décompte). Le
+  compteur « CP pris » de la tuile reste le total de la période 01/06 →
+  aujourd'hui (informatif). Sans date de référence : comportement
+  inchangé (déduction depuis le 01/06).
+- **Affichage salarié** : ligne « Solde arrêté au 31/07/2026 — seuls les
+  CP pris après cette date sont déduits » sous le détail Acquis N/N-1.
+- L'acquisition automatique (2,5 j/mois, ancrée au 31/07/2026) s'ajoute
+  naturellement par-dessus le solde saisi à fin juillet — cohérent.
+Testé en prod sur MAQUIGNON Théo (saisie 27,5 + 10 au 31/07/2026 ; CP test
+posé au 15/07 non déduit, CP test au 10/08 déduit, compteur période
+inchangé ; lignes de test supprimées).
