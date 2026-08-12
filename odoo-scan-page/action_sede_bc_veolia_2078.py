@@ -19,6 +19,7 @@ tasks = env['project.task'].sudo().search([
     ('planned_date_begin', '<=', au + ' 23:59:59'),
 ], order='planned_date_begin')
 faits = []
+futurs = 0
 deja = 0
 annulees = 0
 sans_bon = []
