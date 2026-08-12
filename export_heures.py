@@ -57,7 +57,9 @@ def build(call, mois, comp='all'):
     if comp != 'all':
         dom.append(('company_id', '=', int(comp)))
     emps = call('hr.employee', 'search_read', dom,
-                fields=['name', 'company_id', 'resource_calendar_id'], order='company_id, name')
+                fields=['name', 'company_id', 'resource_calendar_id', 'x_matricule_paie',
+                        'x_recup_solde', 'x_cp_ref_date'],
+                order='company_id, name')
     cal_ids = sorted(set(e['resource_calendar_id'][0] for e in emps if e['resource_calendar_id']))
     cals = {c['id']: c for c in call('resource.calendar', 'read', cal_ids,
             fields=['name', 'two_weeks_calendar', 'attendance_ids'])} if cal_ids else {}
@@ -75,6 +77,29 @@ def build(call, mois, comp='all'):
     by_emp = {}
     for r in rows:
         by_emp.setdefault(r['x_employee_id'][0], {})[r['x_date']] = r
+    # récup : heures mises (x_recup_ligne) et jours/demi-jours récupérés depuis le
+    # début de période (01/06), pour le solde « arrêté bureau + mises − récupérées »
+    rl_by_emp = {}
+    for l in call('x_recup_ligne', 'search_read',
+                  [('x_employee_id', 'in', [e['id'] for e in emps])],
+                  fields=['x_employee_id', 'x_date', 'x_heures']):
+        rl_by_emp.setdefault(l['x_employee_id'][0], []).append(l)
+    pstart = date(y if m >= 6 else y - 1, 6, 1)
+    pris_by_emp = {}
+    for r in call('x_heures_jour', 'search_read',
+                  ['&', ('x_employee_id', 'in', [e['id'] for e in emps]),
+                   ('x_date', '>=', pstart.strftime('%Y-%m-%d')),
+                   '|', ('x_type', '=', 'recup'), ('x_note', 'like', 'Récupération —')],
+                  fields=['x_employee_id', 'x_date', 'x_type', 'x_theo', 'x_note']):
+        pris_by_emp.setdefault(r['x_employee_id'][0], []).append(r)
+
+    def _recup_pris_h(r, cal):
+        """Heures récupérées portées par un jour : jour entier -> théo figé ;
+        demi-jour (type travail, note Récupération) -> partie non travaillée."""
+        if r['x_type'] == 'recup':
+            return r['x_theo'] or 0.0
+        d = datetime.strptime(r['x_date'], '%Y-%m-%d').date()
+        return max(_theo_day(cal, d) - (r['x_theo'] or 0.0), 0.0)
 
     wb = Workbook()
     wb.remove(wb.active)
@@ -92,7 +117,8 @@ def build(call, mois, comp='all'):
         ws = wb.create_sheet(title)
         cal = cals.get(e['resource_calendar_id'][0]) if e['resource_calendar_id'] else None
         saisies = by_emp.get(e['id'], {})
-        ws['A1'] = f"HEURES — {e['name']}"
+        mat = e.get('x_matricule_paie') or ''
+        ws['A1'] = f"HEURES — {e['name']}" + (f" — matricule {mat}" if mat else '')
         ws['A1'].font = FT
         ws['A2'] = f"{e['company_id'][1]} · {cal['name'] if cal else 'sans horaire'} · {mois}"
         ws['A2'].font = Font(name='Arial', size=10, italic=True)
@@ -102,7 +128,12 @@ def build(call, mois, comp='all'):
         d = d1
         while d <= d2:
             s = saisies.get(d.strftime('%Y-%m-%d'))
-            tot_theo += _theo_day(cal, d)
+            # théorique de l'écart : jour travail = théo figé (demi-journées gérées),
+            # jour vide = calendrier ; les jours posés en absence ne comptent pas
+            if s and s['x_type'] == 'travail':
+                tot_theo += s['x_theo']
+            elif not s:
+                tot_theo += _theo_day(cal, d)
             if s:
                 t = s['x_type']
                 if t == 'travail':
@@ -133,12 +164,25 @@ def build(call, mois, comp='all'):
                     heb_a += dur
         contrat_mensuel = (((heb_a + heb_b) / 2) if (cal and cal['two_weeks_calendar']) else heb_a) * 52 / 12
         hs_struct = max(0.0, contrat_mensuel - BASE_LEGALE)
-        heads = ['Heures effectuées', 'Heures théoriques', 'Écart',
+        # récup en heures : mises dans le mois, récupérées dans le mois, solde courant
+        ref = e.get('x_cp_ref_date') or ''
+        lignes_rl = rl_by_emp.get(e['id'], [])
+        pris_rows = pris_by_emp.get(e['id'], [])
+        m1, m2 = d1.strftime('%Y-%m-%d'), d2.strftime('%Y-%m-%d')
+        mises_mois = sum(l['x_heures'] for l in lignes_rl if m1 <= l['x_date'] <= m2)
+        recup_mois = sum(_recup_pris_h(r, cal) for r in pris_rows if m1 <= r['x_date'] <= m2)
+        # solde arrêté à la fin du mois exporté (les mouvements postérieurs n'y entrent pas)
+        solde = ((e.get('x_recup_solde') or 0.0)
+                 + sum(l['x_heures'] for l in lignes_rl if (not ref or l['x_date'] > ref) and l['x_date'] <= m2)
+                 - sum(_recup_pris_h(r, cal) for r in pris_rows if (not ref or r['x_date'] > ref) and r['x_date'] <= m2))
+        heads = ['Matricule', 'Heures effectuées', 'Heures théoriques', 'Écart',
                  'Contrat mensuel (h)', 'Base légale (h)', 'H. sup structurelles/mois',
-                 'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup']
-        vals = [round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
+                 'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup',
+                 'H. mises en récup', 'H. récupérées', 'Solde récup (h)']
+        vals = [mat or '—', round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
                 round(contrat_mensuel, 2), round(BASE_LEGALE, 2), round(hs_struct, 2),
-                n_cp, n_mal, n_abs, n_fer, n_rec]
+                n_cp, n_mal, n_abs, n_fer, n_rec,
+                round(mises_mois, 2), round(recup_mois, 2), round(solde, 2)]
         for j, (h, v) in enumerate(zip(heads, vals), 1):
             c = ws.cell(row=4, column=j, value=h); c.font = HDR; c.fill = FILL; c.alignment = CTR
             c2 = ws.cell(row=5, column=j, value=v); c2.font = FB; c2.alignment = CTR
@@ -194,6 +238,199 @@ def build(call, mois, comp='all'):
         for col, w in zip('ABCDEFGHI', [11, 12, 9, 9, 9, 9, 9, 9, 30]):
             ws.column_dimensions[col].width = w
         ws.freeze_panes = 'A6'
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ─── EXPORT SILAE (éléments variables de paie) ───────────────────────────────
+# Format « standard » en attendant le modèle d'import exact du dossier Silae
+# du cabinet : une ligne par élément (Matricule / Code rubrique / Valeur) +
+# un onglet Absences par périodes datées. Les codes rubriques par défaut
+# ci-dessous sont MODIFIABLES SANS REDÉPLOIEMENT via l'ir.config_parameter
+# `maquignon.silae_codes` (JSON, mêmes clés).
+SILAE_CODES_DEFAUT = {
+    'hs': 'HS',              # heures d'écart du mois (effectué − théorique)
+    'cp': 'ABCP',            # congés payés
+    'maladie': 'ABMA',       # maladie
+    'absence': 'ABNJ',       # absence injustifiée / autre
+    'recup': 'ABRC',         # jour de récupération
+    'sans_solde': 'ABSS',    # congé sans solde
+    'maternite': 'ABMT',     # congé maternité
+    'paternite': 'ABPT',     # congé paternité
+    'evt_familial': 'ABEF',  # événement familial
+    'enfant_malade': 'ABEM', # enfant malade
+}
+SILAE_LIBELLES = {
+    'hs': 'Heures écart (+/−)', 'cp': 'Congés payés', 'maladie': 'Maladie',
+    'absence': 'Absence injustifiée', 'recup': 'Récupération',
+    'sans_solde': 'Congé sans solde', 'maternite': 'Congé maternité',
+    'paternite': 'Congé paternité', 'evt_familial': 'Événement familial',
+    'enfant_malade': 'Enfant malade',
+}
+_LBL_TO_KEY = {
+    'Congés payés': 'cp', 'Récupération': 'recup', 'Maladie': 'maladie',
+    'Sans solde': 'sans_solde', 'Congé maternité': 'maternite',
+    'Congé paternité': 'paternite', 'Événement familial': 'evt_familial',
+    'Enfant malade': 'enfant_malade',
+}
+
+
+def _abs_key(r):
+    """Clé d'absence d'un jour posé (None si jour de travail plein)."""
+    t, note = r['x_type'], r.get('x_note') or ''
+    if t in ('cp', 'maladie', 'recup'):
+        if t == 'cp':
+            return 'cp', False
+        return t, False
+    if t == 'absence':
+        lbl = note.split(' approuvé')[0].split(' — ')[0].strip()
+        return _LBL_TO_KEY.get(lbl, 'absence'), False
+    if t == 'travail' and ' — ' in note and ('matin en congé' in note or 'après-midi en congé' in note):
+        lbl = note.split(' — ')[0].strip()
+        demi = 'Matin' if 'matin en congé' in note else 'Après-midi'
+        return _LBL_TO_KEY.get(lbl, 'absence'), demi
+    return None, False
+
+
+def build_silae(call, mois, comp='all'):
+    """Classeur EVP Silae : onglets EVP (matricule/code/valeur), Absences
+    (périodes datées) et Lisez-moi (codes + points de contrôle)."""
+    import json as _json
+    y, m = int(mois[:4]), int(mois[5:7])
+    d1 = date(y, m, 1)
+    d2 = (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
+    codes = dict(SILAE_CODES_DEFAUT)
+    brut = call('ir.config_parameter', 'get_param', 'maquignon.silae_codes')
+    if brut:
+        try:
+            codes.update({k: str(v) for k, v in _json.loads(brut).items()})
+        except Exception:
+            pass
+    dom = [('active', '=', True)]
+    if comp != 'all':
+        dom.append(('company_id', '=', int(comp)))
+    emps = call('hr.employee', 'search_read', dom,
+                fields=['name', 'company_id', 'resource_calendar_id', 'x_matricule_paie'],
+                order='company_id, name')
+    cal_ids = sorted(set(e['resource_calendar_id'][0] for e in emps if e['resource_calendar_id']))
+    cals = {c['id']: c for c in call('resource.calendar', 'read', cal_ids,
+            fields=['name', 'two_weeks_calendar', 'attendance_ids'])} if cal_ids else {}
+    att_ids = sorted(set(a for c in cals.values() for a in c['attendance_ids']))
+    atts = {a['id']: a for a in call('resource.calendar.attendance', 'read', att_ids,
+            fields=['dayofweek', 'hour_from', 'hour_to', 'day_period', 'week_type', 'display_type'])} if att_ids else {}
+    for c in cals.values():
+        c['attendance_ids'] = [atts[a] for a in c['attendance_ids'] if a in atts]
+    rows = call('x_heures_jour', 'search_read',
+                [('x_employee_id', 'in', [e['id'] for e in emps]),
+                 ('x_date', '>=', d1.strftime('%Y-%m-%d')),
+                 ('x_date', '<=', d2.strftime('%Y-%m-%d'))],
+                fields=['x_employee_id', 'x_date', 'x_type', 'x_heures', 'x_theo', 'x_note'])
+    by_emp = {}
+    for r in rows:
+        by_emp.setdefault(r['x_employee_id'][0], {})[r['x_date']] = r
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    FB = Font(name='Arial', size=10, bold=True)
+    F10 = Font(name='Arial', size=10)
+    HDR = Font(name='Arial', size=9.5, bold=True, color='FFFFFF')
+    FILL = PatternFill('solid', start_color='1F4E5F')
+    CTR = Alignment(horizontal='center')
+
+    ws = wb.create_sheet('EVP')
+    wa = wb.create_sheet('Absences')
+    for sheet, heads in ((ws, ['Matricule', 'Salarié', 'Code rubrique', 'Libellé', 'Valeur']),
+                         (wa, ['Matricule', 'Salarié', 'Code rubrique', 'Libellé', 'Du', 'Au', 'Jours', 'Demi-journée'])):
+        for j, h in enumerate(heads, 1):
+            c = sheet.cell(row=1, column=j, value=h); c.font = HDR; c.fill = FILL; c.alignment = CTR
+    sans_mat = []
+    re_ws, ra = 2, 2
+    for e in emps:
+        cal = cals.get(e['resource_calendar_id'][0]) if e['resource_calendar_id'] else None
+        saisies = by_emp.get(e['id'], {})
+        mat = e.get('x_matricule_paie') or ''
+        # heures d'écart du mois (jours travaillés uniquement)
+        hs = sum((s['x_heures'] - s['x_theo']) for s in saisies.values() if s['x_type'] == 'travail')
+        # jours d'absence (clé, demi) posés dans le mois
+        jours = {}
+        for dstr, s in saisies.items():
+            key, demi = _abs_key(s)
+            if key:
+                jours[dstr] = (key, demi)
+        if not jours and abs(hs) < 0.005:
+            continue
+        if not mat:
+            sans_mat.append(e['name'])
+        evp = {}
+        if abs(hs) >= 0.005:
+            evp['hs'] = round(hs, 2)
+        for key, demi in jours.values():
+            evp[key] = evp.get(key, 0) + (0.5 if demi else 1)
+        for key, val in sorted(evp.items()):
+            for j, v in enumerate([mat, e['name'], codes.get(key, key), SILAE_LIBELLES.get(key, key), val], 1):
+                c = ws.cell(row=re_ws, column=j, value=v); c.font = F10
+            re_ws += 1
+        # périodes d'absences : jours consécutifs de même clé (week-ends/jours
+        # sans horaire enjambés) ; les demi-journées restent des lignes seules
+        pleins = sorted(d for d, (k, demi) in jours.items() if not demi)
+        runs = []
+        for dstr in pleins:
+            key = jours[dstr][0]
+            d = datetime.strptime(dstr, '%Y-%m-%d').date()
+            if runs and runs[-1][0] == key:
+                prev_end = runs[-1][2]
+                gap_ok = True
+                g = prev_end + timedelta(days=1)
+                while g < d:
+                    if g.strftime('%Y-%m-%d') in jours or _theo_day(cal, g) > 0:
+                        gap_ok = False
+                        break
+                    g += timedelta(days=1)
+                if gap_ok:
+                    runs[-1] = (key, runs[-1][1], d, runs[-1][3] + 1)
+                    continue
+            runs.append((key, d, d, 1))
+        for dstr in sorted(d for d, (k, demi) in jours.items() if demi):
+            key, demi = jours[dstr]
+            d = datetime.strptime(dstr, '%Y-%m-%d').date()
+            runs.append((key, d, d, 0.5, demi))
+        for run in sorted(runs, key=lambda x: x[1]):
+            key, du, au, nb = run[0], run[1], run[2], run[3]
+            demi = run[4] if len(run) > 4 else ''
+            for j, v in enumerate([mat, e['name'], codes.get(key, key), SILAE_LIBELLES.get(key, key),
+                                   du.strftime('%d/%m/%Y'), au.strftime('%d/%m/%Y'), nb, demi], 1):
+                c = wa.cell(row=ra, column=j, value=v); c.font = F10
+            ra += 1
+    for sheet, widths in ((ws, [12, 26, 14, 22, 10]), (wa, [12, 26, 14, 22, 12, 12, 8, 12])):
+        for j, w in enumerate(widths, 1):
+            sheet.column_dimensions[chr(64 + j)].width = w
+    # lisez-moi
+    wl = wb.create_sheet('Lisez-moi')
+    lignes = [
+        f"Export Silae (éléments variables de paie) — {mois}",
+        "",
+        "Format STANDARD provisoire, à caler sur le modèle d'import EVP du",
+        "dossier Silae du cabinet (codes rubriques et disposition).",
+        "Les codes rubriques se changent SANS redéploiement : paramètre Odoo",
+        "« maquignon.silae_codes » (JSON, clés : " + ', '.join(sorted(SILAE_CODES_DEFAUT)) + ").",
+        "",
+        "Onglet EVP : une ligne par élément (matricule / code / valeur).",
+        "  - Heures écart = effectué − théorique des jours travaillés du mois",
+        "    (contrôle Charlotte avant import : peut être négatif).",
+        "  - Absences en jours (0,5 pour les demi-journées).",
+        "Onglet Absences : les mêmes absences par périodes datées, si le",
+        "dossier Silae importe les absences par dates plutôt qu'en compteurs.",
+        "",
+        "Codes utilisés dans ce fichier :",
+    ] + [f"  {codes.get(k, k)} = {SILAE_LIBELLES[k]}" for k in sorted(SILAE_CODES_DEFAUT)] + ([
+        "",
+        "⚠ Salariés SANS matricule (à renseigner sur ⏰ Horaires par défaut) :",
+    ] + [f"  - {n}" for n in sans_mat] if sans_mat else [])
+    for i, t in enumerate(lignes, 1):
+        c = wl.cell(row=i, column=1, value=t)
+        c.font = FB if i == 1 or t.startswith('⚠') else F10
+    wl.column_dimensions['A'].width = 78
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

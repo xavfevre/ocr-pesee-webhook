@@ -417,3 +417,83 @@ Testé en prod (Théo : +2 h ajoutées par token salarié → solde +2 h page
 et badge admin, suppression OK, mauvais token et 15 h rejetés ; Céline :
 récup du 30/07 antérieure à l'arrêté du 31/07 bien exclue, pas de solde
 fantôme ; script servi validé node --check).
+
+## Connexion aux congés natifs Odoo (12/08)
+Chaque jour d'absence posé sur le planning maintient désormais un congé
+natif **`hr.leave` validé** dans l'app Congés d'Odoo (compteurs natifs,
+calendrier, rapports). Démarrage de gestion : **01/08/2026** (pas de
+reprise d'historique antérieur, décision client).
+- **Mécanisme** : 2 automatisations `base.automation` sur `x_heures_jour`
+  (87/action 2073 création-écriture, 88/action 2074 suppression), lien
+  `hr.leave.x_hj_id`. Miroir jour par jour : pose → congé validé,
+  requalification → remplacement, suppression → retrait. Aucune
+  notification email générée (contextes mail neutralisés).
+- **Types** : CP (répartition **N-1 d'abord** puis N, convention paie),
+  Maladie → Sick Time Off, Récup → JOURS A RECUPERER, et types natifs
+  créés : Congé maternité (80), paternité (81), Événement familial (82),
+  Enfant malade (83), Absence injustifiée (84). « Congés sans solde » ne
+  requiert plus d'allocation. Le libellé est lu depuis la note du jour.
+- **Demi-journées** : congé natif 0,5 j (matin/après-midi). En Odoo 19
+  `request_unit_half`/`number_of_days` sont readonly ORM et la durée ne se
+  recalcule pas depuis la période → fixation SQL après création (0,5 j +
+  fenêtre horaire), vérifiée persistante après validation. Les congés à
+  horaires précis (rares) ne sont pas reflétés nativement.
+- **Échecs loggés, jamais bloquants** : si Odoo refuse le congé natif
+  (ex. aucune attribution CP), le planning fonctionne quand même et
+  l'échec est tracé dans `ir.logging` (name `conges_natifs`).
+- **Rattrapage août fait** : Céline (7 j N-1 + 8 j N + ½ récup), Delphine
+  (10 j N-1). **BERROYER et Isabelle MAQUIGNON : allocations à 0 j** →
+  miroir refusé par Odoo ; la saisie de leurs CP acquis (page Horaires)
+  **relance automatiquement** le miroir des jours d'août en attente
+  (resync intégré à l'action 2021, testé).
+
+## Matricule paie (12/08)
+Champ dédié **`x_matricule_paie`** sur la fiche employé. Les champs natifs
+étaient inutilisables : `registration_number` n'existe pas sans le module
+Paie, et `identification_id` contient déjà des numéros (sécurité sociale /
+pièces d'identité) pour 7 salariés — un test l'a confirmé avant bascule,
+aucune donnée écrasée (vérifié au chatter).
+- **Saisie** : page ⏰ Horaires par défaut, champ « 🆔 matricule » à côté du
+  nom, enregistré par le bouton Enregistrer (action 2021, clé `matricule` ;
+  champ vidé = matricule effacé).
+- **Export paie** : titre de l'onglet salarié (« HEURES — NOM — matricule
+  X ») + colonne « Matricule » en tête du récap mensuel (actif après
+  déploiement Render).
+
+## Récup dans l'export paie + alerte hebdo (12/08)
+- **Export paie** : 3 colonnes ajoutées au récap mensuel — « H. mises en
+  récup » (lignes du mois), « H. récupérées » (jours et demi-jours récup
+  du mois, en heures), « Solde récup (h) » (arrêté bureau + mises −
+  récupérées, **borné à la fin du mois exporté** — un mouvement de
+  septembre n'entre pas dans l'export d'août). Actif après déploiement
+  Render.
+- **Alerte hebdo** : cron **124** (lundis matin) — si des salariés ont mis
+  des heures en récup dans les 7 derniers jours, email récapitulatif au
+  bureau (salarié, date, heures, note). Pas d'email si rien. Destinataire :
+  `ir.config_parameter maquignon.recup_alerte_email`
+  (isabelle@maquignon.com). Testé en réel (mail « sent »).
+
+## Écart : les jours d'absence posés ne comptent plus (12/08)
+Une semaine 100 % CP affichait « Écart −36 h » : le théorique comptait les
+jours posés en congé comme des heures à faire. Corrigé partout — bandeau
+de /mes-heures (JS), ligne « Théorique/Écart » de /heures-admin, récap de
+l'export paie : le théorique de l'écart = **théo figé des jours travail**
+(demi-journées gérées) **+ calendrier des jours vides** ; les jours typés
+CP/maladie/férié/absence/récup comptent 0. Vérifié : semaine CP de Céline
+→ écart +0,00 ; export août → écart −9 h (= lundi 31/08 non saisi (8 h)
++ 1 h manquante le 05/08), au lieu de −189 h.
+
+## Export Silae — EVP standard provisoire (12/08)
+Bouton **« ⬇ Export Silae (EVP) »** sur /heures-admin (même clé que
+l'export paie, `format=silae` sur la route Render `/export-heures`).
+Classeur 3 onglets :
+- **EVP** : une ligne par élément — Matricule / Salarié / Code rubrique /
+  Libellé / Valeur. Heures écart du mois (± ; contrôle Charlotte avant
+  import) + absences en jours (0,5 pour les demi-journées).
+- **Absences** : les mêmes absences par **périodes datées** (Du/Au, jours,
+  demi-journée), week-ends enjambés — si le dossier Silae importe par dates.
+- **Lisez-moi** : codes utilisés + liste des salariés **sans matricule**.
+Codes rubriques par défaut (HS, ABCP, ABMA, ABNJ, ABRC, ABSS, ABMT, ABPT,
+ABEF, ABEM) **modifiables sans redéploiement** : paramètre Odoo
+`maquignon.silae_codes` (JSON). Format à caler sur le modèle d'import EVP
+du dossier Silae au retour de Charlotte. Actif après déploiement Render.

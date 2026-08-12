@@ -76,6 +76,7 @@
         </t>
         <t t-set="xk" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_key') or ''"/>
         <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
+        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;comp={{compp}}&amp;k={{xk}}&amp;format=silae" target="_blank" title="Éléments variables de paie pour Silae — format standard provisoire, codes rubriques ajustables (paramètre maquignon.silae_codes)">⬇ Export Silae (EVP)</a>
         <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
         <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;">
           <span style="font-weight:800;font-size:12.5px;color:#334155;" t-att-title="'Les salariés ne peuvent plus modifier leurs heures jusqu\'à cette date incluse (le bureau reste libre)'">
@@ -113,8 +114,10 @@
               <t t-set="tad" t-value="min([a.hour_from for a in aft]) if aft else 0"/>
               <t t-set="taf" t-value="max([a.hour_to for a in aft]) if aft else 0"/>
               <t t-set="theo" t-value="(tmf - tmd) + (taf - tad)"/>
-              <t t-set="wtheo" t-value="wtheo + theo"/>
               <t t-set="s" t-value="sk.get((e.id, dstr))"/>
+              <!-- écart : les jours posés en congé/maladie/férié/absence/récup ne comptent
+                   pas dans le théorique ; jour travail = théo figé (demi-journées gérées) -->
+              <t t-set="wtheo" t-value="wtheo + (s.x_theo if (s and s.x_type == 'travail') else (0.0 if s else theo))"/>
               <t t-set="wtot" t-value="wtot + (s.x_heures if (s and s.x_type == 'travail') else 0.0)"/>
               <t t-set="miss" t-value="not s and theo &gt; 0 and d &lt;= today"/>
               <td>
