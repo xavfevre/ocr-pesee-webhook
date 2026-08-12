@@ -126,7 +126,16 @@
 
     <t t-set="alerte_emails" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.parc_alerte_email') or ''"/>
 
-    <div class="pc-wrap">
+    <t t-set="interne" t-value="request.env.user.has_group('base.group_user')"/>
+    <t t-if="not interne">
+      <div style="max-width:460px;margin:60px auto;background:#fff;border-radius:14px;padding:30px;text-align:center;box-shadow:0 1px 5px rgba(0,0,0,.09);font-family:'Segoe UI',sans-serif;">
+        <div style="font-size:44px;">🔒</div>
+        <h4 style="font-weight:800;">Connexion requise</h4>
+        <div style="color:#64748b;margin-bottom:16px;">Le planning des contrôles est réservé aux utilisateurs Odoo de l'entreprise. Connectez-vous puis revenez sur cette page.</div>
+        <a href="/web/login?redirect=%2Fparc-controles" style="display:inline-block;background:#0f172a;color:#fff;border-radius:10px;padding:11px 22px;font-weight:800;text-decoration:none;">Se connecter</a>
+      </div>
+    </t>
+    <div t-if="interne" class="pc-wrap">
       <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:800;color:#15324f;font-size:24px;">🚛 Parc automobile — Contrôles obligatoires</h3>
 
       <div class="pc-topbar" style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:8px 16px;">
@@ -213,7 +222,7 @@
                     <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
                     <t t-set="etat" t-value="'vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok'))"/>
                     <td>
-                      <button type="button" t-attf-class="pc-cell {{'cv' if r.x_cv_limite else etat}}" t-att-data-id="r.id" t-att-data-veh="v.name" t-att-data-vehid="v.id" t-att-data-type="ty.x_name" t-att-data-mois="ty.x_periodicite_mois" t-att-data-date="dd or ''" t-att-data-cv="r.x_cv_limite or ''" t-att-data-combo="(v.x_attelage_id.license_plate or veh_short(v.x_attelage_id.name)) if (v.x_attelage_id and ty.id in by_veh.get(v.x_attelage_id.id, {})) else ''">
+                      <button type="button" t-attf-class="pc-cell {{'cv' if r.x_cv_limite else etat}}" t-att-data-id="r.id" t-att-data-veh="v.name" t-att-data-vehid="v.id" t-att-data-type="ty.x_name" t-att-data-mois="ty.x_periodicite_mois" t-att-data-date="dd or ''" t-att-data-cv="r.x_cv_limite or ''" t-att-data-combo="(v.x_attelage_id.license_plate or veh_short(v.x_attelage_id.name)) if (v.x_attelage_id and ty.id in by_veh.get(v.x_attelage_id.id, {})) else ''" t-att-data-attelid="(v.x_attelage_id and v.x_attelage_id.id) or ''" t-att-data-attelname="(v.x_attelage_id and (v.x_attelage_id.license_plate or veh_short(v.x_attelage_id.name))) or ''">
                         <t t-if="r.x_cv_limite">
                           ⚠ CONTRE-VISITE<br/>avant <t t-esc="r.x_cv_limite.strftime('%d/%m/%y')"/>
                         </t>
@@ -342,6 +351,7 @@
       </t>
     </div>
 
+    <t t-if="interne">
     <select id="pcAttSrcRem" style="display:none;">
       <t t-foreach="vehicules" t-as="vv"><t t-if="veh_cat.get(vv.id) == 'remorque'"><option t-att-value="vv.id"><t t-esc="veh_short(vv.name)"/> · <t t-esc="vv.license_plate or ''"/></option></t></t>
     </select>
@@ -389,7 +399,7 @@
         </div>
 
         <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:12px;">
-          <div style="font-weight:800;color:#334155;margin-bottom:6px;">📎 Documents du véhicule</div>
+          <div style="font-weight:800;color:#334155;margin-bottom:6px;" id="pcDocTitle">📎 Documents du véhicule</div>
           <div id="pcDocList" style="font-size:12.5px;margin-bottom:8px;color:#64748b;">…</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="file" id="pcDocFile" style="flex:1;font-size:12px;margin:0;border:none;padding:0;"/>
@@ -408,7 +418,7 @@
     <script>
       (function(){
         var pop = document.getElementById('pcPop');
-        var curId = null, curMois = 0, curVehId = null;
+        var curId = null, curMois = 0, curVehId = null, curAttelId = null, curAttelName = '';
         function rpc(model, method, args, kwargs){
           return fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:kwargs || {}}})
@@ -420,7 +430,10 @@
         function loadDocs(){
           var box = document.getElementById('pcDocList');
           box.textContent = 'Chargement…';
-          rpc('ir.attachment', 'search_read', [[['res_model','=','fleet.vehicle'],['res_id','=',parseInt(curVehId,10)]]], {fields:['id','name'], order:'id desc', limit:15}).then(function(res){
+          var ids = [parseInt(curVehId,10)];
+          if(curAttelId){ ids.push(parseInt(curAttelId,10)); }
+          document.getElementById('pcDocTitle').textContent = curAttelId ? ('📎 Documents de l\'attelage complet (véhicule + ' + curAttelName + ')') : '📎 Documents du véhicule';
+          rpc('ir.attachment', 'search_read', [[['res_model','=','fleet.vehicle'],['res_id','in',ids]]], {fields:['id','name','res_id'], order:'id desc', limit:25}).then(function(res){
             box.textContent = '';
             if(!res.length){ box.textContent = 'Aucun document.'; return; }
             res.forEach(function(a){
@@ -432,6 +445,12 @@
               link.textContent = a.name;
               d.appendChild(document.createTextNode('📄 '));
               d.appendChild(link);
+              if(curAttelId &amp;&amp; a.res_id === parseInt(curAttelId,10)){
+                var tag = document.createElement('span');
+                tag.style.cssText = 'color:#1e40af;font-weight:800;font-size:11px;margin-left:6px;background:#eff6ff;border-radius:6px;padding:1px 6px;';
+                tag.textContent = '🔗 ' + curAttelName;
+                d.appendChild(tag);
+              }
               box.appendChild(d);
             });
           }).catch(function(){ box.textContent = 'Erreur de chargement.'; });
@@ -450,6 +469,8 @@
         function openPop(btn){
           curId = btn.getAttribute('data-id');
           curVehId = btn.getAttribute('data-vehid');
+          curAttelId = btn.getAttribute('data-attelid') || null;
+          curAttelName = btn.getAttribute('data-attelname') || '';
           curMois = parseInt(btn.getAttribute('data-mois'), 10) || 0;
           document.getElementById('pcPopVeh').textContent = btn.getAttribute('data-veh');
           document.getElementById('pcPopType').textContent = btn.getAttribute('data-type') + ' — périodicité ' + btn.getAttribute('data-mois') + ' mois';
@@ -575,5 +596,6 @@
         }); }
       })();
     </script>
+    </t>
   </t>
 </t>
