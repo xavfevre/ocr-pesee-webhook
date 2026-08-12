@@ -66,3 +66,11 @@ son prix. Les anciens items « modèle » restent affichés sur toutes les
 variantes du modèle (comportement Odoo normal) et peuvent être supprimés
 depuis la page (✎). Testé : deux variantes du même modèle à 111 € et
 222 € (validité passée), affichées chacune sur sa ligne, puis supprimées.
+
+## Unités affichées selon la variante (12/08)
+« 100 € / Hours » pour un Transfert (Heure), « 50 € / Tonne » pour un
+Forfait… : l'unité affichée était l'UdM du produit. Même logique que le
+champ UdF : le libellé de variante — (Tonne), (Forfait…), (Heure),
+(au Tour), (par jours), (… à l'unité) — prime pour l'affichage (colonnes
+de prix, modales, évolution, export), avec traduction Hours→Heure,
+Unit→Unité à défaut.
