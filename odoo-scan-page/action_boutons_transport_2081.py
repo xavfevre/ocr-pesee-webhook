@@ -55,7 +55,7 @@ tasks = env['project.task'].sudo().search([
     ('planned_date_begin', '>=', du + ' 00:00:00'),
     ('planned_date_begin', '<=', au + ' 23:59:59'),
 ], order='planned_date_begin')
-faits, deja, annulees, sans_bon, a_verifier = [], 0, 0, [], []
+faits, deja, annulees, sans_bon, a_verifier, futurs = [], 0, 0, [], [], 0
 for t in tasks:
     st = (t.stage_id.name or '').lower()
     if 'annul' in st or 'cancel' in st:
@@ -63,6 +63,10 @@ for t in tasks:
         continue
     if t.sale_order_id or t.sale_line_id:
         deja += 1
+        continue
+    if t.planned_date_begin and t.planned_date_begin > datetime.datetime.now():
+        # transport pas encore realise : pas de bon de pesee, on attend
+        futurs += 1
         continue
     nom_n = _norm(t.name or '')
     lignes = list(R['lignes'])
@@ -95,6 +99,9 @@ for t in tasks:
         'partner_id': t.partner_id.id,
         'company_id': t.company_id.id,
         'origin': t.name,
+        # date du BC = date du transport : les validites de tarifs (listes de
+        # prix datees) s'appliquent au jour de la prestation, pas au jour du clic
+        'date_order': t.planned_date_begin,
     })
     for pid, qmode, libcli in lignes:
         qte = poids_t if (qmode == 'poids' and poids_t) else 1
@@ -103,7 +110,16 @@ for t in tasks:
             vals['x_studio_libell_client'] = libcli
         env['sale.order.line'].sudo().create(vals)
     so.action_confirm()
+    if t.planned_date_begin:
+        # action_confirm remet la date du jour : on recale sur la date du
+        # transport pour que les tarifs dates s'appliquent au bon jour
+        so.write({'date_order': t.planned_date_begin})
     t.write({'sale_order_id': so.id})
+    for l0 in so.order_line:
+        if not l0.display_type and not l0.price_unit:
+            # forfaits de livraison & co : prix a poser a la main
+            a_verifier.append('%s (%s) : prix a saisir (ligne a 0)' % ((t.name or '').strip()[:40], so.name))
+            break
     if ws and (ws.x_studio_numero_bon or ws.x_studio_client_pesee or ws.x_studio_vehicule):
         poids_str = ('%s T' % poids_t) if poids_t else 'Poids N/A'
         parts = ['Bon n°%s' % (ws.x_studio_numero_bon or ''), '%s' % (ws.x_studio_date_bon or '')]
@@ -138,5 +154,5 @@ for t in tasks:
         a_verifier.append('%s (%s) : pas de poids sur le bon — quantité laissée à 1' % ((t.name or '').strip()[:40], so.name))
     faits.append(so.name)
 action = {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
-          'annulees': annulees, 'sans_bon': sans_bon[:40], 'a_verifier': a_verifier[:40]}
+          'annulees': annulees, 'sans_bon': sans_bon[:40], 'a_verifier': a_verifier[:40], 'futurs': futurs}
 

@@ -30,10 +30,17 @@ for t in tasks:
     if t.sale_order_id or t.sale_line_id:
         deja += 1
         continue
+    if t.planned_date_begin and t.planned_date_begin > datetime.datetime.now():
+        # transport pas encore realise : pas de bon de pesee, on attend
+        futurs += 1
+        continue
     so = env['sale.order'].sudo().create({
         'partner_id': t.partner_id.id,
         'company_id': t.company_id.id,
         'origin': t.name,
+        # date du BC = date du transport : les validites de tarifs (listes de
+        # prix datees) s'appliquent au jour de la prestation, pas au jour du clic
+        'date_order': t.planned_date_begin,
     })
     env['sale.order.line'].sudo().create({
         'order_id': so.id,
@@ -42,6 +49,10 @@ for t in tasks:
         'task_id': t.id,
     })
     so.action_confirm()
+    if t.planned_date_begin:
+        # action_confirm remet la date du jour : on recale sur la date du
+        # transport pour que les tarifs dates s'appliquent au bon jour
+        so.write({'date_order': t.planned_date_begin})
     t.write({'sale_order_id': so.id})
     ws = env['x_project_task_worksheet_template_1'].sudo().search(
         [('x_project_task_id', '=', t.id)], limit=1, order='create_date desc')
@@ -63,5 +74,5 @@ for t in tasks:
         sans_bon.append('%s (%s)' % (t.name or t.id, so.name))
     faits.append(so.name)
 action = {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
-          'annulees': annulees, 'sans_bon': sans_bon[:40]}
+          'annulees': annulees, 'sans_bon': sans_bon[:40], 'futurs': futurs}
 
