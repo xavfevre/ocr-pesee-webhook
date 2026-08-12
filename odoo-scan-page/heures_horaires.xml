@@ -10,7 +10,9 @@
       .hh-soc{font-weight:900;color:#334155;margin:16px 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;}
       .hh-emp{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 14px;margin-bottom:7px;}
       .hh-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
-      .hh-top &gt; div:first-child{flex:1 1 auto;}
+      /* la colonne nom/étiquettes replie son contenu au lieu de pousser
+         le bloc CP et le bouton Modifier à la ligne */
+      .hh-top &gt; div:first-child{flex:1 1 0;min-width:290px;}
       .hh-sched{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px;align-items:stretch;}
       .hh-day{background:#f1f5f9;border-radius:7px;padding:3px 8px;font-size:10.5px;font-weight:700;color:#334155;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.25;min-width:56px;}
       .hh-day b{font-size:11px;color:#0f172a;}
@@ -81,12 +83,14 @@
                 🕐 <input type="number" step="0.01" min="0" max="300" class="hh-cm" t-att-value="('%g' % e.x_contrat_mensuel) if e.x_contrat_mensuel else ''" placeholder="auto" title="Contrat mensuel en heures (ex. chauffeurs : 190). Vide = calcul automatique hebdo × 52 ÷ 12. Enregistré avec le bouton Enregistrer" style="width:58px;border:1.5px solid #cbd5e1;border-radius:7px;padding:2px 6px;font-weight:800;font-size:11.5px;text-align:center;"/> h/mois</span>
                 <span class="hh-tag" t-esc="cal.name if cal else 'sans horaire'"/>
                 <span t-if="cal and cal.two_weeks_calendar" class="hh-tag two">cycle 2 semaines</span>
-                <!-- étiquettes employé (kanban Odoo) — palette par index couleur Odoo, Intérimaire mis en avant -->
-                <t t-set="etqcol" t-value="{0:('#f1f5f9','#475569'),1:('#fee2e2','#b91c1c'),2:('#ffedd5','#c2410c'),3:('#fef9c3','#a16207'),4:('#e0f2fe','#075985'),5:('#f3e8ff','#7e22ce'),6:('#fce7f3','#be185d'),7:('#ccfbf1','#0f766e'),8:('#dbeafe','#1d4ed8'),9:('#fce7f3','#9d174d'),10:('#dcfce7','#15803d'),11:('#e0e7ff','#4338ca')}"/>
-                <t t-foreach="e.category_ids" t-as="etq">
-                  <t t-set="ec" t-value="etqcol.get(etq.color or 0, etqcol[0])"/>
-                  <span t-attf-style="display:inline-block;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:800;margin-left:4px;background:{{'#fecdd3' if 'nterim' in (etq.name or '') else ec[0]}};color:{{'#9f1239' if 'nterim' in (etq.name or '') else ec[1]}};{{'border:1px solid #fb7185;' if 'nterim' in (etq.name or '') else ''}}" t-esc="etq.name"/>
-                </t>
+                <!-- étiquettes employé (kanban Odoo) : toujours sur leur propre ligne sous le nom -->
+                <div t-if="e.category_ids" style="margin-top:3px;">
+                  <t t-set="etqcol" t-value="{0:('#f1f5f9','#475569'),1:('#fee2e2','#b91c1c'),2:('#ffedd5','#c2410c'),3:('#fef9c3','#a16207'),4:('#e0f2fe','#075985'),5:('#f3e8ff','#7e22ce'),6:('#fce7f3','#be185d'),7:('#ccfbf1','#0f766e'),8:('#dbeafe','#1d4ed8'),9:('#fce7f3','#9d174d'),10:('#dcfce7','#15803d'),11:('#e0e7ff','#4338ca')}"/>
+                  <t t-foreach="e.category_ids" t-as="etq">
+                    <t t-set="ec" t-value="etqcol.get(etq.color or 0, etqcol[0])"/>
+                    <span t-attf-style="display:inline-block;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:800;margin-right:4px;background:{{'#fecdd3' if 'nterim' in (etq.name or '') else ec[0]}};color:{{'#9f1239' if 'nterim' in (etq.name or '') else ec[1]}};{{'border:1px solid #fb7185;' if 'nterim' in (etq.name or '') else ''}}" t-esc="etq.name"/>
+                  </t>
+                </div>
                 <t t-set="totB" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if not a.display_type and a.week_type == '1']) if (cal and cal.two_weeks_calendar) else 0"/>
                 <!-- contrat mensuel : le champ saisi (chauffeurs 190 h…) prime sur hebdo × 52/12 -->
                 <t t-set="mensuel_calc" t-value="(((tot + totB) / 2) if (cal and cal.two_weeks_calendar) else tot) * 52 / 12"/>
