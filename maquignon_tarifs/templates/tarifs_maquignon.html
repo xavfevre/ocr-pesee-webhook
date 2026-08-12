@@ -170,16 +170,16 @@
           {% if r.specific %}<span class="badge spec">Spécifique</span>{% endif %}
           {% if r.hist %}<span class="badge hist">{{ r.hist|length }} fact.</span>{% endif %}
         </td>
-        <td class="num">{{ "%.2f"|format(r.std)|replace(".", ",") }} €</td>
-        <td class="num">{% if r.cli_price is not none %}<b>{{ "%.2f"|format(r.cli_price)|replace(".", ",") }} €</b>{% else %}—{% endif %}</td>
+        <td class="num">{{ "%.2f"|format(r.std)|replace(".", ",") }} €{% if r.uom %} <span class="code">/ {{ r.uom }}</span>{% endif %}</td>
+        <td class="num">{% if r.cli_price is not none %}<b>{{ "%.2f"|format(r.cli_price)|replace(".", ",") }} €</b>{% if r.uom %} <span class="code">/ {{ r.uom }}</span>{% endif %}{% else %}—{% endif %}</td>
         <td class="num">{% if r.ecart is not none %}<span class="{{ 'ecart-moins' if r.ecart < 0 else 'ecart-plus' }}">{{ '%+.1f'|format(r.ecart)|replace('.', ',') }} %</span>{% endif %}</td>
         <td><span class="validity">{{ r.validity }}</span></td>
         <td onclick="event.stopPropagation();" style="white-space:nowrap;">
           <button type="button" class="btn-add" data-tmpl="{{ r.tmpl }}"
-                  data-name="{{ r.name }}" onclick="openModalBtn(this)">＋ Tarif</button>
+                  data-name="{{ r.name }}" data-uom="{{ r.uom }}" onclick="openModalBtn(this)">＋ Tarif</button>
           {% if r.items_edit %}
           <button type="button" class="btn-add" data-vid="{{ r.vid }}"
-                  data-name="{{ r.name }}" onclick="openEditBtn(this)"
+                  data-name="{{ r.name }}" data-uom="{{ r.uom }}" onclick="openEditBtn(this)"
                   title="Modifier ou supprimer le tarif spécifique">✎</button>
           {% endif %}
         </td>
@@ -219,7 +219,7 @@
         {% for r in evo_rows %}
         <tr class="evo{{ ' spec' if r.specific }}" data-name="{{ (r.name ~ ' ' ~ r.code)|lower }}"
             data-cat="{{ r.categ }}" data-spec="{{ 1 if r.specific else 0 }}" data-fact="1">
-          <td><div>{{ r.name }}</div><div class="code">{{ r.code }}</div></td>
+          <td><div>{{ r.name }}</div><div class="code">{{ r.code }}{% if r.uom %} · € / {{ r.uom }}{% endif %}</div></td>
           {% for cell in r.cells %}
           <td class="num">
             {% if cell.tarif is not none %}<span class="tarif-cell">{{ "%.2f"|format(cell.tarif)|replace(".", ",") }}</span>
@@ -260,7 +260,7 @@
     {% endif %}
     <input type="hidden" name="tmpl" id="m-tmpl"/>
     <div class="fld">
-      <label>Prix HT (€)</label>
+      <label id="m-prix-lbl">Prix HT (€)</label>
       <input type="text" name="prix" id="m-prix" inputmode="decimal" required autocomplete="off"/>
     </div>
     <div class="row2">
@@ -286,7 +286,7 @@
       <select id="e-sel" style="width:100%; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-family:inherit;"></select>
     </div>
     <div class="fld">
-      <label>Prix HT (€)</label>
+      <label id="e-prix-lbl">Prix HT (€)</label>
       <input type="text" name="prix" id="e-prix" inputmode="decimal" required autocomplete="off"/>
     </div>
     <div class="row2">
@@ -361,6 +361,7 @@ function toggleHist(vid) {
 function openModalBtn(btn) {
   document.getElementById('m-tmpl').value = btn.dataset.tmpl;
   document.getElementById('m-prod').textContent = btn.dataset.name;
+  document.getElementById('m-prix-lbl').textContent = btn.dataset.uom ? 'Prix HT (€ / ' + btn.dataset.uom + ')' : 'Prix HT (€)';
   document.getElementById('m-prix').value = '';
   document.getElementById('overlay').classList.add('show');
   document.getElementById('m-prix').focus();
@@ -377,6 +378,7 @@ function openEditBtn(btn) {
   var items = EDIT_ITEMS[btn.dataset.vid] || [];
   if (!items.length) { return; }
   document.getElementById('e-prod').textContent = btn.dataset.name;
+  document.getElementById('e-prix-lbl').textContent = btn.dataset.uom ? 'Prix HT (€ / ' + btn.dataset.uom + ')' : 'Prix HT (€)';
   var sel = document.getElementById('e-sel');
   sel.innerHTML = '';
   items.forEach(function (it, i) {
