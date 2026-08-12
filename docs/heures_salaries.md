@@ -385,3 +385,29 @@ sur `hr.employee`.
 Testé en prod sur MAQUIGNON Théo (saisie 27,5 + 10 au 31/07/2026 ; CP test
 posé au 15/07 non déduit, CP test au 10/08 déduit, compteur période
 inchangé ; lignes de test supprimées).
+
+## Récup : saisie salarié, unités et détail (12/08)
+- **Modèle `x_recup_ligne`** (salarié, date, heures, note) : mouvements
+  d'heures **mises en récup** par le salarié lui-même.
+- **Page /mes-heures, carte « 🔄 Mettre des heures en récup »** : date
+  (≤ aujourd'hui), heures (0,25 à 12), note facultative → action 2012
+  étendue (`recup_add`, token salarié ou clé bureau, via le relais déjà
+  autorisé). Liste des dernières lignes avec 🗑 (suppression par le
+  salarié de ses propres lignes, `recup_del`).
+- **Solde affiché** = arrêté bureau (`x_recup_solde`, à la date de
+  référence `x_cp_ref_date`) **+ heures mises** (lignes après la date)
+  **− heures récupérées** (jours posés type récup → `x_theo` ; demi-jours
+  récup → partie non travaillée calculée depuis l'horaire du jour), avec
+  le détail du calcul en dessous. Masqué tant que le bureau n'a rien
+  arrêté et que le salarié n'a rien saisi (pas de faux « −7 h »).
+- **Badge /heures-admin** : même solde calculé (détail dans l'infobulle).
+- **Tuiles Mes congés** : unités affichées (« 31 j », « sur 35 j
+  acquis »…) ; tuile Récups → « Récups pris X j · soit Y h ».
+- **Couleurs** : la tuile CP restants passe du vert à l'**ambre** (couleur
+  des CP partout : planning, cases, demi-journées) — le **vert reste
+  réservé aux jours travaillés** du planning. Récup bleu ciel, maladie
+  rouge : inchangés et cohérents.
+Testé en prod (Théo : +2 h ajoutées par token salarié → solde +2 h page
+et badge admin, suppression OK, mauvais token et 15 h rejetés ; Céline :
+récup du 30/07 antérieure à l'arrêté du 31/07 bien exclue, pas de solde
+fantôme ; script servi validé node --check).
