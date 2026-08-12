@@ -2,6 +2,7 @@
   <t t-call="website.layout">
     <t t-set="today" t-value="datetime.date.today()"/>
     <t t-set="selected_cat" t-value="request.params.get('cat', '')"/>
+    <t t-set="cats" t-value="[c for c in selected_cat.split(',') if c]"/>
     <t t-set="selected_etat" t-value="request.params.get('etat', '')"/>
     <t t-set="vue" t-value="request.params.get('vue', 'tableau')"/>
 
@@ -29,7 +30,7 @@
     <!-- Échéances calculées (pour les vues calendaires), filtrées par catégorie/état -->
     <t t-set="echeances" t-value="[]"/>
     <t t-foreach="rows" t-as="r">
-      <t t-if="not selected_cat or r.x_categorie == selected_cat">
+      <t t-if="not cats or r.x_categorie in cats">
         <t t-set="dd" t-value="derniere_date(r)"/>
         <t t-if="dd">
           <t t-set="ech" t-value="dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)"/>
@@ -133,7 +134,7 @@
       <div class="pc-topbar">
         <t t-set="all_states" t-value="[]"/>
         <t t-foreach="rows" t-as="r">
-          <t t-if="not selected_cat or r.x_categorie == selected_cat">
+          <t t-if="not cats or r.x_categorie in cats">
           <t t-set="dd" t-value="derniere_date(r)"/>
           <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
           <t t-set="_x" t-value="all_states.append('vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')))"/>
@@ -146,9 +147,10 @@
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{'' if selected_etat == 'vide' else 'vide'}}" t-attf-class="pc-kpi vide {{'on' if selected_etat == 'vide' else ''}}" style="text-decoration:none;">? À renseigner <b><t t-esc="all_states.count('vide')"/></b></a>
         </div>
         <div class="pc-filters">
-          <a t-attf-href="/parc-controles?etat={{selected_etat}}&amp;vue={{vue}}" t-attf-class="{{'on' if not selected_cat else ''}}">Toutes catégories</a>
+          <a t-attf-href="/parc-controles?etat={{selected_etat}}&amp;vue={{vue}}" t-attf-class="{{'on' if not cats else ''}}">Toutes catégories</a>
           <t t-foreach="[('vp','Voitures'),('vul','Utilitaires'),('pl_porteur','Camions porteurs'),('pl_tracteur','Tracteurs routiers'),('remorque','Remorques'),('terrassement','Engins de terrassement'),('levage','Levage (chariots/télescopiques)')]" t-as="cc">
-            <a t-attf-href="/parc-controles?cat={{cc[0]}}&amp;etat={{selected_etat}}&amp;vue={{vue}}" t-attf-class="{{'on' if selected_cat == cc[0] else ''}}" t-esc="cc[1]"/>
+            <t t-set="cc_new" t-value="','.join([c for c in cats if c != cc[0]] if cc[0] in cats else cats + [cc[0]])"/>
+            <a t-attf-href="/parc-controles?cat={{cc_new}}&amp;etat={{selected_etat}}&amp;vue={{vue}}" t-attf-class="{{'on' if cc[0] in cats else ''}}" t-esc="cc[1]"/>
           </t>
         </div>
         <div class="pc-viewnav">
@@ -175,7 +177,7 @@
             <t t-set="vrows" t-value="by_veh.get(v.id, {})"/>
             <t t-if="vrows">
               <t t-set="vcat" t-value="list(vrows.values())[0].x_categorie"/>
-              <t t-if="not selected_cat or vcat == selected_cat">
+              <t t-if="not cats or vcat in cats">
               <t t-set="vstates" t-value="[]"/>
               <t t-foreach="types" t-as="ty">
                 <t t-if="ty.id in vrows">
