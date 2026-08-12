@@ -66,6 +66,19 @@ def _check_token():
         abort(403)
 
 
+def _uom_affichee(display_name, uom_name):
+    """Unité affichée : le libellé de variante — (Tonne), (Forfait…), (Heure),
+    (au Tour), (par jours), (… à l'unité) — prime sur l'unité de mesure du
+    produit (même logique que le champ UdF des lignes de commande)."""
+    n = (display_name or '').lower()
+    for motif, u in (('(tonne', 'Tonne'), ('(forfait', 'Forfait'), ('(heure', 'Heure'),
+                     ('au tour)', 'Tour'), ('par jours)', 'jour'), ('par jour)', 'jour'),
+                     ("à l'unité)", 'Unité')):
+        if motif in n:
+            return u
+    return {'Hours': 'Heure', 'Unit': 'Unité', 'Units': 'Unité'}.get(uom_name, uom_name)
+
+
 def _defaut_pl_map():
     """{société: liste de prix de référence} — paramètre JSON, avec défauts."""
     import json
@@ -307,7 +320,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
             "vid": vid, "tmpl": tid, "name": p["display_name"],
             "code": p["default_code"] or "",
             "categ": p["categ_id"][1] if p.get("categ_id") else "Autre",
-            "uom": p["uom_id"][1] if p.get("uom_id") else "",
+            "uom": _uom_affichee(p["display_name"], p["uom_id"][1] if p.get("uom_id") else ""),
             "std": std,
             "items_edit": items_edit,
             "specific": bool(items), "cli_price": cli_price, "validity": validity,
