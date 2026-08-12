@@ -4,7 +4,7 @@
       header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
       #wrapwrap &gt; main {padding-top:0 !important;}
       body{background:#f8fafc;}
-      .hh-wrap{max-width:1240px;margin:0 auto;padding:14px;}
+      .hh-wrap{max-width:1460px;margin:0 auto;padding:14px;}
       .hh-brand{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
       .hh-brand img{height:48px;max-width:160px;object-fit:contain;}
       .hh-soc{font-weight:900;color:#334155;margin:16px 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;}
@@ -18,6 +18,7 @@
       .hh-day.wk{background:#e0e7ff;color:#3730a3;min-width:44px;}
       .hh-cp{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:#334155;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:5px 9px;margin-left:auto;}
       .hh-cp input{width:64px;border:1.5px solid #cbd5e1;border-radius:7px;padding:4px 6px;font-weight:800;text-align:center;}
+      .hh-cp input.hh-cpd{width:118px;text-align:left;font-weight:700;}
       .hh-cpsave{background:#166534;color:#fff;font-weight:800;font-size:12.5px;padding:6px 12px;border-radius:8px;white-space:nowrap;}
       .hh-name{font-weight:800;font-size:15px;color:#0f172a;}
       .hh-sum{font-size:12.5px;color:#64748b;font-weight:600;}
@@ -91,6 +92,8 @@
                 <input type="number" step="0.5" min="0" max="100" class="hh-cpn1" t-att-value="('%g' % cp_n1) if cp_n1 else ''" placeholder="—"/>
                 <span>🔄 Récup (h)</span>
                 <input type="number" step="0.25" min="-500" max="500" class="hh-recup" t-att-value="('%g' % e.x_recup_solde) if e.x_recup_solde else ''" placeholder="0" title="Solde d'heures à récupérer — peut être négatif"/>
+                <span>au</span>
+                <input type="date" class="hh-cpd" t-att-value="e.x_cp_ref_date.strftime('%Y-%m-%d') if e.x_cp_ref_date else datetime.date.today().strftime('%Y-%m-%d')" title="Date à laquelle les compteurs saisis sont arrêtés (ex. fin de mois de la fiche de paie) — les CP pris après cette date seront déduits du solde"/>
                 <button type="button" class="hh-b hh-cpsave" title="Enregistrer congés acquis et heures à récupérer">Enregistrer</button>
               </div>
               <button type="button" class="hh-edit">✏️ Modifier</button>
@@ -207,9 +210,10 @@
       var cardc = cps.closest('.hh-emp');
       var vn = cardc.querySelector('.hh-cpn').value, vn1 = cardc.querySelector('.hh-cpn1').value;
       var vr = cardc.querySelector('.hh-recup').value;
+      var vd = cardc.querySelector('.hh-cpd') ? cardc.querySelector('.hh-cpd').value : '';
       if(vn === '' &amp;&amp; vn1 === '' &amp;&amp; vr === ''){ alert('Saisissez au moins une valeur (CP N, N-1 ou heures à récupérer).'); return; }
       cps.disabled = true;
-      rpcAction(2021, {active_model:'hr.employee', cp_mode:1, emp_id:parseInt(cardc.getAttribute('data-emp'),10), cp_n:vn, cp_n1:vn1, recup_h:vr, hj_k:KK}).then(function(r){return r.json();}).then(function(d){
+      rpcAction(2021, {active_model:'hr.employee', cp_mode:1, emp_id:parseInt(cardc.getAttribute('data-emp'),10), cp_n:vn, cp_n1:vn1, recup_h:vr, cp_date:vd, hj_k:KK}).then(function(r){return r.json();}).then(function(d){
         cps.disabled = false;
         if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
         cps.textContent = '✓ Enregistré';

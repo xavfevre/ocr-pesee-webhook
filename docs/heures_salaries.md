@@ -362,3 +362,58 @@ mois (ex. 39 h/sem → 169 h/mois → 17,33 h sup).
 - **Export paie** : 3 nouvelles colonnes dans le récap mensuel de chaque
   onglet salarié : Contrat mensuel (h), Base légale (h), H. sup
   structurelles/mois (actif au prochain déploiement Render).
+
+## Date de référence des compteurs CP / récup (12/08)
+Les soldes saisis par le bureau (CP acquis N / N-1, heures à récupérer)
+sont des **arrêtés à une date** (typiquement la fin de mois de la dernière
+fiche de paie, ex. « à fin juillet 2026 »). Champ `x_cp_ref_date` (date)
+sur `hr.employee`.
+- **Saisie** : page ⏰ Horaires par défaut, champ date « au JJ/MM/AAAA » à
+  côté de Récup (h), prérempli avec la dernière date enregistrée (sinon
+  aujourd'hui). Enregistré par le même bouton (action 2021, clé `cp_date` ;
+  sans date fournie → date du jour).
+- **Calcul** : sur /mes-heures, « CP restants » = acquis − CP pris
+  **strictement après** la date de référence (les congés antérieurs sont
+  déjà intégrés dans le solde saisi — plus de double décompte). Le
+  compteur « CP pris » de la tuile reste le total de la période 01/06 →
+  aujourd'hui (informatif). Sans date de référence : comportement
+  inchangé (déduction depuis le 01/06).
+- **Affichage salarié** : ligne « Solde arrêté au 31/07/2026 — seuls les
+  CP pris après cette date sont déduits » sous le détail Acquis N/N-1.
+- L'acquisition automatique (2,5 j/mois, ancrée au 31/07/2026) s'ajoute
+  naturellement par-dessus le solde saisi à fin juillet — cohérent.
+Testé en prod sur MAQUIGNON Théo (saisie 27,5 + 10 au 31/07/2026 ; CP test
+posé au 15/07 non déduit, CP test au 10/08 déduit, compteur période
+inchangé ; lignes de test supprimées).
+
+## Récup : saisie salarié, unités et détail (12/08)
+- **Modèle `x_recup_ligne`** (salarié, date, heures, note) : mouvements
+  d'heures **mises en récup** par le salarié lui-même.
+- **Page /mes-heures, carte « 🔄 Mettre des heures en récup »** : date
+  (≤ aujourd'hui), heures (0,25 à 12), note facultative → action 2012
+  étendue (`recup_add`, token salarié ou clé bureau, via le relais déjà
+  autorisé). Liste des dernières lignes avec 🗑 (suppression par le
+  salarié de ses propres lignes, `recup_del`).
+- **Solde affiché** = arrêté bureau (`x_recup_solde`, à la date de
+  référence `x_cp_ref_date`) **+ heures mises** (lignes après la date)
+  **− heures récupérées** (jours posés type récup → `x_theo` ; demi-jours
+  récup → partie non travaillée calculée depuis l'horaire du jour), avec
+  le détail du calcul en dessous. Masqué tant que le bureau n'a rien
+  arrêté et que le salarié n'a rien saisi (pas de faux « −7 h »).
+- **Badge /heures-admin** : même solde calculé (détail dans l'infobulle).
+- **Verrou paie** : comme la saisie des heures, `recup_add`/`recup_del`
+  refusent toute date ≤ `maquignon.heures_verrou` pour un salarié (le
+  bureau, avec sa clé, n'est pas bloqué). Testé (verrou factice au 31/07 :
+  ajout au 15/07 rejeté, ajout au 11/08 accepté, paramètre restauré).
+- **Largeur page Horaires** : 1240 → 1460 px pour que le bouton
+  « Modifier » reste à droite malgré le champ date.
+- **Tuiles Mes congés** : unités affichées (« 31 j », « sur 35 j
+  acquis »…) ; tuile Récups → « Récups pris X j · soit Y h ».
+- **Couleurs** : la tuile CP restants passe du vert à l'**ambre** (couleur
+  des CP partout : planning, cases, demi-journées) — le **vert reste
+  réservé aux jours travaillés** du planning. Récup bleu ciel, maladie
+  rouge : inchangés et cohérents.
+Testé en prod (Théo : +2 h ajoutées par token salarié → solde +2 h page
+et badge admin, suppression OK, mauvais token et 15 h rejetés ; Céline :
+récup du 30/07 antérieure à l'arrêté du 31/07 bien exclue, pas de solde
+fantôme ; script servi validé node --check).

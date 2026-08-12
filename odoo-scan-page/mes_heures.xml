@@ -313,9 +313,18 @@
         <t t-set="per_start" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/>
         <t t-set="per_rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',per_start.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d'))])"/>
         <t t-set="n_cp" t-value="len(per_rows.filtered(lambda r: r.x_type == 'cp'))"/>
+        <t t-set="cp_ref" t-value="emp.x_cp_ref_date"/>
+        <t t-set="n_cp_deduit" t-value="len(per_rows.filtered(lambda r: r.x_type == 'cp' and (not cp_ref or r.x_date &gt; cp_ref)))"/>
         <t t-set="n_rec" t-value="len(per_rows.filtered(lambda r: r.x_type == 'recup'))"/>
         <t t-set="n_mal" t-value="len(per_rows.filtered(lambda r: r.x_type == 'maladie'))"/>
         <t t-set="n_abs" t-value="len(per_rows.filtered(lambda r: r.x_type == 'absence'))"/>
+        <!-- Récup : solde en heures = arrêté bureau + heures mises (x_recup_ligne) − heures récupérées (jours/demi-jours posés), après la date de référence -->
+        <t t-set="rl_all" t-value="request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',emp.id)], order='x_date desc, id desc')"/>
+        <t t-set="rl_add" t-value="sum(rl_all.filtered(lambda l: not cp_ref or l.x_date &gt; cp_ref).mapped('x_heures'))"/>
+        <t t-set="rec_h_full" t-value="sum(per_rows.filtered(lambda r: r.x_type == 'recup' and (not cp_ref or r.x_date &gt; cp_ref)).mapped('x_theo'))"/>
+        <t t-set="rec_h_part" t-value="sum([max((sum([(a.hour_to - a.hour_from) for a in emp.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not emp.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if emp.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in per_rows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not cp_ref or r.x_date &gt; cp_ref))])"/>
+        <t t-set="rec_pris_h" t-value="rec_h_full + rec_h_part"/>
+        <t t-set="rec_solde" t-value="(emp.x_recup_solde or 0.0) + rl_add - rec_pris_h"/>
         <t t-set="allocs" t-value="request.env['hr.leave.allocation'].sudo().search([('employee_id','=',emp.id),('state','=','validate'),('holiday_status_id.name','=','Congés payés'),('date_from','&lt;=',today.strftime('%Y-%m-%d'))])"/>
         <t t-set="allocs" t-value="allocs.filtered(lambda a: not a.date_to or a.date_to &gt;= today)"/>
         <t t-set="droit_n" t-value="sum(allocs.mapped('number_of_days'))"/>
@@ -326,31 +335,35 @@
           <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Période du <t t-esc="per_start.strftime('%d/%m/%Y')"/> à aujourd'hui</div>
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
             <t t-if="droit &gt; 0">
-              <div style="background:#ECFDF5;border-radius:10px;padding:8px 10px;text-align:center;">
-                <div style="font-size:22px;font-weight:900;color:#047857;"><t t-esc="'%g' % (droit - n_cp)"/></div>
-                <div style="font-size:11px;font-weight:800;color:#065F46;">CP restants</div>
-                <div style="font-size:10px;color:#94a3b8;">sur <t t-esc="'%g' % droit"/> acquis</div>
+              <div style="background:#FFFBEB;border:2px solid #fde68a;border-radius:10px;padding:6px 10px;text-align:center;">
+                <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="'%g' % (droit - n_cp_deduit)"/> j</div>
+                <div style="font-size:11px;font-weight:800;color:#92400e;">CP restants</div>
+                <div style="font-size:10px;color:#94a3b8;">sur <t t-esc="'%g' % droit"/> j acquis</div>
               </div>
             </t>
             <div style="background:#FEF3C7;border-radius:10px;padding:8px 10px;text-align:center;">
-              <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="n_cp"/></div>
+              <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="n_cp"/> j</div>
               <div style="font-size:11px;font-weight:800;color:#92400e;">CP pris</div>
             </div>
             <div style="background:#E0F2FE;border-radius:10px;padding:8px 10px;text-align:center;">
-              <div style="font-size:22px;font-weight:900;color:#075985;"><t t-esc="n_rec"/></div>
-              <div style="font-size:11px;font-weight:800;color:#075985;">Récups</div>
+              <div style="font-size:22px;font-weight:900;color:#075985;"><t t-esc="n_rec"/> j</div>
+              <div style="font-size:11px;font-weight:800;color:#075985;">Récups pris</div>
+              <div t-if="rec_pris_h" style="font-size:10px;color:#0369a1;">soit <t t-esc="'%g' % round(rec_pris_h, 2)"/> h</div>
             </div>
             <div style="background:#FEE2E2;border-radius:10px;padding:8px 10px;text-align:center;">
-              <div style="font-size:22px;font-weight:900;color:#991b1b;"><t t-esc="n_mal"/></div>
+              <div style="font-size:22px;font-weight:900;color:#991b1b;"><t t-esc="n_mal"/> j</div>
               <div style="font-size:11px;font-weight:800;color:#991b1b;">Maladie</div>
             </div>
             <div t-if="n_abs" style="background:#FECACA;border-radius:10px;padding:8px 10px;text-align:center;">
-              <div style="font-size:22px;font-weight:900;color:#7f1d1d;"><t t-esc="n_abs"/></div>
+              <div style="font-size:22px;font-weight:900;color:#7f1d1d;"><t t-esc="n_abs"/> j</div>
               <div style="font-size:11px;font-weight:800;color:#7f1d1d;">Absences</div>
             </div>
           </div>
           <div t-if="droit_n1" style="margin-top:7px;color:#64748b;font-size:11px;font-weight:700;">Acquis : N <t t-esc="'%g' % droit_n"/> j · N-1 <t t-esc="'%g' % droit_n1"/> j</div>
-          <div t-if="emp.x_recup_solde" t-attf-style="margin-top:5px;font-size:12.5px;font-weight:800;color:{{'#047857' if emp.x_recup_solde &gt; 0 else '#b91c1c'}};">🔄 Heures à récupérer : <t t-esc="('+' if emp.x_recup_solde &gt; 0 else '') + ('%g' % emp.x_recup_solde)"/> h</div>
+          <div t-if="cp_ref and droit" style="margin-top:3px;color:#94a3b8;font-size:10.5px;font-weight:700;">Solde arrêté au <t t-esc="cp_ref.strftime('%d/%m/%Y')"/> — seuls les CP pris après cette date sont déduits</div>
+          <div t-if="rl_add or emp.x_recup_solde or (cp_ref and rec_pris_h)" t-attf-style="margin-top:5px;font-size:12.5px;font-weight:800;color:{{'#0369a1' if rec_solde &gt;= 0 else '#b91c1c'}};">🔄 Heures à récupérer : solde <t t-esc="('+' if rec_solde &gt; 0 else '') + ('%g' % round(rec_solde, 2))"/> h
+            <div style="font-size:10.5px;color:#94a3b8;font-weight:700;">= arrêté bureau <t t-esc="('+' if (emp.x_recup_solde or 0) &gt; 0 else '') + ('%g' % (emp.x_recup_solde or 0))"/> h<t t-if="cp_ref"> au <t t-esc="cp_ref.strftime('%d/%m')"/></t><t t-if="rl_add"> + <t t-esc="'%g' % rl_add"/> h mises en récup</t><t t-if="rec_pris_h"> − <t t-esc="'%g' % round(rec_pris_h, 2)"/> h récupérées</t></div>
+          </div>
           <div t-if="not droit" style="margin-top:8px;color:#94a3b8;font-size:11.5px;">Le solde de CP restants sera affiché ici dès que le bureau aura enregistré votre droit annuel. En attendant, le compteur « CP pris » fait foi — voir le bureau pour votre solde exact.</div>
         </div>
 
@@ -435,6 +448,30 @@
                 <span t-if="dc.x_statut == 'attente'" style="color:#b45309;font-weight:800;">⏳ En attente</span>
                 <span t-elif="dc.x_statut == 'approuve'" style="color:#15803d;font-weight:800;">✓ Approuvé</span>
                 <span t-else="" style="color:#b91c1c;font-weight:800;" t-att-title="dc.x_reponse or ''">✗ Refusé</span>
+              </div>
+            </t>
+          </div>
+        </div>
+        <!-- ===== Mettre des heures en récup ===== -->
+        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🔄 Mettre des heures en récup</div>
+          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Heures faites en plus, à récupérer plus tard — elles s'ajoutent à votre solde et sont visibles par le bureau.</div>
+          <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 10px;align-items:center;">
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Date</label>
+            <input type="date" id="mh-ra-date" t-att-value="today.strftime('%Y-%m-%d')" t-att-max="today.strftime('%Y-%m-%d')" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Heures</label>
+            <input type="number" id="mh-ra-h" step="0.25" min="0.25" max="12" placeholder="ex. 2" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
+            <label style="font-weight:800;color:#64748b;font-size:13px;">Note</label>
+            <input type="text" id="mh-ra-note" placeholder="facultatif — ex. chargement tardif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;width:100%;box-sizing:border-box;min-width:0;"/>
+          </div>
+          <button type="button" id="mh-ra-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#0284c7;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">🔄 Ajouter à mon compteur</button>
+          <t t-set="rl6" t-value="rl_all[:6]"/>
+          <div t-if="rl6" style="margin-top:10px;">
+            <div style="font-weight:800;color:#64748b;font-size:12.5px;margin-bottom:4px;">HEURES MISES EN RÉCUP</div>
+            <t t-foreach="rl6" t-as="rl">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;padding:4px 0;border-top:1px solid #f1f5f9;">
+                <span><b><t t-esc="rl.x_date.strftime('%d/%m/%Y')"/></b> · +<t t-esc="'%g' % rl.x_heures"/> h<t t-if="rl.x_note"> · <t t-esc="rl.x_note"/></t><t t-if="cp_ref and rl.x_date &lt;= cp_ref"> <span style="color:#94a3b8;font-weight:700;font-size:11px;">(déjà intégré au solde arrêté)</span></t></span>
+                <button type="button" class="mh-ra-del" t-att-data-id="rl.id" title="Supprimer cette ligne" style="border:none;background:none;cursor:pointer;font-size:14px;">🗑</button>
               </div>
             </t>
           </div>
@@ -573,6 +610,24 @@
       setTimeout(function(){ cogo.textContent = '💾 Enregistrer mes coordonnées'; cogo.style.background = '#0f172a'; }, 2500);
     }).catch(function(){ cogo.disabled = false; alert('Échec réseau'); });
   }); }
+  var rago = document.getElementById('mh-ra-go');
+  if(rago){ rago.addEventListener('click', function(){
+    var rd = document.getElementById('mh-ra-date').value, rh = document.getElementById('mh-ra-h').value;
+    if(!rd || !rh){ alert("Indiquez la date et le nombre d'heures."); return; }
+    rago.disabled = true;
+    rpcAction(2012, {active_model:'x_heures_jour', recup_add:1, ra_emp:EMP, ra_token:TOK, ra_date:rd, ra_h:rh, ra_note:document.getElementById('mh-ra-note').value}).then(function(r){return r.json();}).then(function(d){
+      rago.disabled = false;
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ rago.disabled = false; alert('Échec réseau'); });
+  }); }
+  document.querySelectorAll('.mh-ra-del').forEach(function(b){ b.addEventListener('click', function(){
+    if(!confirm('Supprimer cette ligne de récup ?')) return;
+    rpcAction(2012, {active_model:'x_heures_jour', recup_del:1, ra_emp:EMP, ra_token:TOK, ra_id:parseInt(b.getAttribute('data-id'),10)}).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ alert('Échec réseau'); });
+  }); });
 })();
         </script>
       </t>
