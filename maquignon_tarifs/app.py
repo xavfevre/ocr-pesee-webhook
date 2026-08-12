@@ -97,6 +97,16 @@ def _fmt_dt(dt_str):
     return dt.strftime("%d/%m/%Y") if dt else ""
 
 
+def _ctx(comp_id):
+    """Contexte multi-sociétés : la société choisie en tête (elle pilote les
+    propriétés « company dependent » comme la liste de prix du client), mais
+    TOUTES les sociétés autorisées — un contact peut appartenir à une autre
+    société du groupe et deviendrait illisible sinon."""
+    ids = [c["id"] for c in _companies()]
+    return {"allowed_company_ids": [comp_id] + [i for i in ids if i != comp_id],
+            "company_id": comp_id}
+
+
 def _companies():
     return _q("res.company", "search_read", [], fields=["name"], order="id")
 
@@ -114,7 +124,7 @@ def _partner_pl(pid, comp_id):
     """Liste de prix du client dans le contexte de la société."""
     p = _q("res.partner", "read", [pid],
            fields=["name", "property_product_pricelist"],
-           context={"allowed_company_ids": [comp_id], "company_id": comp_id})
+           context=_ctx(comp_id))
     return p[0] if p else None
 
 
@@ -138,7 +148,7 @@ def tarifs_client():
     if not pid:
         abort(404)
     comp_id = request.args.get("soc", type=int) or _default_company(pid)
-    CTX = {"allowed_company_ids": [comp_id], "company_id": comp_id}
+    CTX = _ctx(comp_id)
 
     partner = _partner_pl(pid, comp_id)
     if not partner:
@@ -211,7 +221,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
                    "|", ["company_id", "=", False], ["company_id", "=", comp_id]],
                   fields=["display_name", "default_code", "list_price",
                           "product_tmpl_id", "categ_id"],
-                  context={"allowed_company_ids": [comp_id]})
+                  context=_ctx(comp_id))
     std_var, std_tmpl = {}, {}
     if default_pl_id:
         for it in _q("product.pricelist.item", "search_read",
