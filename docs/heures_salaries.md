@@ -417,3 +417,42 @@ Testé en prod (Théo : +2 h ajoutées par token salarié → solde +2 h page
 et badge admin, suppression OK, mauvais token et 15 h rejetés ; Céline :
 récup du 30/07 antérieure à l'arrêté du 31/07 bien exclue, pas de solde
 fantôme ; script servi validé node --check).
+
+## Connexion aux congés natifs Odoo (12/08)
+Chaque jour d'absence posé sur le planning maintient désormais un congé
+natif **`hr.leave` validé** dans l'app Congés d'Odoo (compteurs natifs,
+calendrier, rapports). Démarrage de gestion : **01/08/2026** (pas de
+reprise d'historique antérieur, décision client).
+- **Mécanisme** : 2 automatisations `base.automation` sur `x_heures_jour`
+  (87/action 2073 création-écriture, 88/action 2074 suppression), lien
+  `hr.leave.x_hj_id`. Miroir jour par jour : pose → congé validé,
+  requalification → remplacement, suppression → retrait. Aucune
+  notification email générée (contextes mail neutralisés).
+- **Types** : CP (répartition **N-1 d'abord** puis N, convention paie),
+  Maladie → Sick Time Off, Récup → JOURS A RECUPERER, et types natifs
+  créés : Congé maternité (80), paternité (81), Événement familial (82),
+  Enfant malade (83), Absence injustifiée (84). « Congés sans solde » ne
+  requiert plus d'allocation. Le libellé est lu depuis la note du jour.
+- **Demi-journées** : congé natif 0,5 j (matin/après-midi). En Odoo 19
+  `request_unit_half`/`number_of_days` sont readonly ORM et la durée ne se
+  recalcule pas depuis la période → fixation SQL après création (0,5 j +
+  fenêtre horaire), vérifiée persistante après validation. Les congés à
+  horaires précis (rares) ne sont pas reflétés nativement.
+- **Échecs loggés, jamais bloquants** : si Odoo refuse le congé natif
+  (ex. aucune attribution CP), le planning fonctionne quand même et
+  l'échec est tracé dans `ir.logging` (name `conges_natifs`).
+- **Rattrapage août fait** : Céline (7 j N-1 + 8 j N + ½ récup), Delphine
+  (10 j N-1). **BERROYER et Isabelle MAQUIGNON : allocations à 0 j** →
+  miroir refusé par Odoo ; la saisie de leurs CP acquis (page Horaires)
+  **relance automatiquement** le miroir des jours d'août en attente
+  (resync intégré à l'action 2021, testé).
+
+## Matricule paie (12/08)
+Champ natif **`identification_id`** (« N° d'identification » de la fiche
+employé — `registration_number` n'existe pas sans le module Paie).
+- **Saisie** : page ⏰ Horaires par défaut, champ « 🆔 matricule » à côté du
+  nom, enregistré par le bouton Enregistrer (action 2021, clé `matricule` ;
+  champ vidé = matricule effacé).
+- **Export paie** : titre de l'onglet salarié (« HEURES — NOM — matricule
+  X ») + colonne « Matricule » en tête du récap mensuel (actif après
+  déploiement Render).

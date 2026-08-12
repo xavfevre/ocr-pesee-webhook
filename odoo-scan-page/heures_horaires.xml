@@ -77,6 +77,7 @@
             <div class="hh-top">
               <div>
                 <span class="hh-name" t-esc="e.name"/>
+                <span class="hh-mat-z" style="font-size:11.5px;font-weight:800;color:#64748b;">🆔 <input type="text" class="hh-mat" maxlength="20" t-att-value="e.identification_id or ''" placeholder="matricule" title="Matricule paie (champ natif Odoo « N° d'identification » de la fiche employé) — enregistré avec le bouton Enregistrer" style="width:84px;border:1.5px solid #cbd5e1;border-radius:7px;padding:2px 6px;font-weight:800;font-size:11.5px;"/></span>
                 <span class="hh-tag" t-esc="cal.name if cal else 'sans horaire'"/>
                 <span t-if="cal and cal.two_weeks_calendar" class="hh-tag two">cycle 2 semaines</span>
                 <t t-set="totB" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if not a.display_type and a.week_type == '1']) if (cal and cal.two_weeks_calendar) else 0"/>
@@ -211,9 +212,10 @@
       var vn = cardc.querySelector('.hh-cpn').value, vn1 = cardc.querySelector('.hh-cpn1').value;
       var vr = cardc.querySelector('.hh-recup').value;
       var vd = cardc.querySelector('.hh-cpd') ? cardc.querySelector('.hh-cpd').value : '';
-      if(vn === '' &amp;&amp; vn1 === '' &amp;&amp; vr === ''){ alert('Saisissez au moins une valeur (CP N, N-1 ou heures à récupérer).'); return; }
+      var vm = cardc.querySelector('.hh-mat') ? cardc.querySelector('.hh-mat').value : null;
+      if(vn === '' &amp;&amp; vn1 === '' &amp;&amp; vr === '' &amp;&amp; vm === null){ alert('Saisissez au moins une valeur (CP N, N-1, heures à récupérer ou matricule).'); return; }
       cps.disabled = true;
-      rpcAction(2021, {active_model:'hr.employee', cp_mode:1, emp_id:parseInt(cardc.getAttribute('data-emp'),10), cp_n:vn, cp_n1:vn1, recup_h:vr, cp_date:vd, hj_k:KK}).then(function(r){return r.json();}).then(function(d){
+      rpcAction(2021, {active_model:'hr.employee', cp_mode:1, emp_id:parseInt(cardc.getAttribute('data-emp'),10), cp_n:vn, cp_n1:vn1, recup_h:vr, cp_date:vd, matricule:vm, hj_k:KK}).then(function(r){return r.json();}).then(function(d){
         cps.disabled = false;
         if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
         cps.textContent = '✓ Enregistré';

@@ -57,7 +57,8 @@ def build(call, mois, comp='all'):
     if comp != 'all':
         dom.append(('company_id', '=', int(comp)))
     emps = call('hr.employee', 'search_read', dom,
-                fields=['name', 'company_id', 'resource_calendar_id'], order='company_id, name')
+                fields=['name', 'company_id', 'resource_calendar_id', 'identification_id'],
+                order='company_id, name')
     cal_ids = sorted(set(e['resource_calendar_id'][0] for e in emps if e['resource_calendar_id']))
     cals = {c['id']: c for c in call('resource.calendar', 'read', cal_ids,
             fields=['name', 'two_weeks_calendar', 'attendance_ids'])} if cal_ids else {}
@@ -92,7 +93,8 @@ def build(call, mois, comp='all'):
         ws = wb.create_sheet(title)
         cal = cals.get(e['resource_calendar_id'][0]) if e['resource_calendar_id'] else None
         saisies = by_emp.get(e['id'], {})
-        ws['A1'] = f"HEURES — {e['name']}"
+        mat = e.get('identification_id') or ''
+        ws['A1'] = f"HEURES — {e['name']}" + (f" — matricule {mat}" if mat else '')
         ws['A1'].font = FT
         ws['A2'] = f"{e['company_id'][1]} · {cal['name'] if cal else 'sans horaire'} · {mois}"
         ws['A2'].font = Font(name='Arial', size=10, italic=True)
@@ -133,10 +135,10 @@ def build(call, mois, comp='all'):
                     heb_a += dur
         contrat_mensuel = (((heb_a + heb_b) / 2) if (cal and cal['two_weeks_calendar']) else heb_a) * 52 / 12
         hs_struct = max(0.0, contrat_mensuel - BASE_LEGALE)
-        heads = ['Heures effectuées', 'Heures théoriques', 'Écart',
+        heads = ['Matricule', 'Heures effectuées', 'Heures théoriques', 'Écart',
                  'Contrat mensuel (h)', 'Base légale (h)', 'H. sup structurelles/mois',
                  'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup']
-        vals = [round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
+        vals = [mat or '—', round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
                 round(contrat_mensuel, 2), round(BASE_LEGALE, 2), round(hs_struct, 2),
                 n_cp, n_mal, n_abs, n_fer, n_rec]
         for j, (h, v) in enumerate(zip(heads, vals), 1):
