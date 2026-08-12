@@ -55,3 +55,14 @@ L'unité de vente du produit est affichée partout : colonnes Prix standard
 et Prix client (« 728,00 € / Forfait », « 12,50 € / Tonne »…), libellé du
 prix dans les modales d'ajout/modification, onglet Évolution (sous le nom
 du produit) et colonne « Unité » de l'export Excel.
+
+## Tarifs par variante (12/08)
+Les tarifs spécifiques étaient créés au niveau du **modèle** d'article
+(`product_tmpl_id`) : impossible de donner un prix différent à chaque
+variante (les 11 départs Transport Appro, Tonne/Forfait…). La création
+passe au niveau de la **variante** (`applied_on = 0_product_variant`,
+`product_id`) — chaque ligne de la page est une variante, chacune reçoit
+son prix. Les anciens items « modèle » restent affichés sur toutes les
+variantes du modèle (comportement Odoo normal) et peuvent être supprimés
+depuis la page (✎). Testé : deux variantes du même modèle à 111 € et
+222 € (validité passée), affichées chacune sur sa ligne, puis supprimées.
