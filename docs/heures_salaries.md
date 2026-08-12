@@ -401,6 +401,12 @@ inchangé ; lignes de test supprimées).
   le détail du calcul en dessous. Masqué tant que le bureau n'a rien
   arrêté et que le salarié n'a rien saisi (pas de faux « −7 h »).
 - **Badge /heures-admin** : même solde calculé (détail dans l'infobulle).
+- **Verrou paie** : comme la saisie des heures, `recup_add`/`recup_del`
+  refusent toute date ≤ `maquignon.heures_verrou` pour un salarié (le
+  bureau, avec sa clé, n'est pas bloqué). Testé (verrou factice au 31/07 :
+  ajout au 15/07 rejeté, ajout au 11/08 accepté, paramètre restauré).
+- **Largeur page Horaires** : 1240 → 1460 px pour que le bouton
+  « Modifier » reste à droite malgré le champ date.
 - **Tuiles Mes congés** : unités affichées (« 31 j », « sur 35 j
   acquis »…) ; tuile Récups → « Récups pris X j · soit Y h ».
 - **Couleurs** : la tuile CP restants passe du vert à l'**ambre** (couleur
