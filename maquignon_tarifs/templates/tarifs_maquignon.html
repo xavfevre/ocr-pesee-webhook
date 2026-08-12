@@ -191,7 +191,8 @@
             <tr><th>Date</th><th>Pièce</th><th class="num">Qté</th><th class="num">PU facturé</th><th class="num">Remise</th></tr>
             {% for h in r.hist %}
             <tr>
-              <td>{{ h.date }}</td><td>{{ h.piece }}</td>
+              <td>{{ h.date }}</td>
+              <td>{% if h.mid %}<a href="{{ odoo_url }}/web#id={{ h.mid }}&model=account.move&view_type=form" target="_blank" style="color:var(--cy-dk); font-weight:700;">{{ h.piece }}</a>{% else %}{{ h.piece }}{% endif %}</td>
               <td class="num">{{ "%g"|format(h.qte) }}</td>
               <td class="num">{{ "%.2f"|format(h.pu)|replace(".", ",") }} €</td>
               <td class="num">{{ ("%g"|format(h.remise) ~ ' %') if h.remise else '' }}</td>

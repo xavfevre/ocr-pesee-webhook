@@ -207,6 +207,7 @@ def tarifs_client():
     edit_map = {r["vid"]: r["items_edit"] for r in ds["rows"] if r["items_edit"]}
     comps = _companies()
     return render_template("tarifs_maquignon.html", partner=partner, pid=pid,
+                           odoo_url=ODOO_URL,
                            comp_id=comp_id, comps=comps,
                            edit_map=edit_map, pl_dediee=pl_dediee,
                            client_pl_name=client_pl_name if client_pl_id else "",
@@ -252,7 +253,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
                  ["partner_id", "child_of", pid],
                  ["company_id", "=", comp_id],
                  ["product_id", "!=", False]],
-                fields=["date", "move_name", "product_id", "quantity",
+                fields=["date", "move_name", "move_id", "product_id", "quantity",
                         "price_unit", "discount"],
                 order="date desc, id desc", limit=3000):
         hist_by_prod.setdefault(l["product_id"][0], []).append(l)
@@ -311,6 +312,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
             "nb_items": len(items), "items": items,
             "ecart": round((cli_price - std) / std * 100, 1) if (cli_price is not None and std) else None,
             "hist": [{"date": h["date"], "piece": h["move_name"],
+                      "mid": h["move_id"][0] if h.get("move_id") else 0,
                       "qte": h["quantity"], "pu": h["price_unit"],
                       "remise": h["discount"]} for h in hist[:30]],
             "hist_all": hist,
