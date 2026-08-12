@@ -11,7 +11,9 @@
     <t t-set="vehicules" t-value="request.env['fleet.vehicle'].sudo().search([('active','=',True)], order='name')"/>
 
     <!-- Historique natif Fleet (onglet Services) : source de vérité pour la dernière date -->
-    <t t-set="logs" t-value="request.env['fleet.vehicle.log.services'].sudo().search([('state','!=','cancelled')])"/>
+    <!-- dernier contrôle RÉALISÉ : uniquement l'état « Terminé » — surtout pas les
+         lignes « Nouveau » de planification automatique, datées dans le futur -->
+    <t t-set="logs" t-value="request.env['fleet.vehicle.log.services'].sudo().search([('state','=','done')])"/>
     <t t-set="last_log" t-value="{}"/>
     <t t-foreach="logs" t-as="lg">
       <t t-if="lg.date and lg.service_type_id">
