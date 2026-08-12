@@ -121,6 +121,24 @@ visite, rapport CT…, 20 Mo max). Stockage en pièce jointe native du
 véhicule (`ir.attachment` sur `fleet.vehicle`) → visibles aussi dans le
 chatter de la fiche véhicule du module Parc automobile.
 
+### Attelages tracteur ↔ remorque (06/08)
+Champ `x_attelage_id` sur `fleet.vehicle` (lien réciproque, action serveur
+2072 pour définir/défaire — défait proprement les anciens liens des deux
+côtés). Sur la page : bouton **« 🔗 attelage… »** sous les tracteurs
+routiers, camions porteurs et remorques → popup avec la liste des
+partenaires possibles (remorques pour un tracteur/porteur, et inversement).
+
+**Passage au contrôle groupé** : quand un véhicule a un attelage et que le
+contrôle s'applique aussi au partenaire (ex. CT PL), la popup de la case
+propose une case cochée par défaut « 🚛🔗 Faire passer aussi l'attelage X le
+même jour » — la validation (action 2055, boucle sur véhicule + partenaire)
+enregistre la même date sur les deux, crée les historiques « Terminé » et
+planifie les deux prochains contrôles. Fini les allers-retours au contrôle
+technique. Testé en prod (MAN + remorque STAS : lien réciproque, validation
+groupée 2 véhicules, logs et planification des deux, test nettoyé).
+
+Le titre de la page, le menu Odoo et l'email d'alerte passent au 🚛.
+
 ### Vues calendaires (06/08)
 Sélecteur en haut de page : **📋 Tableau / 📅 Semaine / 🗓 Mois / 🗂 Année**
 (paramètre `vue=`). Les vues calendaires affichent les **échéances
