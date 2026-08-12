@@ -227,7 +227,7 @@
           <t t-set="s" t-value="saisies.get(dstr)"/>
           <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
           <t t-set="lock" t-value="s and s.x_type in ('cp', 'maladie', 'ferie', 'absence', 'recup', 'repos')"/>
-          <div t-attf-class="mh-day t-{{s and s.x_type or 'vide'}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % theo"
+          <div t-attf-class="mh-day t-{{s and s.x_type or 'vide'}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % (s.x_theo if (s and s.x_type == 'travail') else theo)"
                t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)"
                t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-type="s and s.x_type or ''">
             <div class="mh-dh">
@@ -514,8 +514,11 @@
     if(!document.getElementById('mh-t-eff')){ return; }
     var eff=0, theo=0;
     document.querySelectorAll('.mh-day').forEach(function(c){
-      theo += parseFloat(c.getAttribute('data-theo')||0);
-      if(c.getAttribute('data-type')==='travail'){ eff += parseFloat(c.getAttribute('data-heures')||0); }
+      var ty = c.getAttribute('data-type') || '';
+      /* les jours posés en congé/maladie/férié/absence/récup ne comptent pas
+         dans le théorique de l'écart : rien n'y est attendu du salarié */
+      if(ty === '' || ty === 'travail'){ theo += parseFloat(c.getAttribute('data-theo')||0); }
+      if(ty === 'travail'){ eff += parseFloat(c.getAttribute('data-heures')||0); }
     });
     document.getElementById('mh-t-eff').textContent = eff.toFixed(2)+' h';
     document.getElementById('mh-t-theo').textContent = theo.toFixed(2)+' h';

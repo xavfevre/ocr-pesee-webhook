@@ -448,8 +448,11 @@ reprise d'historique antérieur, décision client).
   (resync intégré à l'action 2021, testé).
 
 ## Matricule paie (12/08)
-Champ natif **`identification_id`** (« N° d'identification » de la fiche
-employé — `registration_number` n'existe pas sans le module Paie).
+Champ dédié **`x_matricule_paie`** sur la fiche employé. Les champs natifs
+étaient inutilisables : `registration_number` n'existe pas sans le module
+Paie, et `identification_id` contient déjà des numéros (sécurité sociale /
+pièces d'identité) pour 7 salariés — un test l'a confirmé avant bascule,
+aucune donnée écrasée (vérifié au chatter).
 - **Saisie** : page ⏰ Horaires par défaut, champ « 🆔 matricule » à côté du
   nom, enregistré par le bouton Enregistrer (action 2021, clé `matricule` ;
   champ vidé = matricule effacé).
@@ -469,3 +472,28 @@ employé — `registration_number` n'existe pas sans le module Paie).
   bureau (salarié, date, heures, note). Pas d'email si rien. Destinataire :
   `ir.config_parameter maquignon.recup_alerte_email`
   (isabelle@maquignon.com). Testé en réel (mail « sent »).
+
+## Écart : les jours d'absence posés ne comptent plus (12/08)
+Une semaine 100 % CP affichait « Écart −36 h » : le théorique comptait les
+jours posés en congé comme des heures à faire. Corrigé partout — bandeau
+de /mes-heures (JS), ligne « Théorique/Écart » de /heures-admin, récap de
+l'export paie : le théorique de l'écart = **théo figé des jours travail**
+(demi-journées gérées) **+ calendrier des jours vides** ; les jours typés
+CP/maladie/férié/absence/récup comptent 0. Vérifié : semaine CP de Céline
+→ écart +0,00 ; export août → écart −9 h (= lundi 31/08 non saisi (8 h)
++ 1 h manquante le 05/08), au lieu de −189 h.
+
+## Export Silae — EVP standard provisoire (12/08)
+Bouton **« ⬇ Export Silae (EVP) »** sur /heures-admin (même clé que
+l'export paie, `format=silae` sur la route Render `/export-heures`).
+Classeur 3 onglets :
+- **EVP** : une ligne par élément — Matricule / Salarié / Code rubrique /
+  Libellé / Valeur. Heures écart du mois (± ; contrôle Charlotte avant
+  import) + absences en jours (0,5 pour les demi-journées).
+- **Absences** : les mêmes absences par **périodes datées** (Du/Au, jours,
+  demi-journée), week-ends enjambés — si le dossier Silae importe par dates.
+- **Lisez-moi** : codes utilisés + liste des salariés **sans matricule**.
+Codes rubriques par défaut (HS, ABCP, ABMA, ABNJ, ABRC, ABSS, ABMT, ABPT,
+ABEF, ABEM) **modifiables sans redéploiement** : paramètre Odoo
+`maquignon.silae_codes` (JSON). Format à caler sur le modèle d'import EVP
+du dossier Silae au retour de Charlotte. Actif après déploiement Render.

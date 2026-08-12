@@ -914,12 +914,18 @@ def export_heures_route():
     ref = call("ir.config_parameter", "get_param", ["maquignon.heures_export_key"])
     if not ref or not hmac.compare_digest(key, str(ref)):
         return jsonify({"error": "clé invalide"}), 403
-    data = export_heures.build(call, mois, comp)
+    fmt = (request.args.get("format") or "").strip()
+    if fmt == "silae":
+        data = export_heures.build_silae(call, mois, comp)
+        fname = f"SILAE_EVP_{mois}.xlsx"
+    else:
+        data = export_heures.build(call, mois, comp)
+        fname = f"HEURES_{mois}.xlsx"
     from flask import Response
     return Response(
         data,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=HEURES_{mois}.xlsx"},
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
     )
 
 
