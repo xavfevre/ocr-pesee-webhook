@@ -456,3 +456,16 @@ employé — `registration_number` n'existe pas sans le module Paie).
 - **Export paie** : titre de l'onglet salarié (« HEURES — NOM — matricule
   X ») + colonne « Matricule » en tête du récap mensuel (actif après
   déploiement Render).
+
+## Récup dans l'export paie + alerte hebdo (12/08)
+- **Export paie** : 3 colonnes ajoutées au récap mensuel — « H. mises en
+  récup » (lignes du mois), « H. récupérées » (jours et demi-jours récup
+  du mois, en heures), « Solde récup (h) » (arrêté bureau + mises −
+  récupérées, **borné à la fin du mois exporté** — un mouvement de
+  septembre n'entre pas dans l'export d'août). Actif après déploiement
+  Render.
+- **Alerte hebdo** : cron **124** (lundis matin) — si des salariés ont mis
+  des heures en récup dans les 7 derniers jours, email récapitulatif au
+  bureau (salarié, date, heures, note). Pas d'email si rien. Destinataire :
+  `ir.config_parameter maquignon.recup_alerte_email`
+  (isabelle@maquignon.com). Testé en réel (mail « sent »).

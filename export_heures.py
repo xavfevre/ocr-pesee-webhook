@@ -57,7 +57,8 @@ def build(call, mois, comp='all'):
     if comp != 'all':
         dom.append(('company_id', '=', int(comp)))
     emps = call('hr.employee', 'search_read', dom,
-                fields=['name', 'company_id', 'resource_calendar_id', 'identification_id'],
+                fields=['name', 'company_id', 'resource_calendar_id', 'identification_id',
+                        'x_recup_solde', 'x_cp_ref_date'],
                 order='company_id, name')
     cal_ids = sorted(set(e['resource_calendar_id'][0] for e in emps if e['resource_calendar_id']))
     cals = {c['id']: c for c in call('resource.calendar', 'read', cal_ids,
@@ -76,6 +77,29 @@ def build(call, mois, comp='all'):
     by_emp = {}
     for r in rows:
         by_emp.setdefault(r['x_employee_id'][0], {})[r['x_date']] = r
+    # récup : heures mises (x_recup_ligne) et jours/demi-jours récupérés depuis le
+    # début de période (01/06), pour le solde « arrêté bureau + mises − récupérées »
+    rl_by_emp = {}
+    for l in call('x_recup_ligne', 'search_read',
+                  [('x_employee_id', 'in', [e['id'] for e in emps])],
+                  fields=['x_employee_id', 'x_date', 'x_heures']):
+        rl_by_emp.setdefault(l['x_employee_id'][0], []).append(l)
+    pstart = date(y if m >= 6 else y - 1, 6, 1)
+    pris_by_emp = {}
+    for r in call('x_heures_jour', 'search_read',
+                  ['&', ('x_employee_id', 'in', [e['id'] for e in emps]),
+                   ('x_date', '>=', pstart.strftime('%Y-%m-%d')),
+                   '|', ('x_type', '=', 'recup'), ('x_note', 'like', 'Récupération —')],
+                  fields=['x_employee_id', 'x_date', 'x_type', 'x_theo', 'x_note']):
+        pris_by_emp.setdefault(r['x_employee_id'][0], []).append(r)
+
+    def _recup_pris_h(r, cal):
+        """Heures récupérées portées par un jour : jour entier -> théo figé ;
+        demi-jour (type travail, note Récupération) -> partie non travaillée."""
+        if r['x_type'] == 'recup':
+            return r['x_theo'] or 0.0
+        d = datetime.strptime(r['x_date'], '%Y-%m-%d').date()
+        return max(_theo_day(cal, d) - (r['x_theo'] or 0.0), 0.0)
 
     wb = Workbook()
     wb.remove(wb.active)
@@ -135,12 +159,25 @@ def build(call, mois, comp='all'):
                     heb_a += dur
         contrat_mensuel = (((heb_a + heb_b) / 2) if (cal and cal['two_weeks_calendar']) else heb_a) * 52 / 12
         hs_struct = max(0.0, contrat_mensuel - BASE_LEGALE)
+        # récup en heures : mises dans le mois, récupérées dans le mois, solde courant
+        ref = e.get('x_cp_ref_date') or ''
+        lignes_rl = rl_by_emp.get(e['id'], [])
+        pris_rows = pris_by_emp.get(e['id'], [])
+        m1, m2 = d1.strftime('%Y-%m-%d'), d2.strftime('%Y-%m-%d')
+        mises_mois = sum(l['x_heures'] for l in lignes_rl if m1 <= l['x_date'] <= m2)
+        recup_mois = sum(_recup_pris_h(r, cal) for r in pris_rows if m1 <= r['x_date'] <= m2)
+        # solde arrêté à la fin du mois exporté (les mouvements postérieurs n'y entrent pas)
+        solde = ((e.get('x_recup_solde') or 0.0)
+                 + sum(l['x_heures'] for l in lignes_rl if (not ref or l['x_date'] > ref) and l['x_date'] <= m2)
+                 - sum(_recup_pris_h(r, cal) for r in pris_rows if (not ref or r['x_date'] > ref) and r['x_date'] <= m2))
         heads = ['Matricule', 'Heures effectuées', 'Heures théoriques', 'Écart',
                  'Contrat mensuel (h)', 'Base légale (h)', 'H. sup structurelles/mois',
-                 'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup']
+                 'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup',
+                 'H. mises en récup', 'H. récupérées', 'Solde récup (h)']
         vals = [mat or '—', round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
                 round(contrat_mensuel, 2), round(BASE_LEGALE, 2), round(hs_struct, 2),
-                n_cp, n_mal, n_abs, n_fer, n_rec]
+                n_cp, n_mal, n_abs, n_fer, n_rec,
+                round(mises_mois, 2), round(recup_mois, 2), round(solde, 2)]
         for j, (h, v) in enumerate(zip(heads, vals), 1):
             c = ws.cell(row=4, column=j, value=h); c.font = HDR; c.fill = FILL; c.alignment = CTR
             c2 = ws.cell(row=5, column=j, value=v); c2.font = FB; c2.alignment = CTR
