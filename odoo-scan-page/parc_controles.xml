@@ -38,7 +38,8 @@
           <t t-set="ech" t-value="dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)"/>
           <t t-set="e_etat" t-value="'retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')"/>
           <t t-if="not selected_etat or selected_etat == e_etat">
-            <t t-set="_x" t-value="echeances.append((ech, veh_short(r.x_vehicule_id.name), r.x_type_id.x_name, e_etat, r.x_vehicule_id.license_plate or ''))"/>
+            <t t-set="att" t-value="r.x_vehicule_id.x_attelage_id"/>
+            <t t-set="_x" t-value="echeances.append((ech, veh_short(r.x_vehicule_id.name), r.x_type_id.x_name, e_etat, r.x_vehicule_id.license_plate or '', r.id, r.x_vehicule_id.id, r.x_vehicule_id.name, r.x_type_id.x_periodicite_mois, dd.strftime('%Y-%m-%d'), r.x_cv_limite or '', ((att.license_plate or veh_short(att.name)) if (att and r.x_type_id.id in by_veh.get(att.id, {})) else ''), (att and att.id) or '', (att and (att.license_plate or veh_short(att.name))) or ''))"/>
           </t>
         </t>
       </t>
@@ -105,6 +106,8 @@
       .pc-ev.proche{background:#fde68a;color:#78350f;}
       .pc-ev.ok{background:#bbf7d0;color:#14532d;}
       .pc-ev small{display:block;font-weight:700;opacity:.85;font-size:12px;}
+      .pc-ev[data-id]{cursor:pointer;}
+      .pc-ev[data-id]:hover{filter:brightness(.93);}
       .pc-annee{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
       .pc-mois-card{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.09);padding:14px;}
       .pc-mois-card h6{font-weight:900;color:#15324f;margin:0 0 10px;text-align:center;font-size:16.5px;text-transform:capitalize;}
@@ -280,7 +283,7 @@
                 <t t-set="jd" t-value="lundi + datetime.timedelta(days=d)"/>
                 <td t-attf-class="{{'auj' if jd == today else ''}}" style="height:220px;">
                   <t t-foreach="sorted(ech_par_jour.get(jd, []), key=lambda e: e[1])" t-as="e">
-                    <span t-attf-class="pc-ev {{e[3]}}"><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
+                    <span t-attf-class="pc-ev {{e[3]}}" t-att-data-id="e[5]" t-att-data-veh="e[7]" t-att-data-vehid="e[6]" t-att-data-type="e[2]" t-att-data-mois="e[8]" t-att-data-date="e[9]" t-att-data-cv="e[10]" t-att-data-combo="e[11]" t-att-data-attelid="e[12]" t-att-data-attelname="e[13]"><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
                   </t>
                 </td>
               </t>
@@ -314,7 +317,7 @@
                     <td t-attf-class="{{'aut' if jd.month != m1.month else ''}} {{'auj' if jd == today else ''}}">
                       <div class="dnum" t-esc="jd.day"/>
                       <t t-foreach="sorted(ech_par_jour.get(jd, []), key=lambda e: e[1])" t-as="e">
-                        <span t-attf-class="pc-ev {{e[3]}}"><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
+                        <span t-attf-class="pc-ev {{e[3]}}" t-att-data-id="e[5]" t-att-data-veh="e[7]" t-att-data-vehid="e[6]" t-att-data-type="e[2]" t-att-data-mois="e[8]" t-att-data-date="e[9]" t-att-data-cv="e[10]" t-att-data-combo="e[11]" t-att-data-attelid="e[12]" t-att-data-attelname="e[13]"><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
                       </t>
                     </td>
                   </t>
@@ -342,7 +345,7 @@
                 <h6><t t-esc="['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m]"/> <t t-esc="an"/><t t-if="evts"> · <t t-esc="len(evts)"/></t></h6>
                 <t t-if="not evts"><div class="vide">—</div></t>
                 <t t-foreach="evts" t-as="e">
-                  <span t-attf-class="pc-ev {{e[3]}}"><span class="evdate" t-esc="e[0].strftime('%d/%m')"/><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
+                  <span t-attf-class="pc-ev {{e[3]}}" t-att-data-id="e[5]" t-att-data-veh="e[7]" t-att-data-vehid="e[6]" t-att-data-type="e[2]" t-att-data-mois="e[8]" t-att-data-date="e[9]" t-att-data-cv="e[10]" t-att-data-combo="e[11]" t-att-data-attelid="e[12]" t-att-data-attelname="e[13]"><span class="evdate" t-esc="e[0].strftime('%d/%m')"/><t t-esc="e[1]"/><small><t t-esc="e[2]"/></small></span>
                 </t>
               </div>
             </t>
@@ -496,7 +499,7 @@
           pop.classList.add('show');
         }
         function closePop(){ pop.classList.remove('show'); curId = null; curMois = 0; curVehId = null; }
-        document.querySelectorAll('.pc-cell').forEach(function(b){ b.addEventListener('click', function(){ openPop(b); }); });
+        document.querySelectorAll('.pc-cell, .pc-ev[data-id]').forEach(function(b){ b.addEventListener('click', function(){ openPop(b); }); });
         document.getElementById('pcPopCancel').addEventListener('click', closePop);
         document.getElementById('pcPopDate').addEventListener('change', refreshNext);
         pop.addEventListener('click', function(e){ if(e.target === pop){ closePop(); } });
