@@ -78,7 +78,9 @@
                 <span class="hh-name" t-esc="e.name"/>
                 <span class="hh-tag" t-esc="cal.name if cal else 'sans horaire'"/>
                 <span t-if="cal and cal.two_weeks_calendar" class="hh-tag two">cycle 2 semaines</span>
-                <div class="hh-sum"><t t-esc="('%g' % round(tot, 2))"/> h/semaine</div>
+                <t t-set="totB" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if not a.display_type and a.week_type == '1']) if (cal and cal.two_weeks_calendar) else 0"/>
+                <t t-set="mensuel" t-value="(((tot + totB) / 2) if (cal and cal.two_weeks_calendar) else tot) * 52 / 12"/>
+                <div class="hh-sum"><t t-esc="('%g' % round(tot, 2))"/> h/semaine · <b style="color:#0f172a;"><t t-esc="'%.2f' % mensuel"/> h/mois</b><t t-if="mensuel &gt; 151.67"> — base légale 151,67 h + <b style="color:#b45309;"><t t-esc="'%.2f' % (mensuel - 151.67)"/> h sup structurelles</b></t></div>
               </div>
               <t t-set="cp_n" t-value="sum(request.env['hr.leave.allocation'].sudo().search([('employee_id','=',e.id),('holiday_status_id','=',1),('state','=','validate')]).mapped('number_of_days'))"/>
               <t t-set="cp_n1" t-value="sum(request.env['hr.leave.allocation'].sudo().search([('employee_id','=',e.id),('holiday_status_id','=',7),('state','=','validate')]).mapped('number_of_days'))"/>

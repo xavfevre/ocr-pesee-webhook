@@ -348,3 +348,17 @@ Champ `x_recup_solde` (float) sur `hr.employee` — **peut être négatif**
   salarié (vert/rouge selon le signe).
 Testé en prod (+4,5 puis −3,25 sur un salarié, affichages vérifiés sur les
 trois pages, solde remis à 0).
+
+## Horaire mensuel & heures sup structurelles (06/08)
+Principe : pas de nouvelle saisie — l'horaire mensuel contractuel se déduit
+de la semaine type déjà configurée : **hebdo × 52 ÷ 12** (moyenne des
+semaines A/B pour les cycles). Base légale française : **151,67 h/mois**
+(35 h) ; l'écart contractuel = **heures sup structurelles** payées chaque
+mois (ex. 39 h/sem → 169 h/mois → 17,33 h sup).
+- **⏰ Horaires par défaut** : chaque carte affiche « 39 h/semaine ·
+  **169,00 h/mois** — base légale 151,67 h + **17,33 h sup structurelles** ».
+- **/mes-heures** (tuile Mon mois) : ligne « Contrat : 169,00 h/mois — base
+  légale 151,67 h + 17,33 h sup structurelles ».
+- **Export paie** : 3 nouvelles colonnes dans le récap mensuel de chaque
+  onglet salarié : Contrat mensuel (h), Base légale (h), H. sup
+  structurelles/mois (actif au prochain déploiement Render).
