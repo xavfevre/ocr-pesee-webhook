@@ -67,6 +67,7 @@
         <a t-attf-href="/planning-transport-jour?{{keep_query('client')}}" class="btn btn-outline-secondary btn-sm">📆 Vue jour</a>
         <a t-attf-href="/model/tache?limit=1000&amp;{{keep_query('client')}}" class="btn btn-outline-secondary btn-sm">🗓️ Vue semaine</a>
         <button id="trmRefresh" type="button" class="btn btn-primary btn-sm">🔄 Actualiser</button>
+        <button id="trmSede" type="button" class="btn btn-sm" style="background:#7c3aed;color:#fff;font-weight:800;border-radius:10px;" title="VEOLIA AGRICULTURE (LA SEDE) : pour chaque transport du mois affiché sans bon de commande, crée le BC confirmé avec l'article « Location Semi Fond-mouvant - par jours » (qté 1) et la section Bon de pesée. Tâches annulées et BC existants ignorés.">⚡ SEDE</button>
         <t t-set="clients_f" t-value="sorted(set(t.partner_id.display_name for t in all_records if t.partner_id))"/>
         
       </div>
@@ -209,6 +210,29 @@
         var a=document.getElementById('clAll'); if(a){ a.addEventListener('click', function(){ document.querySelectorAll('.trm-cl').forEach(function(cb){cb.checked=true;}); applyFilter(); }); }
         var n=document.getElementById('clNone'); if(n){ n.addEventListener('click', function(){ document.querySelectorAll('.trm-cl').forEach(function(cb){cb.checked=false;}); applyFilter(); }); }
         var rf=document.getElementById('trmRefresh'); if(rf){ rf.addEventListener('click', function(){ location.reload(); }); }
+        var sd=document.getElementById('trmSede'); if(sd){ sd.addEventListener('click', function(){
+          var mp0 = document.getElementById('trmMonthPick');
+          var m = (mp0 &amp;&amp; mp0.value) || '';
+          if(!/^\d{4}-\d{2}$/.test(m)){ alert('Mois affiché introuvable.'); return; }
+          if(!confirm('Générer les bons de commande VEOLIA AGRICULTURE (LA SEDE) pour ' + m + ' ?\n\nPour chaque transport du mois SANS bon de commande : BC confirmé avec « Location Semi Fond-mouvant - par jours » (qté 1) + section Bon de pesée.\nTâches annulées et BC déjà existants ignorés.')){ return; }
+          sd.disabled = true; sd.textContent = '… en cours';
+          var y = parseInt(m.slice(0,4),10), mo = parseInt(m.slice(5,7),10);
+          var fin = new Date(y, mo, 0).getDate();
+          var au = m + '-' + ('0' + fin).slice(-2);
+          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2078]], kwargs:{context:{active_model:'project.task', sede_du: m + '-01', sede_au: au}}}})})
+          .then(function(r){ return r.json(); }).then(function(d){
+            sd.disabled = false; sd.textContent = '⚡ SEDE';
+            if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
+            var r = d.result || {};
+            var msg = 'SEDE — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
+            if(r.deja){ msg += '\n' + r.deja + ' tâche(s) avec BC déjà existant (ignorées)'; }
+            if(r.annulees){ msg += '\n' + r.annulees + ' tâche(s) annulée(s) (ignorées)'; }
+            if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
+            alert(msg);
+            location.reload();
+          }).catch(function(){ sd.disabled = false; sd.textContent = '⚡ SEDE'; alert('Échec réseau — êtes-vous connecté à Odoo ?'); });
+        }); }
         var mp=document.getElementById('trmMonthPick'); if(mp){ mp.addEventListener('change', function(){
           if(!/^\d{4}-\d{2}$/.test(mp.value || '')){ return; }
           var url = new URL(window.location);
