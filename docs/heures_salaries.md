@@ -497,3 +497,10 @@ Codes rubriques par défaut (HS, ABCP, ABMA, ABNJ, ABRC, ABSS, ABMT, ABPT,
 ABEF, ABEM) **modifiables sans redéploiement** : paramètre Odoo
 `maquignon.silae_codes` (JSON). Format à caler sur le modèle d'import EVP
 du dossier Silae au retour de Charlotte. Actif après déploiement Render.
+
+## Tuile Récups pris en jours ET en heures (12/08)
+La récup se prend en jours, demi-journées ou heures (« Horaires précis »
+dans la demande de congés) : la tuile affiche désormais les deux unités —
+« 1 j · soit 7 h » (total de la période, indépendant de la date d'arrêté ;
+demi-journées et récups à horaires précis converties via l'horaire du
+jour). S'il n'y a que des récups partielles : affichage en heures.

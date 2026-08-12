@@ -325,6 +325,10 @@
         <t t-set="rec_h_part" t-value="sum([max((sum([(a.hour_to - a.hour_from) for a in emp.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not emp.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if emp.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in per_rows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not cp_ref or r.x_date &gt; cp_ref))])"/>
         <t t-set="rec_pris_h" t-value="rec_h_full + rec_h_part"/>
         <t t-set="rec_solde" t-value="(emp.x_recup_solde or 0.0) + rl_add - rec_pris_h"/>
+        <!-- totaux de PÉRIODE pour la tuile (indépendants de la date d'arrêté) :
+             jours entiers + demi-journées et récups à horaires précis, en heures -->
+        <t t-set="rec_part_rows" t-value="per_rows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note)"/>
+        <t t-set="rec_h_periode" t-value="sum(per_rows.filtered(lambda r: r.x_type == 'recup').mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in emp.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not emp.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if emp.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in rec_part_rows])"/>
         <t t-set="allocs" t-value="request.env['hr.leave.allocation'].sudo().search([('employee_id','=',emp.id),('state','=','validate'),('holiday_status_id.name','=','Congés payés'),('date_from','&lt;=',today.strftime('%Y-%m-%d'))])"/>
         <t t-set="allocs" t-value="allocs.filtered(lambda a: not a.date_to or a.date_to &gt;= today)"/>
         <t t-set="droit_n" t-value="sum(allocs.mapped('number_of_days'))"/>
@@ -346,9 +350,11 @@
               <div style="font-size:11px;font-weight:800;color:#92400e;">CP pris</div>
             </div>
             <div style="background:#E0F2FE;border-radius:10px;padding:8px 10px;text-align:center;">
-              <div style="font-size:22px;font-weight:900;color:#075985;"><t t-esc="n_rec"/> j</div>
+              <!-- la récup se prend en jours, demi-journées ou heures : la tuile affiche les deux unités -->
+              <div style="font-size:22px;font-weight:900;color:#075985;"><t t-if="n_rec"><t t-esc="n_rec"/> j</t><t t-else=""><t t-esc="'%g' % round(rec_h_periode, 2)"/> h</t></div>
               <div style="font-size:11px;font-weight:800;color:#075985;">Récups pris</div>
-              <div t-if="rec_pris_h" style="font-size:10px;color:#0369a1;">soit <t t-esc="'%g' % round(rec_pris_h, 2)"/> h</div>
+              <div t-if="n_rec and rec_h_periode" style="font-size:10px;color:#0369a1;">soit <t t-esc="'%g' % round(rec_h_periode, 2)"/> h</div>
+              <div t-elif="not n_rec and rec_part_rows" style="font-size:10px;color:#0369a1;">(demi-journées / horaires)</div>
             </div>
             <div style="background:#FEE2E2;border-radius:10px;padding:8px 10px;text-align:center;">
               <div style="font-size:22px;font-weight:900;color:#991b1b;"><t t-esc="n_mal"/> j</div>
