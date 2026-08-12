@@ -1017,6 +1017,16 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module protec_planning non chargé: {_e}")
 
+# ─── MAQUIGNON : tarifs clients (même principe que /protec/tarifs) ───────────
+# Monté sous /tarifs-client — voir maquignon_tarifs/app.py. Jeton d'accès dans
+# Odoo (ir.config_parameter maquignon.tarifs_key), ouvert par l'action
+# « 💶 Tarifs client » des fiches contact et des devis.
+try:
+    from maquignon_tarifs.app import bp as mtarifs_bp
+    app.register_blueprint(mtarifs_bp, url_prefix="/tarifs-client")
+except Exception as _e:
+    app.logger.warning(f"Module maquignon_tarifs non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
