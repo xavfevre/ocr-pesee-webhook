@@ -220,7 +220,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
                   [["sale_ok", "=", True], ["active", "=", True],
                    "|", ["company_id", "=", False], ["company_id", "=", comp_id]],
                   fields=["display_name", "default_code", "list_price",
-                          "product_tmpl_id", "categ_id"],
+                          "product_tmpl_id", "categ_id", "uom_id"],
                   context=_ctx(comp_id))
     std_var, std_tmpl = {}, {}
     if default_pl_id:
@@ -304,6 +304,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
             "vid": vid, "tmpl": tid, "name": p["display_name"],
             "code": p["default_code"] or "",
             "categ": p["categ_id"][1] if p.get("categ_id") else "Autre",
+            "uom": p["uom_id"][1] if p.get("uom_id") else "",
             "std": std,
             "items_edit": items_edit,
             "specific": bool(items), "cli_price": cli_price, "validity": validity,
@@ -368,7 +369,7 @@ def _dataset(pid, comp_id, default_pl_id, client_pl_id):
         if has_data:
             evo_rows.append({"name": r["name"], "code": r["code"],
                              "categ": r["categ"], "specific": r["specific"],
-                             "cells": cells})
+                             "uom": r["uom"], "cells": cells})
 
     return {"rows": rows, "evo_rows": evo_rows, "years": years,
             "categories": categories, "nb_spec": nb_spec, "nb_fact": nb_fact}
@@ -451,19 +452,19 @@ def tarifs_export():
 
     ws = wb.active
     ws.title = "Tarifs actuels"
-    ws.append(["Produit", "Code", "Catégorie", "Prix standard HT",
+    ws.append(["Produit", "Code", "Catégorie", "Unité", "Prix standard HT",
                "Prix client HT", "Écart %", "Validité", "Tarif spécifique"])
     for c in ws[1]:
         c.fill, c.font = H_FILL, H_FONT
     for r in ds["rows"]:
-        ws.append([r["name"], r["code"], r["categ"], r["std"],
+        ws.append([r["name"], r["code"], r["categ"], r["uom"], r["std"],
                    r["cli_price"] if r["cli_price"] is not None else "",
                    r["ecart"] if r["ecart"] is not None else "",
                    r["validity"], "Oui" if r["specific"] else ""])
         if r["specific"]:
             for c in ws[ws.max_row]:
                 c.fill = SPEC_FILL
-    for col, w in zip("ABCDEFGH", (52, 14, 18, 16, 14, 10, 26, 14)):
+    for col, w in zip("ABCDEFGHI", (52, 14, 18, 10, 16, 14, 10, 26, 14)):
         ws.column_dimensions[col].width = w
 
     we = wb.create_sheet("Évolution")

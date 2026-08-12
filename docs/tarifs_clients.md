@@ -49,3 +49,9 @@ validité 2020, sans effet réel) → modification (888) → suppression OK ;
 suppression d'un item de liste partagée refusée ; formulaires contact et
 devis chargés avec les boutons. **La page n'est active qu'après le merge**
 (Render déploie depuis main).
+
+## Unités de mesure (12/08)
+L'unité de vente du produit est affichée partout : colonnes Prix standard
+et Prix client (« 728,00 € / Forfait », « 12,50 € / Tonne »…), libellé du
+prix dans les modales d'ajout/modification, onglet Évolution (sous le nom
+du produit) et colonne « Unité » de l'export Excel.
