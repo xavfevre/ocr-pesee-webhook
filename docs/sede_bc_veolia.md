@@ -40,3 +40,47 @@ S11363), puis génération du mois : **53 BC créés (S11366 → S11418)**,
 pesée, tous à 728 € qté 1 confirmés. Plus aucune tâche VEOLIA de
 juillet sans BC (hors annulée). Les pastilles du planning passent de
 grises à orange « À facturer ».
+
+# Extension : 7 boutons de BC automatiques (12/08)
+
+Même mécanique que SEDE, généralisée : **action serveur 2081** (miroir
+`odoo-scan-page/action_boutons_transport_2081.py`) pilotée par recette,
+boutons violets sur `/planning-transport-mois` (mois affiché, tâches
+annulées et BC existants ignorés, relançable sans doublon). La section
+« Bon de pesée » est composée directement au bon format (plus de
+retouche manuelle).
+
+| Bouton | Client(s) | Articles | Quantité | Section |
+|---|---|---|---|---|
+| ⚡ Longué + Lac | CULTURES FRANCE CHAMPIGNON LONGUE, COOP DU LAC | Terre de gobetage (Tonne) + Transport gobetage (Tonne) | tonnage | sans produit |
+| ⚡ Prieuré | LE PRIEURE | idem + Libellé Client « Tuffeau broyé 0/15 - 0/20 (en tonnes) » sur la ligne Terre de gobetage | tonnage | sans produit |
+| ⚡ Besnault | BESNAULT FRERES | Transport Appro (Départ Eurovia - Luché) | tonnage | sans produit |
+| ⚡ Machefers | VEOLIA PROPRETÉ POITOU CHARENTES | Transport de machefers | 1 (forfait 125 €) | sans produit |
+| ⚡ GSM | Heidelberg Materials (GSM) | Transport de granulats (Tonne) | tonnage | standard |
+| ⚡ Châtel | CHATEL'GRANULATS (Client+Fr Maquignon) | APPRO → 11 variantes selon le départ (mots-clés BARRE/BAILLY/ROY/MORIN/LUCHE/HAIMS/MAQUIGNON/USSEAU/KIDIMAT/IMERYS/SAMIN/POUZZO, insensibles aux accents) · DÉBLAIS → granulats (Tonne) · sinon → granulats (Forfait) | tonnage / tonnage / 1 | produit réduit à 4 car. / standard / nom de tâche inséré après le produit |
+| ⚡ Haims | CARRIERE D'HAIMS (Client de Maquignon) | granulats (Tonne) ; tâches TRANSFERT → Transfert de matériel (Heure) | tonnage / 1 à ajuster | nom de tâche inséré avant le produit |
+
+Garde-fous : pas de poids sur le bon → quantité 1 + signalement « à
+vérifier » dans le récapitulatif ; transferts Haims listés « à vérifier »
+(heures à saisir) ; feuille de pesée vide → BC sans section, signalé.
+
+Testé en prod (un BC réel par recette, conservés) : S11463 Coop du Lac
+(30,06 T ×2 lignes), S11464 Prieuré (libellé client posé), S11465
+Besnault (Eurovia-Luché 21 T), S11466 Machefers (1 × 125 €), S11467 GSM
+(sans poids → qté 1 signalée), S11468 Châtel APPRO Haims (« GRAV »,
+29,96 T), S11469/70 Haims (« LES DUCS DE RICHELIEU » inséré, tonnage).
+Nota : les BC Haims sortent à 0 € (liste Tarif Pro 2026 sans prix pour
+granulats Tonne — les BC manuels étaient à 1 €/0 €) : prix intersociété
+à poser au moment de la facturation, comme avant.
+
+## UdF selon le libellé de variante (12/08)
+Les variantes (Forfait)/(Tonne)/(Heure)/(au Tour)/(par jours) partagent
+souvent une unité de mesure par défaut qui ne correspond pas : l'ancienne
+automatisation 68 (UdF = Tonne uniquement) est généralisée — le champ
+**UdF** de la ligne de devis/BC est rempli d'après le libellé de la
+variante quand l'UdM diffère, sans écraser une saisie manuelle (action
+1949, miroir `odoo-scan-page/action_udf_variante_1949.py`). Rattrapage
+des devis/BC ouverts : **409 lignes** (154 Jours, 144 Forfait, 111 Tour) —
+dont les locations SEDE « par jours » (UdF = Jours) et les livraisons
+granulats (Forfait). L'UdF se propage aux factures via l'automatisation
+59 existante.
