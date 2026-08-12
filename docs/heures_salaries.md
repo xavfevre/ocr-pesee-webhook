@@ -504,3 +504,14 @@ dans la demande de congés) : la tuile affiche désormais les deux unités —
 « 1 j · soit 7 h » (total de la période, indépendant de la date d'arrêté ;
 demi-journées et récups à horaires précis converties via l'horaire du
 jour). S'il n'y a que des récups partielles : affichage en heures.
+
+## Initialisation des CP : allocations multiples (12/08)
+« Congés payés : 5 demandé mais 27,5 déjà portés par d'autres allocations
+validées » — la saisie n'ajustait que la dernière allocation et refusait
+quand la valeur visée était inférieure au total des autres (cas MAIGNAN
+Charlotte : deux allocations N validées 27,5 + 25). Réécrit en
+**consolidation** : l'allocation du plan d'acquisition (sinon la plus
+récente) porte seule la valeur saisie, les autres sont **refusées** (une
+allocation ne peut pas valoir 0 en v19 ; historique conservé). Appliqué :
+MAIGNAN N=5 / N-1=30 au 31/07 (sa saisie qui échouait), vérifié sur la
+page. Saisie à 0 = toutes les allocations refusées.
