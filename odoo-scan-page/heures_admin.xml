@@ -102,7 +102,7 @@
           <t t-set="wtot" t-value="0.0"/>
           <t t-set="wtheo" t-value="0.0"/>
           <tr t-att-data-emp="e.id" t-att-data-name="e.name">
-            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button></td>
+            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><span t-if="e.x_recup_solde" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if e.x_recup_solde &gt; 0 else '#fee2e2'}};color:{{'#166534' if e.x_recup_solde &gt; 0 else '#991b1b'}};" t-att-title="'Heures à récupérer'">🔄 <t t-esc="('+' if e.x_recup_solde &gt; 0 else '') + ('%g' % e.x_recup_solde)"/> h</span></td>
             <t t-foreach="range(7)" t-as="i">
               <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
               <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>

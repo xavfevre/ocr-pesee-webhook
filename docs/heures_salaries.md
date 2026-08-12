@@ -335,3 +335,16 @@ L'email du manager contient aussi un lien **📅 planning global des congés**
   plan (comptes techniques, dirigeants, et quelques salariés : BERROYER,
   CLAVELLE, GUERIN, JOLLY, LANGLOIS, ORILLARD, VRILLON, BAULU) — à
   rattacher au plan dans Congés → Configuration si souhaité.
+
+## Heures à récupérer (solde signé) — 06/08
+Champ `x_recup_solde` (float) sur `hr.employee` — **peut être négatif**
+(heures dues par le salarié).
+- **Saisie** : page ⏰ Horaires par défaut, champ « 🔄 Récup (h) » à côté des
+  CP N/N-1, même bouton Enregistrer (action 2021, clé `recup_h`, bornes
+  ±500, validation serveur).
+- **Affichage salarié** (/mes-heures, bloc Mes congés) : ligne « 🔄 Heures à
+  récupérer : +4,5 h » (vert si positif, rouge si négatif), masquée à 0.
+- **Affichage bureau** (/heures-admin) : badge coloré à côté du nom du
+  salarié (vert/rouge selon le signe).
+Testé en prod (+4,5 puis −3,25 sur un salarié, affichages vérifiés sur les
+trois pages, solde remis à 0).
