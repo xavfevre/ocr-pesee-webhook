@@ -118,9 +118,26 @@ def build(call, mois, comp='all'):
                 elif t == 'recup':
                     n_rec += 1
             d += timedelta(days=1)
-        heads = ['Heures effectuées', 'Heures théoriques', 'Écart', 'Jours CP',
-                 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup']
+        # horaire mensuel contractuel = hebdo (moyenne A/B si cycle) x 52/12 ;
+        # base légale française 151,67 h/mois (35 h), l'écart = h. sup structurelles
+        BASE_LEGALE = 35 * 52 / 12
+        heb_a = heb_b = 0.0
+        if cal:
+            for a in cal['attendance_ids']:
+                if a.get('display_type'):
+                    continue
+                dur = a['hour_to'] - a['hour_from']
+                if cal['two_weeks_calendar'] and a.get('week_type') == '1':
+                    heb_b += dur
+                else:
+                    heb_a += dur
+        contrat_mensuel = (((heb_a + heb_b) / 2) if (cal and cal['two_weeks_calendar']) else heb_a) * 52 / 12
+        hs_struct = max(0.0, contrat_mensuel - BASE_LEGALE)
+        heads = ['Heures effectuées', 'Heures théoriques', 'Écart',
+                 'Contrat mensuel (h)', 'Base légale (h)', 'H. sup structurelles/mois',
+                 'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup']
         vals = [round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
+                round(contrat_mensuel, 2), round(BASE_LEGALE, 2), round(hs_struct, 2),
                 n_cp, n_mal, n_abs, n_fer, n_rec]
         for j, (h, v) in enumerate(zip(heads, vals), 1):
             c = ws.cell(row=4, column=j, value=h); c.font = HDR; c.fill = FILL; c.alignment = CTR
