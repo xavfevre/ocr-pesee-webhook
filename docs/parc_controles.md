@@ -168,3 +168,16 @@ Saisir les dates de dernier contrôle connu pour chaque véhicule — c'est le
 seul travail restant pour que le planning et les alertes soient pleinement
 opérationnels. Le tableau se remplit progressivement, aucune urgence
 compilée artificiellement.
+
+### Correctif « la date ne reste pas » (12/08)
+Le « dernier contrôle » de la page lisait **tous** les historiques non
+annulés — y compris les lignes « Nouveau » de planification automatique,
+datées dans le futur : après chaque enregistrement, la date affichée
+redevenait celle du prochain contrôle planifié (ex. Mercedes EK-292-RP :
+« 30/07/2027 » affiché alors que le dernier CT réalisé était le
+04/08/2026). Double correctif :
+- la page ne lit plus que les historiques à l'état **« Terminé »** ;
+- action 2055 : une correction de date fait foi — les « Terminé » datés
+  **après** la nouvelle date (saisies erronées) sont annulés.
+Testé en prod (05/08 puis re-correction 04/08 : le 05/08 annulé, une seule
+planification restante, doublon de test supprimé).
