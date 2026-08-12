@@ -515,3 +515,10 @@ récente) porte seule la valeur saisie, les autres sont **refusées** (une
 allocation ne peut pas valoir 0 en v19 ; historique conservé). Appliqué :
 MAIGNAN N=5 / N-1=30 au 31/07 (sa saisie qui échouait), vérifié sur la
 page. Saisie à 0 = toutes les allocations refusées.
+
+## Étiquettes employé sur les écrans RH (12/08)
+- **⏰ Horaires par défaut** : les étiquettes de la fiche employé (Chauffeur,
+  ATELIER, Administratif, TP…) s'affichent à côté du nom, aux couleurs du
+  kanban Odoo ; **Intérimaire** en rose vif bordé pour être repérable au
+  premier coup d'œil.
+- **/heures-admin** : badge « INTÉRIM » à côté du nom des intérimaires.
