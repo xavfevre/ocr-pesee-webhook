@@ -59,8 +59,11 @@ domaine `customer_rank > 0` et pas un contact) :
 3. **Étiquette** « Client X » de la société ajoutée, celles des autres
    sociétés retirées (les règles 23-26 d'ajout d'étiquettes restent actives).
 
-Exclus : contacts (`parent_id`), utilisateurs Odoo, étiquettes « Compte odoo »
-/ « Société du Groupe ».
+4. **Contacts** (fiches rattachées à une mère) : héritent de la **société et
+   de l'étiquette de la fiche mère**, jamais de code (le code vit sur la mère).
+   Rattrapage fait sur l'existant (4 contacts corrigés sur 212).
+
+Exclus : utilisateurs Odoo, étiquettes « Compte odoo » / « Société du Groupe ».
 
 Testé en prod : création sans société → MAQ + Client Maquignon ; création
 Châtel → CG ; bascule Châtel→Haims → recodage HAI + étiquette corrigée ;
