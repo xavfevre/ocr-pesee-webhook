@@ -71,6 +71,21 @@ code « nom » conservé à la bascule. Fiches test supprimées.
 
 Mirror du code : `odoo-scan-page/action_code_client_sage_2082.py`.
 
+## Contacts porteurs de codes (nettoyé le 13/08)
+
+L'ancienne règle codait aussi les contacts (adresses de facturation
+comprises) : 95 contacts porteurs d'un code. **78 vidés** (aucune facture
+propre — le code vit sur la fiche mère, ex. adresse « 3 FAUCHER » qui portait
+`DIS00740` alors que la mère a `3FAUCHER`). **17 conservés** : des contacts qui
+ont leurs propres factures (JOUBERT `CG00311`, CROCODILE, BIOTHERMIE,
+CHARIER…) — pattern hérité où le contact est le client facturé.
+
+**Règle pour l'export écritures (étape 3)** : code client d'une facture =
+`partner_id.ref` **si le destinataire de la facture porte un code**, sinon
+`commercial_partner_id.ref` (la fiche mère). Une facture adressée à un contact
+ou à une adresse de facturation remonte donc automatiquement au code de la
+fiche mère, et les 17 contacts-clients hérités gardent leur propre code.
+
 ## Alerte à la facturation / devis
 
 Le **contrôle multi-sociétés natif d'Odoo** bloque désormais tout devis,
