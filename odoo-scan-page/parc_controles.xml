@@ -123,7 +123,8 @@
       .pc-pop-box .sub{color:#64748b;font-size:12.5px;margin-bottom:14px;}
       .pc-pop-box label{font-weight:800;color:#64748b;font-size:12.5px;display:block;margin-bottom:4px;}
       .pc-pop-box input{width:100%;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;font-weight:700;margin-bottom:12px;}
-      .pc-pop-box .row{display:flex;gap:8px;}
+      .pc-pop-box .row{display:flex;gap:8px;margin:0;flex-wrap:nowrap;}
+      .pc-pop-box .row&gt;button{padding:10px;margin-top:0;width:auto;max-width:none;}
       .pc-pop-box button{border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;flex:1;}
       .pc-btn-save{background:#0f172a;color:#fff;}
       .pc-btn-clear{background:#fee2e2;color:#991b1b;}
