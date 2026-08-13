@@ -82,6 +82,11 @@ facture client** (le rang client natif ne monte qu'à la validation d'une
 facture, trop tard pour l'affichage). Une fiche artefact n'a jamais de devis →
 jamais codée. Fiche sans société au moment du devis → société du document.
 
+**Exception DISTRI BETON** : le code `DISxxxxx` sert d'identifiant au
+**distributeur de béton** (borne) — il est attribué **dès la création de la
+fiche**, même sans devis ni facture (domaine de la règle 89 élargi à
+`company_id = 2`).
+
 ## Contacts porteurs de codes (nettoyé le 13/08)
 
 L'ancienne règle codait aussi les contacts (adresses de facturation
