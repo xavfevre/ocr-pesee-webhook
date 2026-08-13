@@ -118,7 +118,7 @@
       .pc-ev .evdate{float:right;font-weight:900;}
       .pc-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;align-items:center;justify-content:center;}
       .pc-pop.show{display:flex;}
-      .pc-pop-box{background:#fff;border-radius:14px;padding:20px;width:340px;max-width:92vw;}
+      .pc-pop-box{background:#fff;border-radius:14px;padding:20px;width:500px;max-width:94vw;max-height:92vh;overflow-y:auto;}
       .pc-pop-box h5{margin:0 0 4px;font-weight:900;}
       .pc-pop-box .sub{color:#64748b;font-size:12.5px;margin-bottom:14px;}
       .pc-pop-box label{font-weight:800;color:#64748b;font-size:12.5px;display:block;margin-bottom:4px;}
