@@ -42,7 +42,7 @@
 Devis (cadre totaux à droite), factures/commandes (description à la ligne), **bon de colisage enrichi** (commande, objet/BC, prépalettisation, adresse livraison, lignes compactes), bon de livraison, fiche bloc + fiches BL en lot, étiquettes palette/code-barres, ordre de fabrication.
 
 ## 6. Transport & camions
-Tâches transport avec liaison automatique du véhicule Fleet (immatriculation), feuille de travail TP synchronisée (camion, km requis), garde-fou odomètre (relevés cohérents, dédupliqués), n° de lettre de voiture auto, rapport VEOLIA auto-envoyé, OCR photo des bons. Duplication des tâches réparée pour tous les profils (droits Parc automobile en lecture).
+Tâches transport avec liaison automatique du véhicule Fleet (immatriculation), feuille de travail TP synchronisée (camion, km requis), garde-fou odomètre (relevés cohérents, dédupliqués), n° de lettre de voiture auto, rapport VEOLIA auto-envoyé, OCR photo des bons (n° bon, client, transporteur, produit, chantier, véhicule, pesées/poids net, date, et depuis 08/2026 **Contrat SAP** + **code destinataire marchandise** — remplis quand présents sur le bon, ex. Heidelberg/GSM). Duplication des tâches réparée pour tous les profils (droits Parc automobile en lecture).
 
 ## 7. Fabrication — règles & correctifs
 Temps de gamme Tuffeau réalistes (~9,7 min/pierre mesurés sur pointages réels), 480 pointages aberrants corrigés, garde-fou « OF terminé » (annulation ≠ terminé), rebuts bout-en-bout, colis pré-imprimés agrafés = fonctionnement normal.
