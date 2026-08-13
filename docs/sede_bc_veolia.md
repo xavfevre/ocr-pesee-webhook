@@ -98,3 +98,35 @@ granulats (Forfait). L'UdF se propage aux factures via l'automatisation
 - **Prix à 0 signalés** « à vérifier » : les forfaits de livraison Châtel
   se tarifent à la main livraison par livraison (64–174 € constatés,
   aucune règle de liste) — le BC est créé, le bureau pose le prix.
+
+# Règle globale « tâche à l'état Fait » + bouton ECO CONCEPT (13/08)
+
+## Règle commune à TOUS les boutons
+Un BC n'est créé que si la tâche est à l'**état kanban « Fait »**
+(`state = 1_done`). Les tâches en cours / en attente / changements
+demandés sont comptées « pas à l'état Fait » dans le récapitulatif ;
+les annulées (étape OU état kanban) restent ignorées.
+
+## 🪄 ECO CONCEPT (client 18289, recette `eco`, spec docx d'Isabelle)
+Une seule ligne article, **quantité 1**, choix par ordre de priorité sur
+l'intitulé (accents neutralisés) :
+1. LAVAGE DE 3 BENNES → Transport divers (Forfait) 5902
+2. ENTRÉE DE BENNE / REMISE EN PLACE → Rotation benne - Forfait 5831
+3. INVERSION DE BENNE → Inversion Benne Pâte 5889 (jamais Solo — anomalie
+   historique à ne pas reproduire) ; SORTIE DE BENNE → 5889, libellé
+   « Sortie de benne pour lavage »
+4. FMA / VENDÉE / JEANDINET / ÉLEVAGE DU BREUIL / EARL REBA / VICQ /
+   AINAY → Semi Fond-mouvant - au Tour 5910 — **prioritaire sur Bouresse**
+5. BENNE PAIN ou ENLÈVEMENT+VIDAGE (sans FMA) → Solo - au Tour 5829
+6. BOURESSE / BENNES PÂTE (sans FMA) → Duo - au Tour 5830
+Aucun déclencheur reconnu → pas de BC, tâche signalée.
+
+**Section sans poids** : `Bon n°… (ou LVN n°…) | date | [nature +
+adresses] | immat`. Adresses embellies depuis les champs de la tâche
+(chargement + « Adresse de Livraison » _3) : 1ère ligne + « VILLE (dép) »
+dérivée du code postal (ex. BIMBO QRS PLESSIS CHATELLERAULT (86)) ;
+livraison absente → partie omise + signalée.
+
+Testé en prod : Inversion 80 €, **FMA BOURESSE → Semi Fond-mouvant**
+140 € (le piège de la spec ✓), Duo Bouresse 440 €, priorités et
+compteur « non Fait » vérifiés (S11554-S11556, conservés).

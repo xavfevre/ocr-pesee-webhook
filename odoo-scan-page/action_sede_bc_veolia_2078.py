@@ -20,6 +20,7 @@ tasks = env['project.task'].sudo().search([
 ], order='planned_date_begin')
 faits = []
 futurs = 0
+non_faits = 0
 deja = 0
 annulees = 0
 sans_bon = []
@@ -30,6 +31,9 @@ for t in tasks:
         continue
     if t.sale_order_id or t.sale_line_id:
         deja += 1
+        continue
+    if t.state != '1_done':
+        non_faits += 1
         continue
     if t.planned_date_begin and t.planned_date_begin > datetime.datetime.now():
         # transport pas encore realise : pas de bon de pesee, on attend
@@ -75,5 +79,5 @@ for t in tasks:
         sans_bon.append('%s (%s)' % (t.name or t.id, so.name))
     faits.append(so.name)
 action = {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
-          'annulees': annulees, 'sans_bon': sans_bon[:40], 'futurs': futurs}
+          'annulees': annulees, 'sans_bon': sans_bon[:40], 'futurs': futurs, 'non_faits': non_faits}
 

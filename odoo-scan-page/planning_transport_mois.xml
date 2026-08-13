@@ -77,6 +77,7 @@
         <button type="button" class="btn btn-sm trm-rec" data-rec="machefers" data-lbl="Machefers" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="VEOLIA PROPRETÉ POITOU CHARENTES : Transport de machefers (forfait, qté 1), section sans produit.">🪄 Machefers</button>
         <button type="button" class="btn btn-sm trm-rec" data-rec="gsm" data-lbl="GSM" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="Heidelberg Materials (GSM) : Transport de granulats (Tonne), quantité = tonnage, section standard.">🪄 GSM</button>
         <button type="button" class="btn btn-sm trm-rec" data-rec="chatel" data-lbl="Châtel'Granulats" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="CHATEL'GRANULATS : APPRO → variante selon le départ (Barré, Bailly, Roy, Morin, Luché, Haims, Usseau, Kidimat, Imerys, Samin, Pouzzo — produit de section réduit à 4 caractères) · DÉBLAIS → granulats (Tonne) · sinon livraison → granulats (Forfait, qté 1, nom de tâche inséré dans la section).">🪄 Châtel</button>
+        <button type="button" class="btn btn-sm trm-rec" data-rec="eco" data-lbl="ECO CONCEPT" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="ECO CONCEPT : article choisi selon l'intitulé (Lavage 3 bennes / Rotation / Inversion-Sortie / FMA et co / Solo benne pain / Duo Bouresse — FMA prioritaire), qté 1, section recomposée avec adresses de chargement et livraison, sans poids. Tâches non « Fait » ignorées.">🪄 ECO CONCEPT</button>
         <button type="button" class="btn btn-sm trm-rec" data-rec="haims" data-lbl="Haims" style="background:#6d28d9;color:#fff;font-weight:800;border-radius:10px;" title="CARRIERE D'HAIMS : granulats (Tonne, tonnage) — tâches TRANSFERT → Transfert de matériel (Heure, qté 1 à ajuster). Nom de tâche inséré dans la section.">🪄 Haims</button>
         <t t-set="clients_f" t-value="sorted(set(t.partner_id.display_name for t in all_records if t.partner_id))"/>
         
@@ -262,6 +263,7 @@
             if(r.deja){ msg += '\n' + r.deja + ' tâche(s) avec BC déjà existant (ignorées)'; }
             if(r.annulees){ msg += '\n' + r.annulees + ' tâche(s) annulée(s) (ignorées)'; }
             if(r.futurs){ msg += '\n' + r.futurs + ' transport(s) à venir (ignorés — pas encore de bon de pesée)'; }
+            if(r.non_faits){ msg += '\n' + r.non_faits + ' tâche(s) pas à l\u2019état « Fait » (ignorées)'; }
             if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
             if(r.a_verifier &amp;&amp; r.a_verifier.length){ msg += '\n⚠ À vérifier : ' + r.a_verifier.join(' · '); }
             alert(msg);
