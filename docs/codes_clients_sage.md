@@ -71,6 +71,17 @@ code « nom » conservé à la bascule. Fiches test supprimées.
 
 Mirror du code : `odoo-scan-page/action_code_client_sage_2082.py`.
 
+## Prospects : code au premier devis / première facture
+
+Les fiches sans activité (`customer_rank = 0`) ne sont **pas** codées en masse :
+sur 631 fiches concernées, beaucoup sont des artefacts d'emails entrants
+(`"Secrétariat" <secretariat@…>`) ou des doublons — les coder polluerait Sage.
+À la place, deux règles (actions **2086** sale.order / **2087** account.move)
+codent la **fiche mère** du client dès son **premier devis** ou sa **première
+facture client** (le rang client natif ne monte qu'à la validation d'une
+facture, trop tard pour l'affichage). Une fiche artefact n'a jamais de devis →
+jamais codée. Fiche sans société au moment du devis → société du document.
+
 ## Contacts porteurs de codes (nettoyé le 13/08)
 
 L'ancienne règle codait aussi les contacts (adresses de facturation
