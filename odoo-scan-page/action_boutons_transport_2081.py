@@ -2,8 +2,8 @@
 # (Longué+Lac, Prieuré, Besnault, Machefers, GSM, Châtel, Haims)
 
 # Boutons transport (vue mois) : BC automatiques par recette client.
-# Reproduit le geste manuel d'Isabelle : BC confirme + article(s) + section
-# « Bon de pesee » composee directement au bon format (au lieu d'etre retouchee).
+# Regles communes : tache du mois affiche, NON annulee, SANS BC existant,
+# NON future, et A L'ETAT « Fait » (etat kanban) — sinon comptee/ignoree.
 # Quantites : 'poids' = tonnage du bon de pesee ; 'un' = 1 (forfait/heure).
 ctx = env.context
 recette = (ctx.get('tb_recette') or '').strip()
@@ -13,7 +13,6 @@ if not (recette and du and au):
     raise UserError('Parametres manquants (tb_recette / tb_du / tb_au).')
 
 RECETTES = {
-    # partners, section ('sans_produit' | 'standard' | 'produit4' | 'label_avant_produit' | 'label_apres_produit')
     'longue_lac': {'partners': [15797, 15755], 'section': 'sans_produit',
                    'lignes': [(4414, 'poids', None), (5220, 'poids', None)]},
     'prieure':    {'partners': [18133], 'section': 'sans_produit',
@@ -26,6 +25,7 @@ RECETTES = {
                    'lignes': [(5903, 'poids', None)]},
     'chatel':     {'partners': [18838], 'section': 'dynamique', 'lignes': []},
     'haims':      {'partners': [15848, 18115], 'section': 'label_avant_produit', 'lignes': []},
+    'eco':        {'partners': [18289], 'section': 'eco', 'lignes': []},
 }
 if recette not in RECETTES:
     raise UserError('Recette inconnue : %s' % recette)
@@ -43,11 +43,25 @@ def _norm(s):
 
 def _label_tache(nom):
     n = _norm(nom)
-    for pref in ("CHATEL GRANULATS", "CHATEL'GRANULATS", 'CHATEL GRANULAT', "CARRIERE D'HAIMS", 'CARRIERE D HAIMS'):
+    for pref in ("CHATEL GRANULATS", "CHATEL'GRANULATS", 'CHATEL GRANULAT', "CARRIERE D'HAIMS", 'CARRIERE D HAIMS', 'ECO CONCEPT'):
         if n.startswith(pref):
             reste = nom[len(pref):]
             return reste.strip(' -–').strip()
     return nom.strip()
+
+def _adresse(txt):
+    # « premiere ligne + ville embellie » : BIMBO QRS PLESSIS / ZA... / 86100
+    # CHATELLERAULT -> « BIMBO QRS PLESSIS CHATELLERAULT (86) »
+    lignes = [l.strip() for l in (txt or '').split('\n') if l.strip()]
+    if not lignes:
+        return ''
+    if len(lignes) == 1:
+        return lignes[0]
+    prem, der = lignes[0], lignes[-1]
+    mots = der.split()
+    if mots and mots[0].isdigit() and len(mots[0]) == 5:
+        der = ' '.join(mots[1:]) + ' (' + mots[0][:2] + ')'
+    return (prem + ' ' + der).strip()
 
 tasks = env['project.task'].sudo().search([
     ('partner_id', 'in', R['partners']),
@@ -55,22 +69,26 @@ tasks = env['project.task'].sudo().search([
     ('planned_date_begin', '>=', du + ' 00:00:00'),
     ('planned_date_begin', '<=', au + ' 23:59:59'),
 ], order='planned_date_begin')
-faits, deja, annulees, sans_bon, a_verifier, futurs = [], 0, 0, [], [], 0
+faits, deja, annulees, sans_bon, a_verifier, futurs, non_faits = [], 0, 0, [], [], 0, 0
 for t in tasks:
     st = (t.stage_id.name or '').lower()
-    if 'annul' in st or 'cancel' in st:
+    if 'annul' in st or 'cancel' in st or t.state == '1_canceled':
         annulees += 1
         continue
     if t.sale_order_id or t.sale_line_id:
         deja += 1
         continue
     if t.planned_date_begin and t.planned_date_begin > datetime.datetime.now():
-        # transport pas encore realise : pas de bon de pesee, on attend
         futurs += 1
+        continue
+    if t.state != '1_done':
+        # regle commune : le transport doit etre a l'etat « Fait »
+        non_faits += 1
         continue
     nom_n = _norm(t.name or '')
     lignes = list(R['lignes'])
     section_mode = R['section']
+    eco_milieu = None
     if recette == 'chatel':
         prod_appro = None
         for mot, pid in APPRO:
@@ -78,19 +96,46 @@ for t in tasks:
                 prod_appro = pid
                 break
         if 'DEBLAIS' in nom_n:
-            lignes = [(5903, 'poids', None)]           # granulats (Tonne) — arbitrage Isabelle
+            lignes = [(5903, 'poids', None)]
             section_mode = 'standard'
         elif prod_appro:
             lignes = [(prod_appro, 'poids', None)]
             section_mode = 'produit4'
         else:
-            lignes = [(5904, 'un', None)]              # livraison : granulats (Forfait), qte 1
+            lignes = [(5904, 'un', None)]
             section_mode = 'label_apres_produit'
     elif recette == 'haims':
         if 'TRANSFERT' in nom_n:
-            lignes = [(5912, 'un', None)]              # Transfert de materiel (Heure), qte 1 a ajuster
+            lignes = [(5912, 'un', None)]
         else:
             lignes = [(5903, 'poids', None)]
+    elif recette == 'eco':
+        # ordre de priorite de la procedure ECO CONCEPT (FMA prime sur Bouresse)
+        charg = _adresse(t.x_studio_adresse_de_chargement)
+        livr = _adresse(t.x_studio_adresse_de_livraison_3)
+        regle = None
+        if 'LAVAGE DE 3 BENNES' in nom_n:
+            regle = (5902, '%s - Lavage de 3 bennes' % charg)
+        elif 'ENTREE DE BENNE' in nom_n or 'REMISE EN PLACE' in nom_n:
+            regle = (5831, '%s - Remise en place de la benne pâte' % charg)
+        elif 'INVERSION DE BENNE' in nom_n:
+            regle = (5889, '%s - Inversion benne pâte' % charg)
+        elif 'SORTIE DE BENNE' in nom_n:
+            regle = (5889, '%s - Sortie de benne pour lavage' % charg)
+        elif ('FMA' in nom_n or 'VENDEE' in nom_n or 'JEANDINET' in nom_n or 'ELEVAGE DU BREUIL' in nom_n
+              or 'EARL REBA' in nom_n or 'VICQ' in nom_n or 'AINAY' in nom_n):
+            regle = (5910, ('FMA %s -> %s' % (charg, livr)) if livr else ('FMA %s' % charg))
+        elif 'BENNE PAIN' in nom_n or ('ENLEVEMENT' in nom_n and 'VIDAGE' in nom_n):
+            regle = (5829, ('Enlèvement + vidage benne pain - %s -> %s' % (charg, livr)) if livr else ('Enlèvement + vidage benne pain - %s' % charg))
+        elif 'BOURESSE' in nom_n or 'BOURRESSE' in nom_n or 'BENNES PATE' in nom_n or 'BENNE PATE' in nom_n:
+            regle = (5830, ('Transport 2 bennes pâte - %s -> %s' % (charg, livr)) if livr else ('Transport 2 bennes pâte - %s' % charg))
+        if not regle:
+            a_verifier.append('%s : aucune règle reconnue — BC non créé' % (t.name or t.id))
+            continue
+        lignes = [(regle[0], 'un', None)]
+        eco_milieu = regle[1]
+        if regle[0] in (5910, 5829, 5830) and not livr:
+            a_verifier.append('%s : adresse de livraison absente sur la tâche' % (t.name or t.id))
     # bon de pesee (derniere feuille de la tache)
     ws = env['x_project_task_worksheet_template_1'].sudo().search(
         [('x_project_task_id', '=', t.id)], limit=1, order='create_date desc')
@@ -99,8 +144,6 @@ for t in tasks:
         'partner_id': t.partner_id.id,
         'company_id': t.company_id.id,
         'origin': t.name,
-        # date du BC = date du transport : les validites de tarifs (listes de
-        # prix datees) s'appliquent au jour de la prestation, pas au jour du clic
         'date_order': t.planned_date_begin,
     })
     for pid, qmode, libcli in lignes:
@@ -111,22 +154,26 @@ for t in tasks:
         env['sale.order.line'].sudo().create(vals)
     so.action_confirm()
     if t.planned_date_begin:
-        # action_confirm remet la date du jour : on recale sur la date du
-        # transport pour que les tarifs dates s'appliquent au bon jour
         so.write({'date_order': t.planned_date_begin})
     t.write({'sale_order_id': so.id})
     for l0 in so.order_line:
         if not l0.display_type and not l0.price_unit:
-            # forfaits de livraison & co : prix a poser a la main
             a_verifier.append('%s (%s) : prix a saisir (ligne a 0)' % ((t.name or '').strip()[:40], so.name))
             break
     if ws and (ws.x_studio_numero_bon or ws.x_studio_client_pesee or ws.x_studio_vehicule):
         poids_str = ('%s T' % poids_t) if poids_t else 'Poids N/A'
-        parts = ['Bon n°%s' % (ws.x_studio_numero_bon or ''), '%s' % (ws.x_studio_date_bon or '')]
+        num = '%s' % (ws.x_studio_numero_bon or '')
+        if 'LVN' in num.upper():
+            part0 = 'LVN n°' + num.upper().replace('LVN', '').replace('N°', '').strip(' °')
+        else:
+            part0 = 'Bon n°' + num
+        parts = [part0, '%s' % (ws.x_studio_date_bon or '')]
         produit = '%s' % (ws.x_studio_produit_pesee or '')
         veh = '%s' % (ws.x_studio_vehicule or '')
         label = _label_tache(t.name or '')
-        if section_mode == 'sans_produit':
+        if section_mode == 'eco':
+            parts += [eco_milieu or produit, veh]      # sans poids (qte = 1)
+        elif section_mode == 'sans_produit':
             parts += [veh, poids_str]
         elif section_mode == 'produit4':
             parts += [produit[:4], veh, poids_str]
@@ -154,5 +201,6 @@ for t in tasks:
         a_verifier.append('%s (%s) : pas de poids sur le bon — quantité laissée à 1' % ((t.name or '').strip()[:40], so.name))
     faits.append(so.name)
 action = {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
-          'annulees': annulees, 'sans_bon': sans_bon[:40], 'a_verifier': a_verifier[:40], 'futurs': futurs}
+          'annulees': annulees, 'sans_bon': sans_bon[:40],
+          'a_verifier': a_verifier[:40], 'futurs': futurs, 'non_faits': non_faits}
 
