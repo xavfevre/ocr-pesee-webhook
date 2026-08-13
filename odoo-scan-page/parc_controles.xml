@@ -128,6 +128,15 @@
       .pc-btn-save{background:#0f172a;color:#fff;}
       .pc-btn-clear{background:#fee2e2;color:#991b1b;}
       .pc-btn-cancel{background:#f1f5f9;color:#334155;}
+      .pc-zone{border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px;}
+      .pc-zone-head{font-weight:900;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .pc-zone-badge{font-size:10.5px;font-weight:800;color:#166534;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:1px 7px;white-space:nowrap;}
+      .pc-pop-box button{transition:filter .12s,transform .12s,box-shadow .15s;}
+      .pc-pop-box button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 10px rgba(15,23,42,.22);filter:brightness(1.06);}
+      .pc-btn-valid:hover:not(:disabled){background:#bbf7d0 !important;filter:none;}
+      .pc-btn-clear:hover{background:#fecaca;filter:none;}
+      .pc-btn-cancel:hover{background:#e2e8f0;filter:none;}
+      .pc-viewnav a:hover:not(.on){background:#f1f5f9;}
     </style>
 
     <t t-set="alerte_emails" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.parc_alerte_email') or ''"/>
@@ -379,47 +388,52 @@
     <div class="pc-pop" id="pcPop">
       <div class="pc-pop-box">
         <h5 id="pcPopVeh"/>
-        <div class="sub" id="pcPopType" style="margin-bottom:10px;"/>
-        <button type="button" class="pc-btn-valid" id="pcPopValid" style="width:100%;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;background:#dcfce7;color:#166534;margin-bottom:10px;">✓ Valider aujourd'hui — planifie le prochain contrôle</button>
-
-        <div id="pcCvPending" style="display:none;background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:10px;padding:10px;margin-bottom:10px;">
-          <div style="font-weight:900;color:#831843;margin-bottom:6px;">⚠ Contre-visite à passer avant le <span id="pcCvLim"/></div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="date" id="pcCvDoneDate" style="margin:0;flex:1;"/>
-            <button type="button" id="pcCvDoneBtn" style="border:none;border-radius:8px;background:#831843;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">✓ Contre-visite passée</button>
-          </div>
-        </div>
-        <div id="pcCvSet" style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:10px;margin-bottom:10px;">
-          <div style="font-weight:800;color:#9a3412;margin-bottom:6px;">Résultat défavorable ? Contre-visite avant le :</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="date" id="pcCvLimite" style="margin:0;flex:1;"/>
-            <button type="button" id="pcCvSetBtn" style="border:none;border-radius:8px;background:#9a3412;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">Planifier</button>
-          </div>
-        </div>
-
-        <div style="height:1px;background:#e2e8f0;margin:4px 0 12px;"/>
-        <label>✎ Dernier contrôle réalisé le (saisie ou correction)</label>
-        <input type="date" id="pcPopDate"/>
-        <div class="sub" id="pcPopNext" style="margin-bottom:12px;"/>
-        <label id="pcComboZone" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:9px 11px;margin-bottom:10px;font-weight:800;color:#1e40af;font-size:13px;cursor:pointer;align-items:center;gap:8px;">
+        <div class="sub" id="pcPopType" style="margin-bottom:12px;"/>
+        <label id="pcComboZone" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:9px 11px;margin-bottom:12px;font-weight:800;color:#1e40af;font-size:13px;cursor:pointer;align-items:center;gap:8px;">
           <input type="checkbox" id="pcComboChk" checked="checked" style="width:17px;height:17px;"/>
           <span>🚛🔗 Faire passer aussi l'attelage <b id="pcComboName"/> le même jour</span>
         </label>
 
-        <div class="row">
-          <button type="button" class="pc-btn-cancel" id="pcPopCancel">Annuler</button>
-          <button type="button" class="pc-btn-clear" id="pcPopClear">Effacer</button>
-          <button type="button" class="pc-btn-save" id="pcPopSave">Enregistrer</button>
+        <div class="pc-zone" style="border-color:#bbf7d0;background:#f7fdf9;">
+          <div class="pc-zone-head" style="color:#166534;">✓ Validation &amp; contre-visite <span class="pc-zone-badge">enregistrement auto</span></div>
+          <button type="button" class="pc-btn-valid" id="pcPopValid" style="width:100%;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;background:#dcfce7;color:#166534;margin-bottom:10px;">✓ Valider aujourd'hui — planifie le prochain contrôle</button>
+          <div id="pcCvPending" style="display:none;background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:10px;padding:10px;">
+            <div style="font-weight:900;color:#831843;margin-bottom:6px;">⚠ Contre-visite à passer avant le <span id="pcCvLim"/></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="date" id="pcCvDoneDate" style="margin:0;flex:1;"/>
+              <button type="button" id="pcCvDoneBtn" style="border:none;border-radius:8px;background:#831843;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">✓ Contre-visite passée</button>
+            </div>
+          </div>
+          <div id="pcCvSet" style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:10px;">
+            <div style="font-weight:800;color:#9a3412;margin-bottom:6px;">Résultat défavorable ? Contre-visite avant le :</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="date" id="pcCvLimite" style="margin:0;flex:1;"/>
+              <button type="button" id="pcCvSetBtn" style="border:none;border-radius:8px;background:#9a3412;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">Planifier</button>
+            </div>
+          </div>
         </div>
 
-        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:12px;">
-          <div style="font-weight:800;color:#334155;margin-bottom:6px;" id="pcDocTitle">📎 Documents du véhicule</div>
+        <div class="pc-zone" style="border-color:#cbd5e1;background:#fbfcfe;">
+          <div class="pc-zone-head" style="color:#334155;">✎ Dernier contrôle réalisé</div>
+          <label>Date (saisie ou correction)</label>
+          <input type="date" id="pcPopDate"/>
+          <div class="sub" id="pcPopNext" style="margin-bottom:10px;"/>
+          <div class="row">
+            <button type="button" class="pc-btn-clear" id="pcPopClear">Effacer</button>
+            <button type="button" class="pc-btn-save" id="pcPopSave">Enregistrer</button>
+          </div>
+        </div>
+
+        <div class="pc-zone" style="border-color:#e2e8f0;background:#f8fafc;">
+          <div class="pc-zone-head" style="color:#334155;" id="pcDocTitle">📎 Documents du véhicule</div>
           <div id="pcDocList" style="font-size:12.5px;margin-bottom:8px;color:#64748b;">…</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="file" id="pcDocFile" style="flex:1;font-size:12px;margin:0;border:none;padding:0;"/>
             <button type="button" id="pcDocUp" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">Ajouter</button>
           </div>
         </div>
+
+        <button type="button" class="pc-btn-cancel" id="pcPopCancel" style="width:100%;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;">✕ Sortir</button>
       </div>
     </div>
 
