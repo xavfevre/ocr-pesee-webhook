@@ -55,6 +55,7 @@ FIELD_MAP = {
     "date_bon"      : "x_studio_date_bon",
     "contrat_sap"       : "x_studio_contrat_sap",
     "code_destinataire" : "x_studio_code_destinataire",
+    "type_document"     : "x_studio_type_document",
 }
 
 # ─── PROMPT MISTRAL ───────────────────────────────────────────────────────────

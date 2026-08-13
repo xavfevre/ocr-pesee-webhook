@@ -1,6 +1,3 @@
-# Action serveur 2081 — boutons « BC automatiques » de /planning-transport-mois
-# (Longué+Lac, Prieuré, Besnault, Machefers, GSM, Châtel, Haims)
-
 # Boutons transport (vue mois) : BC automatiques par recette client.
 # Regles communes : tache du mois affiche, NON annulee, SANS BC existant,
 # NON future, et A L'ETAT « Fait » (etat kanban) — sinon comptee/ignoree.
@@ -17,11 +14,11 @@ RECETTES = {
                    'lignes': [(4414, 'poids', None), (5220, 'poids', None)]},
     'prieure':    {'partners': [18133], 'section': 'sans_produit',
                    'lignes': [(4414, 'poids', 'Tuffeau broyé 0/15 - 0/20 (en tonnes)'), (5220, 'poids', None)]},
-    'besnault':   {'partners': [15689], 'section': 'sans_produit',
+    'besnault':   {'partners': [15689], 'section': 'besnault',
                    'lignes': [(5882, 'poids', None)]},
-    'machefers':  {'partners': [16033], 'section': 'sans_produit',
+    'machefers':  {'partners': [16033], 'section': 'machefers',
                    'lignes': [(444, 'un', None)]},
-    'gsm':        {'partners': [18889, 15837], 'section': 'standard',
+    'gsm':        {'partners': [18889, 15837], 'section': 'gsm',
                    'lignes': [(5903, 'poids', None)]},
     'chatel':     {'partners': [18838], 'section': 'dynamique', 'lignes': []},
     'haims':      {'partners': [15848, 18115], 'section': 'label_avant_produit', 'lignes': []},
@@ -62,6 +59,37 @@ def _adresse(txt):
     if mots and mots[0].isdigit() and len(mots[0]) == 5:
         der = ' '.join(mots[1:]) + ' (' + mots[0][:2] + ')'
     return (prem + ' ' + der).strip()
+
+def _seg_adresses(t):
+    # « CHARGEMENT à LIVRAISON » si les deux adresses de la tache sont remplies, sinon ''
+    charg = _adresse(t.x_studio_adresse_de_chargement)
+    livr = _adresse(t.x_studio_adresse_de_livraison_3)
+    return ('%s à %s' % (charg, livr)) if (charg and livr) else ''
+
+def _descr_ligne1(t):
+    # 1ere ligne non vide de la description (HTML) ; espace insere apres
+    # les 4 premiers caracteres : « 0/20BLEU » -> « 0/20 BLEU »
+    brut = t.description or ''
+    out = []
+    dedans = False
+    for c in brut:
+        if c == '<':
+            dedans = True
+        elif c == '>':
+            dedans = False
+            out.append('\n')
+        elif not dedans:
+            out.append(c)
+    txt = ''.join(out)
+    for a, b in (('&nbsp;', ' '), ('&amp;', '&'), ('&#39;', "'"), ('&quot;', '"')):
+        txt = txt.replace(a, b)
+    lignes = [l.strip() for l in txt.split('\n') if l.strip()]
+    if not lignes:
+        return ''
+    l1 = lignes[0]
+    if len(l1) > 4 and l1[4] != ' ':
+        l1 = l1[:4] + ' ' + l1[4:]
+    return l1
 
 tasks = env['project.task'].sudo().search([
     ('partner_id', 'in', R['partners']),
@@ -156,6 +184,14 @@ for t in tasks:
     if t.planned_date_begin:
         so.write({'date_order': t.planned_date_begin})
     t.write({'sale_order_id': so.id})
+    if recette == 'chatel':
+        # etiquette « Autres informations » du BC selon l'article
+        prod0 = env['product.product'].sudo().browse(lignes[0][0])
+        etiquette = 'Appro CG' if 'APPRO' in _norm(prod0.name or '') else 'Liv Client CG'
+        tag = env['crm.tag'].sudo().search([('name', '=', etiquette)], limit=1)
+        if not tag:
+            tag = env['crm.tag'].sudo().create({'name': etiquette})
+        so.write({'tag_ids': [(4, tag.id)]})
     for l0 in so.order_line:
         if not l0.display_type and not l0.price_unit:
             a_verifier.append('%s (%s) : prix a saisir (ligne a 0)' % ((t.name or '').strip()[:40], so.name))
@@ -163,7 +199,8 @@ for t in tasks:
     if ws and (ws.x_studio_numero_bon or ws.x_studio_client_pesee or ws.x_studio_vehicule):
         poids_str = ('%s T' % poids_t) if poids_t else 'Poids N/A'
         num = '%s' % (ws.x_studio_numero_bon or '')
-        if 'LVN' in num.upper():
+        type_doc = ('%s' % (ws.x_studio_type_document or '')).strip().lower()
+        if 'LVN' in num.upper() or type_doc == 'lettre_voiture':
             part0 = 'LVN n°' + num.upper().replace('LVN', '').replace('N°', '').strip(' °')
         else:
             part0 = 'Bon n°' + num
@@ -171,9 +208,32 @@ for t in tasks:
         produit = '%s' % (ws.x_studio_produit_pesee or '')
         veh = '%s' % (ws.x_studio_vehicule or '')
         label = _label_tache(t.name or '')
+        seg_adr = _seg_adresses(t)
+        if section_mode == 'gsm' and ws.x_studio_contrat_sap:
+            parts[0] = 'BL SAP PR0 n°%s - Transport n°%s' % (ws.x_studio_contrat_sap, num)
         if section_mode == 'eco':
             parts += [eco_milieu or produit, veh]      # sans poids (qte = 1)
         elif section_mode == 'sans_produit':
+            # Longue/Lac, Prieure : adresses inserees si les 2 champs remplis
+            if seg_adr:
+                parts += [seg_adr]
+            parts += [veh, poids_str]
+        elif section_mode == 'besnault':
+            # produit repris de la description + adresses
+            prod_descr = _descr_ligne1(t)
+            if prod_descr:
+                parts += [prod_descr]
+            if seg_adr:
+                parts += [seg_adr]
+            parts += [veh, poids_str]
+        elif section_mode == 'machefers':
+            # rien entre la date et l'immat
+            parts += [veh, poids_str]
+        elif section_mode == 'gsm':
+            # produit sur 4 caracteres + code destinataire marchandise (OCR)
+            parts += [produit[:4]]
+            if ws.x_studio_code_destinataire:
+                parts += ['%s' % ws.x_studio_code_destinataire]
             parts += [veh, poids_str]
         elif section_mode == 'produit4':
             parts += [produit[:4], veh, poids_str]
@@ -203,4 +263,3 @@ for t in tasks:
 action = {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
           'annulees': annulees, 'sans_bon': sans_bon[:40],
           'a_verifier': a_verifier[:40], 'futurs': futurs, 'non_faits': non_faits}
-
