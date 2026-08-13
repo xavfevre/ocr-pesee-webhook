@@ -36,16 +36,35 @@ usage) a été supprimé.
 - fiches « sans société » affectées (étiquettes Client X, créateur, parent) ;
   étiquettes clients complétées.
 
-## Étape 2 — automatisation
+## Étape 2 — automatisation « cohérence fiche client »
 
-- **Action serveur 2012→2082** « Code client automatique (Sage) » +
-  **règle d'automatisation 89** (`base.automation`, on_create_or_write sur
-  `customer_rank` / `company_id`).
-- Déclenche : fiche autonome (pas contact), client (`customer_rank > 0`),
-  sans code, société 1/2/3/4. Exclut utilisateurs Odoo et étiquettes
-  « Compte odoo » / « Société du Groupe ».
-- Code attribué : préfixe société + n° suivant sur 5 chiffres (le max est
-  recalculé à chaque fois — pas de séquence à maintenir).
+**Cause racine des fiches mal casées** (comprise le 13/08) : l'ancienne règle
+« Num client » (règle 2, action 1260) codait toute fiche sans référence selon
+la **société active de l'utilisateur** (`env.company`) — séquence CG si
+« CHATEL », **sinon DIS pour tout le monde** — contacts compris, avec des
+séquences désynchronisées (CG à 465 alors que la base était à CG00486).
+Delphine/Isabelle travaillant sur 4-5 sociétés, la société active ne
+correspondait pas toujours à la fiche. → **Règle désactivée.**
+
+**Remplacée par** : action serveur **2082** + règle d'automatisation **89**
+(`on_create_or_write` sur `customer_rank` / `company_id`,
+domaine `customer_rank > 0` et pas un contact) :
+
+1. **Société** manquante → société active du créateur ;
+2. **Code** selon la société de la **fiche** : `MAQxxxxx` / `HAIxxxxx` /
+   `CGxxxxx` / `DISxxxxx` (max recalculé à chaque attribution — pas de séquence
+   à maintenir). Attribué si absent, **recodé si la fiche change de société**
+   et portait un code séquence d'une autre société. Les codes Sage « nom »
+   ne sont jamais touchés ;
+3. **Étiquette** « Client X » de la société ajoutée, celles des autres
+   sociétés retirées (les règles 23-26 d'ajout d'étiquettes restent actives).
+
+Exclus : contacts (`parent_id`), utilisateurs Odoo, étiquettes « Compte odoo »
+/ « Société du Groupe ».
+
+Testé en prod : création sans société → MAQ + Client Maquignon ; création
+Châtel → CG ; bascule Châtel→Haims → recodage HAI + étiquette corrigée ;
+code « nom » conservé à la bascule. Fiches test supprimées.
 
 Mirror du code : `odoo-scan-page/action_code_client_sage_2082.py`.
 
