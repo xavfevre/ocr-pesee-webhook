@@ -86,6 +86,16 @@ CHARIER…) — pattern hérité où le contact est le client facturé.
 ou à une adresse de facturation remonte donc automatiquement au code de la
 fiche mère, et les 17 contacts-clients hérités gardent leur propre code.
 
+## Adresse de facturation automatique
+
+Flux devis → facture : natif (le devis résout l'adresse de facturation dédiée
+du client). Complété le 13/08 par la règle **« Facture : adresse de facturation
+automatique »** (action serveur + règle 92) : une facture client créée
+**directement** sur une fiche mère bascule d'elle-même sur l'adresse de
+facturation dédiée si elle existe (brouillons uniquement, factures fournisseurs
+non concernées). Le code Sage remonte de toute façon à la fiche mère via
+`commercial_partner_id`.
+
 ## Alerte à la facturation / devis
 
 Le **contrôle multi-sociétés natif d'Odoo** bloque désormais tout devis,
