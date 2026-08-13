@@ -1036,6 +1036,15 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module maquignon_tarifs non chargé: {_e}")
 
+# ─── MAQUIGNON : export comptable Sage (remplace les actions Odoo 1459/1671) ──
+# Monté sous /export-compta — voir export_compta/app.py. Jeton d'accès dans
+# Odoo (ir.config_parameter maquignon.compta_key).
+try:
+    from export_compta.app import bp as compta_bp
+    app.register_blueprint(compta_bp, url_prefix="/export-compta")
+except Exception as _e:
+    app.logger.warning(f"Module export_compta non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
