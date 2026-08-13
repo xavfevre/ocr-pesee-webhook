@@ -379,14 +379,7 @@
     <div class="pc-pop" id="pcPop">
       <div class="pc-pop-box">
         <h5 id="pcPopVeh"/>
-        <div class="sub" id="pcPopType"/>
-        <label>Dernier contrôle réalisé le</label>
-        <input type="date" id="pcPopDate"/>
-        <div class="sub" id="pcPopNext" style="margin-bottom:12px;"/>
-        <label id="pcComboZone" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:9px 11px;margin-bottom:10px;font-weight:800;color:#1e40af;font-size:13px;cursor:pointer;align-items:center;gap:8px;">
-          <input type="checkbox" id="pcComboChk" checked="checked" style="width:17px;height:17px;"/>
-          <span>🚛🔗 Faire passer aussi l'attelage <b id="pcComboName"/> le même jour</span>
-        </label>
+        <div class="sub" id="pcPopType" style="margin-bottom:10px;"/>
         <button type="button" class="pc-btn-valid" id="pcPopValid" style="width:100%;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;background:#dcfce7;color:#166534;margin-bottom:10px;">✓ Valider aujourd'hui — planifie le prochain contrôle</button>
 
         <div id="pcCvPending" style="display:none;background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:10px;padding:10px;margin-bottom:10px;">
@@ -404,19 +397,28 @@
           </div>
         </div>
 
-        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:12px;">
+        <div style="height:1px;background:#e2e8f0;margin:4px 0 12px;"/>
+        <label>✎ Dernier contrôle réalisé le (saisie ou correction)</label>
+        <input type="date" id="pcPopDate"/>
+        <div class="sub" id="pcPopNext" style="margin-bottom:12px;"/>
+        <label id="pcComboZone" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:9px 11px;margin-bottom:10px;font-weight:800;color:#1e40af;font-size:13px;cursor:pointer;align-items:center;gap:8px;">
+          <input type="checkbox" id="pcComboChk" checked="checked" style="width:17px;height:17px;"/>
+          <span>🚛🔗 Faire passer aussi l'attelage <b id="pcComboName"/> le même jour</span>
+        </label>
+
+        <div class="row">
+          <button type="button" class="pc-btn-cancel" id="pcPopCancel">Annuler</button>
+          <button type="button" class="pc-btn-clear" id="pcPopClear">Effacer</button>
+          <button type="button" class="pc-btn-save" id="pcPopSave">Enregistrer</button>
+        </div>
+
+        <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:12px;">
           <div style="font-weight:800;color:#334155;margin-bottom:6px;" id="pcDocTitle">📎 Documents du véhicule</div>
           <div id="pcDocList" style="font-size:12.5px;margin-bottom:8px;color:#64748b;">…</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="file" id="pcDocFile" style="flex:1;font-size:12px;margin:0;border:none;padding:0;"/>
             <button type="button" id="pcDocUp" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;padding:8px 10px;cursor:pointer;">Ajouter</button>
           </div>
-        </div>
-
-        <div class="row">
-          <button type="button" class="pc-btn-cancel" id="pcPopCancel">Annuler</button>
-          <button type="button" class="pc-btn-clear" id="pcPopClear">Effacer</button>
-          <button type="button" class="pc-btn-save" id="pcPopSave">Enregistrer</button>
         </div>
       </div>
     </div>
