@@ -5,7 +5,9 @@ de la page /protec/ebp. Objectif : remplacer les actions serveur Odoo payantes.*
 
 ## Utilisation
 
-`https://<app Render>/export-compta/?token=<maquignon.compta_key>`
+Menu **Comptabilité → 📤 Export Sage** (menu 1059, action act_url 2088 —
+ouvre la page Render dans un nouvel onglet, jeton inclus), ou directement :
+`https://ocr-pesee-webhook.onrender.com/export-compta/?token=<maquignon.compta_key>`
 
 1. Choisir la **société** et le **mois** (12 derniers proposés) ;
 2. L'aperçu liste chaque journal avec pièces / lignes / total débit,
