@@ -128,6 +128,12 @@
       .pc-btn-save{background:#0f172a;color:#fff;}
       .pc-btn-clear{background:#fee2e2;color:#991b1b;}
       .pc-btn-cancel{background:#f1f5f9;color:#334155;}
+      .pc-pop-box button{transition:filter .12s,transform .12s,box-shadow .15s;}
+      .pc-pop-box button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 10px rgba(15,23,42,.22);filter:brightness(1.06);}
+      .pc-btn-valid:hover:not(:disabled){background:#bbf7d0 !important;filter:none;}
+      .pc-btn-clear:hover{background:#fecaca;filter:none;}
+      .pc-btn-cancel:hover{background:#e2e8f0;filter:none;}
+      .pc-viewnav a:hover:not(.on){background:#f1f5f9;}
     </style>
 
     <t t-set="alerte_emails" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.parc_alerte_email') or ''"/>
