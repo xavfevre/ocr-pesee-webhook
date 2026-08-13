@@ -34,6 +34,8 @@ Cas particuliers :
 
 ## Autres sociétés
 
-Les journaux de caisse de DISTRI BETON (Cash id 15, Espèces id 30),
-CHATEL'GRANULATS (Caisse id 42) et CARRIERE D'HAIMS (Caisse id 49) n'ont **pas**
-été touchés — même réglage à appliquer si le besoin apparaît.
+- **CARRIERE D'HAIMS** : même réglage appliqué le 13/08/2026 — journal Caisse
+  (id 49), compte de paiement 4024 (Cash) sur les deux méthodes. Aucun paiement
+  fantôme à régulariser.
+- **CHATEL'GRANULATS** : passe par le module Caisse (PoS) — journal id 42 non touché.
+- **DISTRI BETON** : pas d'espèces — journaux id 15/30 non touchés.
