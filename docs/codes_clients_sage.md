@@ -71,6 +71,16 @@ code « nom » conservé à la bascule. Fiches test supprimées.
 
 Mirror du code : `odoo-scan-page/action_code_client_sage_2082.py`.
 
+## Alerte à la facturation / devis
+
+Le **contrôle multi-sociétés natif d'Odoo** bloque désormais tout devis,
+commande ou facture créé sur une société différente de celle de la fiche
+client (« Oups ! Des incohérences entre sociétés ont été détectées »), y
+compris via les adresses de facturation/livraison. Il était inopérant tant que
+les fiches étaient « partagées » (sans société) — l'assainissement du
+13/08/2026 l'a réactivé de fait. Aucune règle custom nécessaire (deux règles
+d'alerte 2083/2084 créées puis retirées le même jour, redondantes).
+
 ## Restes à faire / points ouverts
 
 - **Étape 3** : interface web export écritures de vente au format d'import du
