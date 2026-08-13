@@ -138,6 +138,8 @@
       .pc-btn-clear:hover{background:#fecaca;filter:none;}
       .pc-btn-cancel:hover{background:#e2e8f0;filter:none;}
       .pc-viewnav a:hover:not(.on){background:#f1f5f9;}
+      .pc-doc-ren{cursor:pointer;margin-left:7px;color:#94a3b8;font-weight:800;}
+      .pc-doc-ren:hover{color:#0f172a;}
     </style>
 
     <t t-set="alerte_emails" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.parc_alerte_email') or ''"/>
@@ -468,6 +470,17 @@
               link.textContent = a.name;
               d.appendChild(document.createTextNode('📄 '));
               d.appendChild(link);
+              var ren = document.createElement('span');
+              ren.className = 'pc-doc-ren';
+              ren.textContent = '✎';
+              ren.title = 'Renommer le document';
+              ren.addEventListener('click', function(){
+                var nn = prompt('Nouveau nom du document :', a.name);
+                if(!nn || nn === a.name){ return; }
+                rpc('ir.attachment', 'write', [[a.id], {name: nn}]).then(loadDocs)
+                  .catch(function(e){ alert('Échec du renommage : ' + e.message); });
+              });
+              d.appendChild(ren);
               if(curAttelId &amp;&amp; a.res_id === parseInt(curAttelId,10)){
                 var tag = document.createElement('span');
                 tag.style.cssText = 'color:#1e40af;font-weight:800;font-size:11px;margin-left:6px;background:#eff6ff;border-radius:6px;padding:1px 6px;';
