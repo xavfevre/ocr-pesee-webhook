@@ -60,10 +60,27 @@ def _adresse(txt):
         der = ' '.join(mots[1:]) + ' (' + mots[0][:2] + ')'
     return (prem + ' ' + der).strip()
 
+def _ville(txt):
+    # extrait la ville : mots qui suivent le code postal (5 chiffres) ;
+    # a defaut, premiere ligne du champ
+    lignes = [l.strip() for l in (txt or '').split('\n') if l.strip()]
+    if not lignes:
+        return ''
+    for l in lignes:
+        mots = l.replace('-', ' ').split()
+        i = 0
+        for m in mots:
+            i += 1
+            if m.isdigit() and len(m) == 5:
+                ville = ' '.join(mots[i:]).strip()
+                if ville:
+                    return ville
+    return lignes[0]
+
 def _seg_adresses(t):
-    # « CHARGEMENT à LIVRAISON » si les deux adresses de la tache sont remplies, sinon ''
-    charg = _adresse(t.x_studio_adresse_de_chargement)
-    livr = _adresse(t.x_studio_adresse_de_livraison_3)
+    # « VILLE CHARGEMENT à VILLE LIVRAISON » si les deux champs sont remplis, sinon ''
+    charg = _ville(t.x_studio_adresse_de_chargement)
+    livr = _ville(t.x_studio_adresse_de_livraison_3)
     return ('%s à %s' % (charg, livr)) if (charg and livr) else ''
 
 def _descr_ligne1(t):
