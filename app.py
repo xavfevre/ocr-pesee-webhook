@@ -53,6 +53,8 @@ FIELD_MAP = {
     "pesee2_ticket" : "x_studio_pesee2_ticket",
     "poids_net"     : "x_studio_poids_net",
     "date_bon"      : "x_studio_date_bon",
+    "contrat_sap"       : "x_studio_contrat_sap",
+    "code_destinataire" : "x_studio_code_destinataire",
 }
 
 # ─── PROMPT MISTRAL ───────────────────────────────────────────────────────────
@@ -82,6 +84,8 @@ Pour BON DE PESÉE :
 - pesee2_poids → "Pesée n°2", "Tare", "TARE", "Poids Sortie"
 - poids_net → "Poids net", "NET", "Net", "Matieres"
 - date_bon → date isolée en tête, sinon date pesée 1
+- contrat_sap → "Contrat SAP" (le numéro, ex: 3100460345) ; null si absent
+- code_destinataire → le code numérique qui suit "Destinataire marchandise" (ex: "Destinataire marchandise 3140465857" → "3140465857") ; null si absent
 
 Pour LETTRE DE VOITURE :
 - numero_bon → "N° LVN", "n° LVN", numéro en haut du document
@@ -94,6 +98,8 @@ Pour LETTRE DE VOITURE :
 - pesee2_poids → null (pas de pesée 2)
 - poids_net → "POIDS" (en kg, convertir si tonnes)
 - date_bon → "DATE" en haut du document
+- contrat_sap → null
+- code_destinataire → null
 """
 
 EXTRACTION_PROMPT = """Identifie le type de document et extrais les données dans ce format JSON exact :
@@ -110,7 +116,9 @@ EXTRACTION_PROMPT = """Identifie le type de document et extrais les données dan
   "pesee2_poids": 0,
   "pesee2_ticket": "...",
   "poids_net": 0,
-  "date_bon": "..."
+  "date_bon": "...",
+  "contrat_sap": "...",
+  "code_destinataire": "..."
 }
 
 RAPPEL : poids_net, pesee1_poids, pesee2_poids TOUJOURS en kg entier (multiplier par 1000 si tonnes)."""
