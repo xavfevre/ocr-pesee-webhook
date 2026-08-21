@@ -51,6 +51,8 @@ TRAVAUX_TABS = [
         ("deb_brancht_ep", "Débouchage branchement EP", "U"),
         ("deb_reseau_eu",  "Débouchage réseau EU",      "U"),
         ("deb_reseau_ep",  "Débouchage réseau EP",      "U"),
+        ("deb_fosse",      "Débouchage Fosse",          "U"),
+        ("deb_bg",         "Débouchage BG",             "U"),
     ]),
     ("curage", "Curage", [
         ("hydro_reu",       "Hydrocurage REU",         "ML"),
