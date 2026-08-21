@@ -1417,7 +1417,11 @@ def _tarifs_dataset(q, pid, default_pl_id, client_pl_id):
         cells = []
         has_data = False
         for y in years:
-            y_start, y_end = f"{y}-01-01 00:00:00", f"{y}-12-31 23:59:59"
+            # bornes de l'année en UTC (les items sont stockés en UTC : le
+            # 01/01/N 00:00 Paris = 31/12/N-1 23:00 UTC — sans conversion,
+            # chaque tarif débordait d'une heure sur l'année précédente)
+            y_start = _tarifs_paris_to_utc(f"{y}-01-01")
+            y_end = _tarifs_paris_to_utc(f"{y}-12-31", end=True)
             tarif = None
             applicable = [it for it in r["items"]
                           if it["compute_price"] == "fixed"
