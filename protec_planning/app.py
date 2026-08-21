@@ -1549,6 +1549,155 @@ def tarifs_export():
         headers={"Content-Disposition":
                  f'attachment; filename="Tarifs_{fname}_{date.today().isoformat()}.xlsx"'})
 
+# ── Vue globale : tous les tarifs spécifiques clients ───────────────────────
+def _tarifs_global_dataset(q):
+    """Tous les tarifs spécifiques actifs ou à venir, groupés par client."""
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    default_pl_id = default_pl[0] if default_pl else 0
+    pls = q("product.pricelist", "search_read",
+            ["|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID],
+             ["id", "!=", default_pl_id]], fields=["name"], context=CTX)
+    pl_names = {p["id"]: p["name"] for p in pls}
+    pl_ids = list(pl_names)
+
+    # partenaires rattachés à chaque liste (propriété non requêtable en v19 → lecture globale)
+    pl_partners = {}
+    for p in q("res.partner", "search_read", [],
+               fields=["name", "property_product_pricelist"], context=CTX):
+        pl = p.get("property_product_pricelist")
+        if pl and pl[0] in pl_names:
+            pl_partners.setdefault(pl[0], []).append({"id": p["id"], "name": p["name"]})
+
+    # catalogue + prix standard (mêmes règles que la page client)
+    products = q("product.product", "search_read",
+                 [["active", "=", True],
+                  "|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID]],
+                 fields=["display_name", "default_code", "list_price", "product_tmpl_id"])
+    pvar = {p["id"]: p for p in products}
+    ptmpl = {}
+    for p in products:
+        ptmpl.setdefault(p["product_tmpl_id"][0], p)
+    std_var, std_tmpl = {}, {}
+    if default_pl_id:
+        for it in q("product.pricelist.item", "search_read",
+                    [["pricelist_id", "=", default_pl_id], ["compute_price", "=", "fixed"]],
+                    fields=["applied_on", "product_id", "product_tmpl_id", "fixed_price"]):
+            if it["applied_on"] == "0_product_variant" and it["product_id"]:
+                std_var[it["product_id"][0]] = it["fixed_price"]
+            elif it["product_tmpl_id"]:
+                std_tmpl[it["product_tmpl_id"][0]] = it["fixed_price"]
+
+    now_utc = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
+    groups = {}
+    for it in q("product.pricelist.item", "search_read",
+                [["pricelist_id", "in", pl_ids]],
+                fields=["pricelist_id", "applied_on", "product_id", "product_tmpl_id",
+                        "compute_price", "fixed_price", "percent_price",
+                        "date_start", "date_end"],
+                order="pricelist_id, id"):
+        if it["date_end"] and it["date_end"] < now_utc:
+            continue  # expiré → visible sur la fiche client uniquement
+        prod = None
+        if it["applied_on"] == "0_product_variant" and it["product_id"]:
+            prod = pvar.get(it["product_id"][0])
+        elif it["applied_on"] == "1_product" and it["product_tmpl_id"]:
+            prod = ptmpl.get(it["product_tmpl_id"][0])
+        if prod is None:
+            continue  # catégorie / toute la liste : hors périmètre tarif produit
+        std = std_var.get(prod["id"], std_tmpl.get(prod["product_tmpl_id"][0], prod["list_price"]))
+        if it["compute_price"] == "fixed":
+            price = it["fixed_price"]
+        elif it["compute_price"] == "percentage":
+            price = round(std * (1 - it["percent_price"] / 100), 2)
+        else:
+            continue
+        future = bool(it["date_start"] and it["date_start"] > now_utc)
+        ds_, de_ = it["date_start"], it["date_end"]
+        if ds_ and de_:
+            validity = f"du {_tarifs_fmt_dt(ds_)} au {_tarifs_fmt_dt(de_)}"
+        elif de_:
+            validity = f"jusqu'au {_tarifs_fmt_dt(de_)}"
+        elif ds_:
+            validity = f"depuis le {_tarifs_fmt_dt(ds_)}"
+        else:
+            validity = ""
+        if future:
+            validity = f"à partir du {_tarifs_fmt_dt(ds_)}"
+        plid = it["pricelist_id"][0]
+        groups.setdefault(plid, []).append({
+            "prod": prod["display_name"], "code": prod["default_code"] or "",
+            "price": price, "std": std, "validity": validity, "future": future,
+            "ecart": round((price - std) / std * 100, 1) if std else None,
+        })
+
+    sections = []
+    for plid, rows in groups.items():
+        partners = pl_partners.get(plid, [])
+        rows.sort(key=lambda r: r["prod"].lower())
+        sections.append({
+            "client": " / ".join(p["name"] for p in partners) or pl_names[plid],
+            "pid": partners[0]["id"] if partners else 0,
+            "linked": bool(partners), "rows": rows,
+        })
+    sections.sort(key=lambda s: s["client"].lower())
+    return {"sections": sections,
+            "nb_clients": len(sections),
+            "nb_actifs": sum(1 for s in sections for r in s["rows"] if not r["future"]),
+            "nb_futurs": sum(1 for s in sections for r in s["rows"] if r["future"])}
+
+@bp.route("/tarifs-global")
+def tarifs_global():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    ds = _tarifs_global_dataset(q)
+    return render_template("tarifs_global.html", token=SECRET, src=src,
+                           today=date.today().strftime("%d/%m/%Y"), **ds)
+
+@bp.route("/tarifs-global/export")
+def tarifs_global_export():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    ds = _tarifs_global_dataset(q)
+
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tarifs clients"
+    H_FILL, H_FONT = PatternFill("solid", fgColor="0B7285"), Font(bold=True, color="FFFFFF")
+    CLI_FONT = Font(bold=True, color="1D7F79")
+    ws.append(["Client", "Produit", "Code", "Prix client HT",
+               "Prix standard HT", "Écart %", "Validité"])
+    for c in ws[1]:
+        c.fill, c.font = H_FILL, H_FONT
+    for s in ds["sections"]:
+        for i, r in enumerate(s["rows"]):
+            ws.append([s["client"] if i == 0 else "", r["prod"], r["code"], r["price"],
+                       r["std"], r["ecart"] if r["ecart"] is not None else "", r["validity"]])
+            if i == 0:
+                ws.cell(row=ws.max_row, column=1).font = CLI_FONT
+    for col, w in zip("ABCDEFG", (38, 52, 14, 15, 16, 10, 26)):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return Response(buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition":
+                 f'attachment; filename="Tarifs_clients_global_{date.today().isoformat()}.xlsx"'})
+
 # ── Modification / suppression d'un tarif spécifique existant ───────────────
 def _tarifs_item_ok(q, item_id):
     """L'item existe et appartient bien à une liste de prix PROTEC."""

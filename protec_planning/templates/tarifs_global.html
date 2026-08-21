@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarifs clients — vue globale</title>
+  <style>
+    :root { --cy: #2bb3ab; --cy-dk: #1d7f79; --cy-lt: #e3f6f4; --border: #dbe8e7;
+            --text: #163a3d; --muted: #6b8a89; --green: #2eb85c; --red: #e0483e;
+            --amber: #d99a1f; --spec: #fff7e0; --spec-bd: #f0dca6; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #eef6f6; color: var(--text); font-size: 14px; }
+    header { background: linear-gradient(135deg, var(--cy), var(--cy-dk)); color: #fff;
+             padding: 14px 28px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    header h1 { font-size: 17px; font-weight: 800; }
+    header .sub { font-size: 12px; opacity: .85; }
+    header .btn-x { margin-left: auto; background: #fff; color: var(--cy-dk); font-weight: 800;
+                    font-size: 12.5px; border-radius: 8px; padding: 7px 14px; text-decoration: none; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 24px; }
+
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip { background: #fff; border: 1px solid var(--border); border-radius: 20px;
+            padding: 5px 13px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+    .chip b { color: var(--text); }
+    #search { flex: 1; min-width: 240px; border: 1px solid var(--border); border-radius: 8px;
+              padding: 9px 12px; font-size: 13.5px; font-family: inherit; background: #fff; }
+    #search:focus { outline: none; border-color: var(--cy); box-shadow: 0 0 0 3px rgba(43,179,171,.12); }
+
+    .client { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(23,67,74,.06);
+              border: 1px solid #e4eeed; overflow: hidden; margin-bottom: 14px; }
+    .client h2 { background: var(--cy-lt); color: var(--cy-dk); font-size: 13.5px; font-weight: 800;
+                 padding: 9px 14px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .client h2 a { color: var(--cy-dk); text-decoration: none; }
+    .client h2 a:hover { text-decoration: underline; }
+    .client h2 .n { font-size: 11px; color: var(--muted); font-weight: 700; }
+    .badge-nolink { font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 8px;
+                    background: var(--amber); color: #fff; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; color: var(--muted); font-weight: 800; padding: 6px 14px;
+         font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px;
+         border-bottom: 1px solid var(--border); }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td { padding: 6px 14px; border-top: 1px solid #f0f5f5; }
+    tr:first-child td { border-top: none; }
+    .price { font-weight: 800; color: var(--cy-dk); white-space: nowrap; }
+    .std { color: var(--muted); white-space: nowrap; }
+    .ecart-moins { color: var(--green); font-weight: 700; }
+    .ecart-plus { color: var(--red); font-weight: 700; }
+    .validity { font-size: 11px; color: #7a5b0d; font-weight: 600; }
+    .badge-futur { font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 8px;
+                   background: var(--amber); color: #fff; text-transform: uppercase; }
+    .code { color: var(--muted); font-size: 11.5px; }
+    #noresult { display: none; text-align: center; color: var(--muted); padding: 40px; }
+    footer { text-align: center; color: var(--muted); font-size: 11px; padding: 14px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>💶 Tarifs clients — vue globale</h1>
+  <span class="sub">Tarifs spécifiques actifs et à venir, tous clients · au {{ today }}{% if src == 'test' %} · BASE DE TEST{% endif %}</span>
+  <a class="btn-x" href="{{ BASE }}/tarifs-global/export?token={{ token }}{% if src %}&src={{ src }}{% endif %}">⬇ Export Excel</a>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <span class="chip"><b>{{ nb_clients }}</b> clients</span>
+    <span class="chip"><b>{{ nb_actifs }}</b> tarifs actifs</span>
+    {% if nb_futurs %}<span class="chip"><b>{{ nb_futurs }}</b> à venir</span>{% endif %}
+    <input id="search" type="search" placeholder="Rechercher un client ou un produit…"
+           oninput="doFilter()" autocomplete="off">
+  </div>
+
+  {% for s in sections %}
+  <div class="client" data-client="{{ s.client | lower }}">
+    <h2>
+      {% if s.linked %}
+        <a href="{{ BASE }}/tarifs?token={{ token }}&c={{ s.pid }}{% if src %}&src={{ src }}{% endif %}">{{ s.client }}</a>
+      {% else %}
+        {{ s.client }} <span class="badge-nolink">liste sans client lié</span>
+      {% endif %}
+      <span class="n">{{ s.rows | length }} tarif(s)</span>
+    </h2>
+    <table>
+      <thead><tr>
+        <th style="width:46%;">Produit</th>
+        <th class="num">Prix client HT</th>
+        <th class="num">Prix standard</th>
+        <th class="num">Écart</th>
+        <th>Validité</th>
+      </tr></thead>
+      <tbody>
+        {% for r in s.rows %}
+        <tr data-prod="{{ r.prod | lower }} {{ r.code | lower }}">
+          <td>{{ r.prod }}{% if r.code %} <span class="code">{{ r.code }}</span>{% endif %}</td>
+          <td class="num price">{{ "%.2f" | format(r.price) | replace(".", ",") }} €</td>
+          <td class="num std">{{ "%.2f" | format(r.std) | replace(".", ",") }} €</td>
+          <td class="num">
+            {% if r.ecart is not none %}
+              <span class="{{ 'ecart-plus' if r.ecart > 0 else 'ecart-moins' if r.ecart < 0 else '' }}">
+                {{ "+" if r.ecart > 0 }}{{ ("%.1f" | format(r.ecart)) | replace(".", ",") }} %</span>
+            {% endif %}
+          </td>
+          <td>{% if r.future %}<span class="badge-futur">à venir</span> {% endif %}
+              <span class="validity">{{ r.validity }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+
+  <div id="noresult">Aucun tarif ne correspond à la recherche.</div>
+</div>
+
+<footer>PROTEC — les tarifs expirés restent consultables sur la fiche tarifs de chaque client.</footer>
+
+<script>
+  function doFilter() {
+    var t = document.getElementById('search').value.trim().toLowerCase();
+    var any = false;
+    document.querySelectorAll('.client').forEach(function (sec) {
+      var cli = sec.dataset.client || '';
+      var cliMatch = !t || cli.indexOf(t) !== -1;
+      var visible = 0;
+      sec.querySelectorAll('tbody tr').forEach(function (tr) {
+        var show = cliMatch || (tr.dataset.prod || '').indexOf(t) !== -1;
+        tr.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      sec.style.display = visible ? '' : 'none';
+      if (visible) any = true;
+    });
+    document.getElementById('noresult').style.display = any ? 'none' : 'block';
+  }
+</script>
+</body>
+</html>
