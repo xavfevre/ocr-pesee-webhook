@@ -1447,6 +1447,11 @@ def _tarifs_dataset(q, pid, default_pl_id, client_pl_id):
                               "categ": r["categ"], "specific": r["specific"],
                               "cells": cells})
 
+    # affichage de la plus récente à la plus ancienne
+    years = years[::-1]
+    for er in evo_rows:
+        er["cells"].reverse()
+
     return {"rows": rows, "evo_rows": evo_rows, "years": years,
             "categories": categories, "nb_spec": nb_spec, "nb_fact": nb_fact}
 
@@ -1781,18 +1786,20 @@ def _tarifs_score(nlabel, nname):
     return max(seq, tok)
 
 def _tarifs_header_year(v):
-    """Année portée par une cellule d'entête : 2026, n° de série Excel
-    (44743 → 2022) ou texte contenant une année (« du 1er mai au 31/12/2025 »)."""
+    """Période (année, mois de début) portée par une cellule d'entête :
+    2026 → (2026, 1) ; n° de série Excel 44743 (= 01/07/2022, changement de
+    tarif en cours d'année) → (2022, 7) ; texte contenant une année → (année, 1)."""
     try:
         n = float(v)
         if 1990 <= n <= 2100:
-            return int(n)
+            return (int(n), 1)
         if 30000 <= n <= 60000:  # date Excel (jours depuis 30/12/1899)
-            return (datetime(1899, 12, 30) + timedelta(days=int(n))).year
+            d = datetime(1899, 12, 30) + timedelta(days=int(n))
+            return (d.year, d.month)
     except (TypeError, ValueError):
         pass
     mo = re.search(r"\b(19|20)\d{2}\b", str(v or ""))
-    return int(mo.group(0)) if mo else None
+    return (int(mo.group(0)), 1) if mo else None
 
 def _tarifs_parse_excel(data, filename):
     """Extrait les blocs tarifaires du fichier « Évolution des tarifs ».
@@ -1844,8 +1851,8 @@ def _tarifs_parse_excel(data, filename):
                 y = _tarifs_header_year(v)
                 if y:
                     year_cols.append((y, j))
-            # année la plus récente d'abord ; à année égale, colonne la plus à gauche
-            year_cols.sort(key=lambda t: (-t[0], t[1]))
+            # période la plus récente d'abord ; à période égale, colonne la plus à gauche
+            year_cols.sort(key=lambda t: (-t[0][0], -t[0][1], t[1]))
             rows = []
             for row in grid[header_i + 1:end_i]:
                 label = str(row[0] or "").strip()
@@ -1853,18 +1860,18 @@ def _tarifs_parse_excel(data, filename):
                     continue
                 unit = str(row[unit_col] or "").strip() \
                     if unit_col is not None and unit_col < len(row) else ""
-                all_prices = {}  # année -> prix (1ère colonne rencontrée par année)
-                for y, j in year_cols:
-                    if j < len(row) and y not in all_prices:
+                all_prices = {}  # (année, mois de début) -> prix
+                for ym, j in year_cols:
+                    if j < len(row) and ym not in all_prices:
                         try:
                             v = float(str(row[j]).replace(",", ".").replace("€", "").replace(" ", ""))
                             if v > 0:
-                                all_prices[y] = v
+                                all_prices[ym] = v
                         except (TypeError, ValueError):
                             continue
                 if all_prices:
-                    year = max(all_prices)
-                    rows.append((label, unit, all_prices[year], year, all_prices))
+                    ym = max(all_prices)
+                    rows.append((label, unit, all_prices[ym], ym, all_prices))
             if rows:
                 blocks.append((sheet_name, client, rows))
     return blocks
@@ -1915,7 +1922,7 @@ def tarifs_import():
     review = []
     for bi, (sheet_name, client, lignes) in enumerate(blocks):
         bloc_label = f"Feuille « {sheet_name} »" + (f" — {client}" if client else "")
-        for label, unit, price, year, all_prices in lignes:
+        for label, unit, price, ym, all_prices in lignes:
             nlabel = _tarifs_norm(label.split("\n")[0])
             best, best_score = None, 0.0
             for c, nname in norm_cat:
@@ -1925,10 +1932,14 @@ def tarifs_import():
             matched = best if best_score >= 0.45 else None
             std = matched["std"] if matched else None
             differs = matched is not None and abs(price - std) > 0.005
-            histo = ";".join(f"{y}:{p}" for y, p in sorted(all_prices.items(), reverse=True)
-                             if y != year)
+            # historique : clé « AAAA » (année pleine) ou « AAAA-MM » (changement
+            # de tarif en cours d'année, ex. deux colonnes 2022)
+            histo = ";".join(
+                (f"{y}-{mm:02d}" if mm > 1 else f"{y}") + f":{p}"
+                for (y, mm), p in sorted(all_prices.items(), reverse=True)
+                if (y, mm) != ym)
             review.append({"bloc": bi, "bloc_label": bloc_label,
-                            "label": label, "unit": unit, "prix": price, "annee": year,
+                            "label": label, "unit": unit, "prix": price, "annee": ym[0],
                             "tmpl": matched["tmpl"] if matched else 0,
                             "score": round(best_score * 100),
                             "std": std, "differs": differs,
@@ -1987,23 +1998,37 @@ def tarifs_import_valider():
                 vals["date_start"] = _tarifs_paris_to_utc(du)
             vals_list.append(vals)
             if with_histo:
-                # tarifs des années passées : items datés 01/01/N → 31/12/N,
-                # inertes pour les devis mais visibles dans l'onglet Évolution
+                # tarifs passés : clés « AAAA » (année pleine) ou « AAAA-MM »
+                # (changement en cours d'année). Chaque période court jusqu'à la
+                # veille de la période suivante, au plus tard le 31/12 de son année.
+                parts = []
                 for part in (f.get(f"hist_{i}") or "").split(";"):
                     if ":" not in part:
                         continue
                     try:
-                        y, p = part.split(":", 1)
-                        y, p = int(y), float(p)
+                        ykey, p = part.split(":", 1)
+                        p = float(p)
+                        if "-" in ykey:
+                            yy, mm = ykey.split("-")
+                            start = date(int(yy), int(mm), 1)
+                        else:
+                            start = date(int(ykey), 1, 1)
                     except ValueError:
                         continue
-                    if p <= 0:
-                        continue
+                    if p > 0:
+                        parts.append((start, p))
+                parts.sort()
+                for k, (start, p) in enumerate(parts):
+                    end = date(start.year, 12, 31)
+                    if k + 1 < len(parts):
+                        nxt = parts[k + 1][0] - timedelta(days=1)
+                        if start <= nxt < end:
+                            end = nxt
                     vals_list.append({
                         "applied_on": "1_product", "product_tmpl_id": tmpl,
                         "compute_price": "fixed", "fixed_price": p,
-                        "date_start": _tarifs_paris_to_utc(f"{y}-01-01"),
-                        "date_end": _tarifs_paris_to_utc(f"{y}-12-31", end=True)})
+                        "date_start": _tarifs_paris_to_utc(start.isoformat()),
+                        "date_end": _tarifs_paris_to_utc(end.isoformat(), end=True)})
         if need_pl and not client_pl_id:
             created_pl = q("product.pricelist", "create",
                 [{"name": partner["name"], "company_id": TARIFS_COMPANY_ID}])
