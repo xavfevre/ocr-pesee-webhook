@@ -107,11 +107,12 @@ TRAVAUX_TABS = [
 # Liste à plat (POST + chatter) — compatibilité avec le code existant
 TRAVAUX = [row for _k, _lbl, rows in TRAVAUX_TABS for row in rows]
 DECHETS = [
-    ("sable",   "Sable"),
-    ("graisse", "Graisse"),
-    ("refus",   "Refus dégrillage"),
-    ("vidange", "Matières de vidanges"),
-    ("autre",   "Autre"),
+    ("sable",    "Sable"),
+    ("graisse",  "Graisse"),
+    ("refus",    "Refus dégrillage"),
+    ("vidange",  "Matières de vidanges"),
+    ("depotage", "Dépotage"),
+    ("autre",    "Autre"),
 ]
 # Destinations possibles des déchets (liste déroulante de la fiche)
 DESTINATIONS = ["Assainissement", "Châtellerault", "Chinon",
@@ -512,6 +513,7 @@ def fiche(slot_id):
             }
             if any(row.values()):
                 data["dechets"][code] = row
+        data["dechets_none"] = bool(f.get("dechets_none"))
 
         # Tranches de curage (lignes dynamiques rue par rue)
         data["curage_commune"] = f.get("curage_commune", "").strip()
@@ -674,6 +676,7 @@ def fiche(slot_id):
         adresse=adresse, prefill=prefill,
         travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts,
         curage_rows=curage_rows, curage_commune=curage_commune,
+        dechets_none=bool(saved_data.get("dechets_none")) if isinstance(saved_data, dict) else False,
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
@@ -721,6 +724,8 @@ def render_fiche_html(card, vals, data, nphotos=0):
     if rows_d:
         html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Vol. m³</th>"
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
+    elif data.get("dechets_none"):
+        html += "<p><b>Déchets :</b> aucun déchet évacué lors de cette intervention.</p>"
     if rows_c:
         commune = data.get("curage_commune") or ""
         html += (f"<p><b>Tranches de curage</b>{' — ' + commune if commune else ''} "
@@ -787,6 +792,11 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
 
     labels_d = dict(DECHETS)
     rows_d = data.get("dechets", {})
+    if not rows_d and data.get("dechets_none"):
+        html.append(f"<h3 style='{H2}'>MATIÈRES ÉVACUÉES — TRAÇABILITÉ</h3>")
+        html.append("<div style='border:1px solid #e5e7eb;border-left:4px solid #0b7285;"
+                    "background:#f8fafc;padding:9px 13px;font-size:12px;margin-bottom:6px;'>"
+                    "Aucun déchet évacué lors de cette intervention.</div>")
     if rows_d:
         html.append(f"<h3 style='{H2}'>MATIÈRES ÉVACUÉES — TRAÇABILITÉ</h3>")
         html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
