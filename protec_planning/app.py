@@ -457,8 +457,30 @@ def ma_tournee():
             c["objet"] = (so or {}).get("x_studio_lieu_dintervention_1") or ""
             c["camion"] = bimap.get(c["ref"].split()[0], "") if c["ref"] else ""
 
-        # Toujours afficher aujourd'hui même vide
-        all_days = sorted(set(by_day.keys()) | {today.isoformat()})
+        # Congés validés du chauffeur sur la fenêtre (module Congés / hr.leave)
+        leave_by_day = {}
+        try:
+            leaves = x(models, uid, "hr.leave", "search_read",
+                [["employee_id", "=", emp_id],
+                 ["state", "in", ["validate", "validate1"]],
+                 ["request_date_to", ">=", (today - timedelta(days=15)).isoformat()],
+                 ["request_date_from", "<=", (today + timedelta(days=15)).isoformat()]],
+                fields=["work_entry_type_id", "request_date_from", "request_date_to"])
+            for lv in leaves:
+                lbl = (lv["work_entry_type_id"][1] if lv.get("work_entry_type_id")
+                       else "Congé").replace(" (France)", "")
+                d0 = max(date.fromisoformat(lv["request_date_from"]), today - timedelta(days=15))
+                d1 = min(date.fromisoformat(lv["request_date_to"]), today + timedelta(days=15))
+                d = d0
+                while d <= d1:
+                    if d.weekday() < 6:  # pas le dimanche
+                        leave_by_day[d.isoformat()] = lbl
+                    d += timedelta(days=1)
+        except Exception:
+            pass
+
+        # Toujours afficher aujourd'hui même vide, ainsi que les jours de congé
+        all_days = sorted(set(by_day.keys()) | {today.isoformat()} | set(leave_by_day.keys()))
         for iso in all_days:
             d = date.fromisoformat(iso)
             dayblocks.append({
@@ -466,6 +488,7 @@ def ma_tournee():
                 "label": f"{JOURS_LONG[d.weekday()]} {d.day} {MOIS_ABR[d.month-1]}",
                 "is_today": d == today,
                 "cards": by_day.get(iso, []),
+                "leave": leave_by_day.get(iso, ""),
             })
     except Exception as e:
         error = str(e)
