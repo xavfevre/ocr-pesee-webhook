@@ -244,8 +244,9 @@ def _nouveaux_clients(clients_vus, marquer):
 def _journaux(comp):
     """Journaux à exporter : ventes/banque/caisse + journaux de session PoS
     (ex. « Cloture CAISSE » Châtel, type OD) — ces derniers au format caisse."""
+    # pour l'instant le cabinet n'importe que les VENTES et la CAISSE
     js = _q("account.journal", "search_read",
-            [("company_id", "=", comp), ("type", "in", ["sale", "cash", "bank"])],
+            [("company_id", "=", comp), ("type", "in", ["sale", "cash"])],
             fields=["name", "code", "type"], order="type, id")
     pos = _q("pos.config", "search_read", [("company_id", "=", comp)],
              fields=["journal_id"])
