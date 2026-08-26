@@ -37,9 +37,9 @@ _conn = {}
 
 def _q(model, method, *params, **kw):
     if "uid" not in _conn:
-        common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+        common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common", allow_none=True)
         _conn["uid"] = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
-        _conn["models"] = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+        _conn["models"] = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object", allow_none=True)
     return _conn["models"].execute_kw(ODOO_DB, _conn["uid"], ODOO_PASSWORD,
                                       model, method, list(params), kw)
 
@@ -257,6 +257,14 @@ def _journaux(comp):
         js += _q("account.journal", "read", manquants, fields=["name", "code", "type"])
     for j in js:
         j["format_caisse"] = j["type"] == "cash" or j["id"] in pos_ids
+        if j["id"] in pos_ids:
+            j["explication"] = "Ventes comptoir du point de vente (tickets, TVA, REP) — le fichier « caisse » historique"
+        elif j["type"] == "cash":
+            j["explication"] = "Mouvements d'espèces : encaissements en liquide, remises en banque"
+        elif j["type"] == "sale":
+            j["explication"] = "Factures et avoirs clients (hors comptoir)"
+        else:
+            j["explication"] = "Relevés bancaires"
     return js
 
 
@@ -316,6 +324,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 <h1>📤 Export comptable Sage</h1>
 <p class="sub">Fichiers d'écritures au format d'import du cabinet (identiques aux exports
 historiques) + fichier des nouveaux clients à créer dans Sage. Un dossier Sage par société.</p>
+<p class="sub">🏦 <a href="rappro?token=__TOKEN__">Import du rapprochement bancaire Sage</a> — passe les factures pointées par Charlotte à « Payé ».</p>
 <form class="bar" method="get" action="">
 <input type="hidden" name="token" value="__TOKEN__">
 <div><label>Société</label><select name="societe" onchange="this.form.submit()">__SOCIETES__</select></div>
@@ -352,10 +361,12 @@ def page():
         if not a:
             continue
         url = "fichier?token=%s&journal=%s&mois=%s" % (token, j["id"], mois)
-        lignes_html += ("<tr><td>%s</td><td>%s</td><td>%s</td><td class='num'>%s</td>"
+        lignes_html += ("<tr><td>%s</td><td>%s<div style='font-size:11px;color:#64748b;font-weight:400;'>%s</div></td>"
+                        "<td>%s</td><td class='num'>%s</td>"
                         "<td class='num'>%s</td><td class='num'>%.2f €</td>"
                         "<td><a class='btn sec' href='%s'>⬇ .txt</a></td></tr>" % (
-                            j["code"] or "", j["name"], TYPES.get(j["type"], j["type"]),
+                            j["code"] or "", j["name"], j.get("explication", ""),
+                            TYPES.get(j["type"], j["type"]),
                             len(a["pieces"]), a["nlignes"], a["debit"], url))
     if not lignes_html:
         corps = "<p><b>Aucune écriture validée sur %s pour cette société.</b></p>" % mois
@@ -434,3 +445,279 @@ def export():
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
                              "attachment; filename=export_compta_%s_%s.zip" % (slug, suffixe)})
+
+
+# ─── IMPORT DU RAPPROCHEMENT BANCAIRE SAGE (Maquignon & Haims) ───────────────
+# Charlotte lettre dans Sage ; l'état « Rapprochement bancaire » imprimé vers
+# Excel est déposé ici. Chaque encaissement pointé est rapproché des paiements
+# « En paiement » d'Odoo (montant exact ou combinaison — remises de chèques),
+# ou d'une facture ouverte (création du paiement). L'application crée
+# l'écriture 512/511900 à la date de l'écriture pointée et lettre le compte
+# d'attente → paiement « Payé », facture « Payée ». Décaissements ignorés
+# (fournisseurs, hors périmètre). Sociétés : Maquignon, Châtel'Granulats,
+# Haims. Distri Béton : rapprochement Odoo.
+import json as _json
+from itertools import combinations as _combi
+
+
+def _rappro_parse(fichier):
+    """Lit l'état Sage « Rapprochement bancaire » (impression vers Excel)."""
+    import openpyxl
+    wb = openpyxl.load_workbook(fichier, data_only=True)
+    ws = wb.active
+    lignes, date_rappro, compte = [], "", ""
+    for row in ws.iter_rows(values_only=True):
+        cells = list(row)
+        if any(c and "Date de rapprochement" in str(c) for c in cells):
+            for c in cells:
+                if c and str(c)[:4].isdigit() and "-" in str(c):
+                    date_rappro = str(c)[:10]
+        if cells[0] and str(cells[0]).startswith("512"):
+            compte = str(cells[0]).strip()
+            debit = float(cells[13] or cells[14] or 0)
+            credit = float(cells[16] or cells[17] or 0)
+            lignes.append({"compte": compte, "date": str(cells[2])[:10],
+                           "piece": str(cells[4] or ""), "lib": str(cells[6] or "").strip(),
+                           "debit": round(debit, 2), "credit": round(credit, 2)})
+    return lignes, date_rappro
+
+
+def _norm_rappro(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().upper()
+    return "".join(c for c in s if c.isalnum())
+
+
+def _rappro_journal(comp, compte):
+    """Journal Odoo dont le compte par défaut correspond au compte Sage."""
+    js = _q("account.journal", "search_read",
+            [("company_id", "=", comp), ("type", "=", "bank")],
+            fields=["name", "code", "default_account_id"])
+    cible = "".join(c for c in compte if c.isdigit())
+    for j in js:
+        code = "".join(c for c in (j["default_account_id"][1] if j["default_account_id"] else "") if c.isdigit())
+        if code and (code.startswith(cible) or cible.startswith(code[:6])):
+            return j
+    return js[0] if js else None
+
+
+def _rappro_analyse(comp, lignes, journal_id=None):
+    """Propositions de lettrage pour les encaissements (débits 512)."""
+    dom = [("company_id", "=", comp), ("state", "=", "in_process"),
+           ("payment_type", "=", "inbound"), ("move_id", "!=", False)]
+    if journal_id:
+        dom.append(("journal_id", "=", journal_id))
+    pays = _q("account.payment", "search_read", dom,
+              fields=["name", "partner_id", "amount", "date", "move_id"], limit=0)
+    invs = _q("account.move", "search_read",
+              [("company_id", "=", comp), ("move_type", "=", "out_invoice"),
+               ("state", "=", "posted"),
+               ("payment_state", "in", ["not_paid", "partial"])],
+              fields=["name", "partner_id", "amount_residual"], limit=0)
+    props = []
+    for l in lignes:
+        if not l["debit"]:
+            continue
+        m, nlib = l["debit"], _norm_rappro(l["lib"])
+        prop = {"ligne": l, "type": "inconnu", "detail": [], "ids": []}
+        exacts = [p for p in pays if abs(p["amount"] - m) < 0.01]
+        if len(exacts) == 1:
+            p = exacts[0]
+            prop.update(type="paiements", ids=[p["id"]],
+                        detail=["%s — %s (%.2f €)" % (p["name"], p["partner_id"][1] if p["partner_id"] else "?", p["amount"])])
+        elif len(exacts) > 1:
+            nommes = [p for p in exacts if p["partner_id"] and (_norm_rappro(p["partner_id"][1]) in nlib or nlib in _norm_rappro(p["partner_id"][1]))]
+            p = (nommes or exacts)[0]
+            prop.update(type="paiements", ids=[p["id"]],
+                        detail=["%s — %s (%.2f €)" % (p["name"], p["partner_id"][1] if p["partner_id"] else "?", p["amount"])])
+        else:
+            # combinaison : UNIQUEMENT pour les remises groupees (cheques, effets)
+            import re as _re
+            est_remise = bool(_re.search(r"remise|ch[eè]q|effet|lcr", l["lib"], _re.I))
+            mts = [round(p["amount"], 2) for p in pays] if est_remise else []
+            trouve = None
+            for r in range(2, min(7, len(mts) + 1)):
+                for c in _combi(range(len(mts)), r):
+                    if abs(sum(mts[i] for i in c) - m) < 0.01:
+                        trouve = c
+                        break
+                if trouve:
+                    break
+            if trouve:
+                prop.update(type="paiements", ids=[pays[i]["id"] for i in trouve],
+                            detail=["%s — %s (%.2f €)" % (pays[i]["name"], pays[i]["partner_id"][1] if pays[i]["partner_id"] else "?", pays[i]["amount"]) for i in trouve])
+            else:
+                cands = [i for i in invs if abs(i["amount_residual"] - m) < 0.01
+                         and i["partner_id"] and (_norm_rappro(i["partner_id"][1]) in nlib or nlib in _norm_rappro(i["partner_id"][1]))]
+                if len(cands) == 1:
+                    i = cands[0]
+                    prop.update(type="facture", ids=[i["id"]],
+                                detail=["%s — %s (reste %.2f €)" % (i["name"], i["partner_id"][1], i["amount_residual"])])
+        props.append(prop)
+    ignores = [l for l in lignes if l["credit"]]
+    return props, ignores
+
+
+def _rappro_applique(comp, journal, props):
+    """Crée l'écriture 512/511 et lettre — la primitive validée sur la base de test."""
+    pml = _q("account.payment.method.line", "search_read",
+             [("journal_id", "=", journal["id"]), ("payment_type", "=", "inbound"),
+              ("payment_account_id", "!=", False)],
+             fields=["payment_account_id"], limit=1)
+    if not pml:
+        return 0, ["journal %s : compte d'attente non configuré" % journal["name"]]
+    compte_attente = pml[0]["payment_account_id"][0]
+    compte_banque = journal["default_account_id"][0]
+    faits, erreurs = 0, []
+    for prop in props:
+        l = prop["ligne"]
+        try:
+            pay_ids = list(prop["ids"])
+            if prop["type"] == "facture":
+                ctx = {"active_model": "account.move", "active_ids": prop["ids"]}
+                wid = _q("account.payment.register", "create",
+                         [{"journal_id": journal["id"], "amount": l["debit"], "payment_date": l["date"]}],
+                         context=ctx)
+                wid = wid[0] if isinstance(wid, list) else wid
+                try:
+                    _q("account.payment.register", "action_create_payments", [wid], context=ctx)
+                except Exception:
+                    pass  # l'action renvoyée peut contenir des None non sérialisables
+                pay_ids = _q("account.payment", "search",
+                             [("company_id", "=", comp), ("journal_id", "=", journal["id"]),
+                              ("amount", "=", l["debit"]), ("date", "=", l["date"])],
+                             limit=1, order="id desc")
+                if not pay_ids:
+                    erreurs.append("%s %.2f € : le paiement n'a pas pu être créé" % (l["lib"][:30], l["debit"]))
+                    continue
+            # lignes d'attente des paiements
+            moves = [p["move_id"][0] for p in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p["move_id"]]
+            l_att = _q("account.move.line", "search",
+                       [("move_id", "in", moves), ("account_id", "=", compte_attente), ("reconciled", "=", False)])
+            if not l_att:
+                erreurs.append("%s %.2f € : lignes d'attente introuvables" % (l["lib"][:30], l["debit"]))
+                continue
+            mid = _q("account.move", "create", [{
+                "journal_id": journal["id"], "date": l["date"],
+                "ref": "Rapprochement Sage — %s" % (l["lib"][:60] or l["piece"]),
+                "line_ids": [
+                    (0, 0, {"account_id": compte_banque, "debit": l["debit"], "credit": 0.0,
+                            "name": "Rapprochement Sage %s" % l["piece"]}),
+                    (0, 0, {"account_id": compte_attente, "debit": 0.0, "credit": l["debit"],
+                            "name": l["lib"][:60] or "Rapprochement Sage"}),
+                ]}])
+            mid = mid[0] if isinstance(mid, list) else mid
+            _q("account.move", "action_post", [mid])
+            l_rap = _q("account.move.line", "search", [("move_id", "=", mid), ("account_id", "=", compte_attente)])
+            try:
+                _q("account.move.line", "reconcile", l_att + l_rap)
+            except Exception:
+                # le contrôleur XML-RPC d'Odoo SaaS ne sait pas sérialiser le
+                # None renvoyé par reconcile() : le lettrage a bien eu lieu
+                # côté serveur — on vérifie l'état réel des lignes.
+                verif = _q("account.move.line", "read", l_att + l_rap, fields=["reconciled"])
+                if not all(v["reconciled"] for v in verif):
+                    raise
+            faits += 1
+        except Exception as exc:
+            erreurs.append("%s %.2f € : %s" % (l["lib"][:30], l["debit"], str(exc)[:120]))
+    return faits, erreurs
+
+
+RAPPRO_PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Import rapprochement Sage</title><style>
+body{font-family:system-ui,sans-serif;background:#f1f5f9;margin:0;padding:24px;color:#0f172a;}
+.card{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.09);max-width:900px;margin:0 auto;padding:24px;}
+h1{font-size:20px;margin:0 0 4px;}p.sub{color:#64748b;font-size:13px;margin:0 0 16px;}
+label{display:block;font-weight:700;font-size:12.5px;color:#334155;margin:10px 0 4px;}
+select,input[type=file]{padding:8px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:14px;}
+button{border:none;border-radius:9px;background:#0f172a;color:#fff;font-weight:800;font-size:13px;padding:10px 16px;cursor:pointer;margin-top:14px;}
+button:hover{filter:brightness(1.2);}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:12px;}
+th{background:#0f172a;color:#fff;padding:6px 8px;text-align:left;font-size:11.5px;}
+td{border-bottom:1px solid #e2e8f0;padding:6px 8px;vertical-align:top;}
+.ok{color:#166534;font-weight:700;}.crt{color:#1d4ed8;font-weight:700;}.ko{color:#b91c1c;font-weight:700;}
+.note{background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:9px 12px;font-size:12.5px;margin:12px 0;}
+a.retour{font-size:12.5px;}
+</style></head><body><div class="card">
+<h1>🏦 Import du rapprochement bancaire Sage</h1>
+<p class="sub">Déposez l'état « Rapprochement bancaire » de Sage (imprimé vers Excel). Les
+encaissements pointés passent les paiements et factures Odoo à « Payé », à la date du pointage.
+Sociétés concernées : SARL Maquignon, Châtel'Granulats et Carrière d'Haims (Distri Béton
+reste rapprochée dans Odoo).</p>
+__CORPS__
+<p style="margin-top:16px;"><a class="retour" href="./?token=__TOKEN__">← Retour à l'export Sage</a></p>
+</div></body></html>"""
+
+
+@bp.route("/rappro", methods=["GET"])
+def rappro_page():
+    _check_token()
+    token = request.args.get("token", "")
+    corps = ("""<form method="post" action="rappro/analyse?token=%s" enctype="multipart/form-data">
+<label>Société</label><select name="societe">
+<option value="1">SARL MAQUIGNON</option><option value="3">CHATEL'GRANULATS</option><option value="4">CARRIERE D'HAIMS</option></select>
+<label>État de rapprochement Sage (.xlsx)</label><input type="file" name="fichier" accept=".xlsx" required/>
+<br/><button type="submit">🔎 Analyser</button></form>""" % token)
+    return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
+                    mimetype="text/html")
+
+
+@bp.route("/rappro/analyse", methods=["POST"])
+def rappro_analyse():
+    _check_token()
+    token = request.args.get("token", "")
+    comp = int(request.form["societe"])
+    lignes, date_rappro = _rappro_parse(request.files["fichier"])
+    if not lignes:
+        return Response(RAPPRO_PAGE.replace("__CORPS__", "<p class='ko'>Aucune écriture 512 trouvée dans ce fichier — est-ce bien l'état « Rapprochement bancaire » imprimé vers Excel ?</p>").replace("__TOKEN__", token), mimetype="text/html")
+    journal = _rappro_journal(comp, lignes[0]["compte"])
+    props, ignores = _rappro_analyse(comp, lignes, journal_id=journal["id"] if journal else None)
+    rows = ""
+    for i, pr in enumerate(props):
+        l = pr["ligne"]
+        if pr["type"] == "paiements":
+            statut = "<span class='ok'>✓ %s paiement(s) reconnu(s)</span>" % len(pr["ids"])
+        elif pr["type"] == "facture":
+            statut = "<span class='crt'>➕ créer le paiement sur la facture</span>"
+        else:
+            statut = "<span class='ko'>? non reconnu — à traiter dans Odoo</span>"
+        det = "<br/>".join(pr["detail"]) or "—"
+        coche = "checked" if pr["type"] != "inconnu" else "disabled"
+        rows += ("<tr><td><input type='checkbox' name='sel' value='%d' %s/></td>"
+                 "<td>%s</td><td>%s</td><td style='text-align:right;'>%.2f €</td>"
+                 "<td>%s<div style='font-size:11.5px;color:#64748b;'>%s</div></td></tr>"
+                 % (i, coche, l["date"], l["lib"][:48], l["debit"], statut, det))
+    n_auto = sum(1 for p in props if p["type"] != "inconnu")
+    corps = ("""<div class="note">Journal identifié : <b>%s</b> · rapprochement du <b>%s</b> ·
+%d encaissement(s) — <b>%d</b> lettrable(s) automatiquement · %d décaissement(s) ignoré(s) (fournisseurs).</div>
+<form method="post" action="applique?token=%s">
+<input type="hidden" name="societe" value="%d"/>
+<input type="hidden" name="journal" value="%d"/>
+<input type="hidden" name="props" value='%s'/>
+<table><tr><th></th><th>Date</th><th>Libellé Sage</th><th>Montant</th><th>Proposition</th></tr>%s</table>
+<button type="submit">✅ Appliquer le lettrage (%d)</button></form>"""
+             % (journal["name"] if journal else "?", date_rappro or "?", len(props), n_auto,
+                len(ignores), token, comp, journal["id"] if journal else 0,
+                _json.dumps(props).replace("'", "&#39;"), rows, n_auto))
+    return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
+                    mimetype="text/html")
+
+
+@bp.route("/rappro/applique", methods=["POST"])
+def rappro_applique():
+    _check_token()
+    token = request.args.get("token", "")
+    comp = int(request.form["societe"])
+    props = _json.loads(request.form["props"])
+    sel = {int(i) for i in request.form.getlist("sel")}
+    retenus = [p for i, p in enumerate(props) if i in sel and p["type"] != "inconnu"]
+    journal = _q("account.journal", "read", [int(request.form["journal"])],
+                 fields=["name", "code", "default_account_id"])[0]
+    faits, erreurs = _rappro_applique(comp, journal, retenus)
+    corps = "<p class='ok'>✅ %d encaissement(s) lettré(s) — paiements et factures passés « Payé ».</p>" % faits
+    if erreurs:
+        corps += "<div class='note'>⚠ À traiter manuellement :<br/>%s</div>" % "<br/>".join(erreurs)
+    return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
+                    mimetype="text/html")
