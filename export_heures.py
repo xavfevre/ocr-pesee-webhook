@@ -466,10 +466,13 @@ def _ft_time(v):
 
 def build_feuille(call, mois, emp_id, du=None, au=None):
     import calendar
-    import datetime as _dt
+    import copy as _copy
     import io
     import os
+    import re as _re
     import openpyxl
+    import datetime as _dt
+    from openpyxl.styles import Font
 
     if du and au:
         d1 = _dt.date.fromisoformat(du)
@@ -495,17 +498,14 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
 
     MENTION = {'cp': 'CP', 'ferie': 'FERIE', 'maladie': 'MALADIE',
                'absence': 'ABSENCE', 'recup': 'RECUP'}
-    # couleurs du document papier d'origine : pas de fond, texte colore
-    # (Century Gothic 12) — CP vert, FERIE rouge ; les autres types dans
-    # le meme esprit pour la transition papier -> Odoo
-    from openpyxl.styles import Font
+    # couleurs du document papier : texte colore Century Gothic, pas de fond
     COULEURS = {'cp': 'FF00B050', 'ferie': 'FFFF0000', 'maladie': 'FFFFC000',
                 'absence': 'FFFF0000', 'recup': 'FF0070C0', 'repos': 'FF808080'}
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'feuille_temps_template.xlsx')
     wb = openpyxl.load_workbook(tpl)
     master = wb['Semaine']
-    # journée type pour la formule d'heures sup du gabarit (E2 lun-jeu, F2 ven)
+    table_src = master.tables['TimeSheet']
     theos = [r['x_theo'] for r in jours.values() if r.get('x_theo')]
     theo_semaine = max(theos) if theos else 0
     theo_vendredi = 0
@@ -514,55 +514,92 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
             theo_vendredi = r['x_theo']
             break
 
-    import copy as _copy
-    from openpyxl.worksheet.table import Table  # noqa: F401 (types du deepcopy)
-    table_src = master.tables['TimeSheet']
-    for idx, lundi in enumerate(lundis):
-        ws = wb.copy_worksheet(master)
-        ws.title = 'S%02d' % lundi.isocalendar()[1]
-        # recree le tableau structure (style « Feuille de temps hebdomadaire »
-        # a rayures) que copy_worksheet ne copie pas, avec un nom unique
-        t = _copy.deepcopy(table_src)
-        t.displayName = 'TS_%s' % ws.title
-        t.name = t.displayName
-        t.id = idx + 2
-        ws.add_table(t)
-        ws['K19'] = '=SUM(TS_%s[Total])' % ws.title
+    def entete(ws, fin):
         ws['B2'] = emp['name']
         ws['E2'] = _ft_time(theo_semaine)
         ws['F2'] = _ft_time(theo_vendredi)
-        ws['K3'] = lundi + _dt.timedelta(days=6)
+        ws['K3'] = fin
         ws['K3'].number_format = 'DD/MM/YYYY'
         ws['K5'] = emp['name']
         ws['K6'] = emp['parent_id'][1] if emp.get('parent_id') else ''
+
+    def table(ws, nom, base, tid):
+        t = _copy.deepcopy(table_src)
+        t.displayName = nom
+        t.name = nom
+        t.id = tid
+        t.ref = 'B%d:K%d' % (base, base + 7)
+        ws.add_table(t)
+        ws.cell(base + 8, 11).value = '=SUM(%s[Total])' % nom
+
+    def remplir(ws, base, lundi):
+        """Remplit un bloc semaine dont la ligne d'en-tete est `base`."""
         for i in range(7):
             d = lundi + _dt.timedelta(days=i)
-            row = 12 + i
+            row = base + 1 + i
             if not (d1 <= d <= d2):
-                continue          # on n'édite que le mois sélectionné
-            ws['B%d' % row] = d
-            ws['B%d' % row].number_format = '[$-F800]dddd\,\ mmmm\ dd\,\ yyyy'  # date longue du modele
+                continue          # on n'edite que la periode selectionnee
+            c = ws.cell(row, 2)
+            c.value = d
+            c.number_format = '[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy'
             r = jours.get(d.isoformat())
             if not r:
                 continue
             mention = MENTION.get(r.get('x_type') or '')
             if mention:
-                for col in 'CDEF':
-                    c = ws['%s%d' % (col, row)]
-                    c.value = mention
-                    c.font = Font(name='Century Gothic', size=12,
-                                  color=COULEURS[r['x_type']])
+                for col in (3, 4, 5, 6):
+                    cc = ws.cell(row, col)
+                    cc.value = mention
+                    cc.font = Font(name='Century Gothic', size=12,
+                                   color=COULEURS[r['x_type']])
                 if r['x_type'] == 'cp':
-                    ws['J%d' % row] = 1
+                    ws.cell(row, 10).value = 1
                 if r['x_type'] == 'maladie' and r.get('x_theo'):
-                    ws['I%d' % row] = r['x_theo']
+                    ws.cell(row, 9).value = r['x_theo']
             else:
-                for col, champ in (('C', 'x_m_deb'), ('D', 'x_m_fin'),
-                                   ('E', 'x_am_deb'), ('F', 'x_am_fin')):
+                for col, champ in ((3, 'x_m_deb'), (4, 'x_m_fin'),
+                                   (5, 'x_am_deb'), (6, 'x_am_fin')):
                     t = _ft_time(r.get(champ))
                     if t is not None:
-                        ws['%s%d' % (col, row)] = t
-                        ws['%s%d' % (col, row)].number_format = 'HH:MM'
+                        cc = ws.cell(row, col)
+                        cc.value = t
+                        cc.number_format = 'HH:MM'
+
+    # ── feuille Recap : toutes les semaines empilees (disposition du papier) ──
+    recap = wb.copy_worksheet(master)
+    recap.title = 'Récap'
+    entete(recap, lundis[-1] + _dt.timedelta(days=6))
+    for k, lu in enumerate(lundis):
+        hb = 11 + 9 * k          # ligne d'en-tete du bloc (pas de 9 comme l'original)
+        if k > 0:
+            for sr in range(11, 20):
+                dr = hb + (sr - 11)
+                for cc in range(2, 12):
+                    src = master.cell(sr, cc)
+                    dst = recap.cell(dr, cc)
+                    v = src.value
+                    if isinstance(v, str) and v.startswith('='):
+                        if sr == 19:
+                            v = (v.replace('G12:G16', 'G%d:G%d' % (hb + 1, hb + 5))
+                                  .replace('12:', '%d:' % (hb + 1))
+                                  .replace(':18', ':%d' % (hb + 7)))
+                        else:
+                            v = _re.sub(r'(?<=[A-Z])%d(?![0-9])' % sr,
+                                        str(dr), v)
+                    dst.value = v
+                    dst._style = _copy.copy(src._style)
+                if master.row_dimensions[sr].height:
+                    recap.row_dimensions[dr].height = master.row_dimensions[sr].height
+        table(recap, 'TR_%d' % (k + 1), hb, 100 + k)
+        remplir(recap, hb, lu)
+
+    # ── une feuille par semaine ──
+    for idx, lu in enumerate(lundis):
+        ws = wb.copy_worksheet(master)
+        ws.title = 'S%02d' % lu.isocalendar()[1]
+        entete(ws, lu + _dt.timedelta(days=6))
+        table(ws, 'TS_%s' % ws.title, 11, idx + 2)
+        remplir(ws, 11, lu)
     del wb['Semaine']
     buf = io.BytesIO()
     wb.save(buf)
