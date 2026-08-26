@@ -83,7 +83,7 @@ def build(call, mois, comp='all', du=None, au=None, exc=None):
                  ('x_date', '>=', (bmin - timedelta(days=bmin.weekday())).strftime('%Y-%m-%d')),
                  ('x_date', '<=', (bmax + timedelta(days=6)).strftime('%Y-%m-%d'))],
                 fields=['x_employee_id', 'x_date', 'x_type', 'x_m_deb', 'x_m_fin',
-                        'x_am_deb', 'x_am_fin', 'x_heures', 'x_theo', 'x_hs', 'x_note'])
+                        'x_am_deb', 'x_am_fin', 'x_heures', 'x_theo', 'x_hs', 'x_note', 'x_decouchage'])
     by_emp = {}
     for r in rows:
         by_emp.setdefault(r['x_employee_id'][0], {})[r['x_date']] = r
@@ -141,7 +141,7 @@ def build(call, mois, comp='all', du=None, au=None, exc=None):
         ws['A2'].font = Font(name='Arial', size=10, italic=True)
         # récap mensuel (calculé sur les jours DU mois uniquement)
         tot_h = tot_theo = 0.0
-        n_cp = n_mal = n_abs = n_fer = n_rec = 0
+        n_cp = n_mal = n_abs = n_fer = n_rec = n_dec = 0
         d = e1
         while d <= e2:
             s = saisies.get(d.strftime('%Y-%m-%d'))
@@ -165,6 +165,8 @@ def build(call, mois, comp='all', du=None, au=None, exc=None):
                     n_fer += 1
                 elif t == 'recup':
                     n_rec += 1
+                if s.get('x_decouchage'):
+                    n_dec += 1
             d += timedelta(days=1)
         # horaire mensuel contractuel = hebdo (moyenne A/B si cycle) x 52/12 ;
         # base légale française 151,67 h/mois (35 h), l'écart = h. sup structurelles
@@ -197,10 +199,11 @@ def build(call, mois, comp='all', du=None, au=None, exc=None):
         heads = ['Matricule', 'Heures effectuées', 'Heures théoriques', 'Écart',
                  'Contrat mensuel (h)', 'Base légale (h)', 'H. sup structurelles/mois',
                  'Jours CP', 'Jours maladie', 'Jours absence', 'Fériés', 'Jours récup',
+                 'Découchages',
                  'H. mises en récup', 'H. récupérées', 'Solde récup (h)']
         vals = [mat or '—', round(tot_h, 2), round(tot_theo, 2), round(tot_h - tot_theo, 2),
                 round(contrat_mensuel, 2), round(BASE_LEGALE, 2), round(hs_struct, 2),
-                n_cp, n_mal, n_abs, n_fer, n_rec,
+                n_cp, n_mal, n_abs, n_fer, n_rec, n_dec,
                 round(mises_mois, 2), round(recup_mois, 2), round(solde, 2)]
         for j, (h, v) in enumerate(zip(heads, vals), 1):
             c = ws.cell(row=4, column=j, value=h); c.font = HDR; c.fill = FILL; c.alignment = CTR
@@ -278,11 +281,13 @@ SILAE_CODES_DEFAUT = {
     'maternite': 'ABMT',     # congé maternité
     'paternite': 'ABPT',     # congé paternité
     'evt_familial': 'ABEF',  # événement familial
+    'decouchage': 'DECOU',   # nombre de découchages (prime par nuit)
     'enfant_malade': 'ABEM', # enfant malade
 }
 SILAE_LIBELLES = {
     'hs': 'Heures écart (+/−)', 'cp': 'Congés payés', 'maladie': 'Maladie',
     'absence': 'Absence injustifiée', 'recup': 'Récupération',
+    'decouchage': 'Découchages',
     'sans_solde': 'Congé sans solde', 'maternite': 'Congé maternité',
     'paternite': 'Congé paternité', 'evt_familial': 'Événement familial',
     'enfant_malade': 'Enfant malade',
@@ -350,7 +355,7 @@ def build_silae(call, mois, comp='all', du=None, au=None, exc=None):
                 [('x_employee_id', 'in', [e['id'] for e in emps]),
                  ('x_date', '>=', min([d1.strftime('%Y-%m-%d')] + [v[0] for v in exc.values()])),
                  ('x_date', '<=', max([d2.strftime('%Y-%m-%d')] + [v[1] for v in exc.values()])),],
-                fields=['x_employee_id', 'x_date', 'x_type', 'x_heures', 'x_theo', 'x_note'])
+                fields=['x_employee_id', 'x_date', 'x_type', 'x_heures', 'x_theo', 'x_note', 'x_decouchage'])
     by_emp = {}
     for r in rows:
         by_emp.setdefault(r['x_employee_id'][0], {})[r['x_date']] = r
@@ -386,13 +391,16 @@ def build_silae(call, mois, comp='all', du=None, au=None, exc=None):
             key, demi = _abs_key(s)
             if key:
                 jours[dstr] = (key, demi)
-        if not jours and abs(hs) < 0.005:
+        n_dec = sum(1 for s2 in saisies.values() if s2.get('x_decouchage'))
+        if not jours and abs(hs) < 0.005 and not n_dec:
             continue
         if not mat:
             sans_mat.append(e['name'])
         evp = {}
         if abs(hs) >= 0.005:
             evp['hs'] = round(hs, 2)
+        if n_dec:
+            evp['decouchage'] = n_dec
         for key, demi in jours.values():
             evp[key] = evp.get(key, 0) + (0.5 if demi else 1)
         for key, val in sorted(evp.items()):
