@@ -43,6 +43,9 @@
     .dayblock { display: none; padding: 12px; }
     .dayblock.visible { display: block; }
     .no-missions { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 15px; }
+    .leave-banner { background: #dcfce7; border: 1px solid #86efac; color: #166534;
+                    border-radius: 14px; padding: 16px 14px; margin-bottom: 14px;
+                    text-align: center; font-size: 16px; font-weight: 800; }
 
     .mission { background: #fff; border-radius: 14px; margin-bottom: 14px;
                box-shadow: 0 2px 8px rgba(58,90,153,.12); overflow: hidden; }
@@ -90,6 +93,9 @@
 
 {% for db in dayblocks %}
 <div class="dayblock" data-iso="{{ db.iso }}" data-label="{{ db.label }}" data-today="{{ 1 if db.is_today else 0 }}">
+  {% if db.leave %}
+    <div class="leave-banner">🌴 {{ db.leave }}</div>
+  {% endif %}
   {% if db.cards %}
     {% for c in db.cards %}
     <div class="mission">
@@ -135,7 +141,7 @@
       </div>
     </div>
     {% endfor %}
-  {% else %}
+  {% elif not db.leave %}
     <div class="no-missions">Aucune intervention prévue ce jour 👍</div>
   {% endif %}
 </div>

@@ -221,7 +221,14 @@
 
   <div class="box" id="dechets-box">
     <div class="box-title">Déchets</div>
-    <div class="box-body" style="padding:0 0 4px;">
+    <label style="display:flex; align-items:center; gap:9px; padding:10px 12px 4px;
+                  font-size:14px; font-weight:800; color:var(--cy-dk); cursor:pointer;">
+      <input type="checkbox" name="dechets_none" id="dechets_none" value="1"
+             {% if dechets_none %}checked{% endif %} onchange="toggleDechets()"
+             style="width:22px; height:22px; accent-color:var(--cy-dk);"/>
+      Pas de déchets évacués
+    </label>
+    <div class="box-body" style="padding:0 0 4px;" id="dechets-table">
       <table>
         <tr><th>Déchets</th><th class="col-q">Volume / m³</th>
             <th>Destination</th><th class="col-t">Tps dépotage +<br>lavage citerne / h</th></tr>
@@ -348,6 +355,17 @@ function removeCurageRow(btn) {
   updateCurageDisplay();
   saveDraft();
 }
+// « Pas de déchets » : grise le tableau et vide les saisies
+function toggleDechets() {
+  var none = document.getElementById('dechets_none').checked;
+  var tbl = document.getElementById('dechets-table');
+  tbl.style.opacity = none ? '0.35' : '';
+  tbl.style.pointerEvents = none ? 'none' : '';
+  if (none) {
+    tbl.querySelectorAll('input, select').forEach(function (el) { el.value = ''; });
+  }
+}
+
 function updateCurageDisplay() {
   var hasRows = document.getElementById('curage-rows').children.length > 0;
   document.getElementById('curage-empty').style.display = hasRows ? 'none' : '';
@@ -477,6 +495,7 @@ function restoreDraft() {
   } catch (e) {}
 }
 if (JUST_SAVED) { clearDraft(); } else { restoreDraft(); }
+toggleDechets();
 document.querySelector('form').addEventListener('input', saveDraft);
 document.querySelector('form').addEventListener('change', saveDraft);
 

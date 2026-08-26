@@ -51,6 +51,8 @@ TRAVAUX_TABS = [
         ("deb_brancht_ep", "Débouchage branchement EP", "U"),
         ("deb_reseau_eu",  "Débouchage réseau EU",      "U"),
         ("deb_reseau_ep",  "Débouchage réseau EP",      "U"),
+        ("deb_fosse",      "Débouchage Fosse",          "U"),
+        ("deb_bg",         "Débouchage BG",             "U"),
     ]),
     ("curage", "Curage", [
         ("hydro_reu",       "Hydrocurage REU",         "ML"),
@@ -107,11 +109,12 @@ TRAVAUX_TABS = [
 # Liste à plat (POST + chatter) — compatibilité avec le code existant
 TRAVAUX = [row for _k, _lbl, rows in TRAVAUX_TABS for row in rows]
 DECHETS = [
-    ("sable",   "Sable"),
-    ("graisse", "Graisse"),
-    ("refus",   "Refus dégrillage"),
-    ("vidange", "Matières de vidanges"),
-    ("autre",   "Autre"),
+    ("sable",    "Sable"),
+    ("graisse",  "Graisse"),
+    ("refus",    "Refus dégrillage"),
+    ("vidange",  "Matières de vidanges"),
+    ("depotage", "Dépotage"),
+    ("autre",    "Autre"),
 ]
 # Destinations possibles des déchets (liste déroulante de la fiche)
 DESTINATIONS = ["Assainissement", "Châtellerault", "Chinon",
@@ -454,8 +457,30 @@ def ma_tournee():
             c["objet"] = (so or {}).get("x_studio_lieu_dintervention_1") or ""
             c["camion"] = bimap.get(c["ref"].split()[0], "") if c["ref"] else ""
 
-        # Toujours afficher aujourd'hui même vide
-        all_days = sorted(set(by_day.keys()) | {today.isoformat()})
+        # Congés validés du chauffeur sur la fenêtre (module Congés / hr.leave)
+        leave_by_day = {}
+        try:
+            leaves = x(models, uid, "hr.leave", "search_read",
+                [["employee_id", "=", emp_id],
+                 ["state", "in", ["validate", "validate1"]],
+                 ["request_date_to", ">=", (today - timedelta(days=15)).isoformat()],
+                 ["request_date_from", "<=", (today + timedelta(days=15)).isoformat()]],
+                fields=["work_entry_type_id", "request_date_from", "request_date_to"])
+            for lv in leaves:
+                lbl = (lv["work_entry_type_id"][1] if lv.get("work_entry_type_id")
+                       else "Congé").replace(" (France)", "")
+                d0 = max(date.fromisoformat(lv["request_date_from"]), today - timedelta(days=15))
+                d1 = min(date.fromisoformat(lv["request_date_to"]), today + timedelta(days=15))
+                d = d0
+                while d <= d1:
+                    if d.weekday() < 6:  # pas le dimanche
+                        leave_by_day[d.isoformat()] = lbl
+                    d += timedelta(days=1)
+        except Exception:
+            pass
+
+        # Toujours afficher aujourd'hui même vide, ainsi que les jours de congé
+        all_days = sorted(set(by_day.keys()) | {today.isoformat()} | set(leave_by_day.keys()))
         for iso in all_days:
             d = date.fromisoformat(iso)
             dayblocks.append({
@@ -463,6 +488,7 @@ def ma_tournee():
                 "label": f"{JOURS_LONG[d.weekday()]} {d.day} {MOIS_ABR[d.month-1]}",
                 "is_today": d == today,
                 "cards": by_day.get(iso, []),
+                "leave": leave_by_day.get(iso, ""),
             })
     except Exception as e:
         error = str(e)
@@ -512,6 +538,7 @@ def fiche(slot_id):
             }
             if any(row.values()):
                 data["dechets"][code] = row
+        data["dechets_none"] = bool(f.get("dechets_none"))
 
         # Tranches de curage (lignes dynamiques rue par rue)
         data["curage_commune"] = f.get("curage_commune", "").strip()
@@ -674,6 +701,7 @@ def fiche(slot_id):
         adresse=adresse, prefill=prefill,
         travaux=TRAVAUX, travaux_tabs=TRAVAUX_TABS, tab_counts=tab_counts,
         curage_rows=curage_rows, curage_commune=curage_commune,
+        dechets_none=bool(saved_data.get("dechets_none")) if isinstance(saved_data, dict) else False,
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
@@ -721,6 +749,8 @@ def render_fiche_html(card, vals, data, nphotos=0):
     if rows_d:
         html += ("<table border='1' cellpadding='3'><tr><th>Déchets</th><th>Vol. m³</th>"
                  "<th>Destination</th><th>Tps dépotage</th></tr>" + rows_d + "</table>")
+    elif data.get("dechets_none"):
+        html += "<p><b>Déchets :</b> aucun déchet évacué lors de cette intervention.</p>"
     if rows_c:
         commune = data.get("curage_commune") or ""
         html += (f"<p><b>Tranches de curage</b>{' — ' + commune if commune else ''} "
@@ -787,6 +817,11 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
 
     labels_d = dict(DECHETS)
     rows_d = data.get("dechets", {})
+    if not rows_d and data.get("dechets_none"):
+        html.append(f"<h3 style='{H2}'>MATIÈRES ÉVACUÉES — TRAÇABILITÉ</h3>")
+        html.append("<div style='border:1px solid #e5e7eb;border-left:4px solid #0b7285;"
+                    "background:#f8fafc;padding:9px 13px;font-size:12px;margin-bottom:6px;'>"
+                    "Aucun déchet évacué lors de cette intervention.</div>")
     if rows_d:
         html.append(f"<h3 style='{H2}'>MATIÈRES ÉVACUÉES — TRAÇABILITÉ</h3>")
         html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
@@ -1382,7 +1417,11 @@ def _tarifs_dataset(q, pid, default_pl_id, client_pl_id):
         cells = []
         has_data = False
         for y in years:
-            y_start, y_end = f"{y}-01-01 00:00:00", f"{y}-12-31 23:59:59"
+            # bornes de l'année en UTC (les items sont stockés en UTC : le
+            # 01/01/N 00:00 Paris = 31/12/N-1 23:00 UTC — sans conversion,
+            # chaque tarif débordait d'une heure sur l'année précédente)
+            y_start = _tarifs_paris_to_utc(f"{y}-01-01")
+            y_end = _tarifs_paris_to_utc(f"{y}-12-31", end=True)
             tarif = None
             applicable = [it for it in r["items"]
                           if it["compute_price"] == "fixed"
@@ -1411,6 +1450,11 @@ def _tarifs_dataset(q, pid, default_pl_id, client_pl_id):
             evo_rows.append({"name": r["name"], "code": r["code"],
                               "categ": r["categ"], "specific": r["specific"],
                               "cells": cells})
+
+    # affichage de la plus récente à la plus ancienne
+    years = years[::-1]
+    for er in evo_rows:
+        er["cells"].reverse()
 
     return {"rows": rows, "evo_rows": evo_rows, "years": years,
             "categories": categories, "nb_spec": nb_spec, "nb_fact": nb_fact}
@@ -1514,6 +1558,155 @@ def tarifs_export():
         headers={"Content-Disposition":
                  f'attachment; filename="Tarifs_{fname}_{date.today().isoformat()}.xlsx"'})
 
+# ── Vue globale : tous les tarifs spécifiques clients ───────────────────────
+def _tarifs_global_dataset(q):
+    """Tous les tarifs spécifiques actifs ou à venir, groupés par client."""
+    CTX = {"allowed_company_ids": [TARIFS_COMPANY_ID]}
+    default_pl = q("product.pricelist", "search",
+                   [["name", "=", "Liste de prix par défaut"],
+                    ["company_id", "=", TARIFS_COMPANY_ID]], limit=1)
+    default_pl_id = default_pl[0] if default_pl else 0
+    pls = q("product.pricelist", "search_read",
+            ["|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID],
+             ["id", "!=", default_pl_id]], fields=["name"], context=CTX)
+    pl_names = {p["id"]: p["name"] for p in pls}
+    pl_ids = list(pl_names)
+
+    # partenaires rattachés à chaque liste (propriété non requêtable en v19 → lecture globale)
+    pl_partners = {}
+    for p in q("res.partner", "search_read", [],
+               fields=["name", "property_product_pricelist"], context=CTX):
+        pl = p.get("property_product_pricelist")
+        if pl and pl[0] in pl_names:
+            pl_partners.setdefault(pl[0], []).append({"id": p["id"], "name": p["name"]})
+
+    # catalogue + prix standard (mêmes règles que la page client)
+    products = q("product.product", "search_read",
+                 [["active", "=", True],
+                  "|", ["company_id", "=", False], ["company_id", "=", TARIFS_COMPANY_ID]],
+                 fields=["display_name", "default_code", "list_price", "product_tmpl_id"])
+    pvar = {p["id"]: p for p in products}
+    ptmpl = {}
+    for p in products:
+        ptmpl.setdefault(p["product_tmpl_id"][0], p)
+    std_var, std_tmpl = {}, {}
+    if default_pl_id:
+        for it in q("product.pricelist.item", "search_read",
+                    [["pricelist_id", "=", default_pl_id], ["compute_price", "=", "fixed"]],
+                    fields=["applied_on", "product_id", "product_tmpl_id", "fixed_price"]):
+            if it["applied_on"] == "0_product_variant" and it["product_id"]:
+                std_var[it["product_id"][0]] = it["fixed_price"]
+            elif it["product_tmpl_id"]:
+                std_tmpl[it["product_tmpl_id"][0]] = it["fixed_price"]
+
+    now_utc = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
+    groups = {}
+    for it in q("product.pricelist.item", "search_read",
+                [["pricelist_id", "in", pl_ids]],
+                fields=["pricelist_id", "applied_on", "product_id", "product_tmpl_id",
+                        "compute_price", "fixed_price", "percent_price",
+                        "date_start", "date_end"],
+                order="pricelist_id, id"):
+        if it["date_end"] and it["date_end"] < now_utc:
+            continue  # expiré → visible sur la fiche client uniquement
+        prod = None
+        if it["applied_on"] == "0_product_variant" and it["product_id"]:
+            prod = pvar.get(it["product_id"][0])
+        elif it["applied_on"] == "1_product" and it["product_tmpl_id"]:
+            prod = ptmpl.get(it["product_tmpl_id"][0])
+        if prod is None:
+            continue  # catégorie / toute la liste : hors périmètre tarif produit
+        std = std_var.get(prod["id"], std_tmpl.get(prod["product_tmpl_id"][0], prod["list_price"]))
+        if it["compute_price"] == "fixed":
+            price = it["fixed_price"]
+        elif it["compute_price"] == "percentage":
+            price = round(std * (1 - it["percent_price"] / 100), 2)
+        else:
+            continue
+        future = bool(it["date_start"] and it["date_start"] > now_utc)
+        ds_, de_ = it["date_start"], it["date_end"]
+        if ds_ and de_:
+            validity = f"du {_tarifs_fmt_dt(ds_)} au {_tarifs_fmt_dt(de_)}"
+        elif de_:
+            validity = f"jusqu'au {_tarifs_fmt_dt(de_)}"
+        elif ds_:
+            validity = f"depuis le {_tarifs_fmt_dt(ds_)}"
+        else:
+            validity = ""
+        if future:
+            validity = f"à partir du {_tarifs_fmt_dt(ds_)}"
+        plid = it["pricelist_id"][0]
+        groups.setdefault(plid, []).append({
+            "prod": prod["display_name"], "code": prod["default_code"] or "",
+            "price": price, "std": std, "validity": validity, "future": future,
+            "ecart": round((price - std) / std * 100, 1) if std else None,
+        })
+
+    sections = []
+    for plid, rows in groups.items():
+        partners = pl_partners.get(plid, [])
+        rows.sort(key=lambda r: r["prod"].lower())
+        sections.append({
+            "client": " / ".join(p["name"] for p in partners) or pl_names[plid],
+            "pid": partners[0]["id"] if partners else 0,
+            "linked": bool(partners), "rows": rows,
+        })
+    sections.sort(key=lambda s: s["client"].lower())
+    return {"sections": sections,
+            "nb_clients": len(sections),
+            "nb_actifs": sum(1 for s in sections for r in s["rows"] if not r["future"]),
+            "nb_futurs": sum(1 for s in sections for r in s["rows"] if r["future"])}
+
+@bp.route("/tarifs-global")
+def tarifs_global():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    ds = _tarifs_global_dataset(q)
+    return render_template("tarifs_global.html", token=SECRET, src=src,
+                           today=date.today().strftime("%d/%m/%Y"), **ds)
+
+@bp.route("/tarifs-global/export")
+def tarifs_global_export():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    src = request.args.get("src", "")
+    uid, models, db = odoo_connect_src(src)
+    def q(model, method, *p, **kw):
+        return xq(db, models, uid, model, method, *p, **kw)
+    ds = _tarifs_global_dataset(q)
+
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tarifs clients"
+    H_FILL, H_FONT = PatternFill("solid", fgColor="0B7285"), Font(bold=True, color="FFFFFF")
+    CLI_FONT = Font(bold=True, color="1D7F79")
+    ws.append(["Client", "Produit", "Code", "Prix client HT",
+               "Prix standard HT", "Écart %", "Validité"])
+    for c in ws[1]:
+        c.fill, c.font = H_FILL, H_FONT
+    for s in ds["sections"]:
+        for i, r in enumerate(s["rows"]):
+            ws.append([s["client"] if i == 0 else "", r["prod"], r["code"], r["price"],
+                       r["std"], r["ecart"] if r["ecart"] is not None else "", r["validity"]])
+            if i == 0:
+                ws.cell(row=ws.max_row, column=1).font = CLI_FONT
+    for col, w in zip("ABCDEFG", (38, 52, 14, 15, 16, 10, 26)):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return Response(buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition":
+                 f'attachment; filename="Tarifs_clients_global_{date.today().isoformat()}.xlsx"'})
+
 # ── Modification / suppression d'un tarif spécifique existant ───────────────
 def _tarifs_item_ok(q, item_id):
     """L'item existe et appartient bien à une liste de prix PROTEC."""
@@ -1597,18 +1790,20 @@ def _tarifs_score(nlabel, nname):
     return max(seq, tok)
 
 def _tarifs_header_year(v):
-    """Année portée par une cellule d'entête : 2026, n° de série Excel
-    (44743 → 2022) ou texte contenant une année (« du 1er mai au 31/12/2025 »)."""
+    """Période (année, mois de début) portée par une cellule d'entête :
+    2026 → (2026, 1) ; n° de série Excel 44743 (= 01/07/2022, changement de
+    tarif en cours d'année) → (2022, 7) ; texte contenant une année → (année, 1)."""
     try:
         n = float(v)
         if 1990 <= n <= 2100:
-            return int(n)
+            return (int(n), 1)
         if 30000 <= n <= 60000:  # date Excel (jours depuis 30/12/1899)
-            return (datetime(1899, 12, 30) + timedelta(days=int(n))).year
+            d = datetime(1899, 12, 30) + timedelta(days=int(n))
+            return (d.year, d.month)
     except (TypeError, ValueError):
         pass
     mo = re.search(r"\b(19|20)\d{2}\b", str(v or ""))
-    return int(mo.group(0)) if mo else None
+    return (int(mo.group(0)), 1) if mo else None
 
 def _tarifs_parse_excel(data, filename):
     """Extrait les blocs tarifaires du fichier « Évolution des tarifs ».
@@ -1660,8 +1855,8 @@ def _tarifs_parse_excel(data, filename):
                 y = _tarifs_header_year(v)
                 if y:
                     year_cols.append((y, j))
-            # année la plus récente d'abord ; à année égale, colonne la plus à gauche
-            year_cols.sort(key=lambda t: (-t[0], t[1]))
+            # période la plus récente d'abord ; à période égale, colonne la plus à gauche
+            year_cols.sort(key=lambda t: (-t[0][0], -t[0][1], t[1]))
             rows = []
             for row in grid[header_i + 1:end_i]:
                 label = str(row[0] or "").strip()
@@ -1669,18 +1864,18 @@ def _tarifs_parse_excel(data, filename):
                     continue
                 unit = str(row[unit_col] or "").strip() \
                     if unit_col is not None and unit_col < len(row) else ""
-                all_prices = {}  # année -> prix (1ère colonne rencontrée par année)
-                for y, j in year_cols:
-                    if j < len(row) and y not in all_prices:
+                all_prices = {}  # (année, mois de début) -> prix
+                for ym, j in year_cols:
+                    if j < len(row) and ym not in all_prices:
                         try:
                             v = float(str(row[j]).replace(",", ".").replace("€", "").replace(" ", ""))
                             if v > 0:
-                                all_prices[y] = v
+                                all_prices[ym] = v
                         except (TypeError, ValueError):
                             continue
                 if all_prices:
-                    year = max(all_prices)
-                    rows.append((label, unit, all_prices[year], year, all_prices))
+                    ym = max(all_prices)
+                    rows.append((label, unit, all_prices[ym], ym, all_prices))
             if rows:
                 blocks.append((sheet_name, client, rows))
     return blocks
@@ -1731,7 +1926,7 @@ def tarifs_import():
     review = []
     for bi, (sheet_name, client, lignes) in enumerate(blocks):
         bloc_label = f"Feuille « {sheet_name} »" + (f" — {client}" if client else "")
-        for label, unit, price, year, all_prices in lignes:
+        for label, unit, price, ym, all_prices in lignes:
             nlabel = _tarifs_norm(label.split("\n")[0])
             best, best_score = None, 0.0
             for c, nname in norm_cat:
@@ -1741,10 +1936,14 @@ def tarifs_import():
             matched = best if best_score >= 0.45 else None
             std = matched["std"] if matched else None
             differs = matched is not None and abs(price - std) > 0.005
-            histo = ";".join(f"{y}:{p}" for y, p in sorted(all_prices.items(), reverse=True)
-                             if y != year)
+            # historique : clé « AAAA » (année pleine) ou « AAAA-MM » (changement
+            # de tarif en cours d'année, ex. deux colonnes 2022)
+            histo = ";".join(
+                (f"{y}-{mm:02d}" if mm > 1 else f"{y}") + f":{p}"
+                for (y, mm), p in sorted(all_prices.items(), reverse=True)
+                if (y, mm) != ym)
             review.append({"bloc": bi, "bloc_label": bloc_label,
-                            "label": label, "unit": unit, "prix": price, "annee": year,
+                            "label": label, "unit": unit, "prix": price, "annee": ym[0],
                             "tmpl": matched["tmpl"] if matched else 0,
                             "score": round(best_score * 100),
                             "std": std, "differs": differs,
@@ -1803,23 +2002,37 @@ def tarifs_import_valider():
                 vals["date_start"] = _tarifs_paris_to_utc(du)
             vals_list.append(vals)
             if with_histo:
-                # tarifs des années passées : items datés 01/01/N → 31/12/N,
-                # inertes pour les devis mais visibles dans l'onglet Évolution
+                # tarifs passés : clés « AAAA » (année pleine) ou « AAAA-MM »
+                # (changement en cours d'année). Chaque période court jusqu'à la
+                # veille de la période suivante, au plus tard le 31/12 de son année.
+                parts = []
                 for part in (f.get(f"hist_{i}") or "").split(";"):
                     if ":" not in part:
                         continue
                     try:
-                        y, p = part.split(":", 1)
-                        y, p = int(y), float(p)
+                        ykey, p = part.split(":", 1)
+                        p = float(p)
+                        if "-" in ykey:
+                            yy, mm = ykey.split("-")
+                            start = date(int(yy), int(mm), 1)
+                        else:
+                            start = date(int(ykey), 1, 1)
                     except ValueError:
                         continue
-                    if p <= 0:
-                        continue
+                    if p > 0:
+                        parts.append((start, p))
+                parts.sort()
+                for k, (start, p) in enumerate(parts):
+                    end = date(start.year, 12, 31)
+                    if k + 1 < len(parts):
+                        nxt = parts[k + 1][0] - timedelta(days=1)
+                        if start <= nxt < end:
+                            end = nxt
                     vals_list.append({
                         "applied_on": "1_product", "product_tmpl_id": tmpl,
                         "compute_price": "fixed", "fixed_price": p,
-                        "date_start": _tarifs_paris_to_utc(f"{y}-01-01"),
-                        "date_end": _tarifs_paris_to_utc(f"{y}-12-31", end=True)})
+                        "date_start": _tarifs_paris_to_utc(start.isoformat()),
+                        "date_end": _tarifs_paris_to_utc(end.isoformat(), end=True)})
         if need_pl and not client_pl_id:
             created_pl = q("product.pricelist", "create",
                 [{"name": partner["name"], "company_id": TARIFS_COMPANY_ID}])
