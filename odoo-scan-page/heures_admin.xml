@@ -9,7 +9,7 @@
       .ha-nav a, .ha-comp a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;}
       .ha-comp a.on{background:#0f172a;color:#fff;}
       table.ha{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}
-      .ha th{background:#0f172a;color:#e2e8f0;padding:7px 6px;font-size:12.5px;text-align:center;}
+      .ha th{background:#0f172a;color:#e2e8f0;padding:7px 6px;font-size:12.5px;text-align:center;position:sticky;top:0;z-index:20;}
       .ha th.emp{text-align:left;padding-left:10px;}
       .ha td{border-bottom:1px solid #e2e8f0;padding:4px 5px;text-align:center;font-size:13px;font-weight:700;}
       .ha td.emp{text-align:left;font-weight:800;padding-left:10px;white-space:nowrap;}
