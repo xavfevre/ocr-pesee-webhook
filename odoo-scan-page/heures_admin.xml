@@ -4,7 +4,7 @@
       header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
       #wrapwrap &gt; main {padding-top:0 !important;}
       body{background:#f8fafc;}
-      .ha-wrap{max-width:1250px;margin:0 auto;padding:12px;}
+      .ha-wrap{max-width:none;margin:0 auto;padding:12px 18px;}
       .ha-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
       .ha-nav a, .ha-comp a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;}
       .ha-comp a.on{background:#0f172a;color:#fff;}

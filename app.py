@@ -920,7 +920,9 @@ def export_heures_route():
     def call(model, method, *args, **kw):
         return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, method, list(args), kw)
 
-    ref = call("ir.config_parameter", "get_param", ["maquignon.heures_export_key"])
+    # clé passée en chaîne : depuis la mise à jour Odoo SaaS d'août 2026,
+    # get_param refuse une clé de type liste (ormcache « unhashable type »)
+    ref = call("ir.config_parameter", "get_param", "maquignon.heures_export_key")
     if not ref or not hmac.compare_digest(key, str(ref)):
         return jsonify({"error": "clé invalide"}), 403
     fmt = (request.args.get("format") or "").strip()
