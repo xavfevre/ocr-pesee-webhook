@@ -148,7 +148,7 @@
           </div>
         </div>
         <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
-          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>
           <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
           <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
           <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
@@ -230,7 +230,7 @@
         <t t-set="today" t-value="datetime.date.today()"/>
         <t t-set="dfday" t-value="today.strftime('%Y-%m-%d 00:00:00')"/>
         <t t-set="dom" t-value="[('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1),('employee_assigned_ids','in',[int(op)]),'|',('state','in',['ready','progress']),'&amp;',('state','=','done'),('date_start','&gt;=',dfday)]"/>
-        <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, limit=300).sorted(key=lambda w: (w.production_id.name or '', w.id))"/>
+        <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, limit=300).sorted(key=lambda w: (0 if w.production_id.priority == '1' else 1, w.production_id.name or '', w.id))"/>
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
         <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
@@ -264,7 +264,7 @@
           </div>
         </div>
         <div id="vo-cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
-          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+          <video id="vo-cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>
           <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
           <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
           <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>

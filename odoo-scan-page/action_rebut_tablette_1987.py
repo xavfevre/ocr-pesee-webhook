@@ -57,7 +57,7 @@ if of.state == 'done' and vol_reb > 0:
 new = of.copy({'product_qty': vol_reb or of.product_qty, 'origin': of.origin,
                'product_id': of.product_id.id, 'bom_id': of.bom_id.id if of.bom_id else False})
 data = of.read(['date_deadline', 'x_studio_date_de_commande', 'x_studio_haut_m', 'x_studio_larg_m', 'x_studio_long_m', 'x_studio_n_de_bc'])[0]
-vals = {'x_studio_nbr': n, 'x_studio_origine_rebut': of.name}
+vals = {'x_studio_nbr': n, 'x_studio_origine_rebut': of.name, 'priority': '1'}
 if of.x_studio_catgorie:
     vals['x_studio_catgorie'] = of.x_studio_catgorie.id
 if of.x_studio_palette:
