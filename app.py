@@ -925,6 +925,18 @@ def export_heures_route():
         return jsonify({"error": "mois attendu au format YYYY-MM"}), 400
     du = du or None
     au = au or None
+    # exceptions par salarié : exc={"<emp_id>": ["YYYY-MM-DD", "YYYY-MM-DD"], ...}
+    exc = {}
+    brut_exc = (request.args.get("exc") or "").strip()
+    if brut_exc:
+        try:
+            for k, v in json.loads(brut_exc).items():
+                if (str(k).isdigit() and isinstance(v, (list, tuple)) and len(v) == 2
+                        and re.match(r"^\d{4}-\d{2}-\d{2}$", v[0])
+                        and re.match(r"^\d{4}-\d{2}-\d{2}$", v[1]) and v[0] <= v[1]):
+                    exc[str(k)] = [v[0], v[1]]
+        except Exception:
+            return jsonify({"error": "exc invalide (JSON {id: [du, au]})"}), 400
     uid, models = odoo_connect()
 
     def call(model, method, *args, **kw):
@@ -946,10 +958,10 @@ def export_heures_route():
         nom = "".join(c if c.isalnum() else "_" for c in nom)
         fname = f"HEURES_{nom}_{periode}.xlsx"
     elif fmt == "silae":
-        data = export_heures.build_silae(call, mois, comp, du=du, au=au)
+        data = export_heures.build_silae(call, mois, comp, du=du, au=au, exc=exc)
         fname = f"SILAE_EVP_{periode}.xlsx"
     else:
-        data = export_heures.build(call, mois, comp, du=du, au=au)
+        data = export_heures.build(call, mois, comp, du=du, au=au, exc=exc)
         fname = f"HEURES_{periode}.xlsx"
         if au:
             # mémorise la fin de période pour préremplir le prochain export

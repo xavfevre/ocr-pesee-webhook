@@ -45,7 +45,7 @@ def _theo_day(cal, d):
     return tot
 
 
-def build(call, mois, comp='all', du=None, au=None):
+def build(call, mois, comp='all', du=None, au=None, exc=None):
     """Génère le classeur ; `call(model, method, *args, **kw)` = execute_kw.
     mois = 'YYYY-MM' ; comp = 'all' ou id de société."""
     if du and au:
@@ -56,6 +56,11 @@ def build(call, mois, comp='all', du=None, au=None):
         d1 = date(y, m, 1)
         d2 = (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
     y, m = d1.year, d1.month
+    # exceptions par salarie : {id: (du, au)} — periode propre a l'onglet
+    exc = {str(k): v for k, v in (exc or {}).items()}
+    exc_dates = [datetime.strptime(x, '%Y-%m-%d').date() for v in exc.values() for x in v]
+    bmin = min([d1] + exc_dates)
+    bmax = max([d2] + exc_dates)
     # semaines couvrant le mois (lundi -> dimanche)
     monday0 = d1 - timedelta(days=d1.weekday())
     dom = [('active', '=', True)]
@@ -75,8 +80,8 @@ def build(call, mois, comp='all', du=None, au=None):
         c['attendance_ids'] = [atts[a] for a in c['attendance_ids'] if a in atts]
     rows = call('x_heures_jour', 'search_read',
                 [('x_employee_id', 'in', [e['id'] for e in emps]),
-                 ('x_date', '>=', monday0.strftime('%Y-%m-%d')),
-                 ('x_date', '<=', (d2 + timedelta(days=6)).strftime('%Y-%m-%d'))],
+                 ('x_date', '>=', (bmin - timedelta(days=bmin.weekday())).strftime('%Y-%m-%d')),
+                 ('x_date', '<=', (bmax + timedelta(days=6)).strftime('%Y-%m-%d'))],
                 fields=['x_employee_id', 'x_date', 'x_type', 'x_m_deb', 'x_m_fin',
                         'x_am_deb', 'x_am_fin', 'x_heures', 'x_theo', 'x_hs', 'x_note'])
     by_emp = {}
@@ -123,15 +128,22 @@ def build(call, mois, comp='all', du=None, au=None):
         cal = cals.get(e['resource_calendar_id'][0]) if e['resource_calendar_id'] else None
         saisies = by_emp.get(e['id'], {})
         mat = e.get('x_matricule_paie') or ''
+        exc_e = exc.get(str(e['id']))
+        if exc_e:
+            e1 = datetime.strptime(exc_e[0], '%Y-%m-%d').date()
+            e2 = datetime.strptime(exc_e[1], '%Y-%m-%d').date()
+        else:
+            e1, e2 = d1, d2
+        emonday0 = e1 - timedelta(days=e1.weekday())
         ws['A1'] = f"HEURES — {e['name']}" + (f" — matricule {mat}" if mat else '')
         ws['A1'].font = FT
-        ws['A2'] = f"{e['company_id'][1]} · {cal['name'] if cal else 'sans horaire'} · {mois}"
+        ws['A2'] = f"{e['company_id'][1]} · {cal['name'] if cal else 'sans horaire'} · {e1.strftime('%d/%m/%Y')} → {e2.strftime('%d/%m/%Y')}"
         ws['A2'].font = Font(name='Arial', size=10, italic=True)
         # récap mensuel (calculé sur les jours DU mois uniquement)
         tot_h = tot_theo = 0.0
         n_cp = n_mal = n_abs = n_fer = n_rec = 0
-        d = d1
-        while d <= d2:
+        d = e1
+        while d <= e2:
             s = saisies.get(d.strftime('%Y-%m-%d'))
             # théorique de l'écart : jour travail = théo figé (demi-journées gérées),
             # jour vide = calendrier ; les jours posés en absence ne comptent pas
@@ -175,7 +187,7 @@ def build(call, mois, comp='all', du=None, au=None):
         ref = e.get('x_cp_ref_date') or ''
         lignes_rl = rl_by_emp.get(e['id'], [])
         pris_rows = pris_by_emp.get(e['id'], [])
-        m1, m2 = d1.strftime('%Y-%m-%d'), d2.strftime('%Y-%m-%d')
+        m1, m2 = e1.strftime('%Y-%m-%d'), e2.strftime('%Y-%m-%d')
         mises_mois = sum(l['x_heures'] for l in lignes_rl if m1 <= l['x_date'] <= m2)
         recup_mois = sum(_recup_pris_h(r, cal) for r in pris_rows if m1 <= r['x_date'] <= m2)
         # solde arrêté à la fin du mois exporté (les mouvements postérieurs n'y entrent pas)
@@ -195,8 +207,8 @@ def build(call, mois, comp='all', du=None, au=None):
             c2 = ws.cell(row=5, column=j, value=v); c2.font = FB; c2.alignment = CTR
         # blocs hebdomadaires
         r = 7
-        monday = monday0
-        while monday <= d2:
+        monday = emonday0
+        while monday <= e2:
             sunday = monday + timedelta(days=6)
             c = ws.cell(row=r, column=1, value=f"Semaine {monday.isocalendar()[1]} — du {monday.strftime('%d/%m')} au {sunday.strftime('%d/%m')}")
             c.font = FB
@@ -210,7 +222,7 @@ def build(call, mois, comp='all', du=None, au=None):
             wtot = wtheo = 0.0
             for i in range(7):
                 d = monday + timedelta(days=i)
-                in_month = d1 <= d <= d2
+                in_month = e1 <= d <= e2
                 s = saisies.get(d.strftime('%Y-%m-%d'))
                 theo = _theo_day(cal, d)
                 if in_month:
@@ -300,7 +312,7 @@ def _abs_key(r):
     return None, False
 
 
-def build_silae(call, mois, comp='all', du=None, au=None):
+def build_silae(call, mois, comp='all', du=None, au=None, exc=None):
     """Classeur EVP Silae : onglets EVP (matricule/code/valeur), Absences
     (périodes datées) et Lisez-moi (codes + points de contrôle)."""
     import json as _json
@@ -319,6 +331,7 @@ def build_silae(call, mois, comp='all', du=None, au=None):
             codes.update({k: str(v) for k, v in _json.loads(brut).items()})
         except Exception:
             pass
+    exc = {str(k): v for k, v in (exc or {}).items()}
     dom = [('active', '=', True)]
     if comp != 'all':
         dom.append(('company_id', '=', int(comp)))
@@ -335,8 +348,8 @@ def build_silae(call, mois, comp='all', du=None, au=None):
         c['attendance_ids'] = [atts[a] for a in c['attendance_ids'] if a in atts]
     rows = call('x_heures_jour', 'search_read',
                 [('x_employee_id', 'in', [e['id'] for e in emps]),
-                 ('x_date', '>=', d1.strftime('%Y-%m-%d')),
-                 ('x_date', '<=', d2.strftime('%Y-%m-%d'))],
+                 ('x_date', '>=', min([d1.strftime('%Y-%m-%d')] + [v[0] for v in exc.values()])),
+                 ('x_date', '<=', max([d2.strftime('%Y-%m-%d')] + [v[1] for v in exc.values()])),],
                 fields=['x_employee_id', 'x_date', 'x_type', 'x_heures', 'x_theo', 'x_note'])
     by_emp = {}
     for r in rows:
@@ -360,7 +373,10 @@ def build_silae(call, mois, comp='all', du=None, au=None):
     re_ws, ra = 2, 2
     for e in emps:
         cal = cals.get(e['resource_calendar_id'][0]) if e['resource_calendar_id'] else None
-        saisies = by_emp.get(e['id'], {})
+        exc_e = exc.get(str(e['id']))
+        e1s = exc_e[0] if exc_e else d1.strftime('%Y-%m-%d')
+        e2s = exc_e[1] if exc_e else d2.strftime('%Y-%m-%d')
+        saisies = {k: v for k, v in by_emp.get(e['id'], {}).items() if e1s <= k <= e2s}
         mat = e.get('x_matricule_paie') or ''
         # heures d'écart du mois (jours travaillés uniquement)
         hs = sum((s['x_heures'] - s['x_theo']) for s in saisies.values() if s['x_type'] == 'travail')
