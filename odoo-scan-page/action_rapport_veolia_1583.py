@@ -1,7 +1,18 @@
-# Rapport de service VEOLIA envoyé à la clôture de la tâche.
-# (La copie automatique en « Nouvelle demande » a été retirée le 26/08/2026 :
-#  elle créait des demandes non voulues — le planning crée déjà les tâches.)
+# Rapport de service VEOLIA à la clôture + recréation de la demande Mâchefers.
+# Règle (26/08/2026) : il doit toujours rester UNE tâche VEOLIA - LES MACHEFERS
+# en « Nouvelle demande » — la copie n'est créée que s'il n'y en a plus.
 for record in records:
+    nouvelle_demande = env['project.task.type'].search([('name', '=', 'Nouvelle demande'), ('project_ids', 'in', record.project_id.id)], limit=1)
+    deja = env['project.task'].search([
+        ('project_id', '=', record.project_id.id),
+        ('name', 'ilike', 'VEOLIA - LES MACHEFERS'),
+        ('state', 'not in', ['1_done', '1_canceled']),
+        ('stage_id', '=', nouvelle_demande.id if nouvelle_demande else 0),
+        ('id', '!=', record.id),
+    ], limit=1)
+    if not deja:
+        new_task = record.copy({'stage_id': nouvelle_demande.id if nouvelle_demande else False, 'state': '01_in_progress', 'date_deadline': False, 'planned_date_begin': False, 'x_studio_chauffeur': False})
+        new_task.write({'name': record.name})
     destinataires = 'exploitation.86.sou@veolia.com, vanessa.leon@veolia.com, franck@maquignon.com'
     try:
         report = env['ir.actions.report'].search([('report_name', '=', 'industry_fsm.worksheet_custom')], limit=1)
