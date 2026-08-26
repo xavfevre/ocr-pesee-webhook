@@ -913,8 +913,18 @@ def export_heures_route():
     mois = (request.args.get("mois") or "").strip()
     comp = (request.args.get("comp") or "all").strip()
     key = (request.args.get("k") or "").strip()
-    if not re.match(r"^\d{4}-\d{2}$", mois):
+    du = (request.args.get("du") or "").strip()
+    au = (request.args.get("au") or "").strip()
+    # plage libre du→au (paie décalée, ex. 26/07 → 25/08) prioritaire sur le mois
+    if du or au:
+        if not (re.match(r"^\d{4}-\d{2}-\d{2}$", du) and re.match(r"^\d{4}-\d{2}-\d{2}$", au) and du <= au):
+            return jsonify({"error": "du/au attendus au format YYYY-MM-DD (du <= au)"}), 400
+        if not mois:
+            mois = du[:7]
+    elif not re.match(r"^\d{4}-\d{2}$", mois):
         return jsonify({"error": "mois attendu au format YYYY-MM"}), 400
+    du = du or None
+    au = au or None
     uid, models = odoo_connect()
 
     def call(model, method, *args, **kw):
@@ -926,20 +936,31 @@ def export_heures_route():
     if not ref or not hmac.compare_digest(key, str(ref)):
         return jsonify({"error": "clé invalide"}), 403
     fmt = (request.args.get("format") or "").strip()
+    periode = f"du_{du}_au_{au}" if du else mois
     if fmt == "feuille":
         emp = int(request.args.get("emp") or 0)
         if not emp:
             return jsonify({"error": "emp requis pour format=feuille"}), 400
-        data = export_heures.build_feuille(call, mois, emp)
+        data = export_heures.build_feuille(call, mois, emp, du=du, au=au)
         nom = call("hr.employee", "read", [emp], ["name"])[0]["name"]
         nom = "".join(c if c.isalnum() else "_" for c in nom)
-        fname = f"HEURES_{nom}_{mois}.xlsx"
+        fname = f"HEURES_{nom}_{periode}.xlsx"
     elif fmt == "silae":
-        data = export_heures.build_silae(call, mois, comp)
-        fname = f"SILAE_EVP_{mois}.xlsx"
+        data = export_heures.build_silae(call, mois, comp, du=du, au=au)
+        fname = f"SILAE_EVP_{periode}.xlsx"
     else:
-        data = export_heures.build(call, mois, comp)
-        fname = f"HEURES_{mois}.xlsx"
+        data = export_heures.build(call, mois, comp, du=du, au=au)
+        fname = f"HEURES_{periode}.xlsx"
+        if au:
+            # mémorise la fin de période pour préremplir le prochain export
+            import json as _json
+            brut = call("ir.config_parameter", "get_param", "maquignon.heures_export_fin") or "{}"
+            try:
+                fins = _json.loads(brut)
+            except Exception:
+                fins = {}
+            fins[comp] = au
+            call("ir.config_parameter", "set_param", "maquignon.heures_export_fin", _json.dumps(fins))
     from flask import Response
     return Response(
         data,
