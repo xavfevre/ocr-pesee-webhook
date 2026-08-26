@@ -45,12 +45,17 @@ def _theo_day(cal, d):
     return tot
 
 
-def build(call, mois, comp='all'):
+def build(call, mois, comp='all', du=None, au=None):
     """Génère le classeur ; `call(model, method, *args, **kw)` = execute_kw.
     mois = 'YYYY-MM' ; comp = 'all' ou id de société."""
-    y, m = int(mois[:4]), int(mois[5:7])
-    d1 = date(y, m, 1)
-    d2 = (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
+    if du and au:
+        d1 = datetime.strptime(du, '%Y-%m-%d').date()
+        d2 = datetime.strptime(au, '%Y-%m-%d').date()
+    else:
+        y, m = int(mois[:4]), int(mois[5:7])
+        d1 = date(y, m, 1)
+        d2 = (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
+    y, m = d1.year, d1.month
     # semaines couvrant le mois (lundi -> dimanche)
     monday0 = d1 - timedelta(days=d1.weekday())
     dom = [('active', '=', True)]
@@ -295,13 +300,18 @@ def _abs_key(r):
     return None, False
 
 
-def build_silae(call, mois, comp='all'):
+def build_silae(call, mois, comp='all', du=None, au=None):
     """Classeur EVP Silae : onglets EVP (matricule/code/valeur), Absences
     (périodes datées) et Lisez-moi (codes + points de contrôle)."""
     import json as _json
-    y, m = int(mois[:4]), int(mois[5:7])
-    d1 = date(y, m, 1)
-    d2 = (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
+    if du and au:
+        d1 = datetime.strptime(du, '%Y-%m-%d').date()
+        d2 = datetime.strptime(au, '%Y-%m-%d').date()
+    else:
+        y, m = int(mois[:4]), int(mois[5:7])
+        d1 = date(y, m, 1)
+        d2 = (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
+    y, m = d1.year, d1.month
     codes = dict(SILAE_CODES_DEFAUT)
     brut = call('ir.config_parameter', 'get_param', 'maquignon.silae_codes')
     if brut:
@@ -454,16 +464,20 @@ def _ft_time(v):
     return _dt.time(h % 24, m)
 
 
-def build_feuille(call, mois, emp_id):
+def build_feuille(call, mois, emp_id, du=None, au=None):
     import calendar
     import datetime as _dt
     import io
     import os
     import openpyxl
 
-    y, mo = int(mois[:4]), int(mois[5:7])
-    d1 = _dt.date(y, mo, 1)
-    d2 = _dt.date(y, mo, calendar.monthrange(y, mo)[1])
+    if du and au:
+        d1 = _dt.date.fromisoformat(du)
+        d2 = _dt.date.fromisoformat(au)
+    else:
+        y, mo = int(mois[:4]), int(mois[5:7])
+        d1 = _dt.date(y, mo, 1)
+        d2 = _dt.date(y, mo, calendar.monthrange(y, mo)[1])
     emp = call('hr.employee', 'read', [emp_id], ['name', 'parent_id', 'company_id'])[0]
     lundi = d1 - _dt.timedelta(days=d1.weekday())
     lundis = []
@@ -500,9 +514,20 @@ def build_feuille(call, mois, emp_id):
             theo_vendredi = r['x_theo']
             break
 
-    for lundi in lundis:
+    import copy as _copy
+    from openpyxl.worksheet.table import Table  # noqa: F401 (types du deepcopy)
+    table_src = master.tables['TimeSheet']
+    for idx, lundi in enumerate(lundis):
         ws = wb.copy_worksheet(master)
         ws.title = 'S%02d' % lundi.isocalendar()[1]
+        # recree le tableau structure (style « Feuille de temps hebdomadaire »
+        # a rayures) que copy_worksheet ne copie pas, avec un nom unique
+        t = _copy.deepcopy(table_src)
+        t.displayName = 'TS_%s' % ws.title
+        t.name = t.displayName
+        t.id = idx + 2
+        ws.add_table(t)
+        ws['K19'] = '=SUM(TS_%s[Total])' % ws.title
         ws['B2'] = emp['name']
         ws['E2'] = _ft_time(theo_semaine)
         ws['F2'] = _ft_time(theo_vendredi)
