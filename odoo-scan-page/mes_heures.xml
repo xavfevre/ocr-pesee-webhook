@@ -234,7 +234,7 @@
               <span class="mh-dname"><t t-esc="jours[i]"/> <t t-esc="d.strftime('%d/%m')"/></span>
               <span class="mh-state" t-att-data-role="'state'">
                 <t t-if="s">
-                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h</t>
+                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h<t t-if="s.x_decouchage"> · 🛏</t></t>
                   <t t-elif="s.x_type == 'cp'">🌴 Congés</t>
                   <t t-elif="s.x_type == 'maladie'">🤒 Maladie</t>
                   <t t-elif="s.x_type == 'ferie'">🎉 Férié</t>
@@ -302,6 +302,10 @@
                 <input type="time" data-f="am_deb" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_deb) or ''"/>
                 <input type="time" data-f="am_fin" t-att-value="s and s.x_type == 'travail' and fmt(s.x_am_fin) or ''"/>
               </div>
+              <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#334155;margin:6px 0 2px;cursor:pointer;">
+                <input type="checkbox" data-f="decouchage" t-att-checked="'checked' if (s and s.x_decouchage) else None" style="width:17px;height:17px;"/>
+                🛏 Découchage (nuit en déplacement)
+              </label>
               <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
             </t>
           </div>
@@ -553,6 +557,8 @@
   function save(card, typ, md, mf, ad, af){
     var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_token:TOK, hj_date:card.getAttribute('data-date'), hj_type:typ,
                hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af};
+    var dec = card.querySelector('input[data-f=decouchage]');
+    ctx.hj_decouchage = (dec &amp;&amp; dec.checked) ? 1 : 0;
     card.style.opacity = .5;
     rpcAction(2012, ctx).then(function(r){return r.json();}).then(function(d){
       card.style.opacity = 1;
