@@ -926,7 +926,15 @@ def export_heures_route():
     if not ref or not hmac.compare_digest(key, str(ref)):
         return jsonify({"error": "clé invalide"}), 403
     fmt = (request.args.get("format") or "").strip()
-    if fmt == "silae":
+    if fmt == "feuille":
+        emp = int(request.args.get("emp") or 0)
+        if not emp:
+            return jsonify({"error": "emp requis pour format=feuille"}), 400
+        data = export_heures.build_feuille(call, mois, emp)
+        nom = call("hr.employee", "read", [emp], ["name"])[0]["name"]
+        nom = "".join(c if c.isalnum() else "_" for c in nom)
+        fname = f"HEURES_{nom}_{mois}.xlsx"
+    elif fmt == "silae":
         data = export_heures.build_silae(call, mois, comp)
         fname = f"SILAE_EVP_{mois}.xlsx"
     else:

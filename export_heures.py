@@ -436,3 +436,107 @@ def build_silae(call, mois, comp='all'):
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+# ─── Feuille de temps hebdomadaire (gabarit Excel fourni par le client) ──────
+# Reproduit exactement le classeur d'exemple « HEURES__<salarié> » :
+# une feuille par semaine du mois, formules et mise en page du gabarit
+# `feuille_temps_template.xlsx` conservées, cellules remplies depuis
+# x_heures_jour (CP / FERIE / MALADIE écrits dans les colonnes d'heures).
+def _ft_time(v):
+    import datetime as _dt
+    if not v:
+        return None
+    h = int(v)
+    m = int(round((v - h) * 60))
+    if m >= 60:
+        h, m = h + 1, m - 60
+    return _dt.time(h % 24, m)
+
+
+def build_feuille(call, mois, emp_id):
+    import calendar
+    import datetime as _dt
+    import io
+    import os
+    import openpyxl
+
+    y, mo = int(mois[:4]), int(mois[5:7])
+    d1 = _dt.date(y, mo, 1)
+    d2 = _dt.date(y, mo, calendar.monthrange(y, mo)[1])
+    emp = call('hr.employee', 'read', [emp_id], ['name', 'parent_id', 'company_id'])[0]
+    lundi = d1 - _dt.timedelta(days=d1.weekday())
+    lundis = []
+    while lundi <= d2:
+        lundis.append(lundi)
+        lundi += _dt.timedelta(days=7)
+    jours = {}
+    for r in call('x_heures_jour', 'search_read',
+                  [('x_employee_id', '=', emp_id),
+                   ('x_date', '>=', lundis[0].isoformat()),
+                   ('x_date', '<=', (lundis[-1] + _dt.timedelta(days=6)).isoformat())],
+                  fields=['x_date', 'x_type', 'x_m_deb', 'x_m_fin', 'x_am_deb',
+                          'x_am_fin', 'x_theo', 'x_heures']):
+        jours[r['x_date']] = r
+
+    MENTION = {'cp': 'CP', 'ferie': 'FERIE', 'maladie': 'MALADIE',
+               'absence': 'ABSENCE', 'recup': 'RECUP'}
+    # couleurs du document papier d'origine : pas de fond, texte colore
+    # (Century Gothic 12) — CP vert, FERIE rouge ; les autres types dans
+    # le meme esprit pour la transition papier -> Odoo
+    from openpyxl.styles import Font
+    COULEURS = {'cp': 'FF00B050', 'ferie': 'FFFF0000', 'maladie': 'FFFFC000',
+                'absence': 'FFFF0000', 'recup': 'FF0070C0', 'repos': 'FF808080'}
+    tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       'feuille_temps_template.xlsx')
+    wb = openpyxl.load_workbook(tpl)
+    master = wb['Semaine']
+    # journée type pour la formule d'heures sup du gabarit (E2 lun-jeu, F2 ven)
+    theos = [r['x_theo'] for r in jours.values() if r.get('x_theo')]
+    theo_semaine = max(theos) if theos else 0
+    theo_vendredi = 0
+    for k, r in jours.items():
+        if _dt.date.fromisoformat(k).weekday() == 4 and r.get('x_theo'):
+            theo_vendredi = r['x_theo']
+            break
+
+    for lundi in lundis:
+        ws = wb.copy_worksheet(master)
+        ws.title = 'S%02d' % lundi.isocalendar()[1]
+        ws['B2'] = emp['name']
+        ws['E2'] = _ft_time(theo_semaine)
+        ws['F2'] = _ft_time(theo_vendredi)
+        ws['K3'] = lundi + _dt.timedelta(days=6)
+        ws['K3'].number_format = 'DD/MM/YYYY'
+        ws['K5'] = emp['name']
+        ws['K6'] = emp['parent_id'][1] if emp.get('parent_id') else ''
+        for i in range(7):
+            d = lundi + _dt.timedelta(days=i)
+            row = 12 + i
+            ws['B%d' % row] = d
+            ws['B%d' % row].number_format = 'DDDD DD/MM'
+            r = jours.get(d.isoformat())
+            if not r:
+                continue
+            mention = MENTION.get(r.get('x_type') or '')
+            if mention:
+                for col in 'CDEF':
+                    c = ws['%s%d' % (col, row)]
+                    c.value = mention
+                    c.font = Font(name='Century Gothic', size=12,
+                                  color=COULEURS[r['x_type']])
+                if r['x_type'] == 'cp':
+                    ws['J%d' % row] = 1
+                if r['x_type'] == 'maladie' and r.get('x_theo'):
+                    ws['I%d' % row] = r['x_theo']
+            else:
+                for col, champ in (('C', 'x_m_deb'), ('D', 'x_m_fin'),
+                                   ('E', 'x_am_deb'), ('F', 'x_am_fin')):
+                    t = _ft_time(r.get(champ))
+                    if t is not None:
+                        ws['%s%d' % (col, row)] = t
+                        ws['%s%d' % (col, row)].number_format = 'HH:MM'
+    del wb['Semaine']
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
