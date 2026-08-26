@@ -16,6 +16,9 @@
       .ha td.soc{background:#e2e8f0;color:#334155;font-weight:900;text-align:left;padding:6px 10px;font-size:12.5px;text-transform:uppercase;}
       .ha-cell{cursor:pointer;border-radius:7px;padding:5px 2px;display:block;}
       .ha-cell:hover{outline:2px solid #94a3b8;}
+      .ha-mois th{font-size:10px;padding:5px 1px;}
+      .ha-mois td{padding:2px 1px;}
+      .ha-mois .ha-cell{padding:3px 1px;font-size:10px;border-radius:5px;}
       .c-travail{background:#dcfce7;color:#14532d;}
       .c-cp{background:#fef3c7;color:#92400e;}
       .c-maladie{background:#fee2e2;color:#991b1b;}
@@ -50,33 +53,47 @@
       <t t-set="semp" t-value="request.params.get('sem')"/>
       <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
       <t t-set="compp" t-value="request.params.get('comp') or 'all'"/>
+      <t t-set="vuep" t-value="request.params.get('vue') or 'semaine'"/>
+      <t t-set="mdeb" t-value="datetime.datetime.strptime(request.params.get('mois') + '-01', '%Y-%m-%d').date() if request.params.get('mois') else today.replace(day=1)"/>
+      <t t-set="mfin" t-value="(mdeb.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)"/>
+      <t t-set="dates" t-value="[monday + datetime.timedelta(days=i) for i in range(7)] if vuep != 'mois' else [mdeb + datetime.timedelta(days=i) for i in range((mfin - mdeb).days + 1)]"/>
+      <t t-set="mois_export" t-value="(mdeb if vuep == 'mois' else monday).strftime('%Y-%m')"/>
       <t t-set="jours" t-value="['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"/>
       <t t-set="dom" t-value="[('active','=',True)] if compp == 'all' else [('active','=',True),('company_id','=',int(compp))]"/>
       <t t-set="emps" t-value="request.env['hr.employee'].sudo().search(dom, order='company_id, name')"/>
       <t t-set="dfin" t-value="monday + datetime.timedelta(days=6)"/>
-      <t t-set="allrows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','in',emps.ids),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',dfin.strftime('%Y-%m-%d'))])"/>
+      <t t-set="allrows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','in',emps.ids),('x_date','&gt;=',dates[0].strftime('%Y-%m-%d')),('x_date','&lt;=',dates[-1].strftime('%Y-%m-%d'))])"/>
       <t t-set="sk" t-value="dict(((r.x_employee_id.id, r.x_date.strftime('%Y-%m-%d')), r) for r in allrows)"/>
       <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
       <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
       <div class="ha-head">
-        <h4 style="font-weight:300;margin:0;">🗓 Heures salariés — <b>semaine <t t-esc="monday.isocalendar()[1]"/></b> (<t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="dfin.strftime('%d/%m')"/>)</h4>
+        <h4 style="font-weight:300;margin:0;">🗓 Heures salariés — <t t-if="vuep == 'mois'"><b><t t-esc="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][mdeb.month - 1]"/> <t t-esc="mdeb.year"/></b></t><t t-else=""><b>semaine <t t-esc="monday.isocalendar()[1]"/></b> (<t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="dfin.strftime('%d/%m')"/>)</t></h4>
         <div class="ha-nav">
-          <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀ préc.</a>
-          <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">Cette semaine</a>
-          <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">suiv. ▶</a>
+          <t t-if="vuep == 'mois'">
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois&amp;mois={{((mdeb - datetime.timedelta(days=1)).replace(day=1)).strftime('%Y-%m')}}">◀ préc.</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois">Ce mois</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois&amp;mois={{(mfin + datetime.timedelta(days=1)).strftime('%Y-%m')}}">suiv. ▶</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}" style="background:#e2e8f0;">🗓 Vue semaine</a>
+          </t>
+          <t t-else="">
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀ préc.</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">Cette semaine</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">suiv. ▶</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois&amp;mois={{mois_export}}" style="background:#e2e8f0;">📆 Vue mois</a>
+          </t>
           <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}" style="background:#0f172a;color:#fff;">📅 Planning</a>
           <a t-attf-href="/heures-liens?k={{kk}}" style="background:#0f172a;color:#fff;">🔗 Liens salariés</a>
           <a t-attf-href="/heures-horaires?k={{kk}}" style="background:#0f172a;color:#fff;">⏰ Horaires par défaut</a>
         </div>
       </div>
       <div class="ha-comp" style="margin-bottom:10px;">
-        <a t-att-class="'on' if compp == 'all' else ''" t-attf-href="/heures-admin?k={{kk}}&amp;sem={{monday.strftime('%Y-%m-%d')}}">Toutes</a>
+        <a t-att-class="'on' if compp == 'all' else ''" t-attf-href="/heures-admin?k={{kk}}&amp;sem={{monday.strftime('%Y-%m-%d')}}&amp;vue={{vuep}}&amp;mois={{mois_export}}">Toutes</a>
         <t t-foreach="request.env['res.company'].sudo().search([])" t-as="co">
-          <a t-att-class="'on' if compp == str(co.id) else ''" t-attf-href="/heures-admin?k={{kk}}&amp;comp={{co.id}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" t-esc="co.name"/>
+          <a t-att-class="'on' if compp == str(co.id) else ''" t-attf-href="/heures-admin?k={{kk}}&amp;comp={{co.id}}&amp;sem={{monday.strftime('%Y-%m-%d')}}&amp;vue={{vuep}}&amp;mois={{mois_export}}" t-esc="co.name"/>
         </t>
         <t t-set="xk" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_key') or ''"/>
-        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
-        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;comp={{compp}}&amp;k={{xk}}&amp;format=silae" target="_blank" title="Éléments variables de paie pour Silae — format standard provisoire, codes rubriques ajustables (paramètre maquignon.silae_codes)">⬇ Export Silae (EVP)</a>
+        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
+        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;comp={{compp}}&amp;k={{xk}}&amp;format=silae" target="_blank" title="Éléments variables de paie pour Silae — format standard provisoire, codes rubriques ajustables (paramètre maquignon.silae_codes)">⬇ Export Silae (EVP)</a>
         <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
         <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;">
           <span style="font-weight:800;font-size:12.5px;color:#334155;" t-att-title="'Les salariés ne peuvent plus modifier leurs heures jusqu\'à cette date incluse (le bureau reste libre)'">
@@ -88,27 +105,27 @@
           <button type="button" id="ha-vl-clear" t-if="verrou" style="border:none;border-radius:8px;background:#fee2e2;color:#991b1b;font-weight:800;font-size:12px;padding:5px 9px;cursor:pointer;">Déverrouiller</button>
         </span>
       </div>
-      <table class="ha">
+      <table t-att-class="'ha ha-mois' if vuep == 'mois' else 'ha'">
         <tr><th class="emp">Salarié</th>
-          <t t-foreach="range(7)" t-as="i"><th><t t-esc="jours[i]"/> <t t-esc="(monday + datetime.timedelta(days=i)).strftime('%d')"/></th></t>
+          <t t-foreach="dates" t-as="d0"><th><t t-if="vuep == 'mois'"><t t-esc="jours[d0.weekday()][0]"/><br/><t t-esc="d0.strftime('%d')"/></t><t t-else=""><t t-esc="jours[d0.weekday()]"/> <t t-esc="d0.strftime('%d')"/></t></th></t>
           <th>Total</th><th>Théo</th><th>Écart</th><th></th>
         </tr>
         <t t-set="lastc" t-value="0"/>
         <t t-foreach="emps" t-as="e">
           <t t-if="e.company_id.id != lastc">
-            <tr><td class="soc" colspan="12" t-esc="e.company_id.name"/></tr>
+            <tr><td class="soc" t-att-colspan="len(dates) + 5" t-esc="e.company_id.name"/></tr>
             <t t-set="lastc" t-value="e.company_id.id"/>
           </t>
           <t t-set="cal" t-value="e.resource_calendar_id"/>
           <t t-set="wtot" t-value="0.0"/>
           <t t-set="wtheo" t-value="0.0"/>
           <tr t-att-data-emp="e.id" t-att-data-name="e.name">
-            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{monday.strftime('%Y-%m')}}&amp;format=feuille&amp;emp={{e.id}}&amp;k={{xk}}" target="_blank" title="Télécharger la feuille de temps hebdomadaire (Excel, format papier) du mois affiché" style="text-decoration:none;font-size:13px;margin-left:2px;">📄</a><t t-set="ha_ref" t-value="e.x_cp_ref_date"/><t t-set="ha_pstart" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/><t t-set="ha_prows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',e.id),('x_date','&gt;=',ha_pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d')),('x_type','in',['recup','travail'])])"/><t t-set="ha_rl" t-value="sum(request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',e.id)]).filtered(lambda l: not ha_ref or l.x_date &gt; ha_ref).mapped('x_heures'))"/><t t-set="ha_pris" t-value="sum(ha_prows.filtered(lambda r: r.x_type == 'recup' and (not ha_ref or r.x_date &gt; ha_ref)).mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in e.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not e.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if e.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in ha_prows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not ha_ref or r.x_date &gt; ha_ref))])"/><t t-set="ha_solde" t-value="(e.x_recup_solde or 0.0) + ha_rl - ha_pris"/><span t-if="ha_rl or e.x_recup_solde or (ha_ref and ha_pris)" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if ha_solde &gt;= 0 else '#fee2e2'}};color:{{'#166534' if ha_solde &gt;= 0 else '#991b1b'}};" t-attf-title="Heures à récupérer — arrêté bureau {{'%g' % (e.x_recup_solde or 0)}} h + {{'%g' % ha_rl}} h mises − {{'%g' % round(ha_pris, 2)}} h récupérées">🔄 <t t-esc="('+' if ha_solde &gt; 0 else '') + ('%g' % round(ha_solde, 2))"/> h</span><span t-if="any('nterim' in (t0.name or '') for t0 in e.category_ids)" style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:800;background:#fecdd3;color:#9f1239;border:1px solid #fb7185;">INTÉRIM</span></td>
-            <t t-foreach="range(7)" t-as="i">
-              <t t-set="d" t-value="monday + datetime.timedelta(days=i)"/>
+            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;format=feuille&amp;emp={{e.id}}&amp;k={{xk}}" target="_blank" title="Télécharger la feuille de temps hebdomadaire (Excel, format papier) du mois affiché" style="text-decoration:none;font-size:13px;margin-left:2px;">📄</a><t t-set="ha_ref" t-value="e.x_cp_ref_date"/><t t-set="ha_pstart" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/><t t-set="ha_prows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',e.id),('x_date','&gt;=',ha_pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d')),('x_type','in',['recup','travail'])])"/><t t-set="ha_rl" t-value="sum(request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',e.id)]).filtered(lambda l: not ha_ref or l.x_date &gt; ha_ref).mapped('x_heures'))"/><t t-set="ha_pris" t-value="sum(ha_prows.filtered(lambda r: r.x_type == 'recup' and (not ha_ref or r.x_date &gt; ha_ref)).mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in e.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not e.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if e.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in ha_prows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not ha_ref or r.x_date &gt; ha_ref))])"/><t t-set="ha_solde" t-value="(e.x_recup_solde or 0.0) + ha_rl - ha_pris"/><span t-if="ha_rl or e.x_recup_solde or (ha_ref and ha_pris)" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if ha_solde &gt;= 0 else '#fee2e2'}};color:{{'#166534' if ha_solde &gt;= 0 else '#991b1b'}};" t-attf-title="Heures à récupérer — arrêté bureau {{'%g' % (e.x_recup_solde or 0)}} h + {{'%g' % ha_rl}} h mises − {{'%g' % round(ha_pris, 2)}} h récupérées">🔄 <t t-esc="('+' if ha_solde &gt; 0 else '') + ('%g' % round(ha_solde, 2))"/> h</span><span t-if="any('nterim' in (t0.name or '') for t0 in e.category_ids)" style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:800;background:#fecdd3;color:#9f1239;border:1px solid #fb7185;">INTÉRIM</span></td>
+            <t t-foreach="dates" t-as="d">
               <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
-              <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]"/>
-              <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'afternoon' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]"/>
+              <t t-set="wtd" t-value="str(((d - datetime.date(1970,1,5)).days // 7) % 2)"/>
+              <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wtd)]"/>
+              <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and a.day_period == 'afternoon' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wtd)]"/>
               <t t-set="tmd" t-value="min([a.hour_from for a in morn]) if morn else 0"/>
               <t t-set="tmf" t-value="max([a.hour_to for a in morn]) if morn else 0"/>
               <t t-set="tad" t-value="min([a.hour_from for a in aft]) if aft else 0"/>
@@ -147,7 +164,7 @@
           </tr>
         </t>
       </table>
-      <div style="color:#64748b;font-size:12.5px;margin-top:8px;">Cliquez sur une case pour saisir/corriger · <b>⚡</b> remplit les jours ouvrés vides de la semaine avec l'horaire habituel · <b>!</b> = jour ouvré passé sans saisie · <b>🔗</b> copie le lien personnel du salarié (à lui envoyer par SMS/WhatsApp) · <b>📄</b> feuille de temps Excel du salarié (format papier, une feuille par semaine) · Export paie = un classeur Excel, un onglet par salarié.</div>
+      <div style="color:#64748b;font-size:12.5px;margin-top:8px;">Cliquez sur une case pour saisir/corriger · <b>⚡</b> remplit les jours ouvrés vides de la période affichée avec l'horaire habituel · <b>!</b> = jour ouvré passé sans saisie · <b>🔗</b> copie le lien personnel du salarié (à lui envoyer par SMS/WhatsApp) · <b>📄</b> feuille de temps Excel du salarié (format papier, une feuille par semaine) · Export paie = un classeur Excel, un onglet par salarié.</div>
       </t>
       <div id="ha-k" t-att-data-k="kk" style="display:none;"/>
     </div>
