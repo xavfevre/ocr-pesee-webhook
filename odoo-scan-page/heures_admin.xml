@@ -125,7 +125,7 @@
           <t t-set="wtot" t-value="0.0"/>
           <t t-set="wtheo" t-value="0.0"/>
           <tr t-att-data-emp="e.id" t-att-data-name="e.name">
-            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;format=feuille&amp;emp={{e.id}}&amp;k={{xk}}" target="_blank" title="Télécharger la feuille de temps hebdomadaire (Excel, format papier) — mois affiché ou plage du/au si renseignée" class="ha-feuille" style="text-decoration:none;font-size:13px;margin-left:2px;">📄</a><t t-set="ha_ref" t-value="e.x_cp_ref_date"/><t t-set="ha_pstart" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/><t t-set="ha_prows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',e.id),('x_date','&gt;=',ha_pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d')),('x_type','in',['recup','travail'])])"/><t t-set="ha_rl" t-value="sum(request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',e.id)]).filtered(lambda l: not ha_ref or l.x_date &gt; ha_ref).mapped('x_heures'))"/><t t-set="ha_pris" t-value="sum(ha_prows.filtered(lambda r: r.x_type == 'recup' and (not ha_ref or r.x_date &gt; ha_ref)).mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in e.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not e.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if e.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in ha_prows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not ha_ref or r.x_date &gt; ha_ref))])"/><t t-set="ha_solde" t-value="(e.x_recup_solde or 0.0) + ha_rl - ha_pris"/><span t-if="ha_rl or e.x_recup_solde or (ha_ref and ha_pris)" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if ha_solde &gt;= 0 else '#fee2e2'}};color:{{'#166534' if ha_solde &gt;= 0 else '#991b1b'}};" t-attf-title="Heures à récupérer — arrêté bureau {{'%g' % (e.x_recup_solde or 0)}} h + {{'%g' % ha_rl}} h mises − {{'%g' % round(ha_pris, 2)}} h récupérées">🔄 <t t-esc="('+' if ha_solde &gt; 0 else '') + ('%g' % round(ha_solde, 2))"/> h</span><span t-if="any('nterim' in (t0.name or '') for t0 in e.category_ids)" style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:800;background:#fecdd3;color:#9f1239;border:1px solid #fb7185;">INTÉRIM</span></td>
+            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;format=feuille&amp;emp={{e.id}}&amp;k={{xk}}" target="_blank" title="Télécharger la feuille de temps hebdomadaire (Excel, format papier) — mois affiché ou plage du/au si renseignée" class="ha-feuille" style="text-decoration:none;font-size:13px;margin-left:2px;">📄</a><input type="date" class="ha-fx-du" title="Période spécifique de CE salarié — début (vide = dates de l'en-tête)" style="margin-left:3px;border:1px solid #e2e8f0;border-radius:6px;padding:1px 2px;font-size:10px;width:98px;color:#64748b;"/><input type="date" class="ha-fx-au" title="Période spécifique de CE salarié — fin (vide = dates de l'en-tête)" style="margin-left:2px;border:1px solid #e2e8f0;border-radius:6px;padding:1px 2px;font-size:10px;width:98px;color:#64748b;"/><t t-set="ha_ref" t-value="e.x_cp_ref_date"/><t t-set="ha_pstart" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/><t t-set="ha_prows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',e.id),('x_date','&gt;=',ha_pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d')),('x_type','in',['recup','travail'])])"/><t t-set="ha_rl" t-value="sum(request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',e.id)]).filtered(lambda l: not ha_ref or l.x_date &gt; ha_ref).mapped('x_heures'))"/><t t-set="ha_pris" t-value="sum(ha_prows.filtered(lambda r: r.x_type == 'recup' and (not ha_ref or r.x_date &gt; ha_ref)).mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in e.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not e.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if e.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in ha_prows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not ha_ref or r.x_date &gt; ha_ref))])"/><t t-set="ha_solde" t-value="(e.x_recup_solde or 0.0) + ha_rl - ha_pris"/><span t-if="ha_rl or e.x_recup_solde or (ha_ref and ha_pris)" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if ha_solde &gt;= 0 else '#fee2e2'}};color:{{'#166534' if ha_solde &gt;= 0 else '#991b1b'}};" t-attf-title="Heures à récupérer — arrêté bureau {{'%g' % (e.x_recup_solde or 0)}} h + {{'%g' % ha_rl}} h mises − {{'%g' % round(ha_pris, 2)}} h récupérées">🔄 <t t-esc="('+' if ha_solde &gt; 0 else '') + ('%g' % round(ha_solde, 2))"/> h</span><span t-if="any('nterim' in (t0.name or '') for t0 in e.category_ids)" style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:800;background:#fecdd3;color:#9f1239;border:1px solid #fb7185;">INTÉRIM</span></td>
             <t t-foreach="dates" t-as="d">
               <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
               <t t-set="wtd" t-value="str(((d - datetime.date(1970,1,5)).days // 7) % 2)"/>
@@ -172,20 +172,6 @@
       <div style="color:#64748b;font-size:12.5px;margin-top:8px;">Cliquez sur une case pour saisir/corriger · <b>⚡</b> remplit les jours ouvrés vides de la période affichée avec l'horaire habituel · <b>!</b> = jour ouvré passé sans saisie · <b>🔗</b> copie le lien personnel du salarié (à lui envoyer par SMS/WhatsApp) · <b>📄</b> feuille de temps Excel du salarié (format papier, une feuille par semaine) · Export paie = un classeur Excel, un onglet par salarié.</div>
       </t>
       <div id="ha-k" t-att-data-k="kk" style="display:none;"/>
-    </div>
-    <div id="ha-fx-pop" class="ha-pop">
-      <div class="ha-card" style="max-width:360px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <strong id="ha-fx-t" style="font-size:15px;">📄 Feuille de temps</strong>
-          <button type="button" id="ha-fx-close" style="border:none;background:none;font-size:18px;cursor:pointer;">✕</button>
-        </div>
-        <div style="font-size:12.5px;color:#64748b;margin-bottom:8px;">Période de la feuille — par défaut celle de l'en-tête, modifiable pour ce salarié (ex. congés jusqu'à la fin du mois).</div>
-        <div style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:13px;color:#334155;">
-          du <input type="date" id="ha-fx-du" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/>
-          au <input type="date" id="ha-fx-au" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/>
-        </div>
-        <button type="button" id="ha-fx-go" style="margin-top:12px;width:100%;border:none;border-radius:10px;background:#0f172a;color:#fff;font-weight:800;font-size:14px;padding:10px;cursor:pointer;">⬇ Télécharger la feuille</button>
-      </div>
     </div>
     <div id="ha-pop" class="ha-pop">
       <div class="ha-card">
@@ -249,30 +235,22 @@
           }
         });
       });
-      /* 📄 : popup période par salarié, préremplie avec les dates de l'en-tête */
-      var fxPop = document.getElementById('ha-fx-pop');
-      var fxHref = '';
+      /* 📄 : période de la LIGNE si renseignée (exception salarié),
+         sinon dates de l'en-tête, sinon mois du lien */
       document.querySelectorAll('a.ha-feuille').forEach(function(a){
         a.addEventListener('click', function(ev){
-          ev.preventDefault();
-          fxHref = a.getAttribute('href').replace(/&amp;?mois=[0-9-]*/, '');
           var tr = a.closest('tr');
-          document.getElementById('ha-fx-t').textContent = '📄 ' + (tr ? tr.getAttribute('data-name') : 'Feuille de temps');
-          document.getElementById('ha-fx-du').value = du.value || '';
-          document.getElementById('ha-fx-au').value = au.value || '';
-          fxPop.style.display = 'flex';
+          var rdu = tr ? tr.querySelector('.ha-fx-du') : null;
+          var rau = tr ? tr.querySelector('.ha-fx-au') : null;
+          var d = (rdu &amp;&amp; rdu.value) ? rdu.value : du.value;
+          var f = (rau &amp;&amp; rau.value) ? rau.value : au.value;
+          if(d &amp;&amp; f &amp;&amp; d &lt;= f){
+            ev.preventDefault();
+            var h = a.getAttribute('href').replace(/&amp;?mois=[0-9-]*/, '');
+            window.open(h + '&amp;du=' + d + '&amp;au=' + f, '_blank');
+          }
         });
       });
-      if(fxPop){
-        document.getElementById('ha-fx-close').onclick = function(){ fxPop.style.display = 'none'; };
-        fxPop.addEventListener('click', function(e){ if(e.target === fxPop){ fxPop.style.display = 'none'; } });
-        document.getElementById('ha-fx-go').onclick = function(){
-          var fdu = document.getElementById('ha-fx-du').value, fau = document.getElementById('ha-fx-au').value;
-          if(!fdu || !fau || fdu &gt; fau){ alert('Choisissez une période valide (du ≤ au)'); return; }
-          window.open(fxHref + '&amp;du=' + fdu + '&amp;au=' + fau, '_blank');
-          fxPop.style.display = 'none';
-        };
-      }
     })();
   function rpcAction(actionId, ctx){
     return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
