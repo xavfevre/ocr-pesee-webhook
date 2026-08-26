@@ -226,12 +226,27 @@
         du.value = z.getAttribute('data-du') || '';
       }
       au.value = new Date().toISOString().slice(0, 10);
+      function excLignes(){
+        var exc = {};
+        document.querySelectorAll('tr[data-emp]').forEach(function(tr){
+          var a = tr.querySelector('.ha-fx-du'), b = tr.querySelector('.ha-fx-au');
+          if(a &amp;&amp; b &amp;&amp; a.value &amp;&amp; b.value &amp;&amp; a.value &lt;= b.value){
+            exc[tr.getAttribute('data-emp')] = [a.value, b.value];
+          }
+        });
+        return exc;
+      }
       document.querySelectorAll('a.ha-export').forEach(function(a){
         a.addEventListener('click', function(ev){
-          if(du.value &amp;&amp; au.value &amp;&amp; du.value &lt;= au.value){
+          var exc = excLignes();
+          var aExc = Object.keys(exc).length ? '&amp;exc=' + encodeURIComponent(JSON.stringify(exc)) : '';
+          if((du.value &amp;&amp; au.value &amp;&amp; du.value &lt;= au.value) || aExc){
             ev.preventDefault();
-            var h = a.getAttribute('href').replace(/&amp;?mois=[0-9-]*/, '');
-            window.open(h + '&amp;du=' + du.value + '&amp;au=' + au.value, '_blank');
+            var h = a.getAttribute('href');
+            if(du.value &amp;&amp; au.value){
+              h = h.replace(/&amp;?mois=[0-9-]*/, '') + '&amp;du=' + du.value + '&amp;au=' + au.value;
+            }
+            window.open(h + aExc, '_blank');
           }
         });
       });
