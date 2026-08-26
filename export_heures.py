@@ -513,6 +513,8 @@ def build_feuille(call, mois, emp_id):
         for i in range(7):
             d = lundi + _dt.timedelta(days=i)
             row = 12 + i
+            if not (d1 <= d <= d2):
+                continue          # on n'édite que le mois sélectionné
             ws['B%d' % row] = d
             ws['B%d' % row].number_format = '[$-F800]dddd\,\ mmmm\ dd\,\ yyyy'  # date longue du modele
             r = jours.get(d.isoformat())
