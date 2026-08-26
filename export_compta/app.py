@@ -454,7 +454,8 @@ def export():
 # ou d'une facture ouverte (création du paiement). L'application crée
 # l'écriture 512/511900 à la date de l'écriture pointée et lettre le compte
 # d'attente → paiement « Payé », facture « Payée ». Décaissements ignorés
-# (fournisseurs, hors périmètre). Distri Béton et Châtel : rapprochement Odoo.
+# (fournisseurs, hors périmètre). Sociétés : Maquignon, Châtel'Granulats,
+# Haims. Distri Béton : rapprochement Odoo.
 import json as _json
 from itertools import combinations as _combi
 
@@ -643,8 +644,8 @@ a.retour{font-size:12.5px;}
 <h1>🏦 Import du rapprochement bancaire Sage</h1>
 <p class="sub">Déposez l'état « Rapprochement bancaire » de Sage (imprimé vers Excel). Les
 encaissements pointés passent les paiements et factures Odoo à « Payé », à la date du pointage.
-Sociétés concernées : SARL Maquignon et Carrière d'Haims (Distri Béton et Châtel restent
-rapprochées dans Odoo).</p>
+Sociétés concernées : SARL Maquignon, Châtel'Granulats et Carrière d'Haims (Distri Béton
+reste rapprochée dans Odoo).</p>
 __CORPS__
 <p style="margin-top:16px;"><a class="retour" href="./?token=__TOKEN__">← Retour à l'export Sage</a></p>
 </div></body></html>"""
@@ -656,7 +657,7 @@ def rappro_page():
     token = request.args.get("token", "")
     corps = ("""<form method="post" action="rappro/analyse?token=%s" enctype="multipart/form-data">
 <label>Société</label><select name="societe">
-<option value="1">SARL MAQUIGNON</option><option value="4">CARRIERE D'HAIMS</option></select>
+<option value="1">SARL MAQUIGNON</option><option value="3">CHATEL'GRANULATS</option><option value="4">CARRIERE D'HAIMS</option></select>
 <label>État de rapprochement Sage (.xlsx)</label><input type="file" name="fichier" accept=".xlsx" required/>
 <br/><button type="submit">🔎 Analyser</button></form>""" % token)
     return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
