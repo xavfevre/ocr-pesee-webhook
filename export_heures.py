@@ -481,11 +481,12 @@ def build_feuille(call, mois, emp_id):
 
     MENTION = {'cp': 'CP', 'ferie': 'FERIE', 'maladie': 'MALADIE',
                'absence': 'ABSENCE', 'recup': 'RECUP'}
-    # palette du Planning RH web (fond / texte)
-    from openpyxl.styles import PatternFill, Font
-    COULEURS = {'cp': ('FBBF24', '7C2D12'), 'ferie': ('C4B5FD', '4C1D95'),
-                'maladie': ('FECACA', '7F1D1D'), 'absence': ('FCA5A5', '7F1D1D'),
-                'recup': ('7DD3FC', '0C4A6E'), 'repos': ('E2E8F0', '475569')}
+    # couleurs du document papier d'origine : pas de fond, texte colore
+    # (Century Gothic 12) — CP vert, FERIE rouge ; les autres types dans
+    # le meme esprit pour la transition papier -> Odoo
+    from openpyxl.styles import Font
+    COULEURS = {'cp': 'FF00B050', 'ferie': 'FFFF0000', 'maladie': 'FFFFC000',
+                'absence': 'FFFF0000', 'recup': 'FF0070C0', 'repos': 'FF808080'}
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'feuille_temps_template.xlsx')
     wb = openpyxl.load_workbook(tpl)
@@ -519,12 +520,11 @@ def build_feuille(call, mois, emp_id):
                 continue
             mention = MENTION.get(r.get('x_type') or '')
             if mention:
-                fond, texte = COULEURS[r['x_type']]
                 for col in 'CDEF':
                     c = ws['%s%d' % (col, row)]
                     c.value = mention
-                    c.fill = PatternFill('solid', fgColor=fond)
-                    c.font = Font(name='Arial', bold=True, color=texte)
+                    c.font = Font(name='Century Gothic', size=12,
+                                  color=COULEURS[r['x_type']])
                 if r['x_type'] == 'cp':
                     ws['J%d' % row] = 1
                 if r['x_type'] == 'maladie' and r.get('x_theo'):
