@@ -514,7 +514,7 @@ def build_feuille(call, mois, emp_id):
             d = lundi + _dt.timedelta(days=i)
             row = 12 + i
             ws['B%d' % row] = d
-            ws['B%d' % row].number_format = 'DDDD DD/MM'
+            ws['B%d' % row].number_format = '[$-F800]dddd\,\ mmmm\ dd\,\ yyyy'  # date longue du modele
             r = jours.get(d.isoformat())
             if not r:
                 continue
