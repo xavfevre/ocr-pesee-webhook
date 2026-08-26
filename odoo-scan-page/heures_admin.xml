@@ -173,6 +173,20 @@
       </t>
       <div id="ha-k" t-att-data-k="kk" style="display:none;"/>
     </div>
+    <div id="ha-fx-pop" class="ha-pop">
+      <div class="ha-card" style="max-width:360px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong id="ha-fx-t" style="font-size:15px;">📄 Feuille de temps</strong>
+          <button type="button" id="ha-fx-close" style="border:none;background:none;font-size:18px;cursor:pointer;">✕</button>
+        </div>
+        <div style="font-size:12.5px;color:#64748b;margin-bottom:8px;">Période de la feuille — par défaut celle de l'en-tête, modifiable pour ce salarié (ex. congés jusqu'à la fin du mois).</div>
+        <div style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:13px;color:#334155;">
+          du <input type="date" id="ha-fx-du" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/>
+          au <input type="date" id="ha-fx-au" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;"/>
+        </div>
+        <button type="button" id="ha-fx-go" style="margin-top:12px;width:100%;border:none;border-radius:10px;background:#0f172a;color:#fff;font-weight:800;font-size:14px;padding:10px;cursor:pointer;">⬇ Télécharger la feuille</button>
+      </div>
+    </div>
     <div id="ha-pop" class="ha-pop">
       <div class="ha-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -226,7 +240,7 @@
         du.value = z.getAttribute('data-du') || '';
       }
       au.value = new Date().toISOString().slice(0, 10);
-      document.querySelectorAll('a.ha-export, a.ha-feuille').forEach(function(a){
+      document.querySelectorAll('a.ha-export').forEach(function(a){
         a.addEventListener('click', function(ev){
           if(du.value &amp;&amp; au.value &amp;&amp; du.value &lt;= au.value){
             ev.preventDefault();
@@ -235,6 +249,30 @@
           }
         });
       });
+      /* 📄 : popup période par salarié, préremplie avec les dates de l'en-tête */
+      var fxPop = document.getElementById('ha-fx-pop');
+      var fxHref = '';
+      document.querySelectorAll('a.ha-feuille').forEach(function(a){
+        a.addEventListener('click', function(ev){
+          ev.preventDefault();
+          fxHref = a.getAttribute('href').replace(/&amp;?mois=[0-9-]*/, '');
+          var tr = a.closest('tr');
+          document.getElementById('ha-fx-t').textContent = '📄 ' + (tr ? tr.getAttribute('data-name') : 'Feuille de temps');
+          document.getElementById('ha-fx-du').value = du.value || '';
+          document.getElementById('ha-fx-au').value = au.value || '';
+          fxPop.style.display = 'flex';
+        });
+      });
+      if(fxPop){
+        document.getElementById('ha-fx-close').onclick = function(){ fxPop.style.display = 'none'; };
+        fxPop.addEventListener('click', function(e){ if(e.target === fxPop){ fxPop.style.display = 'none'; } });
+        document.getElementById('ha-fx-go').onclick = function(){
+          var fdu = document.getElementById('ha-fx-du').value, fau = document.getElementById('ha-fx-au').value;
+          if(!fdu || !fau || fdu &gt; fau){ alert('Choisissez une période valide (du ≤ au)'); return; }
+          window.open(fxHref + '&amp;du=' + fdu + '&amp;au=' + fau, '_blank');
+          fxPop.style.display = 'none';
+        };
+      }
     })();
   function rpcAction(actionId, ctx){
     return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
