@@ -122,20 +122,21 @@
           <t t-set="sem_cles" t-value="[(d.isocalendar()[0], d.isocalendar()[1]) for d in dates]"/>
           <t t-set="sem_groupes" t-value="[(k, sem_cles.count(k)) for k in sorted(set(sem_cles))]"/>
           <t t-foreach="sem_groupes" t-as="g"><th t-att-colspan="g[1]"><t t-esc="'S%02d' % g[0][1]"/></th></t>
-          <th colspan="4"></th>
+          <th colspan="5"></th>
         </tr>
         <tr class="ha-jours"><th class="emp">Salarié</th>
           <t t-foreach="dates" t-as="d0"><th><t t-if="vuep == 'mois'"><t t-esc="jours[d0.weekday()][0]"/><br/><t t-esc="d0.strftime('%d')"/></t><t t-else=""><t t-esc="jours[d0.weekday()]"/> <t t-esc="d0.strftime('%d')"/></t></th></t>
-          <th>Total</th><th>Théo</th><th>Écart</th><th></th>
+          <th>Total</th><th>Théo</th><th>Écart</th><th title="Découchages">🛏</th><th></th>
         </tr>
         <t t-set="lastc" t-value="0"/>
         <t t-foreach="emps" t-as="e">
           <t t-if="e.company_id.id != lastc">
-            <tr><td class="soc" t-att-colspan="len(dates) + 5" t-esc="e.company_id.name"/></tr>
+            <tr><td class="soc" t-att-colspan="len(dates) + 6" t-esc="e.company_id.name"/></tr>
             <t t-set="lastc" t-value="e.company_id.id"/>
           </t>
           <t t-set="cal" t-value="e.resource_calendar_id"/>
           <t t-set="wtot" t-value="0.0"/>
+          <t t-set="wdec" t-value="0"/>
           <t t-set="wtheo" t-value="0.0"/>
           <tr t-att-data-emp="e.id" t-att-data-name="e.name">
             <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;format=feuille&amp;emp={{e.id}}&amp;k={{xk}}" target="_blank" title="Télécharger la feuille de temps hebdomadaire (Excel, format papier) — mois affiché ou plage du/au si renseignée" class="ha-feuille" style="text-decoration:none;font-size:13px;margin-left:2px;">📄</a><input type="date" class="ha-fx-du" title="Période spécifique de CE salarié — début (vide = dates de l'en-tête)" style="margin-left:3px;border:1px solid #e2e8f0;border-radius:6px;padding:1px 2px;font-size:10px;width:98px;color:#64748b;"/><input type="date" class="ha-fx-au" title="Période spécifique de CE salarié — fin (vide = dates de l'en-tête)" style="margin-left:2px;border:1px solid #e2e8f0;border-radius:6px;padding:1px 2px;font-size:10px;width:98px;color:#64748b;"/><t t-set="ha_ref" t-value="e.x_cp_ref_date"/><t t-set="ha_pstart" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/><t t-set="ha_prows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',e.id),('x_date','&gt;=',ha_pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d')),('x_type','in',['recup','travail'])])"/><t t-set="ha_rl" t-value="sum(request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',e.id)]).filtered(lambda l: not ha_ref or l.x_date &gt; ha_ref).mapped('x_heures'))"/><t t-set="ha_pris" t-value="sum(ha_prows.filtered(lambda r: r.x_type == 'recup' and (not ha_ref or r.x_date &gt; ha_ref)).mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in e.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not e.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if e.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in ha_prows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not ha_ref or r.x_date &gt; ha_ref))])"/><t t-set="ha_solde" t-value="(e.x_recup_solde or 0.0) + ha_rl - ha_pris"/><span t-if="ha_rl or e.x_recup_solde or (ha_ref and ha_pris)" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if ha_solde &gt;= 0 else '#fee2e2'}};color:{{'#166534' if ha_solde &gt;= 0 else '#991b1b'}};" t-attf-title="Heures à récupérer — arrêté bureau {{'%g' % (e.x_recup_solde or 0)}} h + {{'%g' % ha_rl}} h mises − {{'%g' % round(ha_pris, 2)}} h récupérées">🔄 <t t-esc="('+' if ha_solde &gt; 0 else '') + ('%g' % round(ha_solde, 2))"/> h</span><span t-if="any('nterim' in (t0.name or '') for t0 in e.category_ids)" style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:800;background:#fecdd3;color:#9f1239;border:1px solid #fb7185;">INTÉRIM</span></td>
@@ -155,6 +156,7 @@
               <t t-set="wtheo" t-value="wtheo + (s.x_theo if (s and s.x_type == 'travail') else (0.0 if s else theo))"/>
               <t t-set="wtot" t-value="wtot + (s.x_heures if (s and s.x_type == 'travail') else 0.0)"/>
               <t t-set="miss" t-value="not s and theo &gt; 0 and d &lt;= today"/>
+              <t t-set="wdec" t-value="wdec + (1 if (s and s.x_decouchage) else 0)"/>
               <td>
                 <span t-attf-class="ha-cell c-{{s and s.x_type or ('miss' if miss else 'vide')}}"
                       t-att-data-date="dstr" t-att-data-theo="'%.4f' % theo"
@@ -163,7 +165,7 @@
                       t-att-data-md="s and fmt(s.x_m_deb) or ''" t-att-data-mf="s and fmt(s.x_m_fin) or ''"
                       t-att-data-ad="s and fmt(s.x_am_deb) or ''" t-att-data-af="s and fmt(s.x_am_fin) or ''">
                   <t t-if="s">
-                    <t t-if="s.x_type == 'travail'"><t t-esc="('%.2f' % s.x_heures).replace('.', ',')"/></t>
+                    <t t-if="s.x_type == 'travail'"><t t-esc="('%.2f' % s.x_heures).replace('.', ',')"/><t t-if="s.x_decouchage">🛏</t></t>
                     <t t-elif="s.x_type == 'cp'">CP</t>
                     <t t-elif="s.x_type == 'maladie'">MAL</t>
                     <t t-elif="s.x_type == 'ferie'">FER</t>
@@ -178,6 +180,7 @@
             <td class="ha-tot" t-esc="('%.2f' % wtot).replace('.', ',')"/>
             <td style="color:#64748b;" t-esc="('%.2f' % wtheo).replace('.', ',')"/>
             <td t-attf-style="font-weight:900;color:{{'#16a34a' if wtot - wtheo &gt;= 0 else '#dc2626'}};" t-esc="('%+.2f' % (wtot - wtheo)).replace('.', ',')"/>
+            <td style="text-align:center;font-weight:800;color:#0369a1;" t-esc="wdec or ''"/>
             <td><button type="button" class="ha-quick" title="Remplir les jours vides avec l'horaire habituel">⚡</button></td>
           </tr>
         </t>
