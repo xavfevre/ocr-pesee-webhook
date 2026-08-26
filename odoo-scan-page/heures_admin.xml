@@ -97,6 +97,8 @@
         <span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;font-size:12px;font-weight:800;color:#334155;" title="Période de paie libre (ex. 26/07 → 25/08) : appliquée aux exports paie, Silae et aux feuilles 📄. Prérempli : lendemain de la fin du dernier export → aujourd'hui.">
           🗓 du <input type="date" id="ha-ex-du" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;"/>
           au <input type="date" id="ha-ex-au" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;"/>
+          <button type="button" id="ha-ex-fill" title="Recopier ces dates sur toutes les lignes salariés (à ajuster ensuite au cas par cas)" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;font-size:11.5px;padding:4px 8px;cursor:pointer;">⤵ Lignes</button>
+          <button type="button" id="ha-ex-clear" title="Vider les dates de toutes les lignes (retour à la période de l'en-tête)" style="border:none;border-radius:8px;background:#e2e8f0;color:#334155;font-weight:800;font-size:11.5px;padding:4px 8px;cursor:pointer;">✕</button>
         </span>
         <span id="ha-ex-fins" t-att-data-fins="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_fin') or ''" t-att-data-comp="compp" t-att-data-du="dates[0].strftime('%Y-%m-%d')" style="display:none;"/>
         <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
@@ -252,6 +254,14 @@
       });
       /* 📄 : période de la LIGNE si renseignée (exception salarié),
          sinon dates de l'en-tête, sinon mois du lien */
+      var bFill = document.getElementById('ha-ex-fill'), bClear = document.getElementById('ha-ex-clear');
+      if(bFill){ bFill.onclick = function(){
+        document.querySelectorAll('tr[data-emp] .ha-fx-du').forEach(function(i){ i.value = du.value; });
+        document.querySelectorAll('tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = au.value; });
+      }; }
+      if(bClear){ bClear.onclick = function(){
+        document.querySelectorAll('tr[data-emp] .ha-fx-du, tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = ''; });
+      }; }
       document.querySelectorAll('a.ha-feuille').forEach(function(a){
         a.addEventListener('click', function(ev){
           var tr = a.closest('tr');
