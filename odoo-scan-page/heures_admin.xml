@@ -8,7 +8,9 @@
       .ha-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
       .ha-nav a, .ha-comp a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;}
       .ha-comp a.on{background:#0f172a;color:#fff;}
-      table.ha{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+      table.ha{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+      .ha tr:first-child th:first-child{border-top-left-radius:10px;}
+      .ha tr:first-child th:last-child{border-top-right-radius:10px;}
       .ha th{background:#0f172a;color:#e2e8f0;padding:7px 6px;font-size:12.5px;text-align:center;position:sticky;top:0;z-index:20;}
       .ha th.emp{text-align:left;padding-left:10px;}
       .ha td{border-bottom:1px solid #e2e8f0;padding:4px 5px;text-align:center;font-size:13px;font-weight:700;}
