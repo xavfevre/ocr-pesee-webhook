@@ -19,6 +19,8 @@
       .ha-cell{cursor:pointer;border-radius:7px;padding:5px 2px;display:block;}
       .ha-cell:hover{outline:2px solid #94a3b8;}
       .ha-mois th{font-size:10px;padding:5px 1px;}
+      .ha-mois tr.ha-sem th{top:0;font-size:9.5px;background:#1e293b;color:#94a3b8;padding:2px 1px;border-left:1px solid #334155;}
+      .ha-mois tr.ha-jours th{top:19px;}
       .ha-mois td{padding:2px 1px;}
       .ha-mois .ha-cell{padding:3px 1px;font-size:10px;border-radius:5px;}
       .c-travail{background:#dcfce7;color:#14532d;}
@@ -115,7 +117,14 @@
         </span>
       </div>
       <table t-att-class="'ha ha-mois' if vuep == 'mois' else 'ha'">
-        <tr><th class="emp">Salarié</th>
+        <tr t-if="vuep == 'mois'" class="ha-sem">
+          <th class="emp"></th>
+          <t t-set="sem_cles" t-value="[(d.isocalendar()[0], d.isocalendar()[1]) for d in dates]"/>
+          <t t-set="sem_groupes" t-value="[(k, sem_cles.count(k)) for k in sorted(set(sem_cles))]"/>
+          <t t-foreach="sem_groupes" t-as="g"><th t-att-colspan="g[1]"><t t-esc="'S%02d' % g[0][1]"/></th></t>
+          <th colspan="4"></th>
+        </tr>
+        <tr class="ha-jours"><th class="emp">Salarié</th>
           <t t-foreach="dates" t-as="d0"><th><t t-if="vuep == 'mois'"><t t-esc="jours[d0.weekday()][0]"/><br/><t t-esc="d0.strftime('%d')"/></t><t t-else=""><t t-esc="jours[d0.weekday()]"/> <t t-esc="d0.strftime('%d')"/></t></th></t>
           <th>Total</th><th>Théo</th><th>Écart</th><th></th>
         </tr>
