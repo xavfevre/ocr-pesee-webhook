@@ -8,7 +8,7 @@
 - filtres en étiquettes mémorisés par tablette : Site (Atelier/Usine), Machines, Clients, Réf. commande, Palette, gabarit dimensionnel « rentre dans » ;
 - mise au colis (choix du colis enrichi client/réf/prépal, raccourci ⚡ dernier colis, clôture + emplacement + impression) ;
 - **scan caméra** de la palette (lecteur code-barres du navigateur) ;
-- déclaration de **rebut** avec motif → OF relancé automatiquement ;
+- déclaration de **rebut** avec motif → OF relancé automatiquement (tag « Relance suite rebut de », opérateurs de l'OF d'origine réassignés pour qu'il apparaisse dans « Ma production », garde-fou anti-double déclaration, sortie de stock forcée si stock insuffisant — corrigé 26/08) ;
 - **scan du bloc** au sciage primaire (lien bloc ↔ OF) ;
 - champ **Note** en saisie directe sur chaque tuile, visible ensuite à la mise en palette.
 
