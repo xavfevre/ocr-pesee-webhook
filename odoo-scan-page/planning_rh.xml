@@ -91,6 +91,8 @@
               </t>
             </t>
             <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">🗓 Heures</a>
+            <a t-attf-href="/heures-liens?k={{kk}}">🔗 Liens</a>
+            <a t-attf-href="/heures-horaires?k={{kk}}">⏰ Horaires</a>
           </div>
         </div>
         <div t-if="pend" class="pr-dem">
