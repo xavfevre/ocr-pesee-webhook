@@ -898,7 +898,8 @@ def bi_pdf(slot_id):
     if not check_sig(f"fdt:{slot_id}", token):
         abort(403)
     uid, models = odoo_connect()
-    rec = x(models, uid, "planning.slot", "read", [slot_id], fields=["name"])
+    rec = x(models, uid, "planning.slot", "read", [slot_id],
+            fields=["name", "start_datetime"])
     if not rec:
         abort(404)
     ref = (rec[0]["name"] or "").strip().split()[0] if rec[0].get("name") else ""
@@ -906,11 +907,22 @@ def bi_pdf(slot_id):
         return "Pas de commande liée à cette intervention.", 404
     picks = x(models, uid, "stock.picking", "search_read",
               [["origin", "=", ref], ["picking_type_id.sequence_code", "=", "ASS/BI/"]],
-              fields=["id", "name", "company_id"], order="id desc", limit=1)
+              fields=["id", "name", "company_id", "scheduled_date"], order="id asc")
     if not picks:
         return "Pas de bon d'intervention pour cette intervention.", 404
-    pid, pname = picks[0]["id"], picks[0]["name"]
-    cid = picks[0]["company_id"][0] if picks[0].get("company_id") else 2
+    # interventions multi-jours : sert le BI dont la date prévue correspond au
+    # jour du créneau (BI dupliqués), sinon le plus récent
+    chosen = picks[-1]
+    sd = rec[0].get("start_datetime")
+    if sd and len(picks) > 1:
+        slot_day = utc_to_local(sd).date()
+        for p in picks:
+            pl = utc_to_local(p["scheduled_date"]) if p.get("scheduled_date") else None
+            if pl and pl.date() == slot_day:
+                chosen = p
+                break
+    pid, pname = chosen["id"], chosen["name"]
+    cid = chosen["company_id"][0] if chosen.get("company_id") else 2
     # allowed_company_ids dans l'URL : requis pour les enregistrements hors
     # société par défaut de la session (multi-sociétés)
     import urllib.parse as _up

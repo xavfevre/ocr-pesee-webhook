@@ -26,6 +26,12 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+# Fiches de fin de travaux avec photos : les formulaires urlencodés dépassent
+# largement la limite par défaut de Flask 3.1 (500 Ko), ce qui provoquait des
+# 413 silencieux (fiches coincées « en attente d'envoi » sur les téléphones).
+app.config["MAX_FORM_MEMORY_SIZE"] = 25 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+
 # Évite qu'un appel XML-RPC ou Mistral ne bloque indéfiniment le worker Render.
 socket.setdefaulttimeout(45)
 
