@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Odoo Chatter Manager</h1>
+
+    <label class="row checkbox" id="fullwidth-row">
+      <input type="checkbox" id="fullwidth" />
+      <span>Contenu en pleine largeur</span>
+      <span class="badge" id="premium-badge" hidden>Premium&nbsp;🔒</span>
+    </label>
+
+    <div id="premium-box" hidden>
+      <p id="premium-text">
+        <strong>Premium</strong> : pleine largeur + chatter ultra-fin
+        (jusqu'à 5&nbsp;%, idéal écrans ultrawide).
+      </p>
+      <button id="btn-pay" type="button">💳 Débloquer Premium</button>
+      <button id="btn-trial" type="button">Essai gratuit 7 jours</button>
+      <button id="btn-login" type="button" class="link">
+        Déjà acheté ? Se reconnecter
+      </button>
+    </div>
+
+    <p class="trial-info" id="trial-info" hidden></p>
+
+    <fieldset class="row">
+      <legend>Position du chatter</legend>
+      <label><input type="radio" name="chatter" value="side" /> À droite</label>
+      <label><input type="radio" name="chatter" value="below" /> En bas</label>
+      <label><input type="radio" name="chatter" value="hidden" /> Masqué</label>
+    </fieldset>
+
+    <div class="row" id="width-row">
+      <label for="chatterWidth">
+        Largeur du chatter : <span id="width-value">35</span>&nbsp;%
+      </label>
+      <input type="range" id="chatterWidth" min="5" max="50" step="1" />
+      <span class="mini-hint" id="width-premium-hint" hidden>
+        En dessous de 20&nbsp;% : Premium&nbsp;🔒
+      </span>
+    </div>
+
+    <label class="row checkbox">
+      <input type="checkbox" id="fab" />
+      <span>Bouton flottant sur la page</span>
+    </label>
+
+    <p class="hint">
+      Raccourcis : <kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>C</kbd> chatter ·
+      <kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>F</kbd> pleine largeur
+    </p>
+
+    <script src="config.js"></script>
+    <script src="ExtPay.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
