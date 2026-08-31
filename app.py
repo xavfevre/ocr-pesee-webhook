@@ -170,37 +170,59 @@ def resize_image(image_base64: str, max_size: int = 1024) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
+# Modèles vision essayés dans l'ordre — le premier accepté par l'abonnement est
+# mémorisé. Depuis fin 08/2026 mistral-large-latest renvoie 403 tier_not_allowed
+# sur notre palier : la cascade bascule alors automatiquement sur le suivant.
+# Surchargable sans redéploiement via la variable d'environnement MISTRAL_MODELS.
+MISTRAL_MODELES = [m.strip() for m in os.environ.get(
+    "MISTRAL_MODELS",
+    "mistral-medium-latest,mistral-small-latest,pixtral-large-latest,pixtral-12b-2409,mistral-large-latest",
+).split(",") if m.strip()]
+_mistral_modele_ok = {}
+
+
 def extract_with_mistral(image_base64, mime_type="image/jpeg"):
-    """Appel Mistral Vision avec retry automatique sur rate limit (429)."""
+    """Appel Mistral Vision : cascade de modèles (403 palier) + retry sur 429."""
     image_base64 = resize_image(image_base64)
     from mistralai import Mistral  # import paresseux : accélère le boot du service
     client = Mistral(api_key=MISTRAL_API_KEY)
     last_error = None
-    for attempt in range(4):
-        if attempt > 0:
-            wait = attempt * 3
-            app.logger.info("Rate limit - retry %d/3 dans %ds" % (attempt, wait))
-            time.sleep(wait)
-        try:
-            response = client.chat.complete(
-                model="mistral-large-latest",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": [
-                        {"type": "image_url", "image_url": {"url": "data:%s;base64,%s" % (mime_type, image_base64)}},
-                        {"type": "text", "text": EXTRACTION_PROMPT}
-                    ]}
-                ],
-                max_tokens=512,
-                temperature=0.0,
-            )
-            raw = response.choices[0].message.content.strip()
-            raw = raw.replace("```json", "").replace("```", "").strip()
-            return json.loads(raw)
-        except Exception as e:
-            last_error = e
-            if "429" not in str(e) and "rate" not in str(e).lower():
-                raise
+    modeles = list(MISTRAL_MODELES)
+    if _mistral_modele_ok.get("m") in modeles:
+        modeles.remove(_mistral_modele_ok["m"])
+        modeles.insert(0, _mistral_modele_ok["m"])
+    for modele in modeles:
+        for attempt in range(4):
+            if attempt > 0:
+                wait = attempt * 3
+                app.logger.info("Rate limit - retry %d/3 dans %ds" % (attempt, wait))
+                time.sleep(wait)
+            try:
+                response = client.chat.complete(
+                    model=modele,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": [
+                            {"type": "image_url", "image_url": {"url": "data:%s;base64,%s" % (mime_type, image_base64)}},
+                            {"type": "text", "text": EXTRACTION_PROMPT}
+                        ]}
+                    ],
+                    max_tokens=512,
+                    temperature=0.0,
+                )
+                _mistral_modele_ok["m"] = modele
+                raw = response.choices[0].message.content.strip()
+                raw = raw.replace("```json", "").replace("```", "").strip()
+                return json.loads(raw)
+            except Exception as e:
+                last_error = e
+                s = str(e)
+                if ("tier_not_allowed" in s or "not available in your subscription" in s
+                        or "invalid_model" in s or "model_not_found" in s):
+                    app.logger.warning("Modèle %s indisponible - bascule sur le suivant (%s)" % (modele, s[:100]))
+                    break  # modèle suivant de la cascade
+                if "429" not in s and "rate" not in s.lower():
+                    raise
     raise last_error
 
 
