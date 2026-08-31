@@ -202,6 +202,17 @@
     fetch(item.u, { method: 'POST', body: item.b,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
       .then(function (r) {
+        if (r.status >= 400 && r.status < 500) {
+          // Refus définitif du serveur : on retire la fiche de la file pour ne
+          // pas la retenter à l'infini, et on prévient le chauffeur.
+          q.shift();
+          localStorage.setItem('fdtq', JSON.stringify(q));
+          updQueueBanner();
+          alert('⚠️ Une fiche en attente a été refusée par le serveur (erreur ' + r.status +
+                ') et retirée de la file. Merci de la ressaisir et de prévenir le bureau.');
+          if (q.length) { flushQueue(); }
+          return;
+        }
         if (!r.ok) throw 0;
         q.shift();
         localStorage.setItem('fdtq', JSON.stringify(q));

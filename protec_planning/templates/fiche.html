@@ -509,7 +509,14 @@ document.querySelector('form').addEventListener('submit', function (ev) {
   fetch(form.action, { method: 'POST', body: body,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
     .then(function (r) {
-      if (!r.ok) throw 0;
+      if (r.status >= 400) {
+        // Le serveur a répondu mais a refusé : ce n'est PAS un problème de
+        // réseau — ne pas mettre en file d'attente, prévenir clairement.
+        btn.textContent = '💾 ENREGISTRER';
+        alert('⚠️ Envoi refusé par le serveur (erreur ' + r.status + '). ' +
+              'Réessayez ; si le problème persiste, retirez une photo et prévenez le bureau.');
+        return;
+      }
       clearDraft();
       window.location.href = r.url || window.location.href;
     })
