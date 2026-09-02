@@ -1,0 +1,9 @@
+<!-- Vue 7977 : héritage du kanban project.task — affiche les Opérateurs
+     (ouvriers, hr.employee sans compte Odoo) en étiquettes sur les cartes.
+     Les ouvriers étant assignés via la page Planning TP dans le champ
+     x_studio_operateurs, « Attribué à » (user_ids) reste le compte générique. -->
+<data>
+  <xpath expr="//field[@name='tag_ids']" position="after">
+    <field name="x_studio_operateurs" widget="many2many_tags" options="{'color_field': false}"/>
+  </xpath>
+</data>
