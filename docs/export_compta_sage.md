@@ -46,9 +46,10 @@ Initialisation du 13/08 : 1 628 fiches marquées déjà transmises (codes prése
 dans les exports Sage Maquignon/Haims ; clients Châtel/Distri facturés avant le
 13/08). Les 120 `MAQ0xxxx` hérités partiront dans ce fichier.
 
-## Suppression du code payant Odoo (après validation cabinet)
+## Suppression du code payant Odoo — FAIT le 02/09/2026
 
-Une fois l'interface validée sur un vrai mois par le cabinet, supprimer dans
-Odoo : actions serveur **1459** et **1671**, l'action 1680 si remplacée, les
-boutons de la vue Journaux et les champs `x_studio_date_de_debut` /
-`x_studio_date_de_fin` sur `account.journal`. Jeton : `maquignon.compta_key`.
+Actions serveur **1459** et **1671** supprimées (codes archivés dans
+`odoo-scan-page/action_export_compta_1459.py` / `action_export_caisse_1671.py`),
+boutons d'export et champs `x_studio_date_de_debut` / `x_studio_date_de_fin`
+retirés de la vue journal 6403. Le bouton **Verrouiller (1680)** est conservé.
+Jeton : `maquignon.compta_key`.
