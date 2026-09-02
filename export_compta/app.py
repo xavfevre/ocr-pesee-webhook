@@ -290,13 +290,13 @@ def _apercu(comp, du, au, journaux):
         a["pieces"].add(l["move_id"][0])
         if l["partner_id"] and codes.get(l["account_id"] and l["account_id"][0], "").startswith("411"):
             clients.add(l["partner_id"][0])
-    n_nouveaux = 0
+    nouveaux = []
     if clients:
         ps = _q("res.partner", "read", list(clients),
-                fields=["ref", "x_sage_envoye_le", "parent_id"])
-        n_nouveaux = sum(1 for p in ps if p["ref"] and not p["x_sage_envoye_le"]
-                         and not p["parent_id"])
-    return agg, n_nouveaux
+                fields=["ref", "name", "x_sage_envoye_le", "parent_id"])
+        nouveaux = sorted((p["ref"], p["name"]) for p in ps
+                          if p["ref"] and not p["x_sage_envoye_le"] and not p["parent_id"])
+    return agg, nouveaux
 
 
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
@@ -354,7 +354,7 @@ def page():
         opts_mois += '<option value="%s"%s>%s</option>' % (v, " selected" if v == mois else "", v)
 
     journaux = _journaux(comp)
-    agg, n_nouveaux = _apercu(comp, du, au, journaux)
+    agg, nouveaux = _apercu(comp, du, au, journaux)
     lignes_html = ""
     for j in journaux:
         a = agg.get(j["id"])
@@ -373,8 +373,13 @@ def page():
     else:
         corps = ("<table><tr><th>Code</th><th>Journal</th><th>Type</th><th>Pièces</th>"
                  "<th>Lignes</th><th>Total débit</th><th></th></tr>%s</table>" % lignes_html)
+        detail_nc = ""
+        if nouveaux:
+            detail_nc = ("<div style='margin-top:6px;font-size:12px;'>%s</div>"
+                         % " · ".join("<b>%s</b> %s" % (r, n) for r, n in nouveaux))
         corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures du mois jamais "
-                  "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).</div>" % n_nouveaux)
+                  "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).%s</div>"
+                  % (len(nouveaux), detail_nc))
         corps += ("<form method='post' action='export?token=%s'>"
                   "<input type='hidden' name='societe' value='%s'>"
                   "<input type='hidden' name='mois' value='%s'>"
