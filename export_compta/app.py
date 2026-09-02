@@ -792,6 +792,15 @@ def _gl_analyse(comp, clients):
     from collections import defaultdict
     js = _q("account.journal", "search_read",
             [("company_id", "=", comp), ("type", "=", "bank")], fields=["name", "code"])
+    # journaux réellement câblés sur le compte d'attente (les journaux « CB /
+    # chèques à encaisser » de Châtel restent sur leur circuit Odoo propre)
+    cables = set()
+    for j in js:
+        pml = _q("account.payment.method.line", "search",
+                 [("journal_id", "=", j["id"]), ("payment_type", "=", "inbound"),
+                  ("payment_account_id", "!=", False)], limit=1)
+        if pml:
+            cables.add(j["id"])
 
     def journal_pour(code):
         code = (code or "").upper()
@@ -799,6 +808,12 @@ def _gl_analyse(comp, clients):
             if code and (code == (j["code"] or "").upper() or code in (j["name"] or "").upper()):
                 return j["id"]
         return js[0]["id"] if js else 0
+
+    def journal_nom(jid2):
+        for j in js:
+            if j["id"] == jid2:
+                return j["name"]
+        return "?"
 
     noms = set()
     for cl in clients:
@@ -866,6 +881,12 @@ def _gl_analyse(comp, clients):
                                  % (cl["code"], lettre, sd, sc))
                 continue
             date_reg = max(e["date"] for e in regs)
+            jids_regs = {journal_pour(e["journal"]) for e in regs}
+            if any(j2 not in cables for j2 in jids_regs):
+                hors = ", ".join(sorted({journal_nom(j2) for j2 in jids_regs if j2 not in cables}))
+                anomalies.append("%s lettre %s : règlement via « %s » — suivi par le circuit CB/chèques d'Odoo, non traité ici"
+                                 % (cl["code"], lettre, hors))
+                continue
             jid = journal_pour(regs[-1]["journal"])
             # ── v2 : le groupe entier se réconcilie-t-il avec des lignes de relevé ? ──
             etats = [invs.get(e["fac"]) for e in facs]
