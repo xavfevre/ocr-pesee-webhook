@@ -110,7 +110,7 @@
       </div>
 
       <!-- Compteur factures par statut (recalculé selon les filtres) -->
-      <div id="tpCountBar" class="d-flex flex-wrap justify-content-center align-items-center gap-1 mb-2"></div>
+      <div id="tpCountBar" class="d-flex flex-wrap justify-content-center align-items-center gap-1 mb-2"/>
 
 
       <!-- Demandes à traiter - Version responsive -->
@@ -227,7 +227,7 @@
               </tr>
             </thead>
             <tbody>
-              <t t-set="monday_date" t-value="week_start"/>
+              <t t-set="dst0" t-value="datetime.datetime(week_start.year,3,31,1) - datetime.timedelta(days=(datetime.datetime(week_start.year,3,31).weekday()+1)%7)"/><t t-set="dst1" t-value="datetime.datetime(week_start.year,10,31,1) - datetime.timedelta(days=(datetime.datetime(week_start.year,10,31).weekday()+1)%7)"/><t t-set="monday_date" t-value="week_start"/>
               <t t-foreach="range(7)" t-as="day_offset">
                 <t t-set="current_date" t-value="monday_date + datetime.timedelta(days=day_offset)"/>
                 <t t-set="day_name_en" t-value="current_date.strftime('%A')"/>
@@ -302,7 +302,7 @@
                     <td class="tp-cell p-1 align-top" style="vertical-align: top !important; min-width: 180px;" t-att-data-day="current_date.strftime('%Y-%m-%d')" t-att-data-engin="carrier and carrier.id or '0'">
                       <t t-foreach="filtered_records" t-as="tache">
                         <t t-if="tache.planned_date_begin and carrier and tache.x_studio_transport and tache.x_studio_transport.id == carrier.id">
-                          <t t-set="tache_date_str" t-value="tache.planned_date_begin.strftime('%Y-%m-%d')"/>
+                          <t t-set="tache_date_str" t-value="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%Y-%m-%d')"/>
                           <t t-set="current_date_str" t-value="current_date.strftime('%Y-%m-%d')"/>
                           <t t-if="tache_date_str == current_date_str">
                             <t t-set="chnm" t-value="tache.x_studio_chauffeur.display_name if tache.x_studio_chauffeur else 'Non assigné'"/>
@@ -346,7 +346,7 @@
                                 <div class="ttx-head"><t t-esc="tache.name"/></div>
                                 <div class="ttx-body">
                                   <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
-                                  <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+                                  <div class="ttx-time">🕐 <t t-esc="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="(tache.date_deadline + datetime.timedelta(hours=2 if (dst0 &lt;= tache.date_deadline and tache.date_deadline &lt; dst1) else 1)).strftime('%H:%M')"/></t></div>
                                   <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t><t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/><t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc"><div style="margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;"><t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t><t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t><t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t></div></t>
                                 </div>
                             </div>
@@ -358,7 +358,7 @@
                       <t t-if="immat == 'SANS TRANSPORT'">
                         <t t-foreach="filtered_records" t-as="tache">
                           <t t-if="tache.planned_date_begin and not tache.x_studio_transport">
-                            <t t-set="tache_date_str" t-value="tache.planned_date_begin.strftime('%Y-%m-%d')"/>
+                            <t t-set="tache_date_str" t-value="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%Y-%m-%d')"/>
                             <t t-set="current_date_str" t-value="current_date.strftime('%Y-%m-%d')"/>
                             <t t-if="tache_date_str == current_date_str">
                               <t t-set="st_key" t-value="''"/>
@@ -393,7 +393,7 @@
                                       </t>
                                       <t t-else="">Non assigné</t>
                                     </span>
-                                    <span class="text-info">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/></span>
+                                    <span class="text-info">🕐 <t t-esc="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/></span>
                                   </div>
                               </div>
                             </t>
@@ -451,7 +451,7 @@
             </div>
             
             <div class="card-body p-2">
-              <t t-set="day_tasks" t-value="[t for t in filtered_records if t.planned_date_begin.strftime('%Y-%m-%d') == current_date.strftime('%Y-%m-%d')]"/>
+              <t t-set="day_tasks" t-value="[t for t in filtered_records if (t.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= t.planned_date_begin and t.planned_date_begin &lt; dst1) else 1)).strftime('%Y-%m-%d') == current_date.strftime('%Y-%m-%d')]"/>
               
               <t t-if="day_tasks">
                 <t t-set="vehicles" t-value="sorted(set([t.x_studio_transport.display_name for t in day_tasks if t.x_studio_transport]))"/>
@@ -506,7 +506,7 @@
                                 <div class="ttx-head"><t t-esc="tache.name"/></div>
                                 <div class="ttx-body">
                                   <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
-                                  <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+                                  <div class="ttx-time">🕐 <t t-esc="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="(tache.date_deadline + datetime.timedelta(hours=2 if (dst0 &lt;= tache.date_deadline and tache.date_deadline &lt; dst1) else 1)).strftime('%H:%M')"/></t></div>
                                   <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t><t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/><t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc"><div style="margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;"><t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t><t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t><t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t></div></t>
                                 </div>
                             </div>
@@ -562,7 +562,7 @@
                                 <div class="ttx-head"><t t-esc="tache.name"/></div>
                                 <div class="ttx-body">
                                   <div class="ttx-driver">👤 <t t-esc="chnm"/></div>
-                                  <div class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></div>
+                                  <div class="ttx-time">🕐 <t t-esc="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="(tache.date_deadline + datetime.timedelta(hours=2 if (dst0 &lt;= tache.date_deadline and tache.date_deadline &lt; dst1) else 1)).strftime('%H:%M')"/></t></div>
                                   <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t><t t-set="_bc" t-value="tache.sale_line_id.order_id if tache.sale_line_id else tache.sale_order_id"/><t t-if="bon_map.get(tache.id) or pc_map.get(tache.id) or liv_map.get(tache.id) or _bc"><div style="margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px;font-weight:800;"><t t-if="bon_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[tache.id]}}/x_studio_photo_bon" target="_blank" style="color:#0369a1;text-decoration:none;" title="Bon de pesée">📎 Bon</a></t><t t-if="pc_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[tache.id]}}/x_studio_photo" target="_blank" style="color:#b45309;text-decoration:none;" title="Prise en charge">📥 Charge</a></t><t t-if="liv_map.get(tache.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[tache.id]}}/x_studio_photo_1" target="_blank" style="color:#15803d;text-decoration:none;" title="Livraison">🏁 Livr.</a></t><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="color:#7c3aed;text-decoration:none;" t-att-title="'BC: ' + _bc.name">🧾 <t t-esc="_bc.name"/></a></t></div></t>
                                 </div>
                             </div>
@@ -780,8 +780,7 @@
           var engin = parseInt(cell.getAttribute('data-engin'));
           var begin = card.getAttribute('data-begin');
           var fromBacklog = !begin;
-          var time = begin ? begin.split(' ')[1] : '08:00:00';
-          var newBegin = day + ' ' + time;
+          var newBegin = begin ? (day + ' ' + begin.split(' ')[1]) : fmtUTC(new Date(day + 'T08:00:00').getTime());
           var vals = { planned_date_begin: newBegin, x_studio_transport: engin &gt; 0 ? engin : false };
           var end = card.getAttribute('data-end');
           if (end) { vals.date_deadline = fmtUTC(pms(newBegin) + (pms(end) - pms(begin))); }
