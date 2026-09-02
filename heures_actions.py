@@ -635,8 +635,40 @@ def _a2069(call, ctx):
     return {"ok": 1, "statut": decision}
 
 
+# ─── 2090 : plages de paie par salarié, mémorisées dès la saisie ─────────────
+def _a2090(call, ctx):
+    """La page Heures admin envoie l'état des dates de TOUTES ses lignes :
+    plage valide -> mémorisée, ligne vidée -> oubliée. Les salariés absents
+    de l'envoi (autre société filtrée) ne sont pas touchés."""
+    import json
+    import re
+    if not _admin_ok(call, ctx):
+        raise HeuresErreur("Clé responsables requise.")
+    lignes = ctx.get("lignes")
+    if not isinstance(lignes, dict):
+        raise HeuresErreur("Plages invalides.")
+    brut = call("ir.config_parameter", "get_param", "maquignon.heures_export_exc") or "{}"
+    try:
+        excs = json.loads(brut)
+    except Exception:
+        excs = {}
+    fmt = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    for k, v in lignes.items():
+        if not str(k).isdigit():
+            continue
+        k = str(k)
+        if (isinstance(v, (list, tuple)) and len(v) == 2 and v[0] and v[1]
+                and fmt.match(str(v[0])) and fmt.match(str(v[1])) and str(v[0]) <= str(v[1])):
+            excs[k] = [str(v[0]), str(v[1])]
+        else:
+            excs.pop(k, None)
+    call("ir.config_parameter", "set_param", "maquignon.heures_export_exc", json.dumps(excs))
+    return {"ok": 1, "n": len(excs)}
+
+
 HANDLERS = {2012: _a2012, 2013: _a2013, 2014: _a2014, 2020: _a2020,
-            2021: _a2021, 2048: _a2048, 2050: _a2050, 2069: _a2069}
+            2021: _a2021, 2048: _a2048, 2050: _a2050, 2069: _a2069,
+            2090: _a2090}
 
 
 def executer(call, action_id, ctx):
