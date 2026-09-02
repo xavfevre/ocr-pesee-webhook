@@ -769,7 +769,7 @@ def _gl_analyse(comp, clients):
                     props.append({"ligne": {"date": date_reg, "lib": lib, "piece": lettre,
                                             "debit": montant, "credit": 0.0},
                                   "type": "facture", "ids": [inv["id"]], "journal_id": jid,
-                                  "detail": ["créer le paiement de %.2f € au %s et lettrer"
+                                  "detail": ["aucun paiement saisi dans Odoo — cocher pour créer le paiement de %.2f € au %s et lettrer"
                                              % (montant, date_reg)]})
                 else:
                     deja += 1
@@ -830,13 +830,18 @@ def rappro_analyse():
         rows = ""
         for i, pr in enumerate(props):
             l = pr["ligne"]
-            statut = ("<span class='ok'>✓ lettrer le paiement existant</span>"
-                      if pr["type"] == "paiements"
-                      else "<span class='crt'>➕ créer le paiement et lettrer</span>")
-            rows += ("<tr><td><input type='checkbox' name='sel' value='%d' checked/></td>"
+            if pr["type"] == "paiements":
+                statut = "<span class='ok'>✓ lettrer le paiement existant</span>"
+                coche = "checked"
+            else:
+                # lettré dans Sage mais AUCUN paiement saisi dans Odoo : oubli
+                # de saisie probable -> alerte, décochée par défaut
+                statut = "<span style='color:#b45309;font-weight:700;'>⚠ paiement absent d'Odoo (oubli de saisie ?)</span>"
+                coche = ""
+            rows += ("<tr><td><input type='checkbox' name='sel' value='%d' %s/></td>"
                      "<td>%s</td><td>%s</td><td style='text-align:right;'>%.2f €</td>"
                      "<td>%s<div style='font-size:11.5px;color:#64748b;'>%s</div></td></tr>"
-                     % (i, l["date"], l["lib"][:60], l["debit"], statut, "<br/>".join(pr["detail"])))
+                     % (i, coche, l["date"], l["lib"][:60], l["debit"], statut, "<br/>".join(pr["detail"])))
         note_ano = ""
         if anomalies:
             note_ano = ("<div class='note'>⚠ Hors lettrage automatique :<br/>%s</div>"
@@ -846,8 +851,10 @@ def rappro_analyse():
             corps = ("<div class='note'>Grand-livre lu : <b>%d</b> clients · <b>%d</b> facture(s) déjà à jour "
                      "dans Odoo · rien de nouveau à lettrer.</div>%s" % (len(clients), deja, note_ano))
         else:
+            n_alertes = sum(1 for p in props if p["type"] == "facture")
+            note_al = (" · <b style='color:#b45309;'>%d alerte(s) : lettré dans Sage sans paiement saisi dans Odoo</b>" % n_alertes) if n_alertes else ""
             corps = ("""<div class="note">Grand-livre des tiers lu : <b>%d</b> clients ·
-<b>%d</b> facture(s) à passer « Payé » · %d déjà à jour dans Odoo.</div>%s
+<b>%d</b> facture(s) à passer « Payé » · %d déjà à jour dans Odoo%s.</div>%s
 <form method="post" action="applique?token=%s">
 <input type="hidden" name="societe" value="%d"/>
 <input type="hidden" name="journal" value="%d"/>
@@ -855,7 +862,7 @@ def rappro_analyse():
 <input type="hidden" name="stats" value='%s'/>
 <table><tr><th></th><th>Réglée le</th><th>Facture — client</th><th>Montant</th><th>Action</th></tr>%s</table>
 <button type="submit">✅ Appliquer le lettrage (%d)</button></form>"""
-                     % (len(clients), len(props), deja, note_ano, token, comp,
+                     % (len(clients), len(props), deja, note_al, note_ano, token, comp,
                         js[0] if js else 0, _json.dumps(props).replace("'", "&#39;"),
                         _json.dumps({"deja": deja, "ano": len(anomalies)}),
                         rows, len(props)))
@@ -923,7 +930,7 @@ def rappro_applique():
     if n_lettres:
         lignes_recap.append("dont %d lettrage(s) de paiements déjà saisis" % n_lettres)
     if n_crees:
-        lignes_recap.append("dont %d paiement(s) créé(s) puis lettré(s)" % n_crees)
+        lignes_recap.append("<span style='color:#b45309;'>⚠ dont %d paiement(s) créé(s) faute de saisie dans Odoo (oubli à vérifier)</span>" % n_crees)
     if stats.get("deja"):
         lignes_recap.append("%d facture(s) déjà à jour dans Odoo (rien à faire)" % stats["deja"])
     if ecartes:
