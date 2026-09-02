@@ -1001,6 +1001,17 @@ def export_heures_route():
                 fins = {}
             fins[comp] = au
             call("ir.config_parameter", "set_param", "maquignon.heures_export_fin", _json.dumps(fins))
+        if exc:
+            # mémorise les plages par salarié : réaffichées sur la ligne du
+            # salarié dans /heures-admin pour savoir où en est chaque paie
+            import json as _json
+            brut = call("ir.config_parameter", "get_param", "maquignon.heures_export_exc") or "{}"
+            try:
+                excs = _json.loads(brut)
+            except Exception:
+                excs = {}
+            excs.update(exc)
+            call("ir.config_parameter", "set_param", "maquignon.heures_export_exc", _json.dumps(excs))
     from flask import Response
     return Response(
         data,
