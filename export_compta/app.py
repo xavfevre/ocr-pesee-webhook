@@ -563,25 +563,43 @@ def _rappro_analyse(comp, lignes, journal_id=None):
     return props, ignores
 
 
-def _rappro_applique(comp, journal, props):
-    """Crée l'écriture 512/511 et lettre — la primitive validée sur la base de test."""
+def _infos_journal(jid):
+    """(compte d'attente, compte banque) d'un journal — None si non configuré."""
+    j = _q("account.journal", "read", [jid], fields=["name", "default_account_id"])[0]
     pml = _q("account.payment.method.line", "search_read",
-             [("journal_id", "=", journal["id"]), ("payment_type", "=", "inbound"),
+             [("journal_id", "=", jid), ("payment_type", "=", "inbound"),
               ("payment_account_id", "!=", False)],
              fields=["payment_account_id"], limit=1)
     if not pml:
-        return 0, ["journal %s : compte d'attente non configuré" % journal["name"]]
-    compte_attente = pml[0]["payment_account_id"][0]
-    compte_banque = journal["default_account_id"][0]
+        return None, None, j["name"]
+    return pml[0]["payment_account_id"][0], j["default_account_id"][0], j["name"]
+
+
+def _rappro_applique(comp, journal, props):
+    """Crée l'écriture 512/511 et lettre — la primitive validée sur la base de test.
+    Chaque proposition peut porter son propre journal (journal_id), sinon celui
+    passé en paramètre (cas de l'état de rapprochement, un seul journal)."""
+    jcache = {}
+
+    def infos(jid):
+        if jid not in jcache:
+            jcache[jid] = _infos_journal(jid)
+        return jcache[jid]
+
     faits, erreurs = 0, []
     for prop in props:
         l = prop["ligne"]
+        jid = prop.get("journal_id") or journal["id"]
+        compte_attente, compte_banque, jnom = infos(jid)
+        if not compte_attente:
+            erreurs.append("journal %s : compte d'attente non configuré" % jnom)
+            continue
         try:
             pay_ids = list(prop["ids"])
             if prop["type"] == "facture":
                 ctx = {"active_model": "account.move", "active_ids": prop["ids"]}
                 wid = _q("account.payment.register", "create",
-                         [{"journal_id": journal["id"], "amount": l["debit"], "payment_date": l["date"]}],
+                         [{"journal_id": jid, "amount": l["debit"], "payment_date": l["date"]}],
                          context=ctx)
                 wid = wid[0] if isinstance(wid, list) else wid
                 try:
@@ -589,7 +607,7 @@ def _rappro_applique(comp, journal, props):
                 except Exception:
                     pass  # l'action renvoyée peut contenir des None non sérialisables
                 pay_ids = _q("account.payment", "search",
-                             [("company_id", "=", comp), ("journal_id", "=", journal["id"]),
+                             [("company_id", "=", comp), ("journal_id", "=", jid),
                               ("amount", "=", l["debit"]), ("date", "=", l["date"])],
                              limit=1, order="id desc")
                 if not pay_ids:
@@ -603,7 +621,7 @@ def _rappro_applique(comp, journal, props):
                 erreurs.append("%s %.2f € : lignes d'attente introuvables" % (l["lib"][:30], l["debit"]))
                 continue
             mid = _q("account.move", "create", [{
-                "journal_id": journal["id"], "date": l["date"],
+                "journal_id": jid, "date": l["date"],
                 "ref": "Rapprochement Sage — %s" % (l["lib"][:60] or l["piece"]),
                 "line_ids": [
                     (0, 0, {"account_id": compte_banque, "debit": l["debit"], "credit": 0.0,
@@ -627,6 +645,135 @@ def _rappro_applique(comp, journal, props):
         except Exception as exc:
             erreurs.append("%s %.2f € : %s" % (l["lib"][:30], l["debit"], str(exc)[:120]))
     return faits, erreurs
+
+
+# ─── GRAND-LIVRE DES TIERS (Sage) : lettrage par lettres ─────────────────────
+# Fichier bien plus riche que l'état de rapprochement : chaque groupe portant
+# la même lettre relie la ou les factures (n° Odoo dans le libellé des ventes)
+# à leur(s) règlement(s) datés, journal par journal. À-nouveaux (RAN) inclus.
+def _gl_detecte(fichier):
+    """True si le fichier est un « Grand-livre des tiers » (sinon état 512)."""
+    import openpyxl
+    wb = openpyxl.load_workbook(fichier, read_only=True, data_only=True)
+    ws = wb.active
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i > 8:
+            break
+        if any(c and "Grand-livre des tiers" in str(c) for c in row):
+            return True
+    return False
+
+
+def _gl_parse(fichier):
+    """Par client : écritures {date, journal, piece, lib, lettre, debit, credit}."""
+    import openpyxl
+    wb = openpyxl.load_workbook(fichier, data_only=True)
+    ws = wb.active
+    clients, cur = [], None
+    for row in ws.iter_rows(values_only=True):
+        c = list(row) + [None] * (19 - len(row))
+        c0 = c[0]
+        if c[5] == "Total du tiers" or (c0 and "Sage" in str(c0)) or c0 == "Date":
+            continue
+        est_date = hasattr(c0, "year")
+        if c0 and not est_date and not c[1] and c[3]:
+            cur = {"code": str(c0).strip(), "nom": str(c[3]).strip(), "ecritures": []}
+            clients.append(cur)
+            continue
+        if cur is None or not est_date:
+            continue
+        cur["ecritures"].append({
+            "date": str(c0)[:10], "journal": str(c[1] or "").strip(),
+            "piece": str(c[2] or "").strip(), "lib": str(c[5] or "").strip(),
+            "lettre": str(c[8] or "").strip(),
+            "debit": round(float(c[12] or 0), 2), "credit": round(float(c[15] or 0), 2)})
+    return [cl for cl in clients if cl["ecritures"]]
+
+
+def _gl_analyse(comp, clients):
+    """Groupes (client, lettre) équilibrés → propositions par facture Odoo."""
+    import re as _re
+    from collections import defaultdict
+    js = _q("account.journal", "search_read",
+            [("company_id", "=", comp), ("type", "=", "bank")], fields=["name", "code"])
+
+    def journal_pour(code):
+        code = (code or "").upper()
+        for j in js:
+            if code and (code == (j["code"] or "").upper() or code in (j["name"] or "").upper()):
+                return j["id"]
+        return js[0]["id"] if js else 0
+
+    noms = set()
+    for cl in clients:
+        for e in cl["ecritures"]:
+            m = _re.search(r"(FAC/[0-9]{4}/[0-9]+|FAC/[0-9]{2}-[0-9]{2}/[0-9]+)", e["lib"])
+            e["fac"] = m.group(1) if m else ""
+            if e["fac"]:
+                noms.add(e["fac"])
+    invs = {}
+    noms = sorted(noms)
+    for i in range(0, len(noms), 400):
+        for r in _q("account.move", "search_read",
+                    [("company_id", "=", comp), ("name", "in", noms[i:i + 400])],
+                    fields=["name", "payment_state", "amount_residual", "state"]):
+            invs[r["name"]] = r
+    # paiements « en paiement » existants : facture -> paiement à lettrer
+    pay_par_inv = {}
+    for p in _q("account.payment", "search_read",
+                [("company_id", "=", comp), ("state", "=", "in_process"),
+                 ("payment_type", "=", "inbound"), ("move_id", "!=", False)],
+                fields=["name", "amount", "reconciled_invoice_ids"], limit=0):
+        for iid in (p.get("reconciled_invoice_ids") or []):
+            pay_par_inv.setdefault(iid, p)
+    props, anomalies, deja = [], [], 0
+    for cl in clients:
+        groupes = defaultdict(list)
+        for e in cl["ecritures"]:
+            if e["lettre"]:
+                groupes[e["lettre"]].append(e)
+        for lettre, es in sorted(groupes.items()):
+            sd = round(sum(e["debit"] for e in es), 2)
+            sc = round(sum(e["credit"] for e in es), 2)
+            facs = [e for e in es if e["fac"] and e["debit"] > 0]
+            regs = [e for e in es if e["credit"] > 0]
+            if not facs or not regs:
+                continue
+            if abs(sd - sc) > 0.01:
+                anomalies.append("%s lettre %s : débits %.2f ≠ crédits %.2f (lettrage partiel ?)"
+                                 % (cl["code"], lettre, sd, sc))
+                continue
+            date_reg = max(e["date"] for e in regs)
+            jid = journal_pour(regs[-1]["journal"])
+            for e in facs:
+                inv = invs.get(e["fac"])
+                if not inv or inv["state"] != "posted":
+                    anomalies.append("%s : facture %s introuvable dans Odoo" % (cl["code"], e["fac"]))
+                    continue
+                if inv["payment_state"] in ("paid", "reversed"):
+                    deja += 1
+                    continue
+                lib = "%s — %s (lettre %s)" % (e["fac"], cl["nom"][:30], lettre)
+                pay = pay_par_inv.get(inv["id"])
+                if inv["payment_state"] == "in_payment" and pay:
+                    props.append({"ligne": {"date": date_reg, "lib": lib, "piece": lettre,
+                                            "debit": round(pay["amount"], 2), "credit": 0.0},
+                                  "type": "paiements", "ids": [pay["id"]], "journal_id": jid,
+                                  "detail": ["paiement %s (%.2f €) réglé le %s"
+                                             % (pay["name"], pay["amount"], date_reg)]})
+                elif inv["payment_state"] in ("not_paid", "partial"):
+                    montant = min(e["debit"], round(inv["amount_residual"], 2))
+                    if montant <= 0:
+                        deja += 1
+                        continue
+                    props.append({"ligne": {"date": date_reg, "lib": lib, "piece": lettre,
+                                            "debit": montant, "credit": 0.0},
+                                  "type": "facture", "ids": [inv["id"]], "journal_id": jid,
+                                  "detail": ["créer le paiement de %.2f € au %s et lettrer"
+                                             % (montant, date_reg)]})
+                else:
+                    deja += 1
+    return props, anomalies, deja
 
 
 RAPPRO_PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -663,7 +810,7 @@ def rappro_page():
     corps = ("""<form method="post" action="rappro/analyse?token=%s" enctype="multipart/form-data">
 <label>Société</label><select name="societe">
 <option value="1">SARL MAQUIGNON</option><option value="3">CHATEL'GRANULATS</option><option value="4">CARRIERE D'HAIMS</option></select>
-<label>État de rapprochement Sage (.xlsx)</label><input type="file" name="fichier" accept=".xlsx" required/>
+<label>Fichier Sage (.xlsx) — état de rapprochement bancaire OU grand-livre des tiers avec lettrage (le type est détecté automatiquement)</label><input type="file" name="fichier" accept=".xlsx" required/>
 <br/><button type="submit">🔎 Analyser</button></form>""" % token)
     return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
                     mimetype="text/html")
@@ -674,7 +821,46 @@ def rappro_analyse():
     _check_token()
     token = request.args.get("token", "")
     comp = int(request.form["societe"])
-    lignes, date_rappro = _rappro_parse(request.files["fichier"])
+    buf = io.BytesIO(request.files["fichier"].read())
+    if _gl_detecte(buf):
+        # ── Grand-livre des tiers : lettrage par lettres ──
+        buf.seek(0)
+        clients = _gl_parse(buf)
+        props, anomalies, deja = _gl_analyse(comp, clients)
+        rows = ""
+        for i, pr in enumerate(props):
+            l = pr["ligne"]
+            statut = ("<span class='ok'>✓ lettrer le paiement existant</span>"
+                      if pr["type"] == "paiements"
+                      else "<span class='crt'>➕ créer le paiement et lettrer</span>")
+            rows += ("<tr><td><input type='checkbox' name='sel' value='%d' checked/></td>"
+                     "<td>%s</td><td>%s</td><td style='text-align:right;'>%.2f €</td>"
+                     "<td>%s<div style='font-size:11.5px;color:#64748b;'>%s</div></td></tr>"
+                     % (i, l["date"], l["lib"][:60], l["debit"], statut, "<br/>".join(pr["detail"])))
+        note_ano = ""
+        if anomalies:
+            note_ano = ("<div class='note'>⚠ Hors lettrage automatique :<br/>%s</div>"
+                        % "<br/>".join(anomalies[:30]))
+        js = _q("account.journal", "search", [("company_id", "=", comp), ("type", "=", "bank")], limit=1)
+        if not props:
+            corps = ("<div class='note'>Grand-livre lu : <b>%d</b> clients · <b>%d</b> facture(s) déjà à jour "
+                     "dans Odoo · rien de nouveau à lettrer.</div>%s" % (len(clients), deja, note_ano))
+        else:
+            corps = ("""<div class="note">Grand-livre des tiers lu : <b>%d</b> clients ·
+<b>%d</b> facture(s) à passer « Payé » · %d déjà à jour dans Odoo.</div>%s
+<form method="post" action="applique?token=%s">
+<input type="hidden" name="societe" value="%d"/>
+<input type="hidden" name="journal" value="%d"/>
+<input type="hidden" name="props" value='%s'/>
+<table><tr><th></th><th>Réglée le</th><th>Facture — client</th><th>Montant</th><th>Action</th></tr>%s</table>
+<button type="submit">✅ Appliquer le lettrage (%d)</button></form>"""
+                     % (len(clients), len(props), deja, note_ano, token, comp,
+                        js[0] if js else 0, _json.dumps(props).replace("'", "&#39;"),
+                        rows, len(props)))
+        return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
+                        mimetype="text/html")
+    buf.seek(0)
+    lignes, date_rappro = _rappro_parse(buf)
     if not lignes:
         return Response(RAPPRO_PAGE.replace("__CORPS__", "<p class='ko'>Aucune écriture 512 trouvée dans ce fichier — est-ce bien l'état « Rapprochement bancaire » imprimé vers Excel ?</p>").replace("__TOKEN__", token), mimetype="text/html")
     journal = _rappro_journal(comp, lignes[0]["compte"])
