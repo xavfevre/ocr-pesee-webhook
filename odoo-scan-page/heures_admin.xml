@@ -99,6 +99,7 @@
         <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
         <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;comp={{compp}}&amp;k={{xk}}&amp;format=silae" target="_blank" title="Éléments variables de paie pour Silae — format standard provisoire, codes rubriques ajustables (paramètre maquignon.silae_codes)">⬇ Export Silae (EVP)</a>
         <span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;font-size:12px;font-weight:800;color:#334155;" title="Période de paie libre (ex. 26/07 → 25/08) : appliquée aux exports paie, Silae et aux feuilles 📄. Prérempli : lendemain de la fin du dernier export → aujourd'hui.">
+          👤 <select id="ha-emp-filtre" title="N'afficher qu'un seul salarié (facilite la saisie)" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;max-width:170px;"><option value="">Tous les salariés</option></select>
           🗓 du <input type="date" id="ha-ex-du" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;"/>
           au <input type="date" id="ha-ex-au" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;"/>
           <button type="button" id="ha-ex-fill" title="Recopier ces dates sur toutes les lignes salariés (à ajuster ensuite au cas par cas)" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;font-size:11.5px;padding:4px 8px;cursor:pointer;">⤵ Lignes</button>
@@ -258,6 +259,35 @@
           a.style.background = b.style.background = '#fef9c3';
         }
       });
+      /* filtre « un seul salarié » : masque les autres lignes (memorise par onglet) */
+      var selEmp = document.getElementById('ha-emp-filtre');
+      if(selEmp){
+        var lignesEmp = Array.prototype.slice.call(document.querySelectorAll('tr[data-emp]'));
+        lignesEmp.map(function(tr){ return [tr.getAttribute('data-emp'), tr.getAttribute('data-name') || '']; })
+          .sort(function(a, b){ return a[1].localeCompare(b[1]); })
+          .forEach(function(p){
+            var o = document.createElement('option');
+            o.value = p[0]; o.textContent = p[1];
+            selEmp.appendChild(o);
+          });
+        var filtreEmp = function(){
+          var v = selEmp.value;
+          lignesEmp.forEach(function(tr){
+            tr.style.display = (!v || tr.getAttribute('data-emp') === v) ? '' : 'none';
+          });
+          document.querySelectorAll('td.soc').forEach(function(td){
+            td.parentElement.style.display = v ? 'none' : '';
+          });
+          try { sessionStorage.setItem('haEmpFiltre', v); } catch(e){}
+        };
+        selEmp.addEventListener('change', filtreEmp);
+        try {
+          var memEmp = sessionStorage.getItem('haEmpFiltre');
+          if(memEmp &amp;&amp; selEmp.querySelector('option[value="' + memEmp + '"]')){
+            selEmp.value = memEmp; filtreEmp();
+          }
+        } catch(e){}
+      }
       function excLignes(){
         var exc = {};
         document.querySelectorAll('tr[data-emp]').forEach(function(tr){
