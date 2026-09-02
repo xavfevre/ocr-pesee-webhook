@@ -643,31 +643,39 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
         remplir(recap, hb, lu)
 
     # ── totaux globaux du mois (comme le bas de page du fichier papier) ──
+    # mise en forme reprise de la ligne « Nombre total d'heures » du gabarit
+    # (libellé gris/gras, cellules de valeurs bordées), « Heures M-1 » en
+    # cellule de saisie jaune
+    from openpyxl.styles import PatternFill
     tot_rows = [11 + 9 * k + 8 for k in range(len(lundis))]
     rg = tot_rows[-1] + 2
-    gras = Font(name='Century Gothic', size=12, bold=True)
+    st_lbl = master.cell(19, 6)._style
+    st_val = master.cell(19, 7)._style
     lignes_tot = [
         ('Nombre total d’heures', {7: '=' + '+'.join('G%d' % r for r in tot_rows),
                                    8: '=' + '+'.join('H%d' % r for r in tot_rows),
                                    9: '=' + '+'.join('I%d' % r for r in tot_rows),
                                    10: '=' + '+'.join('J%d' % r for r in tot_rows)}),
-        ('Heures M-1', {}),                       # report du mois précédent, saisi à la main
+        ('Heures M-1', {7: None}),                # report du mois précédent, saisi à la main
         ('Reste heures', {7: '=G%d+G%d' % (rg, rg + 1)}),
     ]
     for off, (libelle, cols) in enumerate(lignes_tot):
         r = rg + off
         c = recap.cell(r, 6)
         c.value = libelle
-        c.font = gras
-        for col, formule in cols.items():
+        c._style = _copy.copy(st_lbl)
+        for col in (7, 8, 9, 10):
             cc = recap.cell(r, col)
-            cc.value = formule
-            cc.font = gras
-            cc.number_format = '0.00'
-        if not cols:  # Heures M-1 : cellule de saisie visible
+            cc._style = _copy.copy(st_val)
+            if col in cols:
+                cc.value = cols[col]
+                cc.number_format = '0.00'
+        if libelle == 'Heures M-1':
             cc = recap.cell(r, 7)
-            cc.font = gras
+            cc.fill = PatternFill('solid', fgColor='FFFFF2CC')
             cc.number_format = '0.00'
+        if master.row_dimensions[19].height:
+            recap.row_dimensions[r].height = master.row_dimensions[19].height
 
     # ── une feuille par semaine ──
     for idx, lu in enumerate(lundis):
