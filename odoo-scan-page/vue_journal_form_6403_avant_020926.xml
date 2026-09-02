@@ -1,0 +1,18 @@
+<data>
+  <xpath expr="//form[1]/field[@name='company_id']" position="before">
+    <header>
+      <button string="Exportation compta" name="1459" type="action"/>
+      <button string="Export CAISSE (CAIS/CLO)" name="1671" type="action"/>
+      <button string="Verrouiller date comptables" name="1680" type="action"/>
+    </header>
+  </xpath>
+  <xpath expr="//div[@name='button_box']" position="before">
+    <group name="studio_group_5j9_1itfht7pk" string="Date pour pour filtrer l'exportation compta">
+      <group name="studio_group_5j9_left">
+        <field name="x_studio_date_de_debut"/>
+        <field name="x_studio_date_de_fin"/>
+      </group>
+      <group name="studio_group_5j9_right"/>
+    </group>
+  </xpath>
+</data>

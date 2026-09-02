@@ -1063,18 +1063,24 @@ def heures_rpc():
         return _heures_cors(jsonify({"error": {"message": "action non autorisée"}}))
 
     try:
+        import heures_actions
         uid, models = odoo_connect()
-        resultat = models.execute_kw(
-            ODOO_DB, uid, ODOO_PASSWORD,
-            "ir.actions.server", "run", [[int(action_id)]], {"context": ctx},
-        )
+
+        def call(model, method, *params, **kw):
+            return x(models, uid, model, method, *params, **kw)
+
+        # Logique portée d'Odoo vers Render (heures_actions.py) : mêmes
+        # numéros d'action, même contrat ctx -> dict, mêmes messages.
+        resultat = heures_actions.executer(call, int(action_id), ctx)
         return _heures_cors(jsonify({"result": resultat if isinstance(resultat, dict) else {}}))
-    except xmlrpc.client.Fault as exc:
-        # Message de l'action (jeton invalide, clé erronée...) : renvoyé tel
-        # quel, la page l'affiche à l'utilisateur.
-        message = (exc.faultString or "Erreur Odoo").strip()
-        return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
     except Exception as exc:
+        import heures_actions
+        if isinstance(exc, heures_actions.HeuresErreur):
+            # Équivalent du UserError : message affiché tel quel par la page.
+            return _heures_cors(jsonify({"error": {"message": str(exc)}}))
+        if isinstance(exc, xmlrpc.client.Fault):
+            message = (exc.faultString or "Erreur Odoo").strip()
+            return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
         app.logger.warning(f"heures_rpc: {exc}")
         return _heures_cors(jsonify({"error": {"message": f"Service indisponible : {exc}"}}))
 
