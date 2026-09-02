@@ -60,10 +60,11 @@ Jeton : `maquignon.compta_key`.
 Les banques connectées alimentent les journaux en lignes de relevé ; le
 lettrage v2 réconcilie ces lignes (aucune écriture synthétique). Les 248
 écritures de reprise du rattrapage ont été extournées (« Extourne reprise —
-relevés connectés ») et chaque compte 512 a été recalé sur le solde réel
-remonté par le connecteur, via le compte technique **512900 « Recalage
-banque (référence Sage) »** (hors périmètre des exports cabinet). Les soldes
-512 d'Odoo suivent désormais la réalité bancaire au fil des flux quotidiens.
-Écarts historiques absorbés par le recalage : BNP Maquignon +72 340,02,
-BNP Bis +814,32, BP Maquignon −41,26, Banque Pop Châtel +1 700,00,
-BNP Châtel −1 600,00, BNP Haims −11 152,10, BP Haims −21 132,72.
+relevés connectés ») : l'historique 512 d'Odoo = les relevés, rien d'autre.
+Sur demande de Xavier, AUCUNE écriture de recalage artificielle : les soldes
+512 d'Odoo gardent leurs écarts historiques vis-à-vis de la banque réelle
+(mesurés au 02/09 : BNP Maquignon −72 340,02 « manquant », BNP Bis −814,32,
+BP Maquignon +41,26, Banque Pop Châtel −1 700,00, BNP Châtel +1 600,00,
+BNP Haims +11 152,10, BP Haims +21 132,72 — probablement écritures
+manuelles anciennes et périodes antérieures aux flux). La comptabilité de
+référence reste Sage.
