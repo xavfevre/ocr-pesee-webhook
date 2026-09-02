@@ -461,13 +461,21 @@
           rpc('ir.attachment', 'search_read', [[['res_model','=','fleet.vehicle'],['res_id','in',ids]]], {fields:['id','name','res_id'], order:'id desc', limit:25}).then(function(res){
             box.textContent = '';
             if(!res.length){ box.textContent = 'Aucun document.'; return; }
+            /* l'appli Documents porte SON propre nom (documents.document) :
+               c'est lui qu'on affiche et qu'on renomme quand il existe, sinon
+               le nom de la piece jointe — les deux restent synchronises */
+            rpc('documents.document', 'search_read', [[['attachment_id','in',res.map(function(a){ return a.id; })]]], {fields:['id','name','attachment_id']}).catch(function(){ return []; }).then(function(docs){
+            var parPj = {};
+            (docs || []).forEach(function(dd){ if(dd.attachment_id){ parPj[dd.attachment_id[0]] = dd; } });
             res.forEach(function(a){
+              var docRec = parPj[a.id];
+              var nomAff = (docRec &amp;&amp; docRec.name) || a.name;
               var d = document.createElement('div');
               var link = document.createElement('a');
               link.href = '/web/content/' + a.id + '?download=true';
               link.target = '_blank';
               link.style.cssText = 'color:#0f172a;font-weight:700;';
-              link.textContent = a.name;
+              link.textContent = nomAff;
               d.appendChild(document.createTextNode('📄 '));
               d.appendChild(link);
               var ren = document.createElement('span');
@@ -475,9 +483,11 @@
               ren.textContent = '✎';
               ren.title = 'Renommer le document';
               ren.addEventListener('click', function(){
-                var nn = prompt('Nouveau nom du document :', a.name);
-                if(!nn || nn === a.name){ return; }
-                rpc('ir.attachment', 'write', [[a.id], {name: nn}]).then(loadDocs)
+                var nn = prompt('Nouveau nom du document :', nomAff);
+                if(!nn || nn === nomAff){ return; }
+                var ops = [rpc('ir.attachment', 'write', [[a.id], {name: nn}])];
+                if(docRec){ ops.push(rpc('documents.document', 'write', [[docRec.id], {name: nn}])); }
+                Promise.all(ops).then(loadDocs)
                   .catch(function(e){ alert('Échec du renommage : ' + e.message); });
               });
               d.appendChild(ren);
@@ -488,6 +498,7 @@
                 d.appendChild(tag);
               }
               box.appendChild(d);
+            });
             });
           }).catch(function(){ box.textContent = 'Erreur de chargement.'; });
         }
