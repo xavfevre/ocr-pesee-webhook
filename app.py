@@ -810,13 +810,19 @@ def tournee_liens():
         ch = t.get("x_studio_chauffeur")
         if ch:
             drivers[ch[0]] = ch[1]
-    # téléphones (pour pré-remplir WhatsApp) — best effort
+    # téléphones (pour pré-remplir WhatsApp) — best effort ; au passage, seuls
+    # les employés ACTIFS gardent un lien (les partis/archivés sortent de la liste)
     phones = {}
     if drivers:
         try:
+            actifs = set()
             for e in x(models, uid, "hr.employee", "read", list(drivers.keys()),
-                       fields=["mobile_phone", "work_phone"]):
+                       fields=["mobile_phone", "work_phone", "active"],
+                       context={"active_test": False}):
+                if e.get("active"):
+                    actifs.add(e["id"])
                 phones[e["id"]] = e.get("mobile_phone") or e.get("work_phone") or ""
+            drivers = {i: n for i, n in drivers.items() if i in actifs}
         except Exception:
             phones = {}
 
