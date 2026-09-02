@@ -852,10 +852,12 @@ def rappro_analyse():
 <input type="hidden" name="societe" value="%d"/>
 <input type="hidden" name="journal" value="%d"/>
 <input type="hidden" name="props" value='%s'/>
+<input type="hidden" name="stats" value='%s'/>
 <table><tr><th></th><th>Réglée le</th><th>Facture — client</th><th>Montant</th><th>Action</th></tr>%s</table>
 <button type="submit">✅ Appliquer le lettrage (%d)</button></form>"""
                      % (len(clients), len(props), deja, note_ano, token, comp,
                         js[0] if js else 0, _json.dumps(props).replace("'", "&#39;"),
+                        _json.dumps({"deja": deja, "ano": len(anomalies)}),
                         rows, len(props)))
         return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
                         mimetype="text/html")
@@ -887,11 +889,14 @@ def rappro_analyse():
 <input type="hidden" name="societe" value="%d"/>
 <input type="hidden" name="journal" value="%d"/>
 <input type="hidden" name="props" value='%s'/>
+<input type="hidden" name="stats" value='%s'/>
 <table><tr><th></th><th>Date</th><th>Libellé Sage</th><th>Montant</th><th>Proposition</th></tr>%s</table>
 <button type="submit">✅ Appliquer le lettrage (%d)</button></form>"""
              % (journal["name"] if journal else "?", date_rappro or "?", len(props), n_auto,
                 len(ignores), token, comp, journal["id"] if journal else 0,
-                _json.dumps(props).replace("'", "&#39;"), rows, n_auto))
+                _json.dumps(props).replace("'", "&#39;"),
+                _json.dumps({"inconnu": len(props) - n_auto, "ignores": len(ignores)}),
+                rows, n_auto))
     return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
                     mimetype="text/html")
 
@@ -907,7 +912,32 @@ def rappro_applique():
     journal = _q("account.journal", "read", [int(request.form["journal"])],
                  fields=["name", "code", "default_account_id"])[0]
     faits, erreurs = _rappro_applique(comp, journal, retenus)
-    corps = "<p class='ok'>✅ %d encaissement(s) lettré(s) — paiements et factures passés « Payé ».</p>" % faits
+    try:
+        stats = _json.loads(request.form.get("stats") or "{}")
+    except Exception:
+        stats = {}
+    n_lettres = sum(1 for p in retenus if p["type"] == "paiements")
+    n_crees = sum(1 for p in retenus if p["type"] == "facture")
+    ecartes = len(props) - len(retenus)
+    lignes_recap = ["<b>%d</b> appliqué(s) — factures passées « Payé »" % faits]
+    if n_lettres:
+        lignes_recap.append("dont %d lettrage(s) de paiements déjà saisis" % n_lettres)
+    if n_crees:
+        lignes_recap.append("dont %d paiement(s) créé(s) puis lettré(s)" % n_crees)
+    if stats.get("deja"):
+        lignes_recap.append("%d facture(s) déjà à jour dans Odoo (rien à faire)" % stats["deja"])
+    if ecartes:
+        lignes_recap.append("%d proposition(s) laissée(s) de côté (non cochées ou non reconnues)" % ecartes)
+    if stats.get("inconnu"):
+        lignes_recap.append("%d ligne(s) non reconnue(s) — à traiter dans Odoo" % stats["inconnu"])
+    if stats.get("ignores"):
+        lignes_recap.append("%d décaissement(s) ignoré(s) (fournisseurs)" % stats["ignores"])
+    if stats.get("ano"):
+        lignes_recap.append("%d groupe(s) hors lettrage automatique (à vérifier dans Sage)" % stats["ano"])
+    if erreurs:
+        lignes_recap.append("<span class='ko'>%d erreur(s) — détail ci-dessous</span>" % len(erreurs))
+    corps = ("<p class='ok'>✅ Lettrage appliqué.</p><div class='note'>📋 Récapitulatif :<br/>• "
+             + "<br/>• ".join(lignes_recap) + "</div>")
     if erreurs:
         corps += "<div class='note'>⚠ À traiter manuellement :<br/>%s</div>" % "<br/>".join(erreurs)
     return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
