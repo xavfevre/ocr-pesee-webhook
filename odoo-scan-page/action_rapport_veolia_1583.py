@@ -1,17 +1,17 @@
-# Rapport de service VEOLIA à la clôture + recréation de la demande Mâchefers.
-# Règle (26/08/2026) : il doit toujours rester UNE tâche VEOLIA - LES MACHEFERS
-# en « Nouvelle demande » — la copie n'est créée que s'il n'y en a plus.
+# Rapport de service VEOLIA à la clôture + recréation des demandes Mâchefers.
+# Règle (02/09/2026, demande Xavier) : il doit toujours rester TROIS tâches
+# VEOLIA - LES MACHEFERS en « Nouvelle demande » (3 rotations) — on complète.
 for record in records:
     nouvelle_demande = env['project.task.type'].search([('name', '=', 'Nouvelle demande'), ('project_ids', 'in', record.project_id.id)], limit=1)
-    deja = env['project.task'].search([
+    en_attente = env['project.task'].search_count([
         ('project_id', '=', record.project_id.id),
         ('name', 'ilike', 'VEOLIA - LES MACHEFERS'),
         ('state', 'not in', ['1_done', '1_canceled']),
         ('stage_id', '=', nouvelle_demande.id if nouvelle_demande else 0),
         ('id', '!=', record.id),
-    ], limit=1)
-    if not deja:
-        new_task = record.copy({'stage_id': nouvelle_demande.id if nouvelle_demande else False, 'state': '01_in_progress', 'date_deadline': False, 'planned_date_begin': False, 'x_studio_chauffeur': False})
+    ])
+    for _i in range(max(0, 3 - en_attente)):
+        new_task = record.copy({'stage_id': nouvelle_demande.id if nouvelle_demande else False, 'state': '01_in_progress', 'date_deadline': False, 'planned_date_begin': False, 'x_studio_chauffeur': False, 'x_studio_operateurs': [(5, 0, 0)]})
         new_task.write({'name': record.name})
     destinataires = 'exploitation.86.sou@veolia.com, vanessa.leon@veolia.com, franck@maquignon.com'
     try:
