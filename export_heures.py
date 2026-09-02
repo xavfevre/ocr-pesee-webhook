@@ -505,7 +505,9 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
         y, mo = int(mois[:4]), int(mois[5:7])
         d1 = _dt.date(y, mo, 1)
         d2 = _dt.date(y, mo, calendar.monthrange(y, mo)[1])
-    emp = call('hr.employee', 'read', [emp_id], ['name', 'parent_id', 'company_id'])[0]
+    emp = call('hr.employee', 'read', [emp_id],
+               ['name', 'parent_id', 'company_id', 'x_recup_solde',
+                'x_cp_ref_date', 'resource_calendar_id'])[0]
     lundi = d1 - _dt.timedelta(days=d1.weekday())
     lundis = []
     while lundi <= d2:
@@ -651,12 +653,45 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
     rg = tot_rows[-1] + 2
     st_lbl = master.cell(19, 6)._style
     st_val = master.cell(19, 7)._style
+    # « Heures M-1 » = compteur d'heures à récupérer (badge 🔄 de la page RH),
+    # arrêté à la veille du début de période — prérempli, ajustable à la main
+    cal_f = None
+    if emp.get('resource_calendar_id'):
+        cal_f = call('resource.calendar', 'read', [emp['resource_calendar_id'][0]],
+                     ['name', 'two_weeks_calendar', 'attendance_ids'])[0]
+        att_f = call('resource.calendar.attendance', 'read', cal_f['attendance_ids'],
+                     ['dayofweek', 'week_type', 'display_type', 'hour_from', 'hour_to']) \
+            if cal_f['attendance_ids'] else []
+        cal_f['attendance_ids'] = att_f
+    ref_f = emp.get('x_cp_ref_date') or ''
+    m0 = (d1 - _dt.timedelta(days=1)).isoformat()
+
+    def _pris_h(r):
+        if r['x_type'] == 'recup':
+            return r['x_theo'] or 0.0
+        dj = _dt.date.fromisoformat(str(r['x_date'])[:10])
+        return max(_theo_day(cal_f, dj) - (r['x_theo'] or 0.0), 0.0)
+
+    m_1 = (emp.get('x_recup_solde') or 0.0)
+    m_1 += sum(l['x_heures'] for l in call(
+        'x_recup_ligne', 'search_read',
+        [('x_employee_id', '=', emp_id), ('x_date', '<=', m0)],
+        fields=['x_date', 'x_heures']) if not ref_f or str(l['x_date'])[:10] > ref_f)
+    pstart_f = _dt.date(d1.year if d1.month >= 6 else d1.year - 1, 6, 1)
+    m_1 -= sum(_pris_h(r) for r in call(
+        'x_heures_jour', 'search_read',
+        ['&', ('x_employee_id', '=', emp_id),
+         ('x_date', '>=', pstart_f.isoformat()), ('x_date', '<=', m0),
+         '|', ('x_type', '=', 'recup'), ('x_note', 'like', 'Récupération —')],
+        fields=['x_date', 'x_type', 'x_theo', 'x_note'])
+        if not ref_f or str(r['x_date'])[:10] > ref_f)
+
     lignes_tot = [
         ('Nombre total d’heures', {7: '=' + '+'.join('G%d' % r for r in tot_rows),
                                    8: '=' + '+'.join('H%d' % r for r in tot_rows),
                                    9: '=' + '+'.join('I%d' % r for r in tot_rows),
                                    10: '=' + '+'.join('J%d' % r for r in tot_rows)}),
-        ('Heures M-1', {7: None}),                # report du mois précédent, saisi à la main
+        ('Heures M-1', {7: round(m_1, 2)}),       # prérempli (récup), ajustable
         ('Reste heures', {7: '=G%d+G%d' % (rg, rg + 1)}),
     ]
     for off, (libelle, cols) in enumerate(lignes_tot):
