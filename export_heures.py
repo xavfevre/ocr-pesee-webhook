@@ -642,6 +642,33 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
         table(recap, 'TR_%d' % (k + 1), hb, 100 + k)
         remplir(recap, hb, lu)
 
+    # ── totaux globaux du mois (comme le bas de page du fichier papier) ──
+    tot_rows = [11 + 9 * k + 8 for k in range(len(lundis))]
+    rg = tot_rows[-1] + 2
+    gras = Font(name='Century Gothic', size=12, bold=True)
+    lignes_tot = [
+        ('Nombre total d’heures', {7: '=' + '+'.join('G%d' % r for r in tot_rows),
+                                   8: '=' + '+'.join('H%d' % r for r in tot_rows),
+                                   9: '=' + '+'.join('I%d' % r for r in tot_rows),
+                                   10: '=' + '+'.join('J%d' % r for r in tot_rows)}),
+        ('Heures M-1', {}),                       # report du mois précédent, saisi à la main
+        ('Reste heures', {7: '=G%d+G%d' % (rg, rg + 1)}),
+    ]
+    for off, (libelle, cols) in enumerate(lignes_tot):
+        r = rg + off
+        c = recap.cell(r, 6)
+        c.value = libelle
+        c.font = gras
+        for col, formule in cols.items():
+            cc = recap.cell(r, col)
+            cc.value = formule
+            cc.font = gras
+            cc.number_format = '0.00'
+        if not cols:  # Heures M-1 : cellule de saisie visible
+            cc = recap.cell(r, 7)
+            cc.font = gras
+            cc.number_format = '0.00'
+
     # ── une feuille par semaine ──
     for idx, lu in enumerate(lundis):
         ws = wb.copy_worksheet(master)
