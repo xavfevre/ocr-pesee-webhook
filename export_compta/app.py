@@ -563,6 +563,29 @@ def _rappro_analyse(comp, lignes, journal_id=None):
     return props, ignores
 
 
+def _erreur_propre(s):
+    """Traduit les erreurs techniques en messages lisibles par la comptable."""
+    s = str(s)
+    if "cannot marshal None" in s:
+        return ("la réconciliation n'a pas abouti (écart de montant probable, "
+                "quelques centimes ?) — à vérifier sur la pièce dans Odoo")
+    if "Fault" in s or "Traceback" in s:
+        lignes = [l.strip() for l in s.replace("\\n", "\n").split("\n") if l.strip()]
+        for l in reversed(lignes):
+            if "File \"" not in l and not l.startswith(("^", "~", "raise ")):
+                return l.split(":", 1)[-1].strip().rstrip("'>\"") or "erreur Odoo"
+    return s[-160:]
+
+
+def _compte_ecart(comp, sens):
+    """Compte d'écart de règlement : charges (658*) ou produits (758*)."""
+    pref = "658" if sens == "charge" else "758"
+    a = _q("account.account", "search",
+           [("code", "=like", pref + "%"), ("company_ids", "in", [comp])],
+           limit=1, context={"allowed_company_ids": [comp]})
+    return a[0] if a else None
+
+
 def _infos_journal(jid):
     """(compte d'attente, compte banque) d'un journal — None si non configuré."""
     j = _q("account.journal", "read", [jid], fields=["name", "default_account_id"])[0]
@@ -615,9 +638,11 @@ def _rappro_applique(comp, journal, props):
                                   limit=5, order="id desc")
                     pay_ids += nouveaux
                 moves = [p["move_id"][0] for p in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p["move_id"]]
-                l_att = _q("account.move.line", "search",
-                           [("move_id", "in", moves), ("account_id", "=", compte_attente), ("reconciled", "=", False)])
-                l_stmt = []
+                l_att_rows = _q("account.move.line", "search_read",
+                                [("move_id", "in", moves), ("account_id", "=", compte_attente), ("reconciled", "=", False)],
+                                fields=["debit"])
+                l_att = [r["id"] for r in l_att_rows]
+                l_stmt, tot_stmt = [], 0.0
                 for sm in prop.get("stmt_moves") or []:
                     for ml in _q("account.move.line", "search_read",
                                  [("move_id", "=", sm), ("reconciled", "=", False)],
@@ -626,10 +651,32 @@ def _rappro_applique(comp, journal, props):
                             if ml["account_id"][0] != compte_attente:
                                 _q("account.move.line", "write", [ml["id"]], {"account_id": compte_attente})
                             l_stmt.append(ml["id"])
+                            tot_stmt += ml["credit"]
                 if not l_att or not l_stmt:
                     erreurs.append("%s : lignes à réconcilier introuvables" % l["lib"][:40])
                     continue
                 ids = l_att + l_stmt
+                # écart de quelques centimes entre facture(s) et virement réel
+                # (lettrage toléré par Sage) : passé en écart de règlement
+                ecart = round(sum(r["debit"] for r in l_att_rows) - tot_stmt, 2)
+                if 0 < abs(ecart) <= 0.05:
+                    cpt = _compte_ecart(comp, "charge" if ecart > 0 else "produit")
+                    if cpt:
+                        m_ec = _q("account.move", "create", [{
+                            "journal_id": jid, "date": l["date"],
+                            "ref": "Écart de règlement Sage — %s" % l["lib"][:50],
+                            "line_ids": [
+                                (0, 0, {"account_id": cpt if ecart > 0 else compte_attente,
+                                        "debit": abs(ecart), "credit": 0.0,
+                                        "name": "Écart de règlement (%.2f €)" % ecart}),
+                                (0, 0, {"account_id": compte_attente if ecart > 0 else cpt,
+                                        "debit": 0.0, "credit": abs(ecart),
+                                        "name": "Écart de règlement (%.2f €)" % ecart}),
+                            ]}], context={"allowed_company_ids": [comp]})
+                        m_ec = m_ec[0] if isinstance(m_ec, list) else m_ec
+                        _q("account.move", "action_post", [m_ec])
+                        ids += _q("account.move.line", "search",
+                                  [("move_id", "=", m_ec), ("account_id", "=", compte_attente)])
                 try:
                     _q("account.move.line", "reconcile", ids)
                 except Exception:
@@ -638,7 +685,7 @@ def _rappro_applique(comp, journal, props):
                         raise
                 faits += 1
             except Exception as exc:
-                erreurs.append("%s : %s" % (l["lib"][:40], str(exc)[-120:]))
+                erreurs.append("%s : %s" % (l["lib"][:40], _erreur_propre(exc)))
             continue
         if not compte_attente:
             erreurs.append("journal %s : compte d'attente non configuré" % jnom)
@@ -692,7 +739,7 @@ def _rappro_applique(comp, journal, props):
                     raise
             faits += 1
         except Exception as exc:
-            erreurs.append("%s %.2f € : %s" % (l["lib"][:30], l["debit"], str(exc)[:120]))
+            erreurs.append("%s %.2f € : %s" % (l["lib"][:30], l["debit"], _erreur_propre(exc)))
     return faits, erreurs
 
 
@@ -901,7 +948,25 @@ td{border-bottom:1px solid #e2e8f0;padding:6px 8px;vertical-align:top;}
 .ok{color:#166534;font-weight:700;}.crt{color:#1d4ed8;font-weight:700;}.ko{color:#b91c1c;font-weight:700;}
 .note{background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:9px 12px;font-size:12.5px;margin:12px 0;}
 a.retour{font-size:12.5px;}
-</style></head><body><div class="card">
+#att{display:none;position:fixed;inset:0;background:rgba(241,245,249,.85);z-index:50;
+     align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+#att .rond{width:46px;height:46px;border:5px solid #cbd5e1;border-top-color:#0f172a;
+     border-radius:50%;animation:tourne 0.9s linear infinite;}
+#att .txt{font-weight:800;color:#0f172a;font-size:15px;}
+@keyframes tourne{to{transform:rotate(360deg);}}
+</style></head><body>
+<div id="att"><div class="rond"></div><div class="txt" id="attTxt">Analyse du fichier…</div></div>
+<script>
+document.addEventListener('submit', function(ev){
+  var f = ev.target;
+  var b = f.querySelector('button[type=submit]');
+  var texte = (f.action || '').indexOf('applique') >= 0 ? 'Application du lettrage…' : 'Analyse du fichier…';
+  document.getElementById('attTxt').textContent = texte;
+  document.getElementById('att').style.display = 'flex';
+  if(b){ b.disabled = true; }
+}, true);
+</script>
+<div class="card">
 <h1>🏦 Import du rapprochement bancaire Sage</h1>
 <p class="sub">Déposez l'état « Rapprochement bancaire » de Sage (imprimé vers Excel). Les
 encaissements pointés passent les paiements et factures Odoo à « Payé », à la date du pointage.
