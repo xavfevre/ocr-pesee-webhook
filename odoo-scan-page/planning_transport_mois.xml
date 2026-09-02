@@ -8,7 +8,7 @@
     <t t-set="next_m" t-value="(first + datetime.timedelta(days=32)).replace(day=1).strftime('%Y-%m')"/>
     <t t-set="start_monday" t-value="first - datetime.timedelta(days=first.weekday())"/>
     <t t-set="grid_end" t-value="start_monday + datetime.timedelta(days=42)"/>
-    <t t-set="df" t-value="start_monday.strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="dst0" t-value="datetime.datetime(start_monday.year,3,31,1) - datetime.timedelta(days=(datetime.datetime(start_monday.year,3,31).weekday()+1)%7)"/><t t-set="dst1" t-value="datetime.datetime(start_monday.year,10,31,1) - datetime.timedelta(days=(datetime.datetime(start_monday.year,10,31).weekday()+1)%7)"/><t t-set="df" t-value="(start_monday - datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 21:00:00'"/>
     <t t-set="dt" t-value="grid_end.strftime('%Y-%m-%d') + ' 00:00:00'"/>
     <t t-set="all_records" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('planned_date_begin','&lt;',dt)], order='planned_date_begin')"/>
     <t t-set="bon_atts" t-value="request.env['x_project_task_worksheet_template_1'].sudo().search([('x_project_task_id','in',all_records.ids),('x_studio_photo_bon','!=',False)])"/>
@@ -124,7 +124,7 @@
                 <t t-set="in_month" t-value="cd.month == first.month"/>
                 <t t-if="not in_month"><td class="trm-cell trm-out"/></t>
                 <t t-else="">
-                <t t-set="day_tasks" t-value="all_records.filtered(lambda t: t.planned_date_begin.date() == cd)"/>
+                <t t-set="day_tasks" t-value="all_records.filtered(lambda t: (t.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= t.planned_date_begin and t.planned_date_begin &lt; dst1) else 1)).date() == cd)"/>
                 <td t-attf-class="trm-cell {{'trm-today' if is_today else ''}}">
                   <div class="trm-daynum"><a t-attf-href="/planning-transport-jour?day={{cd.strftime('%Y-%m-%d')}}&amp;{{keep_query('client')}}" style="color:inherit;text-decoration:none;" title="Voir le détail de ce jour"><t t-esc="cd.day"/><t t-if="is_today"> ⭐</t></a></div>
                   <t t-foreach="day_tasks" t-as="task">
@@ -145,7 +145,7 @@
                     <t t-set="cname" t-value="task.partner_id.display_name or task.name or 'Sans client'"/>
                     <t t-set="ccol" t-value="palette[sum([ord(ch) for ch in cname]) % len(palette)]"/>
                     <div class="trm-task" t-att-data-status="st_key" t-att-data-client="cname" t-attf-style="background:{{st_colors[st_key]}};border-left-color:{{ccol}};" t-att-title="cname + ' — ' + st_key">
-                      <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank" class="trm-txt"><t t-esc="st_icons[st_key]"/> <t t-if="task.planned_date_begin"><t t-esc="task.planned_date_begin.strftime('%H:%M')"/> </t><t t-esc="cname"/></a>
+                      <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank" class="trm-txt"><t t-esc="st_icons[st_key]"/> <t t-if="task.planned_date_begin"><t t-esc="(task.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= task.planned_date_begin and task.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/> </t><t t-esc="cname"/></a>
                       <t t-if="bon_map.get(task.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{bon_map[task.id]}}/x_studio_photo_bon" target="_blank" class="trm-bon" title="Voir le bon scanné">📎</a></t><t t-if="pc_map.get(task.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{pc_map[task.id]}}/x_studio_photo" target="_blank" class="trm-bon" title="Photo prise en charge">📥</a></t><t t-if="liv_map.get(task.id)"><a t-attf-href="/web/image/x_project_task_worksheet_template_1/{{liv_map[task.id]}}/x_studio_photo_1" target="_blank" class="trm-bon" title="Photo livraison">🏁</a></t><t t-set="_bc" t-value="task.sale_line_id.order_id if task.sale_line_id else task.sale_order_id"/><t t-if="_bc"><a t-attf-href="/web#id={{_bc.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" class="trm-bon" t-att-title="'BC: ' + _bc.name">🧾</a></t>
                     </div>
                   </t>

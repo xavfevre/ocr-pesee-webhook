@@ -1,0 +1,616 @@
+<t t-name="website.planning_tp_page">
+  <t t-call="website.layout">
+    <t t-set="current_week_offset" t-value="request.params.get('week_offset') and int(request.params.get('week_offset')) or 0"/>
+    <t t-set="today" t-value="datetime.datetime.now()"/>
+    <t t-set="week_start" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(weeks=current_week_offset)"/>
+    <t t-set="week_end" t-value="week_start + datetime.timedelta(days=4)"/>
+    <t t-set="dst0" t-value="datetime.datetime(week_start.year,3,31,1) - datetime.timedelta(days=(datetime.datetime(week_start.year,3,31).weekday()+1)%7)"/>
+    <t t-set="dst1" t-value="datetime.datetime(week_start.year,10,31,1) - datetime.timedelta(days=(datetime.datetime(week_start.year,10,31).weekday()+1)%7)"/>
+    <t t-set="day_from" t-value="(week_start - datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 21:00:00'"/>
+    <t t-set="day_to" t-value="(week_end + datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="all_records" t-value="request.env['project.task'].sudo().search([('tag_ids','in',[1]),('planned_date_begin','&gt;=',day_from),('planned_date_begin','&lt;',day_to)])"/>
+    <t t-set="tp_emps" t-value="request.env['hr.employee'].sudo().search([('category_ids','in',[9])], order='name')"/>
+    <t t-set="tp_machines" t-value="request.env['fleet.vehicle'].sudo().search([('tag_ids','in',[4])], order='name')"/>
+    <t t-set="camions" t-value="request.env['delivery.carrier'].sudo().search([('active','=',True),('id','not in',[1,28])], order='name')"/>
+    <t t-set="types_tp" t-value="request.env['x_type_travaux_tp'].sudo().search([], order='x_name')"/>
+    <t t-set="palette" t-value="['#1f6f78','#b45309','#7c3aed','#be123c','#0f766e','#4d7c0f','#9d174d','#1d4ed8','#c2410c','#4338ca','#0e7490','#a16207','#7e22ce','#15803d','#9f1239']"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      .tp-cell{min-width:250px;vertical-align:top;padding:5px;background:#fbfcfd;}
+      .tp-card{background:#fff;border:1px solid #d4dde4;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.10);overflow:hidden;}
+      .tp-head{background:#1f6f78;color:#fff;padding:6px 9px;font-size:15px;font-weight:800;line-height:1.25;display:flex;justify-content:space-between;align-items:center;gap:6px;}
+      .tp-head a{color:#fff;text-decoration:none;flex:1;}
+      .tp-head a:hover{text-decoration:underline;}
+      .tp-copy{cursor:pointer;background:rgba(255,255,255,.22);border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;white-space:nowrap;}
+      .tp-copy:hover{background:rgba(255,255,255,.42);}
+      .tp-body{padding:7px 9px;}
+      .tp-time{display:inline-block;background:#0f172a;color:#fff;font-size:13.5px;font-weight:800;border-radius:6px;padding:2px 9px;margin-bottom:3px;letter-spacing:.3px;}
+      .tp-multi{font-weight:600;font-size:11px;opacity:.85;}
+      .tp-sec-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#7b8a97;font-weight:800;margin:6px 0 2px;}
+      .tp-chip{display:inline-flex;align-items:center;gap:4px;border-radius:12px;padding:3px 10px;margin:2px 3px 0 0;font-size:13px;font-weight:700;}
+      .tp-chip-emp{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;}
+      .tp-chip-mac{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;}
+      .tp-chip-type{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}
+      .tp-newtype{font-size:11px;border:1px dashed #86efac;background:#f0fdf4;color:#166534;border-radius:10px;padding:2px 8px;margin:2px 2px 0 0;cursor:pointer;font-weight:700;}
+      .tp-newtype:hover{background:#bbf7d0;}
+      .tp-done{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:5px;padding:2px 4px;border-radius:6px;}
+      .tp-done:hover{background:#f1f5f9;}
+      .tp-done-cb{width:17px;height:17px;cursor:pointer;accent-color:#16a34a;}
+      .tp-done-y{color:#15803d;}
+      .tp-done-n{color:#64748b;}
+      .tp-done-card{opacity:.7;}
+      .tp-done-card .tp-head{filter:grayscale(.25);}
+      .tp-grip{cursor:grab;color:rgba(255,255,255,.9);font-size:15px;font-weight:700;padding:0 5px 0 0;user-select:none;}
+      .tp-grip:active{cursor:grabbing;}
+      .tp-chip-x{cursor:pointer;font-weight:800;opacity:.55;font-size:14px;}
+      .tp-chip-x:hover{opacity:1;color:#c0392b;}
+      .tp-add{font-size:12.5px;padding:2px 5px;border:1px dashed #cbd5e1;border-radius:8px;max-width:100%;margin-top:3px;color:#475569;background:#fff;}
+      .tp-addr{font-size:12.5px;color:#1f2937;font-weight:500;line-height:1.35;margin-top:3px;}
+      .tp-addr b{color:#0f172a;}
+      .tp-client{font-weight:700;color:#15324f;background:#eef2f6;position:sticky;left:0;font-size:13.5px;}
+      .tp-cinfo{font-size:12px;color:#334155;font-weight:600;margin-bottom:3px;line-height:1.25;}
+      .tpw-scroll{overflow:auto;}
+      .tpw-scroll thead th{position:sticky;top:0;z-index:9;}
+      .tpw-scroll thead th:first-child{left:0;z-index:11;}
+      .tpw-scroll .tp-client{z-index:8;}
+      .tp-newcell{cursor:pointer;border:1px dashed #94a3b8;border-radius:8px;color:#64748b;font-size:12.5px;text-align:center;padding:5px;background:#f1f5f9;font-weight:700;}
+      .tp-newcell:hover{background:#dbeafe;color:#0f172a;border-color:#3b82f6;}
+      .tp-create-box{background:linear-gradient(135deg,#eaf3f4,#fbfdfd);border:2px solid #cfe3e5;border-radius:14px;padding:12px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+      .tp-create-title{font-size:16px;font-weight:800;color:#15324f;margin-bottom:10px;text-align:center;}
+      .tp-create-sub{font-weight:500;color:#6b8a8e;font-size:13px;}
+      .tp-create-flow{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:10px;}
+      .tp-step{display:flex;gap:9px;align-items:flex-start;background:#fff;border:1px solid #dbe7e8;border-radius:10px;padding:9px 11px;}
+      .tp-step-num{flex:none;width:27px;height:27px;border-radius:50%;background:#327279;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+      .tp-step-body{display:flex;flex-direction:column;}
+      .tp-step-lbl{font-weight:700;color:#15324f;font-size:13px;margin-bottom:3px;}
+      .tp-step-body .form-control{min-width:185px;}
+      .tp-step-hint{color:#9aa7ad;font-size:10.5px;margin-top:2px;}
+      .tp-step-arrow{align-self:center;color:#86b0b3;font-size:20px;font-weight:800;}
+      .tp-create-btn{align-self:center;background:#22a06b;color:#fff;border:none;border-radius:10px;padding:11px 20px;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 2px 6px rgba(34,160,107,.4);}
+      .tp-create-btn:hover{background:#1b8457;}
+      .tp-create-btn:disabled{opacity:.6;cursor:wait;}
+      @media (max-width: 767px){ .tp-step-arrow{display:none;} .tp-create-flow{flex-direction:column;} .tp-step, .tp-create-btn{width:100%;} .tp-step-body{flex:1;} .tp-step-body .form-control{width:100%;} }
+    </style>
+
+    <div class="container-fluid px-2 px-md-3 my-2">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#2c3e50;letter-spacing:1px;">🏗️ Planning TP</h3>
+
+      <div class="tp-create-box">
+        <div class="tp-create-title">🏗️ Créer une nouvelle tâche TP <span class="tp-create-sub">— 3 étapes simples</span></div>
+        <div class="tp-create-flow">
+          <div class="tp-step">
+            <span class="tp-step-num">1</span>
+            <div class="tp-step-body">
+              <label class="tp-step-lbl">👤 Le client</label>
+              <input id="tp-client" list="tp-clients-dl" class="form-control" placeholder="Tape un nom..."/>
+              <datalist id="tp-clients-dl"/>
+              <small class="tp-step-hint">S'il n'existe pas, on propose de le créer</small>
+            </div>
+          </div>
+          <div class="tp-step-arrow">➜</div>
+          <div class="tp-step">
+            <span class="tp-step-num">2</span>
+            <div class="tp-step-body">
+              <label class="tp-step-lbl">📝 Le chantier</label>
+              <input id="tp-name" class="form-control" placeholder="Objet / chantier..."/>
+              <small class="tp-step-hint">Ex : nom du chantier, réf...</small>
+            </div>
+          </div>
+          <div class="tp-step-arrow">➜</div>
+          <div class="tp-step">
+            <span class="tp-step-num">3</span>
+            <div class="tp-step-body">
+              <label class="tp-step-lbl">📅 Le jour</label>
+              <input id="tp-date" type="date" class="form-control"/>
+              <small class="tp-step-hint">Date d'intervention</small>
+            </div>
+          </div>
+          <button id="tp-create" class="tp-create-btn">✅ Créer la tâche</button>
+        </div>
+      </div>
+
+      <div class="text-center small mb-2 p-2 bg-light rounded">
+        <strong><t t-esc="week_start.strftime('%d/%m')"/> → <t t-esc="week_end.strftime('%d/%m/%Y')"/></strong>
+        <span class="text-muted"> · Semaine <t t-esc="week_start.isocalendar()[1]"/></span>
+        <div class="mt-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
+          <t t-set="selected_op" t-value="request.params.get('operateur', '')"/>
+          <t t-set="ops" t-value="sorted(set([n for t in all_records for n in t.x_studio_operateurs.mapped('display_name')]))"/>
+          <select class="form-select form-select-sm w-auto" onchange="flt('operateur', this.value)">
+            <option value="">👷 Tous ouvriers</option>
+            <t t-foreach="ops" t-as="op">
+              <option t-att-value="op" t-att-selected="'selected' if op == selected_op else None"><t t-esc="op"/></option>
+            </t>
+          </select>
+          <t t-set="selected_client" t-value="request.params.get('client', '')"/>
+          <t t-set="clients_f" t-value="sorted(set(t.partner_id.display_name for t in all_records if t.partner_id))"/>
+          <select class="form-select form-select-sm w-auto" onchange="flt('client', this.value)">
+            <option value="">🏢 Tous clients</option>
+            <t t-foreach="clients_f" t-as="cl">
+              <option t-att-value="cl" t-att-selected="'selected' if cl == selected_client else None"><t t-esc="cl"/></option>
+            </t>
+          </select>
+        </div>
+      </div>
+
+      <div class="text-center mb-2 d-none d-md-flex justify-content-center align-items-center gap-2">
+        <a t-attf-href="?week_offset={{current_week_offset - 1}}&amp;operateur={{request.params.get('operateur', '')}}&amp;client={{request.params.get('client', '')}}" class="btn btn-outline-primary btn-sm"><i class="fa fa-chevron-left"/> <span class="d-none d-md-inline">Préc.</span></a>
+        <a t-attf-href="?operateur={{request.params.get('operateur', '')}}&amp;client={{request.params.get('client', '')}}" class="btn btn-success btn-sm">Semaine en cours</a>
+        <a t-attf-href="?week_offset={{current_week_offset + 1}}&amp;operateur={{request.params.get('operateur', '')}}&amp;client={{request.params.get('client', '')}}" class="btn btn-outline-primary btn-sm"><span class="d-none d-md-inline">Suiv.</span> <i class="fa fa-chevron-right"/></a>
+        <a href="/planning-tp-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a>
+      </div>
+
+      <t t-set="filtered_records" t-value="all_records"/>
+      <t t-if="selected_op">
+        <t t-set="filtered_records" t-value="filtered_records.filtered(lambda t: selected_op in t.x_studio_operateurs.mapped('display_name'))"/>
+      </t>
+      <t t-if="selected_client">
+        <t t-set="filtered_records" t-value="filtered_records.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/>
+      </t>
+
+      <t t-set="clients" t-value="filtered_records.mapped('partner_id').sorted(lambda p: p.display_name)"/>
+
+      <div class="table-responsive d-none d-md-block tpw-scroll">
+        <table class="table table-sm table-bordered align-middle" style="min-width:1550px;">
+          <thead class="table-dark">
+            <tr>
+              <t t-foreach="range(5)" t-as="d">
+                <t t-set="cd" t-value="week_start + datetime.timedelta(days=d)"/>
+                <t t-set="is_today" t-value="cd.date() == datetime.datetime.now().date()"/>
+                <th t-attf-class="text-center {{is_today and 'table-warning text-dark' or ''}}" style="min-width:250px;">
+                  <t t-set="dn" t-value="cd.strftime('%A')"/>
+                  <t t-esc="{'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}.get(dn, dn)"/>
+                  <t t-if="is_today"><i class="fa fa-star text-warning ms-1"/></t>
+                  <br/><small t-attf-style="color:{{is_today and '#6b5800' or '#cfd8e3'}};font-weight:600;"><t t-esc="cd.strftime('%d/%m')"/></small>
+                </th>
+              </t>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                <t t-foreach="range(5)" t-as="d">
+                  <t t-set="cd" t-value="week_start + datetime.timedelta(days=d)"/>
+                  <t t-set="daystr" t-value="cd.strftime('%Y-%m-%d')"/>
+                  <t t-set="cell_tasks" t-value="filtered_records.filtered(lambda t: t.planned_date_begin and (t.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= t.planned_date_begin and t.planned_date_begin &lt; dst1) else 1)).date() == cd.date()).sorted(lambda t: t.planned_date_begin)"/>
+                  <td class="tp-cell" t-att-data-day="daystr">
+                    <t t-foreach="cell_tasks" t-as="task">
+                    <t t-set="ccol" t-value="palette[sum([ord(ch) for ch in (task.partner_id.display_name or 'x')]) % len(palette)]"/>
+                      <t t-set="t_end" t-value="task.date_deadline or task.planned_date_begin"/>
+                      <div t-attf-class="tp-card{{' tp-done-card' if task.state == '1_done' else ''}}" t-att-data-id="task.id" t-att-data-name="task.name" t-att-data-begin="task.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="t_end.strftime('%Y-%m-%d %H:%M:%S')">
+                        <t t-set="is_cancelled" t-value="task.stage_id and ('annul' in task.stage_id.name.lower() or 'cancel' in task.stage_id.name.lower())"/>
+                        <t t-if="is_cancelled">
+                          <div style="background:#dc3545;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;letter-spacing:.5px;">❌ ANNULÉ</div>
+                        </t>
+                        <t t-if="not is_cancelled">
+                          <t t-set="so" t-value="task.sale_line_id.order_id if task.sale_line_id else task.sale_order_id"/>
+                          <t t-if="so">
+                            <t t-set="inv" t-value="so.invoice_status"/>
+                            <t t-if="inv == 'invoiced'">
+                              <t t-set="payment_states" t-value="set(so.invoice_ids.filtered(lambda m: m.state == 'posted').mapped('payment_state'))"/>
+                              <t t-set="is_paid" t-value="payment_states and all(s in ('paid', 'in_payment', 'reversed') for s in payment_states)"/>
+                              <t t-if="is_paid"><div style="background:#0d6efd;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;">💰 PAYÉ</div></t>
+                              <t t-else=""><div style="background:#198754;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;">✅ FACTURÉ</div></t>
+                            </t>
+                            <t t-elif="inv == 'to invoice'">
+                              <div style="background:#fd7e14;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;">🧾 À FACTURER</div>
+                            </t>
+                          </t>
+                        </t>
+                        <div class="tp-head" t-attf-style="background:{{ccol}};">
+                          <span class="tp-grip d-none d-md-inline-block" draggable="true" title="Glisser pour déplacer sur un autre jour">⠿</span>
+                          <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank"><t t-esc="task.name"/></a>
+                          <span class="tp-copy" title="Copier cette tâche sur le lendemain">📋 J+1</span>
+                        </div>
+                        <div class="tp-body"><t t-if="task.partner_id"><div class="tp-cinfo">🏢 <span style="font-weight:800;"><t t-esc="task.partner_id.display_name"/></span><t t-if="task.partner_id.phone"> · 📞 <a t-attf-href="tel:{{task.partner_id.phone}}" style="color:#0369a1;text-decoration:none;"><t t-esc="task.partner_id.phone"/></a></t></div></t>
+                          <label class="tp-done"><input type="checkbox" class="tp-done-cb" t-att-data-task="task.id" t-att-checked="'checked' if task.state == '1_done' else None"/> <t t-if="task.state == '1_done'"><span class="tp-done-y">✅ Terminé</span></t><t t-else=""><span class="tp-done-n">Marquer terminé</span></t></label>
+                          <div class="tp-time">🕐 <t t-esc="(task.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= task.planned_date_begin and task.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/> → <t t-esc="(t_end + datetime.timedelta(hours=2 if (dst0 &lt;= t_end and t_end &lt; dst1) else 1)).strftime('%H:%M')"/><t t-if="(task.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= task.planned_date_begin and task.planned_date_begin &lt; dst1) else 1)).date() != (t_end + datetime.timedelta(hours=2 if (dst0 &lt;= t_end and t_end &lt; dst1) else 1)).date()"> <span class="tp-multi">(fin <t t-esc="(t_end + datetime.timedelta(hours=2 if (dst0 &lt;= t_end and t_end &lt; dst1) else 1)).strftime('%d/%m')"/>)</span></t></div>
+                          <div class="tp-types" style="margin-top:4px;">
+                            <t t-foreach="task.x_studio_type_travaux" t-as="tt">
+                              <span class="tp-chip tp-chip-type"><t t-esc="tt.x_name"/><span class="tp-chip-x" t-att-data-task="task.id" data-field="x_studio_type_travaux" t-att-data-val="tt.id">×</span></span>
+                            </t>
+                            <select class="tp-add" t-att-data-task="task.id" data-field="x_studio_type_travaux" style="min-width:auto;width:auto;display:inline-block;">
+                              <option value="">+ type</option>
+                              <t t-foreach="types_tp.filtered(lambda x: x.id not in task.x_studio_type_travaux.ids)" t-as="x">
+                                <option t-att-value="x.id"><t t-esc="x.x_name"/></option>
+                              </t>
+                            </select>
+                            <button type="button" class="tp-newtype" t-att-data-task="task.id">+ nouveau</button>
+                          </div>
+                          <!-- Ouvriers -->
+                          <div class="tp-sec-lbl">👷 Ouvrier</div>
+                          <div>
+                            <t t-foreach="task.x_studio_operateurs" t-as="op">
+                              <span class="tp-chip tp-chip-emp"><t t-esc="op.name"/><span class="tp-chip-x" t-att-data-task="task.id" data-field="x_studio_operateurs" t-att-data-val="op.id">×</span></span>
+                            </t>
+                          </div>
+                          <select class="tp-add" t-att-data-task="task.id" data-field="x_studio_operateurs">
+                            <option value="">+ ajouter un ouvrier</option>
+                            <t t-foreach="tp_emps.filtered(lambda e: e.id not in task.x_studio_operateurs.ids)" t-as="e">
+                              <option t-att-value="e.id"><t t-esc="e.name"/></option>
+                            </t>
+                          </select>
+                          <!-- Camion -->
+                          <div class="tp-sec-lbl">🚛 Camion (transport)</div>
+                          <select class="tp-camion form-select form-select-sm" t-att-data-task="task.id" style="font-size:12px;padding:2px 4px;">
+                            <option value="">— aucun —</option>
+                            <t t-foreach="camions" t-as="c">
+                              <option t-att-value="c.id" t-att-selected="'selected' if task.x_studio_transport and task.x_studio_transport.id == c.id else None"><t t-esc="c.name"/></option>
+                            </t>
+                          </select>
+                          <!-- Machines -->
+                          <div class="tp-sec-lbl">🚜 Machines</div>
+                          <div>
+                            <t t-foreach="task.x_studio_machines_tp" t-as="mac">
+                              <t t-set="mlbl" t-value="mac.name.split('/')[1] if len(mac.name.split('/')) &gt; 1 else mac.name"/>
+                              <span class="tp-chip tp-chip-mac"><t t-esc="mlbl"/><span class="tp-chip-x" t-att-data-task="task.id" data-field="x_studio_machines_tp" t-att-data-val="mac.id">×</span></span>
+                            </t>
+                          </div>
+                          <select class="tp-add" t-att-data-task="task.id" data-field="x_studio_machines_tp">
+                            <option value="">+ ajouter une machine</option>
+                            <t t-foreach="tp_machines.filtered(lambda m: m.id not in task.x_studio_machines_tp.ids)" t-as="m">
+                              <t t-set="olbl" t-value="m.name.split('/')[1] if len(m.name.split('/')) &gt; 1 else m.name"/>
+                              <option t-att-value="m.id"><t t-esc="olbl"/></option>
+                            </t>
+                          </select>
+                          <!-- Adresses (éditables) -->
+                          <div class="tp-sec-lbl">📦 Chargement</div>
+                          <textarea class="tp-addr-edit form-control form-control-sm" t-att-data-task="task.id" data-field="x_studio_adresse_de_chargement" rows="2" placeholder="Adresse de chargement..." style="font-size:11.5px;padding:3px 6px;"><t t-esc="task.x_studio_adresse_de_chargement or ''"/></textarea>
+                          <div class="tp-sec-lbl">🏁 Livraison</div>
+                          <textarea class="tp-addr-edit form-control form-control-sm" t-att-data-task="task.id" data-field="x_studio_adresse_de_livraison_3" rows="2" placeholder="Adresse de livraison..." style="font-size:11.5px;padding:3px 6px;"><t t-esc="task.x_studio_adresse_de_livraison_3 or ''"/></textarea>
+                          <div class="tp-sec-lbl">📝 Note</div>
+                          <textarea class="tp-addr-edit form-control form-control-sm" t-att-data-task="task.id" data-field="x_studio_notes" rows="2" placeholder="Note libre..." style="font-size:11.5px;padding:3px 6px;"><t t-esc="task.x_studio_notes or ''"/></textarea>
+                        </div>
+                      </div>
+                    </t>
+                    <div class="tp-newcell" t-att-data-day="daystr">+ tâche</div>
+                  </td>
+                </t>
+              </tr>
+            <t t-if="not filtered_records">
+              <tr><td colspan="6" class="text-center text-muted p-4">Aucune tâche TP cette semaine. Créez-en une via la barre ci-dessus.</td></tr>
+            </t>
+          </tbody>
+        </table>
+      </div>
+      <!-- ===== VUE JOUR MOBILE ===== -->
+      <div class="d-md-none">
+        <t t-set="day_offset" t-value="int(request.params.get('day_offset') or 0)"/>
+        <t t-set="m_day" t-value="datetime.datetime.now() + datetime.timedelta(days=day_offset)"/>
+        <t t-set="md_from" t-value="(m_day - datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 21:00:00'"/>
+        <t t-set="md_to" t-value="(m_day + datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 00:00:00'"/>
+        <t t-set="m_tasks" t-value="request.env['project.task'].sudo().search([('tag_ids','in',[1]),('planned_date_begin','&gt;=',md_from),('planned_date_begin','&lt;',md_to)], order='planned_date_begin')"/>
+        <t t-if="selected_op"><t t-set="m_tasks" t-value="m_tasks.filtered(lambda t: selected_op in t.x_studio_operateurs.mapped('display_name'))"/></t>
+        <t t-if="selected_client"><t t-set="m_tasks" t-value="m_tasks.filtered(lambda t: t.partner_id and t.partner_id.display_name == selected_client)"/></t>
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+          <a t-attf-href="?day_offset={{day_offset - 1}}&amp;operateur={{selected_op}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">◀ Préc.</a>
+          <div class="text-center" style="line-height:1.2;">
+            <strong><t t-esc="{'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}.get(m_day.strftime('%A'), m_day.strftime('%A'))"/></strong><br/>
+            <span class="small text-muted"><t t-esc="m_day.strftime('%d/%m/%Y')"/></span>
+          </div>
+          <a t-attf-href="?day_offset={{day_offset + 1}}&amp;operateur={{selected_op}}&amp;client={{selected_client}}" class="btn btn-sm fw-bold" style="background:#fff;color:#15324f;border:1px solid #cfd8e3;box-shadow:0 1px 2px rgba(0,0,0,.15);">Suiv. ▶</a>
+        </div>
+        <div class="text-center mb-2 d-flex justify-content-center gap-2"><a t-attf-href="?operateur={{selected_op}}&amp;client={{selected_client}}" class="btn btn-success btn-sm">📅 Aujourd'hui</a><a href="/planning-tp-mois" class="btn btn-info btn-sm text-white">📅 Vue mois</a></div>
+        <t t-set="m_clients" t-value="m_tasks.mapped('partner_id').sorted(lambda p: p.display_name)"/>
+        <t t-foreach="m_clients" t-as="client">
+          <t t-set="ccol" t-value="palette[sum([ord(ch) for ch in (client.display_name or 'x')]) % len(palette)]"/>
+          <div t-attf-style="border-left:6px solid {{ccol}};background:#eef2f6;padding:5px 9px;font-weight:700;color:#15324f;border-radius:5px;margin:8px 0 5px;">
+            <div style="font-size:14px;"><t t-esc="client.display_name"/></div>
+            <t t-set="_ville" t-value="((client.zip or '') + ' ' + (client.city or '')).strip()"/>
+            <t t-set="_addr" t-value="', '.join([x for x in [client.street, client.street2, _ville] if x])"/>
+            <div t-if="_addr" style="font-size:11px;color:#475569;font-weight:400;">📍 <t t-esc="_addr"/></div>
+            <div t-if="client.phone" style="font-size:11px;font-weight:400;">📞 <a t-attf-href="tel:{{client.phone}}" style="color:#475569;"><t t-esc="client.phone"/></a></div>
+          </div>
+          <t t-foreach="m_tasks.filtered(lambda t: t.partner_id.id == client.id)" t-as="task">
+            <t t-set="t_end" t-value="task.date_deadline or task.planned_date_begin"/>
+                      <div t-attf-class="tp-card{{' tp-done-card' if task.state == '1_done' else ''}}" t-att-data-id="task.id" t-att-data-name="task.name" t-att-data-begin="task.planned_date_begin.strftime('%Y-%m-%d %H:%M:%S')" t-att-data-end="t_end.strftime('%Y-%m-%d %H:%M:%S')">
+                        <t t-set="is_cancelled" t-value="task.stage_id and ('annul' in task.stage_id.name.lower() or 'cancel' in task.stage_id.name.lower())"/>
+                        <t t-if="is_cancelled">
+                          <div style="background:#dc3545;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;letter-spacing:.5px;">❌ ANNULÉ</div>
+                        </t>
+                        <t t-if="not is_cancelled">
+                          <t t-set="so" t-value="task.sale_line_id.order_id if task.sale_line_id else task.sale_order_id"/>
+                          <t t-if="so">
+                            <t t-set="inv" t-value="so.invoice_status"/>
+                            <t t-if="inv == 'invoiced'">
+                              <t t-set="payment_states" t-value="set(so.invoice_ids.filtered(lambda m: m.state == 'posted').mapped('payment_state'))"/>
+                              <t t-set="is_paid" t-value="payment_states and all(s in ('paid', 'in_payment', 'reversed') for s in payment_states)"/>
+                              <t t-if="is_paid"><div style="background:#0d6efd;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;">💰 PAYÉ</div></t>
+                              <t t-else=""><div style="background:#198754;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;">✅ FACTURÉ</div></t>
+                            </t>
+                            <t t-elif="inv == 'to invoice'">
+                              <div style="background:#fd7e14;color:#fff;font-size:10px;text-align:center;padding:2px 4px;font-weight:700;">🧾 À FACTURER</div>
+                            </t>
+                          </t>
+                        </t>
+                        <div class="tp-head" t-attf-style="background:{{ccol}};">
+                          <span class="tp-grip d-none d-md-inline-block" draggable="true" title="Glisser pour déplacer sur un autre jour">⠿</span>
+                          <a t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank"><t t-esc="task.name"/></a>
+                          <span class="tp-copy" title="Copier cette tâche sur le lendemain">📋 J+1</span>
+                        </div>
+                        <div class="tp-body"><t t-if="task.partner_id"><div class="tp-cinfo">🏢 <span style="font-weight:800;"><t t-esc="task.partner_id.display_name"/></span><t t-if="task.partner_id.phone"> · 📞 <a t-attf-href="tel:{{task.partner_id.phone}}" style="color:#0369a1;text-decoration:none;"><t t-esc="task.partner_id.phone"/></a></t></div></t>
+                          <label class="tp-done"><input type="checkbox" class="tp-done-cb" t-att-data-task="task.id" t-att-checked="'checked' if task.state == '1_done' else None"/> <t t-if="task.state == '1_done'"><span class="tp-done-y">✅ Terminé</span></t><t t-else=""><span class="tp-done-n">Marquer terminé</span></t></label>
+                          <div class="tp-time">🕐 <t t-esc="(task.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= task.planned_date_begin and task.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/> → <t t-esc="(t_end + datetime.timedelta(hours=2 if (dst0 &lt;= t_end and t_end &lt; dst1) else 1)).strftime('%H:%M')"/><t t-if="(task.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= task.planned_date_begin and task.planned_date_begin &lt; dst1) else 1)).date() != (t_end + datetime.timedelta(hours=2 if (dst0 &lt;= t_end and t_end &lt; dst1) else 1)).date()"> <span class="tp-multi">(fin <t t-esc="(t_end + datetime.timedelta(hours=2 if (dst0 &lt;= t_end and t_end &lt; dst1) else 1)).strftime('%d/%m')"/>)</span></t></div>
+                          <div class="tp-types" style="margin-top:4px;">
+                            <t t-foreach="task.x_studio_type_travaux" t-as="tt">
+                              <span class="tp-chip tp-chip-type"><t t-esc="tt.x_name"/><span class="tp-chip-x" t-att-data-task="task.id" data-field="x_studio_type_travaux" t-att-data-val="tt.id">×</span></span>
+                            </t>
+                            <select class="tp-add" t-att-data-task="task.id" data-field="x_studio_type_travaux" style="min-width:auto;width:auto;display:inline-block;">
+                              <option value="">+ type</option>
+                              <t t-foreach="types_tp.filtered(lambda x: x.id not in task.x_studio_type_travaux.ids)" t-as="x">
+                                <option t-att-value="x.id"><t t-esc="x.x_name"/></option>
+                              </t>
+                            </select>
+                            <button type="button" class="tp-newtype" t-att-data-task="task.id">+ nouveau</button>
+                          </div>
+                          <!-- Ouvriers -->
+                          <div class="tp-sec-lbl">👷 Ouvrier</div>
+                          <div>
+                            <t t-foreach="task.x_studio_operateurs" t-as="op">
+                              <span class="tp-chip tp-chip-emp"><t t-esc="op.name"/><span class="tp-chip-x" t-att-data-task="task.id" data-field="x_studio_operateurs" t-att-data-val="op.id">×</span></span>
+                            </t>
+                          </div>
+                          <select class="tp-add" t-att-data-task="task.id" data-field="x_studio_operateurs">
+                            <option value="">+ ajouter un ouvrier</option>
+                            <t t-foreach="tp_emps.filtered(lambda e: e.id not in task.x_studio_operateurs.ids)" t-as="e">
+                              <option t-att-value="e.id"><t t-esc="e.name"/></option>
+                            </t>
+                          </select>
+                          <!-- Camion -->
+                          <div class="tp-sec-lbl">🚛 Camion (transport)</div>
+                          <select class="tp-camion form-select form-select-sm" t-att-data-task="task.id" style="font-size:12px;padding:2px 4px;">
+                            <option value="">— aucun —</option>
+                            <t t-foreach="camions" t-as="c">
+                              <option t-att-value="c.id" t-att-selected="'selected' if task.x_studio_transport and task.x_studio_transport.id == c.id else None"><t t-esc="c.name"/></option>
+                            </t>
+                          </select>
+                          <!-- Machines -->
+                          <div class="tp-sec-lbl">🚜 Machines</div>
+                          <div>
+                            <t t-foreach="task.x_studio_machines_tp" t-as="mac">
+                              <t t-set="mlbl" t-value="mac.name.split('/')[1] if len(mac.name.split('/')) &gt; 1 else mac.name"/>
+                              <span class="tp-chip tp-chip-mac"><t t-esc="mlbl"/><span class="tp-chip-x" t-att-data-task="task.id" data-field="x_studio_machines_tp" t-att-data-val="mac.id">×</span></span>
+                            </t>
+                          </div>
+                          <select class="tp-add" t-att-data-task="task.id" data-field="x_studio_machines_tp">
+                            <option value="">+ ajouter une machine</option>
+                            <t t-foreach="tp_machines.filtered(lambda m: m.id not in task.x_studio_machines_tp.ids)" t-as="m">
+                              <t t-set="olbl" t-value="m.name.split('/')[1] if len(m.name.split('/')) &gt; 1 else m.name"/>
+                              <option t-att-value="m.id"><t t-esc="olbl"/></option>
+                            </t>
+                          </select>
+                          <!-- Adresses (éditables) -->
+                          <div class="tp-sec-lbl">📦 Chargement</div>
+                          <textarea class="tp-addr-edit form-control form-control-sm" t-att-data-task="task.id" data-field="x_studio_adresse_de_chargement" rows="2" placeholder="Adresse de chargement..." style="font-size:11.5px;padding:3px 6px;"><t t-esc="task.x_studio_adresse_de_chargement or ''"/></textarea>
+                          <div class="tp-sec-lbl">🏁 Livraison</div>
+                          <textarea class="tp-addr-edit form-control form-control-sm" t-att-data-task="task.id" data-field="x_studio_adresse_de_livraison_3" rows="2" placeholder="Adresse de livraison..." style="font-size:11.5px;padding:3px 6px;"><t t-esc="task.x_studio_adresse_de_livraison_3 or ''"/></textarea>
+                          <div class="tp-sec-lbl">📝 Note</div>
+                          <textarea class="tp-addr-edit form-control form-control-sm" t-att-data-task="task.id" data-field="x_studio_notes" rows="2" placeholder="Note libre..." style="font-size:11.5px;padding:3px 6px;"><t t-esc="task.x_studio_notes or ''"/></textarea>
+                        </div>
+                      </div>
+                    </t>
+          <div class="tp-newcell" t-att-data-partner="client.id" t-att-data-day="m_day.strftime('%Y-%m-%d')">+ tâche pour ce client</div>
+        </t>
+        <t t-if="not m_clients"><div class="text-center text-muted p-4">Aucune tâche TP ce jour.</div></t>
+      </div>
+
+    </div>
+
+    <script>
+      function flt(k, v){var u = new URL(window.location); if(v){u.searchParams.set(k, v);} else {u.searchParams.delete(k);} window.location.href = u.toString();}
+      window.fitGrid = function(){
+        var el = document.querySelector('.tpw-scroll');
+        if(!el){ return; }
+        var h = window.innerHeight - el.getBoundingClientRect().top - 8;
+        el.style.maxHeight = Math.max(220, h) + 'px';
+      };
+      window.addEventListener('load', window.fitGrid);
+      window.addEventListener('resize', window.fitGrid);
+      setTimeout(window.fitGrid, 400);
+      (function(){
+        function rpc(model, method, args, cb){
+          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:{}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ cb(false, (d.error.data &amp;&amp; d.error.data.message) || d.error.message); }
+            else { cb(true, d.result); }
+          }).catch(function(e){ cb(false, String(e)); });
+        }
+        function write(taskId, vals, cb){ rpc('project.task','write',[[taskId], vals], cb); }
+        function saveScroll(){
+          try{
+            var g = document.querySelector('.tpw-scroll');
+            sessionStorage.setItem('tpScroll', JSON.stringify({w: window.scrollY, x: window.scrollX, gt: g ? g.scrollTop : 0, gl: g ? g.scrollLeft : 0}));
+          }catch(e){}
+        }
+        function restoreScroll(){
+          try{
+            var raw = sessionStorage.getItem('tpScroll');
+            if(!raw){ return; }
+            sessionStorage.removeItem('tpScroll');
+            var s = JSON.parse(raw);
+            var g = document.querySelector('.tpw-scroll');
+            if(g){ g.scrollTop = s.gt || 0; g.scrollLeft = s.gl || 0; }
+            window.scrollTo(s.x || 0, s.w || 0);
+          }catch(e){}
+        }
+        function reloadKeep(){ saveScroll(); location.reload(); }
+        window.addEventListener('load', function(){ setTimeout(restoreScroll, 150); });
+        function pad2(n){ return ('0' + n).slice(-2); }
+        function addOneDay(s){
+          if(!s){ return false; }
+          var parts = s.split(' ');
+          var dd = parts[0].split('-');
+          var dt = new Date(Date.UTC(parseInt(dd[0]), parseInt(dd[1]) - 1, parseInt(dd[2])));
+          dt.setUTCDate(dt.getUTCDate() + 1);
+          var nd = dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate());
+          return nd + ' ' + (parts[1] || '07:00:00');
+        }
+
+        document.querySelectorAll('.tp-add').forEach(function(sel){
+          sel.addEventListener('change', function(){
+            if(!sel.value){ return; }
+            var id = parseInt(sel.getAttribute('data-task'));
+            var field = sel.getAttribute('data-field');
+            var vals = {}; vals[field] = [[4, parseInt(sel.value)]];
+            write(id, vals, function(ok, msg){ if(ok){ reloadKeep(); } else { alert('Échec : ' + msg); } });
+          });
+        });
+        document.querySelectorAll('.tp-addr-edit').forEach(function(ta){
+          ta.addEventListener('change', function(){
+            var id = parseInt(ta.getAttribute('data-task'));
+            var field = ta.getAttribute('data-field');
+            var vals = {}; vals[field] = ta.value;
+            ta.style.borderColor = '#cbd5e1';
+            write(id, vals, function(ok, msg){
+              if(ok){ ta.style.borderColor = '#22c55e'; }
+              else { ta.style.borderColor = '#ef4444'; alert('Échec : ' + msg); }
+            });
+          });
+        });
+        document.querySelectorAll('.tp-done-cb').forEach(function(cb){
+          cb.addEventListener('change', function(){
+            var id = parseInt(cb.getAttribute('data-task'));
+            var v = cb.checked ? '1_done' : '01_in_progress';
+            write(id, {state: v}, function(ok, msg){ if(ok){ reloadKeep(); } else { cb.checked = !cb.checked; alert('Échec : ' + msg); } });
+          });
+        });
+        document.querySelectorAll('.tp-newtype').forEach(function(b){
+          b.addEventListener('click', function(){
+            var id = parseInt(b.getAttribute('data-task'));
+            var nm = (prompt('Nouveau type de travaux ?') || '').trim();
+            if(!nm){ return; }
+            rpc('x_type_travaux_tp','create',[{x_name: nm}], function(ok, newid){
+              if(!ok){ alert('Échec : ' + newid); return; }
+              write(id, {x_studio_type_travaux: [[4, newid]]}, function(ok2, msg){
+                if(ok2){ reloadKeep(); } else { alert('Échec : ' + msg); }
+              });
+            });
+          });
+        });
+        document.querySelectorAll('.tp-camion').forEach(function(sel){
+          sel.addEventListener('change', function(){
+            var id = parseInt(sel.getAttribute('data-task'));
+            var v = sel.value ? parseInt(sel.value) : false;
+            write(id, {x_studio_transport: v}, function(ok, msg){ if(ok){ reloadKeep(); } else { alert('Échec : ' + msg); } });
+          });
+        });
+        document.querySelectorAll('.tp-chip-x').forEach(function(b){
+          b.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            var id = parseInt(b.getAttribute('data-task'));
+            var field = b.getAttribute('data-field');
+            var vals = {}; vals[field] = [[3, parseInt(b.getAttribute('data-val'))]];
+            write(id, vals, function(ok, msg){ if(ok){ reloadKeep(); } else { alert('Échec : ' + msg); } });
+          });
+        });
+        document.querySelectorAll('.tp-copy').forEach(function(b){
+          b.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            var card = b.closest('.tp-card');
+            var id = parseInt(card.getAttribute('data-id'));
+            var nb = addOneDay(card.getAttribute('data-begin'));
+            var ne = addOneDay(card.getAttribute('data-end'));
+            var defaults = {name: card.getAttribute('data-name'), planned_date_begin: nb};
+            if(ne){ defaults.date_deadline = ne; }
+            rpc('project.task','copy',[id, defaults], function(ok, msg){ if(ok){ reloadKeep(); } else { alert('Échec copie : ' + msg); } });
+          });
+        });
+        document.querySelectorAll('.tp-newcell').forEach(function(b){
+          b.addEventListener('click', function(){
+            var day = b.getAttribute('data-day');
+            var d = document.getElementById('tp-date'); if(d){ d.value = day; }
+            var c = document.getElementById('tp-client'); if(c){ c.focus(); }
+            window.scrollTo({top:0, behavior:'smooth'});
+          });
+        });
+
+        var ci = document.getElementById('tp-client');
+        var dl = document.getElementById('tp-clients-dl');
+        var cmap = {};
+        function nameSearch(q, cb){
+          fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'res.partner',method:'name_search',args:[],kwargs:{name:q,domain:["|",["company_id","=",false],["company_id","=",1]],limit:20}}})
+          }).then(function(r){return r.json();}).then(function(d){ cb((d &amp;&amp; d.result) || []); }).catch(function(){ cb([]); });
+        }
+        if(ci){
+          ci.addEventListener('input', function(){
+            var q = ci.value;
+            if(q.length &lt; 2){ return; }
+            nameSearch(q, function(res){
+              dl.innerHTML=''; cmap={};
+              res.forEach(function(it){ cmap[it[1]] = it[0]; var o=document.createElement('option'); o.value=it[1]; dl.appendChild(o); });
+            });
+          });
+        }
+        function resolveClient(name, cb){
+          if(cmap[name]){ cb(cmap[name]); return; }
+          nameSearch(name, function(res){
+            var low = name.toLowerCase(); var exact = null, i;
+            for(i=0;i&lt;res.length;i++){ if((res[i][1]||'').toLowerCase() === low){ exact = res[i]; break; } }
+            if(exact){ cb(exact[0]); return; }
+            if(res.length === 1){ cb(res[0][0]); return; }
+            if(!confirm('Aucun client « ' + name + ' ».\nLe créer ?')){ return; }
+            rpc('res.partner','create',[{name: name, company_type: 'company'}], function(ok, r2){
+              if(ok){ cb(r2); } else { alert('Échec création client : ' + r2); }
+            });
+          });
+        }
+        var cbtn = document.getElementById('tp-create');
+        if(cbtn){
+          cbtn.addEventListener('click', function(){
+            var nameVal = (ci.value || '').trim();
+            if(!nameVal){ alert('Indiquez un client.'); return; }
+            var dt = document.getElementById('tp-date').value;
+            if(!dt){ alert('Choisissez une date.'); return; }
+            var nm = document.getElementById('tp-name').value || 'Tâche TP';
+            cbtn.disabled = true;
+            setTimeout(function(){ cbtn.disabled = false; }, 5000);
+            resolveClient(nameVal, function(pid){
+              rpc('project.task','create',[{name: nm, project_id: 2, partner_id: pid, tag_ids: [[4,1]], stage_id: 84, planned_date_begin: fmtUTC(new Date(dt + 'T07:00:00').getTime()), date_deadline: fmtUTC(new Date(dt + 'T12:00:00').getTime())}], function(ok, msg){
+                if(ok){ var d=new Date(dt+'T00:00:00'); var n=new Date(); n.setHours(0,0,0,0); function mon(x){var w=(x.getDay()+6)%7;var m=new Date(x);m.setDate(x.getDate()-w);m.setHours(0,0,0,0);return m;} var wo=Math.round((mon(d)-mon(n))/604800000); var dy=Math.round((d-n)/86400000); var u=new URL(window.location); if(wo){u.searchParams.set('week_offset',wo);}else{u.searchParams.delete('week_offset');} if(dy){u.searchParams.set('day_offset',dy);}else{u.searchParams.delete('day_offset');} window.location.href=u.toString(); } else { cbtn.disabled = false; alert('Échec : ' + msg); }
+              });
+            });
+          });
+        }
+
+        var dragged = null;
+        function pms(s){ var a = s.split(/[- :]/); return Date.UTC(+a[0], +a[1]-1, +a[2], +a[3]||0, +a[4]||0, +a[5]||0); }
+        function fmtUTC(ms){ var d = new Date(ms); function z(n){ return ('0'+n).slice(-2); } return d.getUTCFullYear()+'-'+z(d.getUTCMonth()+1)+'-'+z(d.getUTCDate())+' '+z(d.getUTCHours())+':'+z(d.getUTCMinutes())+':'+z(d.getUTCSeconds()); }
+        document.querySelectorAll('.tp-grip').forEach(function(g){
+          g.addEventListener('dragstart', function(e){ dragged = g.closest('.tp-card'); if(dragged){ dragged.style.opacity='0.4'; } });
+          g.addEventListener('dragend', function(){ if(dragged){ dragged.style.opacity='1'; } });
+        });
+        document.querySelectorAll('.tp-cell').forEach(function(cell){
+          cell.addEventListener('dragover', function(e){ e.preventDefault(); cell.style.background='#dbeafe'; });
+          cell.addEventListener('dragleave', function(){ cell.style.background=''; });
+          cell.addEventListener('drop', function(e){
+            e.preventDefault(); cell.style.background='';
+            if(!dragged){ return; }
+            var day = cell.getAttribute('data-day');
+            var begin = dragged.getAttribute('data-begin');
+            var end = dragged.getAttribute('data-end');
+            var id = parseInt(dragged.getAttribute('data-id'));
+            var card = dragged; dragged = null;
+            if(!day || !begin){ card.style.opacity='1'; return; }
+            var time = begin.split(' ')[1] || '07:00:00';
+            var nb = day + ' ' + time;
+            var vals = { planned_date_begin: nb };
+            if(end){ vals.date_deadline = fmtUTC(pms(nb) + (pms(end) - pms(begin))); }
+            write(id, vals, function(ok, msg){ if(ok){ reloadKeep(); } else { card.style.opacity='1'; alert('Échec : ' + msg); } });
+          });
+        });
+
+        setInterval(function(){
+          var modals = document.querySelectorAll('.modal, .o_dialog');
+          for(var i=0;i&lt;modals.length;i++){
+            if((modals[i].textContent || '').indexOf('Could not start interaction') !== -1){
+              var btns = modals[i].querySelectorAll('button');
+              for(var j=0;j&lt;btns.length;j++){ if(/fermer|close/i.test(btns[j].textContent||'')){ btns[j].click(); } }
+            }
+          }
+        }, 1200);
+      })();
+    </script>
+  </t>
+</t>

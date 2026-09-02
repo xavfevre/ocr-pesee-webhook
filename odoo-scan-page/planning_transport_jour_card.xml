@@ -32,7 +32,7 @@
         <span class="ttx-driver">👤 <t t-esc="chnm"/></span>
       </div>
       <div class="ttx-row">
-        <span class="ttx-time">🕐 <t t-esc="tache.planned_date_begin.strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="tache.date_deadline.strftime('%H:%M')"/></t></span>
+        <span class="ttx-time">🕐 <t t-esc="(tache.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= tache.planned_date_begin and tache.planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/><t t-if="tache.date_deadline"> → <t t-esc="(tache.date_deadline + datetime.timedelta(hours=2 if (dst0 &lt;= tache.date_deadline and tache.date_deadline &lt; dst1) else 1)).strftime('%H:%M')"/></t></span>
         <span class="ttx-dur" t-if="dur &gt; 0">· <t t-esc="'%.1f' % dur"/> h</span>
       </div>
       <t t-if="tache.tag_ids"><div class="ttx-tags"><t t-foreach="tache.tag_ids" t-as="tg"><span class="ttx-tag"><t t-esc="tg.name"/></span></t></div></t>

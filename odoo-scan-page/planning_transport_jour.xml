@@ -10,9 +10,9 @@
     <t t-set="mois_noms" t-value="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']"/>
     <t t-set="palette" t-value="['#1f6f78','#b45309','#7c3aed','#be123c','#0f766e','#4d7c0f','#9d174d','#1d4ed8','#c2410c','#4338ca','#0e7490','#a16207','#7e22ce','#15803d','#9f1239']"/>
 
-    <t t-set="df" t-value="day.strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="dst0" t-value="datetime.datetime(day.year,3,31,1) - datetime.timedelta(days=(datetime.datetime(day.year,3,31).weekday()+1)%7)"/><t t-set="dst1" t-value="datetime.datetime(day.year,10,31,1) - datetime.timedelta(days=(datetime.datetime(day.year,10,31).weekday()+1)%7)"/><t t-set="df" t-value="(day - datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 21:00:00'"/>
     <t t-set="dt" t-value="(day + datetime.timedelta(days=1)).strftime('%Y-%m-%d') + ' 00:00:00'"/>
-    <t t-set="day_records" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('planned_date_begin','&lt;',dt)], order='planned_date_begin')"/>
+    <t t-set="day_records" t-value="request.env['project.task'].sudo().search([('project_id.name','=','Demande de transport'),('planned_date_begin','&gt;=',df),('planned_date_begin','&lt;',dt)], order='planned_date_begin').filtered(lambda t: t.planned_date_begin and (t.planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= t.planned_date_begin and t.planned_date_begin &lt; dst1) else 1)).date() == day)"/>
 
     <t t-set="selected_chauffeur" t-value="request.params.get('chauffeur', '')"/>
     <t t-set="selected_client" t-value="request.params.get('client', '')"/>
@@ -187,7 +187,7 @@
               <div class="ptj-col-title">🏢 <t t-esc="cname_col"/></div>
               <div class="ptj-col-sub">
                 <t t-esc="len(cl_tasks)"/> tâche<t t-if="len(cl_tasks) != 1">s</t>
-                <t t-if="cl_tasks"> · <t t-esc="cl_tasks[0].planned_date_begin.strftime('%H:%M')"/> → <t t-esc="(cl_tasks[-1].date_deadline or cl_tasks[-1].planned_date_begin).strftime('%H:%M')"/></t>
+                <t t-if="cl_tasks"> · <t t-esc="(cl_tasks[0].planned_date_begin + datetime.timedelta(hours=2 if (dst0 &lt;= cl_tasks[0].planned_date_begin and cl_tasks[0].planned_date_begin &lt; dst1) else 1)).strftime('%H:%M')"/> → <t t-esc="((cl_tasks[-1].date_deadline or cl_tasks[-1].planned_date_begin) + datetime.timedelta(hours=2 if (dst0 &lt;= (cl_tasks[-1].date_deadline or cl_tasks[-1].planned_date_begin) and (cl_tasks[-1].date_deadline or cl_tasks[-1].planned_date_begin) &lt; dst1) else 1)).strftime('%H:%M')"/></t>
                 <t t-if="cl_hours &gt; 0"> · <t t-esc="'%.1f' % cl_hours"/> h</t>
                 <t t-if="cl_vehs"> · 🚛 <t t-esc="cl_vehs"/></t>
               </div>
