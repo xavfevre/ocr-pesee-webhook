@@ -1092,6 +1092,13 @@ def heures_rpc():
         message = (exc.faultString or "Erreur Odoo").strip()
         return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
     except Exception as exc:
+        import heures_actions
+        if isinstance(exc, heures_actions.HeuresErreur):
+            # Équivalent du UserError : message affiché tel quel par la page.
+            return _heures_cors(jsonify({"error": {"message": str(exc)}}))
+        if isinstance(exc, xmlrpc.client.Fault):
+            message = (exc.faultString or "Erreur Odoo").strip()
+            return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
         app.logger.warning(f"heures_rpc: {exc}")
         return _heures_cors(jsonify({"error": {"message": f"Service indisponible : {exc}"}}))
 
