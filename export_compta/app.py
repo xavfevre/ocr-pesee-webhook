@@ -591,6 +591,55 @@ def _rappro_applique(comp, journal, props):
         l = prop["ligne"]
         jid = prop.get("journal_id") or journal["id"]
         compte_attente, compte_banque, jnom = infos(jid)
+        if prop["type"] == "releve":
+            # v2 : la banque connectée a déjà l'écriture (ligne de relevé) —
+            # on crée le paiement manquant puis on réconcilie l'attente du/des
+            # paiement(s) avec la contrepartie du relevé. Zéro écriture créée.
+            try:
+                pay_ids = list(prop.get("pay_ids") or [])
+                if prop.get("ids"):
+                    ctx = {"active_model": "account.move", "active_ids": prop["ids"]}
+                    wid = _q("account.payment.register", "create",
+                             [{"journal_id": jid, "payment_date": l["date"],
+                               "group_payment": True, "communication": l["lib"][:60]}],
+                             context=ctx)
+                    wid = wid[0] if isinstance(wid, list) else wid
+                    try:
+                        _q("account.payment.register", "action_create_payments", [wid], context=ctx)
+                    except Exception:
+                        pass
+                    nouveaux = _q("account.payment", "search",
+                                  [("company_id", "=", comp), ("journal_id", "=", jid),
+                                   ("state", "=", "in_process"),
+                                   ("reconciled_invoice_ids", "in", prop["ids"])],
+                                  limit=5, order="id desc")
+                    pay_ids += nouveaux
+                moves = [p["move_id"][0] for p in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p["move_id"]]
+                l_att = _q("account.move.line", "search",
+                           [("move_id", "in", moves), ("account_id", "=", compte_attente), ("reconciled", "=", False)])
+                l_stmt = []
+                for sm in prop.get("stmt_moves") or []:
+                    for ml in _q("account.move.line", "search_read",
+                                 [("move_id", "=", sm), ("reconciled", "=", False)],
+                                 fields=["account_id", "credit"]):
+                        if ml["account_id"] and ml["account_id"][0] != compte_banque and ml["credit"] > 0:
+                            if ml["account_id"][0] != compte_attente:
+                                _q("account.move.line", "write", [ml["id"]], {"account_id": compte_attente})
+                            l_stmt.append(ml["id"])
+                if not l_att or not l_stmt:
+                    erreurs.append("%s : lignes à réconcilier introuvables" % l["lib"][:40])
+                    continue
+                ids = l_att + l_stmt
+                try:
+                    _q("account.move.line", "reconcile", ids)
+                except Exception:
+                    verif = _q("account.move.line", "read", ids, fields=["reconciled"])
+                    if not all(v["reconciled"] for v in verif):
+                        raise
+                faits += 1
+            except Exception as exc:
+                erreurs.append("%s : %s" % (l["lib"][:40], str(exc)[-120:]))
+            continue
         if not compte_attente:
             erreurs.append("journal %s : compte d'attente non configuré" % jnom)
             continue
@@ -726,6 +775,32 @@ def _gl_analyse(comp, clients):
                 fields=["name", "amount", "reconciled_invoice_ids"], limit=0):
         for iid in (p.get("reconciled_invoice_ids") or []):
             pay_par_inv.setdefault(iid, p)
+    # v2 : lignes de relevé non rapprochées (banques connectées) — la vraie
+    # écriture de banque est déjà dans Odoo, on la réconcilie au lieu d'en créer
+    stmt = _q("account.bank.statement.line", "search_read",
+              [("company_id", "=", comp), ("is_reconciled", "=", False), ("amount", ">", 0)],
+              fields=["date", "amount", "journal_id", "move_id", "payment_ref"], limit=0)
+    stmt_uses = set()
+
+    def stmt_pour(jid, montant, dstr):
+        import datetime as _dt
+        try:
+            dref = _dt.date.fromisoformat(dstr[:10])
+        except Exception:
+            return None
+        cands = []
+        for s2 in stmt:
+            if s2["id"] in stmt_uses or s2["journal_id"][0] != jid:
+                continue
+            if abs(s2["amount"] - montant) > 0.005:
+                continue
+            ecart = abs((_dt.date.fromisoformat(str(s2["date"])[:10]) - dref).days)
+            if ecart <= 5:
+                cands.append((ecart, s2))
+        if not cands:
+            return None
+        return sorted(cands, key=lambda c: c[0])[0][1]
+
     props, anomalies, deja = [], [], 0
     for cl in clients:
         groupes = defaultdict(list)
@@ -745,6 +820,40 @@ def _gl_analyse(comp, clients):
                 continue
             date_reg = max(e["date"] for e in regs)
             jid = journal_pour(regs[-1]["journal"])
+            # ── v2 : le groupe entier se réconcilie-t-il avec des lignes de relevé ? ──
+            etats = [invs.get(e["fac"]) for e in facs]
+            if all(i and i["state"] == "posted" for i in etats) \
+               and not any(i["payment_state"] in ("paid", "reversed") for i in etats):
+                matches = []
+                for e in regs:
+                    s2 = stmt_pour(journal_pour(e["journal"]), e["credit"], e["date"])
+                    if s2 is None:
+                        matches = None
+                        break
+                    matches.append(s2)
+                ouverts_ok = all(
+                    i["payment_state"] != "not_paid" or abs(i["amount_residual"] - e2["debit"]) < 0.01
+                    for i, e2 in zip(etats, facs))
+                a_payer = [i["id"] for i in etats if i["payment_state"] in ("not_paid", "partial")]
+                pay_ids = sorted({pay_par_inv[i["id"]]["id"] for i in etats
+                                  if i["payment_state"] == "in_payment" and i["id"] in pay_par_inv})
+                complet = all(i["payment_state"] != "in_payment" or i["id"] in pay_par_inv
+                              for i in etats) and (a_payer or pay_ids)
+                if matches and ouverts_ok and complet:
+                    for s2 in matches:
+                        stmt_uses.add(s2["id"])
+                    total = round(sum(e2["debit"] for e2 in facs), 2)
+                    libs = ", ".join(e2["fac"] for e2 in facs)
+                    props.append({
+                        "ligne": {"date": date_reg, "piece": lettre, "credit": 0.0,
+                                  "lib": "%s — %s (lettre %s)" % (libs[:40], cl["nom"][:24], lettre),
+                                  "debit": total},
+                        "type": "releve", "ids": a_payer, "pay_ids": pay_ids,
+                        "stmt_moves": [s2["move_id"][0] for s2 in matches],
+                        "journal_id": jid,
+                        "detail": ["relevé %s : %s (%.2f €)" % (str(s2["date"])[:10],
+                                   (s2["payment_ref"] or "")[:45], s2["amount"]) for s2 in matches]})
+                    continue
             for e in facs:
                 inv = invs.get(e["fac"])
                 if not inv or inv["state"] != "posted":
@@ -830,7 +939,10 @@ def rappro_analyse():
         rows = ""
         for i, pr in enumerate(props):
             l = pr["ligne"]
-            if pr["type"] == "paiements":
+            if pr["type"] == "releve":
+                statut = "<span class='ok'>✓ rapprocher avec le relevé bancaire</span>"
+                coche = "checked"
+            elif pr["type"] == "paiements":
                 statut = "<span class='ok'>✓ lettrer le paiement existant</span>"
                 coche = "checked"
             else:
@@ -924,11 +1036,14 @@ def rappro_applique():
     except Exception:
         stats = {}
     n_lettres = sum(1 for p in retenus if p["type"] == "paiements")
+    n_releves = sum(1 for p in retenus if p["type"] == "releve")
     n_crees = sum(1 for p in retenus if p["type"] == "facture")
     ecartes = len(props) - len(retenus)
     lignes_recap = ["<b>%d</b> appliqué(s) — factures passées « Payé »" % faits]
     if n_lettres:
         lignes_recap.append("dont %d lettrage(s) de paiements déjà saisis" % n_lettres)
+    if n_releves:
+        lignes_recap.append("dont %d groupe(s) rapprochés avec les relevés bancaires" % n_releves)
     if n_crees:
         lignes_recap.append("<span style='color:#b45309;'>⚠ dont %d paiement(s) créé(s) faute de saisie dans Odoo (oubli à vérifier)</span>" % n_crees)
     if stats.get("deja"):
