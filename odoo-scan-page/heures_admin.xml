@@ -243,8 +243,8 @@
         du.value = z.getAttribute('data-du') || '';
       }
       au.value = new Date().toISOString().slice(0, 10);
-      /* plages par salarié mémorisées au dernier export paie : la ligne repart
-         du lendemain de SA derniere fin, pour savoir ou en est chaque paie */
+      /* plages par salarié : mémorisées au serveur DÈS LA SAISIE (et à l'export),
+         restaurées telles quelles au rechargement — on sait où on en est resté */
       var excs = {};
       try { excs = JSON.parse(z.getAttribute('data-exc') || '{}'); } catch(e){}
       document.querySelectorAll('tr[data-emp]').forEach(function(tr){
@@ -252,12 +252,28 @@
         if(!m){ return; }
         var a = tr.querySelector('.ha-fx-du'), b = tr.querySelector('.ha-fx-au');
         if(a &amp;&amp; b &amp;&amp; !a.value &amp;&amp; !b.value){
-          var d = new Date(m[1] + 'T00:00:00'); d.setDate(d.getDate() + 1);
-          a.value = d.toISOString().slice(0, 10);
-          b.value = au.value;
-          a.title = b.title = 'Dernier export paie de ce salarié : du ' + m[0] + ' au ' + m[1] + ' — la ligne repart du lendemain (ajustez ou videz avec ✕).';
+          a.value = m[0];
+          b.value = m[1];
+          a.title = b.title = 'Période mémorisée : du ' + m[0] + ' au ' + m[1] + ' — là où la saisie s’est arrêtée (modifiez ou videz avec ✕).';
           a.style.background = b.style.background = '#fef9c3';
         }
+      });
+      var sauveTimer = null;
+      function sauvePlages(){
+        clearTimeout(sauveTimer);
+        sauveTimer = setTimeout(function(){
+          var lignes = {};
+          document.querySelectorAll('tr[data-emp]').forEach(function(tr){
+            var a = tr.querySelector('.ha-fx-du'), b = tr.querySelector('.ha-fx-au');
+            if(!a || !b){ return; }
+            lignes[tr.getAttribute('data-emp')] =
+              (a.value &amp;&amp; b.value &amp;&amp; a.value &lt;= b.value) ? [a.value, b.value] : [];
+          });
+          rpcAction(2090, {active_model: 'x_heures_jour', hj_k: KK, lignes: lignes});
+        }, 800);
+      }
+      document.querySelectorAll('tr[data-emp] .ha-fx-du, tr[data-emp] .ha-fx-au').forEach(function(i){
+        i.addEventListener('change', sauvePlages);
       });
       /* filtre « un seul salarié » : masque les autres lignes (memorise par onglet) */
       var selEmp = document.getElementById('ha-emp-filtre');
@@ -318,9 +334,11 @@
       if(bFill){ bFill.onclick = function(){
         document.querySelectorAll('tr[data-emp] .ha-fx-du').forEach(function(i){ i.value = du.value; });
         document.querySelectorAll('tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = au.value; });
+        sauvePlages();
       }; }
       if(bClear){ bClear.onclick = function(){
-        document.querySelectorAll('tr[data-emp] .ha-fx-du, tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = ''; });
+        document.querySelectorAll('tr[data-emp] .ha-fx-du, tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = ''; i.style.background = ''; });
+        sauvePlages();
       }; }
       document.querySelectorAll('a.ha-feuille').forEach(function(a){
         a.addEventListener('click', function(ev){
