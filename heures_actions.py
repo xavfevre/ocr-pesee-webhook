@@ -21,8 +21,24 @@ class HeuresErreur(Exception):
     """Equivalent du UserError : message destiné à l'utilisateur."""
 
 
+# Caches process-local : chaque aller-retour XML-RPC coûte ~200 ms, on évite
+# de repayer à chaque saisie ce qui ne bouge presque jamais.
+_PARAM_TTL = {"maquignon.rh_admin_key": 3600.0, "maquignon.heures_verrou": 20.0}
+_param_cache = {}
+_cal_cache = {}
+
+
 def _param(call, cle):
-    return call("ir.config_parameter", "get_param", cle) or ""
+    import time as _t
+    ttl = _PARAM_TTL.get(cle, 0.0)
+    if ttl:
+        val, expire = _param_cache.get(cle, (None, 0.0))
+        if _t.monotonic() < expire:
+            return val
+    val = call("ir.config_parameter", "get_param", cle) or ""
+    if ttl:
+        _param_cache[cle] = (val, _t.monotonic() + ttl)
+    return val
 
 
 def _admin_ok(call, ctx):
@@ -37,11 +53,16 @@ def _emp(call, emp_id, champs):
 
 def _cal_info(call, cal_id):
     """Calendrier + plages : [{dayofweek, week_type, display_type, hour_from, hour_to}]."""
+    import time as _t
+    entree = _cal_cache.get(cal_id)
+    if entree and _t.monotonic() < entree[2]:
+        return entree[0], entree[1]
     cal = call("resource.calendar", "read", [cal_id],
                ["name", "two_weeks_calendar", "company_id"])[0]
     atts = call("resource.calendar.attendance", "search_read",
                 [["calendar_id", "=", cal_id]],
                 ["dayofweek", "week_type", "display_type", "hour_from", "hour_to"])
+    _cal_cache[cal_id] = (cal, atts, _t.monotonic() + 300.0)
     return cal, atts
 
 
@@ -441,6 +462,9 @@ def _a2021(call, ctx):
                 raise HeuresErreur("Impossible de changer l'horaire de %s : %s" % (emp["name"], det[-200:]))
         if ndays:
             call("resource.calendar", "write", [newcal], {"hours_per_day": tot / ndays})
+        _cal_cache.pop(newcal, None)
+        if cal_id:
+            _cal_cache.pop(cal_id, None)
         action = {"ok": 1, "total": tot, "deux": deux, "cal": newcal,
                   "semaine": tot / 2.0 if deux else tot}
 
@@ -583,6 +607,7 @@ def _a2050(call, ctx):
         call("ir.config_parameter", "set_param", "maquignon.heures_verrou", vl)
     else:
         call("ir.config_parameter", "set_param", "maquignon.heures_verrou", "")
+    _param_cache.pop("maquignon.heures_verrou", None)
     return {"ok": 1, "verrou": vl}
 
 

@@ -1041,6 +1041,7 @@ HEURES_ACTIONS_AUTORISEES = {
     2069,  # décision manager sur une demande de congés (jeton de la demande)
 }
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
+_HEURES_CONN = {}
 
 
 def _heures_cors(resp):
@@ -1064,7 +1065,18 @@ def heures_rpc():
 
     try:
         import heures_actions
-        uid, models = odoo_connect()
+    except Exception as exc:
+        # un échec d'import doit repartir AVEC les en-têtes CORS, sinon le
+        # navigateur n'expose qu'un « Échec réseau » inexploitable
+        app.logger.error(f"heures_rpc import: {exc}")
+        return _heures_cors(jsonify({"error": {"message": f"Service indisponible : {exc}"}}))
+    try:
+        # connexion réutilisée entre les requêtes : l'authentification XML-RPC
+        # coûte un aller-retour complet à chaque saisie sinon (uid stable ;
+        # workers gunicorn sync = pas de concurrence sur le proxy)
+        if "uid" not in _HEURES_CONN:
+            _HEURES_CONN["uid"], _HEURES_CONN["models"] = odoo_connect()
+        uid, models = _HEURES_CONN["uid"], _HEURES_CONN["models"]
 
         def call(model, method, *params, **kw):
             return x(models, uid, model, method, *params, **kw)
@@ -1073,6 +1085,12 @@ def heures_rpc():
         # numéros d'action, même contrat ctx -> dict, mêmes messages.
         resultat = heures_actions.executer(call, int(action_id), ctx)
         return _heures_cors(jsonify({"result": resultat if isinstance(resultat, dict) else {}}))
+    except heures_actions.HeuresErreur as exc:
+        # Équivalent du UserError : message affiché tel quel par la page.
+        return _heures_cors(jsonify({"error": {"message": str(exc)}}))
+    except xmlrpc.client.Fault as exc:
+        message = (exc.faultString or "Erreur Odoo").strip()
+        return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
     except Exception as exc:
         import heures_actions
         if isinstance(exc, heures_actions.HeuresErreur):
