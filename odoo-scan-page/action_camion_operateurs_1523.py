@@ -1,7 +1,7 @@
 # Action serveur Odoo 1523 (automatisation 18, on_create_or_write project.task)
 # 1) lie le vehicule Fleet depuis le nom du transport ;
-# 2) depuis le 02/09/2026 : ajoute le chauffeur aux Operateurs (vue unifiee
-#    du Service sur site, colonnes par personne sur x_studio_operateurs).
+# 2) ajoute le chauffeur aux Operateurs (vue unifiee par personne) ;
+# 3) date les taches terminees sans date planifiee (duplication native).
 
 for record in records:
     if record.x_studio_transport and not record.x_vehicle_id:
@@ -19,3 +19,11 @@ for record in records:
 for record in records:
     if record.x_studio_chauffeur and record.x_studio_chauffeur.id not in record.x_studio_operateurs.ids:
         record.write({'x_studio_operateurs': [(4, record.x_studio_chauffeur.id)]})
+
+
+# une tache marquee Terminee sans date planifiee (duplication native d'Odoo :
+# les dates ne sont pas copiees) recoit la date du moment — sinon elle est
+# invisible des plannings et de la facturation
+for record in records:
+    if record.state == '1_done' and not record.planned_date_begin:
+        record.write({'planned_date_begin': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
