@@ -53,3 +53,17 @@ Actions serveur **1459** et **1671** supprimées (codes archivés dans
 boutons d'export et champs `x_studio_date_de_debut` / `x_studio_date_de_fin`
 retirés de la vue journal 6403. Le bouton **Verrouiller (1680)** est conservé.
 Jeton : `maquignon.compta_key`.
+
+
+## Soldes bancaires Odoo (02/09/2026)
+
+Les banques connectées alimentent les journaux en lignes de relevé ; le
+lettrage v2 réconcilie ces lignes (aucune écriture synthétique). Les 248
+écritures de reprise du rattrapage ont été extournées (« Extourne reprise —
+relevés connectés ») et chaque compte 512 a été recalé sur le solde réel
+remonté par le connecteur, via le compte technique **512900 « Recalage
+banque (référence Sage) »** (hors périmètre des exports cabinet). Les soldes
+512 d'Odoo suivent désormais la réalité bancaire au fil des flux quotidiens.
+Écarts historiques absorbés par le recalage : BNP Maquignon +72 340,02,
+BNP Bis +814,32, BP Maquignon −41,26, Banque Pop Châtel +1 700,00,
+BNP Châtel −1 600,00, BNP Haims −11 152,10, BP Haims −21 132,72.
