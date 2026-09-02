@@ -61,10 +61,8 @@ Les banques connectées alimentent les journaux en lignes de relevé ; le
 lettrage v2 réconcilie ces lignes (aucune écriture synthétique). Les 248
 écritures de reprise du rattrapage ont été extournées (« Extourne reprise —
 relevés connectés ») : l'historique 512 d'Odoo = les relevés, rien d'autre.
-Sur demande de Xavier, AUCUNE écriture de recalage artificielle : les soldes
-512 d'Odoo gardent leurs écarts historiques vis-à-vis de la banque réelle
-(mesurés au 02/09 : BNP Maquignon −72 340,02 « manquant », BNP Bis −814,32,
-BP Maquignon +41,26, Banque Pop Châtel −1 700,00, BNP Châtel +1 600,00,
-BNP Haims +11 152,10, BP Haims +21 132,72 — probablement écritures
-manuelles anciennes et périodes antérieures aux flux). La comptabilité de
-référence reste Sage.
+Les soldes 512 sont alignés sur la réalité bancaire par des écritures de
+« Solde initial des banques » datées à l'ouverture comptable de chaque
+société (contrepartie 89000000 Bilan d'ouverture), et non par des écritures
+de recalage en cours d'exercice. Vérifié au centime contre les soldes des
+connecteurs le 02/09/2026. La comptabilité de référence reste Sage.
