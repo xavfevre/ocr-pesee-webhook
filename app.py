@@ -644,9 +644,11 @@ def ma_tournee():
         df = today.strftime("%Y-%m-%d 00:00:00")
         emp = x(models, uid, "hr.employee", "read", [cid], fields=["name"])
         dname = emp[0]["name"] if emp else "Chauffeur"
+        # missions où il est chauffeur OU opérateur (ouvrier TP sur le chantier)
         tasks = x(models, uid, "project.task", "search_read",
                   [("project_id.name", "=", TOURNEE_PROJECT),
-                   ("x_studio_chauffeur", "=", cid),
+                   "|", ("x_studio_chauffeur", "=", cid),
+                   ("x_studio_operateurs", "in", [cid]),
                    ("planned_date_begin", ">=", df)],
                   fields=["id", "name", "partner_id", "planned_date_begin", "date_deadline",
                           "x_studio_transport", "x_studio_adresse_de_chargement",
