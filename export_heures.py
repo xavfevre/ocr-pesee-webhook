@@ -557,19 +557,38 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
         ws.cell(base + 8, 11).value = '=SUM(%s[Total])' % nom
 
     def remplir(ws, base, lundi):
-        """Remplit un bloc semaine dont la ligne d'en-tete est `base`."""
+        """Remplit un bloc semaine dont la ligne d'en-tete est `base`.
+
+        Le gabarit d'origine (fichier papier du client) a des formules bancales
+        héritées du modèle Microsoft : G/H en #VALEUR! dès qu'un jour porte une
+        mention texte (CP...), H parasite sur les jours vides, total G limité à
+        lundi-vendredi. On ne garde les formules que sur les jours réellement
+        horodatés et on refait la ligne de totaux sur les 7 jours (comme le
+        client le faisait lui-même sur ses blocs suivants).
+        """
         for i in range(7):
             d = lundi + _dt.timedelta(days=i)
             row = base + 1 + i
+            r = jours.get(d.isoformat()) if (d1 <= d <= d2) else None
+            mention = MENTION.get((r or {}).get('x_type') or '')
+            horaires = bool(r) and not mention and any(
+                _ft_time(r.get(ch)) is not None
+                for ch in ('x_m_deb', 'x_m_fin', 'x_am_deb', 'x_am_fin'))
+            if not horaires:
+                # pas d'horaires ce jour : on retire les formules G/H héritées
+                # (sinon #VALEUR! sur les mentions, et -8 h sur les jours vides)
+                ws.cell(row, 7).value = None
+                ws.cell(row, 8).value = None
+            k = ws.cell(row, 11)
+            if isinstance(k.value, str) and k.value.startswith('='):
+                k.value = None    # K reste la colonne d'annotations libres du papier
             if not (d1 <= d <= d2):
                 continue          # on n'edite que la periode selectionnee
             c = ws.cell(row, 2)
             c.value = d
             c.number_format = '[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy'
-            r = jours.get(d.isoformat())
             if not r:
                 continue
-            mention = MENTION.get(r.get('x_type') or '')
             if mention:
                 for col in (3, 4, 5, 6):
                     cc = ws.cell(row, col)
@@ -588,6 +607,12 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
                         cc = ws.cell(row, col)
                         cc.value = t
                         cc.number_format = 'HH:MM'
+        # ligne « Nombre total d'heures » : les 7 jours du bloc
+        tot = base + 8
+        ws.cell(tot, 7).value = '=SUM(G%d:G%d)*24' % (base + 1, base + 7)
+        ws.cell(tot, 8).value = '=SUM(H%d:H%d)' % (base + 1, base + 7)
+        ws.cell(tot, 9).value = '=SUM(I%d:I%d)' % (base + 1, base + 7)
+        ws.cell(tot, 10).value = '=SUM(J%d:J%d)' % (base + 1, base + 7)
 
     # ── feuille Recap : toutes les semaines empilees (disposition du papier) ──
     recap = wb.copy_worksheet(master)
@@ -616,6 +641,33 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
                     recap.row_dimensions[dr].height = master.row_dimensions[sr].height
         table(recap, 'TR_%d' % (k + 1), hb, 100 + k)
         remplir(recap, hb, lu)
+
+    # ── totaux globaux du mois (comme le bas de page du fichier papier) ──
+    tot_rows = [11 + 9 * k + 8 for k in range(len(lundis))]
+    rg = tot_rows[-1] + 2
+    gras = Font(name='Century Gothic', size=12, bold=True)
+    lignes_tot = [
+        ('Nombre total d’heures', {7: '=' + '+'.join('G%d' % r for r in tot_rows),
+                                   8: '=' + '+'.join('H%d' % r for r in tot_rows),
+                                   9: '=' + '+'.join('I%d' % r for r in tot_rows),
+                                   10: '=' + '+'.join('J%d' % r for r in tot_rows)}),
+        ('Heures M-1', {}),                       # report du mois précédent, saisi à la main
+        ('Reste heures', {7: '=G%d+G%d' % (rg, rg + 1)}),
+    ]
+    for off, (libelle, cols) in enumerate(lignes_tot):
+        r = rg + off
+        c = recap.cell(r, 6)
+        c.value = libelle
+        c.font = gras
+        for col, formule in cols.items():
+            cc = recap.cell(r, col)
+            cc.value = formule
+            cc.font = gras
+            cc.number_format = '0.00'
+        if not cols:  # Heures M-1 : cellule de saisie visible
+            cc = recap.cell(r, 7)
+            cc.font = gras
+            cc.number_format = '0.00'
 
     # ── une feuille par semaine ──
     for idx, lu in enumerate(lundis):
