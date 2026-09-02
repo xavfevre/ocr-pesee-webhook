@@ -557,19 +557,38 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
         ws.cell(base + 8, 11).value = '=SUM(%s[Total])' % nom
 
     def remplir(ws, base, lundi):
-        """Remplit un bloc semaine dont la ligne d'en-tete est `base`."""
+        """Remplit un bloc semaine dont la ligne d'en-tete est `base`.
+
+        Le gabarit d'origine (fichier papier du client) a des formules bancales
+        héritées du modèle Microsoft : G/H en #VALEUR! dès qu'un jour porte une
+        mention texte (CP...), H parasite sur les jours vides, total G limité à
+        lundi-vendredi. On ne garde les formules que sur les jours réellement
+        horodatés et on refait la ligne de totaux sur les 7 jours (comme le
+        client le faisait lui-même sur ses blocs suivants).
+        """
         for i in range(7):
             d = lundi + _dt.timedelta(days=i)
             row = base + 1 + i
+            r = jours.get(d.isoformat()) if (d1 <= d <= d2) else None
+            mention = MENTION.get((r or {}).get('x_type') or '')
+            horaires = bool(r) and not mention and any(
+                _ft_time(r.get(ch)) is not None
+                for ch in ('x_m_deb', 'x_m_fin', 'x_am_deb', 'x_am_fin'))
+            if not horaires:
+                # pas d'horaires ce jour : on retire les formules G/H héritées
+                # (sinon #VALEUR! sur les mentions, et -8 h sur les jours vides)
+                ws.cell(row, 7).value = None
+                ws.cell(row, 8).value = None
+            k = ws.cell(row, 11)
+            if isinstance(k.value, str) and k.value.startswith('='):
+                k.value = None    # K reste la colonne d'annotations libres du papier
             if not (d1 <= d <= d2):
                 continue          # on n'edite que la periode selectionnee
             c = ws.cell(row, 2)
             c.value = d
             c.number_format = '[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy'
-            r = jours.get(d.isoformat())
             if not r:
                 continue
-            mention = MENTION.get(r.get('x_type') or '')
             if mention:
                 for col in (3, 4, 5, 6):
                     cc = ws.cell(row, col)
@@ -588,6 +607,12 @@ def build_feuille(call, mois, emp_id, du=None, au=None):
                         cc = ws.cell(row, col)
                         cc.value = t
                         cc.number_format = 'HH:MM'
+        # ligne « Nombre total d'heures » : les 7 jours du bloc
+        tot = base + 8
+        ws.cell(tot, 7).value = '=SUM(G%d:G%d)*24' % (base + 1, base + 7)
+        ws.cell(tot, 8).value = '=SUM(H%d:H%d)' % (base + 1, base + 7)
+        ws.cell(tot, 9).value = '=SUM(I%d:I%d)' % (base + 1, base + 7)
+        ws.cell(tot, 10).value = '=SUM(J%d:J%d)' % (base + 1, base + 7)
 
     # ── feuille Recap : toutes les semaines empilees (disposition du papier) ──
     recap = wb.copy_worksheet(master)
