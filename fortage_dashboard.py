@@ -195,11 +195,15 @@ def build_doc(data):
              "measures": [{"id": "x_vol_m3", "fieldName": "x_vol_m3", "aggregator": "sum",
                            "userDefinedName": "m³"}],
              "domain": DOMAIN, "context": {}, "sortedColumn": None,
-             "fieldMatching": {"flt_carriere": {"chain": "product_id.product_tag_ids", "type": "many2many"}}}
+             "fieldMatching": {"flt_carriere": {"chain": "product_id.product_tag_ids", "type": "many2many"},
+                               "flt_period": {"chain": "date", "type": "date", "offset": 0}}}
     gfilters = [{"id": "flt_carriere", "type": "relation", "label": "Carrière",
                  "modelName": "product.tag", "includeChildren": False,
                  "domainOfAllowedValues": [["id", "in", TAGS_CARRIERE]],
-                 "defaultValue": {"operator": "in", "ids": [TAG_PRINCIPALE]}}]
+                 "defaultValue": {"operator": "in", "ids": [TAG_PRINCIPALE]}},
+                # pas de defaultValue : « Toutes les périodes », l'exercice complet
+                # reste affiché ; le filtre ne fait que restreindre les colonnes.
+                {"id": "flt_period", "type": "date", "label": "Période"}]
     return {"version": "18.5.10", "sheets": [sheet], "styles": _styles(), "formats": FORMATS, "borders": {},
             "revisionId": "START_REVISION", "uniqueFigureIds": True,
             "settings": {"locale": {"name": "French / Français", "code": "fr_FR", "thousandsSeparator": " ",
