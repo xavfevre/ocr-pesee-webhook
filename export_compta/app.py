@@ -71,7 +71,7 @@ def _piece(numero):
     return chiffres[-7:] if chiffres else ""
 
 
-def _referentiels(line_rows):
+def _referentiels(line_rows, comp):
     acc_ids = list({l["account_id"][0] for l in line_rows if l["account_id"]})
     part_ids = list({l["partner_id"][0] for l in line_rows if l["partner_id"]})
     ana_ids = set()
@@ -80,8 +80,12 @@ def _referentiels(line_rows):
             for part in str(k).split(","):
                 if part.strip().isdigit():
                     ana_ids.add(int(part))
+    # account.account.code est company-dependent : sans le contexte de la société
+    # exportée, les comptes des autres sociétés ressortent sans code et toutes
+    # leurs lignes sont écartées (fichier vide pour Haims/Châtel).
     comptes = {a["id"]: a for a in _q("account.account", "read", acc_ids,
-                                      fields=["code", "name"])} if acc_ids else {}
+                                      fields=["code", "name"],
+                                      context={"allowed_company_ids": [comp]})} if acc_ids else {}
     partenaires = {p["id"]: p for p in _q("res.partner", "read", part_ids,
                                           fields=["ref", "name"])} if part_ids else {}
     # sections Sage uniquement : le plan « Project » (id 1 — Demande de transport,
@@ -150,7 +154,7 @@ def _lignes_a(base, analytiques, sections, tot_debit, tot_credit):
     return lignes
 
 
-def _export_ventes(journal, du, au, base_url, clients_vus):
+def _export_ventes(journal, du, au, base_url, clients_vus, comp):
     """Format action 1459 : écritures groupées par (compte, analytique)."""
     moves = _q("account.move", "search_read",
                [("journal_id", "=", journal["id"]), ("state", "=", "posted"),
@@ -162,7 +166,7 @@ def _export_ventes(journal, du, au, base_url, clients_vus):
     lines = _q("account.move.line", "search_read", [("move_id", "in", mids)],
                fields=["move_id", "account_id", "debit", "credit", "partner_id",
                        "ref", "analytic_distribution"], limit=0, order="id asc")
-    comptes, partenaires, analytiques = _referentiels(lines)
+    comptes, partenaires, analytiques = _referentiels(lines, comp)
     par_move = {}
     for l in lines:
         par_move.setdefault(l["move_id"][0], []).append(l)
@@ -220,7 +224,7 @@ def _export_ventes(journal, du, au, base_url, clients_vus):
     return "\n".join(out)
 
 
-def _export_caisse(journal, du, au, clients_vus):
+def _export_caisse(journal, du, au, clients_vus, comp):
     """Format action 1671 : ligne à ligne (tickets comptoir)."""
     lines = _q("account.move.line", "search_read",
                [("journal_id", "=", journal["id"]), ("parent_state", "=", "posted"),
@@ -233,7 +237,7 @@ def _export_caisse(journal, du, au, clients_vus):
     mids = list({l["move_id"][0] for l in lines})
     moves = {m["id"]: m for m in _q("account.move", "read", mids,
                                     fields=["name", "invoice_date_due", "partner_id"])}
-    comptes, partenaires, analytiques = _referentiels(lines)
+    comptes, partenaires, analytiques = _referentiels(lines, comp)
     extra = {m["partner_id"][0] for m in moves.values() if m["partner_id"]} - set(partenaires)
     if extra:
         for p in _q("res.partner", "read", list(extra), fields=["ref", "name"]):
@@ -347,7 +351,8 @@ def _apercu(comp, du, au, journaux):
     acc_ids = list({l["account_id"][0] for l in lines if l["account_id"]})
     codes = {}
     for i in range(0, len(acc_ids), 800):
-        for a in _q("account.account", "read", acc_ids[i:i + 800], fields=["code"]):
+        for a in _q("account.account", "read", acc_ids[i:i + 800], fields=["code"],
+                    context={"allowed_company_ids": [comp]}):
             codes[a["id"]] = a["code"] or ""
     for l in lines:
         jid = l["journal_id"][0]
@@ -382,7 +387,8 @@ def _controle_analytique(comp, du, au, journaux):
     acc_ids = list({l["account_id"][0] for l in lines if l["account_id"]})
     codes = {}
     for i in range(0, len(acc_ids), 800):
-        for a in _q("account.account", "read", acc_ids[i:i + 800], fields=["code"]):
+        for a in _q("account.account", "read", acc_ids[i:i + 800], fields=["code"],
+                    context={"allowed_company_ids": [comp]}):
             codes[a["id"]] = a["code"] or ""
     sage_ids = {a["id"] for a in _q("account.analytic.account", "search_read",
                                     [("plan_id", "!=", PLAN_PROJECT)], fields=["id"], limit=0)}
@@ -504,10 +510,10 @@ def page():
     return Response(html, mimetype="text/html")
 
 
-def _fichier_journal(j, du, au, base_url, clients_vus):
+def _fichier_journal(j, du, au, base_url, clients_vus, comp):
     if j.get("format_caisse") or j["type"] == "cash":
-        return _export_caisse(j, du, au, clients_vus), "export_tickets_comptoir"
-    return _export_ventes(j, du, au, base_url, clients_vus), "export_journal"
+        return _export_caisse(j, du, au, clients_vus, comp), "export_tickets_comptoir"
+    return _export_ventes(j, du, au, base_url, clients_vus, comp), "export_journal"
 
 
 @bp.route("/fichier", methods=["GET"])
@@ -519,7 +525,7 @@ def fichier():
     pos = _q("pos.config", "search_read", [("journal_id", "=", jid)], fields=["id"])
     j["format_caisse"] = j["type"] == "cash" or bool(pos)
     base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
-    contenu, prefixe = _fichier_journal(j, du, au, base_url, set())
+    contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0])
     if contenu is None:
         return Response("Aucune écriture.", mimetype="text/plain; charset=utf-8", status=404)
     slug = j["company_id"][1].replace(" ", "_").replace("/", "_")
@@ -545,7 +551,7 @@ def export():
     n_fichiers = 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for j in _journaux(comp):
-            contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus)
+            contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus, comp)
             if contenu is None:
                 continue
             nom = "%s_%s_%s_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"), suffixe)
