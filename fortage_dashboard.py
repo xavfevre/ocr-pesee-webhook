@@ -28,11 +28,8 @@ TAG_TUFFEAU = 19            # tag produit « Pierres Tuffeau »
 TAG_PRINCIPALE = 34         # tag « Carrière principale (fortage) »
 TAGS_CARRIERE = [34, 35, 36]
 TAUX_DEFAUT = 18.0          # €/m³ — surchargé par ir.config_parameter maquignon.fortage_taux
-MOIS_NOMS = ["Avril", "Mai", "Juin", "Juillet", "Août", "Septembre",
-             "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars"]
-
 INK = "#0E2E31"; TEAL = "#01666B"; TEALD = "#013E42"
-FORMATS = {"m3": "#,##0.000", "eur": "#,##0.00[$ €]"}
+FORMATS = {"m3": "#,##0.000", "eur": "#,##0.00[$ €]", "hide": ";;;"}
 
 DOMAIN = ["&", "&", "&",
           ["move_id.move_type", "in", ["out_invoice", "out_refund"]],
@@ -91,9 +88,10 @@ def tag_carrieres(call_kw):
 
 
 def compute(call_kw, aujourdhui=None):
-    """Lignes du tableau : produits tuffeau (toutes carrières) facturés sur l'exercice."""
+    """Lignes du tableau : produits tuffeau (toutes carrières) déjà facturés
+    (tout l'historique, pour que les lignes restent valables quelle que soit la
+    période choisie dans le filtre)."""
     debut = exercice_debut(aujourdhui)
-    fin = date(debut.year + 1, 4, 1)
     taux = TAUX_DEFAUT
     raw = call_kw("ir.config_parameter", "get_param", ["maquignon.fortage_taux"], {})
     if raw:
@@ -103,8 +101,7 @@ def compute(call_kw, aujourdhui=None):
             pass
 
     groups = call_kw("account.move.line", "read_group",
-                     [DOMAIN + [["date", ">=", debut.isoformat()], ["date", "<", fin.isoformat()]],
-                      ["x_vol_m3:sum"], ["product_id"]], {"lazy": False})
+                     [DOMAIN, ["x_vol_m3:sum"], ["product_id"]], {"lazy": False})
     pids = [g["product_id"][0] for g in groups if g.get("product_id") and (g.get("x_vol_m3") or 0)]
     prods = call_kw("product.product", "read", [pids], {"fields": ["default_code", "name"]}) if pids else []
     produits = {}                       # libellé → [ids de variantes]
@@ -121,12 +118,19 @@ def build_doc(data):
     cells = {}; styles = {}; formats = {}; merges = []; rows = {}
     ncol = 14                                          # A produit + 12 mois + N total
     last = col(ncol)
-    mois_cle = ["%02d/%d" % (m, debut.year if m >= 4 else debut.year + 1)
-                for m in list(range(4, 13)) + [1, 2, 3]]
+
+    # P1 (masquée) : 1er mois affiché — le début de la période du filtre « Période »,
+    # sinon le début de l'exercice courant. Les en-têtes et les mois interrogés par
+    # les PIVOT.VALUE en découlent, donc les colonnes suivent le filtre.
+    repli = "DATE(%d,4,1)" % debut.year
+    cells["P1"] = ('=IFERROR(IF(INDEX(ODOO.FILTER.VALUE("Période"),1,1)="",%s,'
+                   'INDEX(ODOO.FILTER.VALUE("Période"),1,1)),%s)' % (repli, repli))
+    formats["P1"] = "hide"
 
     cells["A1"] = "Redevance Tuffeau — droit de fortage (%s €/m³)" % staux.replace(".", ",")
-    cells["A2"] = ("Exercice %d-%d · volumes facturés en m³ (factures clients validées SARL MAQUIGNON) · "
-                   "temps réel · choisir la carrière dans le filtre (fortage = Carrière principale)"
+    cells["A2"] = ("Volumes facturés en m³ (factures clients validées SARL MAQUIGNON) · temps réel · "
+                   "sans filtre Période : exercice %d-%d (avril → mars) · les colonnes suivent la "
+                   "période choisie · fortage = Carrière principale"
                    % (debut.year, debut.year + 1))
     styles["A1:%s1" % last] = "title"; merges.append("A1:%s1" % last)
     styles["A2:%s2" % last] = "sub"; merges.append("A2:%s2" % last)
@@ -134,31 +138,31 @@ def build_doc(data):
 
     hr = 4
     cells["A%d" % hr] = "Produit"
-    for i, nom in enumerate(MOIS_NOMS):
-        an = debut.year if i < 9 else debut.year + 1
-        cells["%s%d" % (col(i + 2), hr)] = "%s %d" % (nom, an)
+    for i in range(12):
+        cells["%s%d" % (col(i + 2), hr)] = '=PROPER(TEXT(EDATE($P$1,%d),"mmmm yyyy"))' % i
     cells["%s%d" % (last, hr)] = "TOTAL"
     styles["A%d:%s%d" % (hr, last, hr)] = "lhdr"
     rows[str(hr - 1)] = {"size": 24}
 
-    def pv(mois, pid=None):
+    def pv(i, pid=None):
         prod = ',"product_id",%d' % pid if pid else ""
-        return 'IFERROR(PIVOT.VALUE(1,"x_vol_m3"%s,"date:month","%s"),0)' % (prod, mois)
+        return ('IFERROR(PIVOT.VALUE(1,"x_vol_m3"%s,"date:month",'
+                'TEXT(EDATE($P$1,%d),"mm/yyyy")),0)' % (prod, i))
 
     r = hr
     for lbl in sorted(produits):
         r += 1
         cells["A%d" % r] = lbl
-        for i, mois in enumerate(mois_cle):
-            cells["%s%d" % (col(i + 2), r)] = "=" + "+".join(pv(mois, pid) for pid in produits[lbl])
+        for i in range(12):
+            cells["%s%d" % (col(i + 2), r)] = "=" + "+".join(pv(i, pid) for pid in produits[lbl])
         cells["%s%d" % (last, r)] = "=SUM(B%d:M%d)" % (r, r)
         styles["A%d" % r] = "prod"
         styles["B%d:%s%d" % (r, last, r)] = "val"
 
     rt = r + 1                                          # TOTAL m³ (respecte le filtre carrière)
     cells["A%d" % rt] = "TOTAL m³"
-    for i, mois in enumerate(mois_cle):
-        cells["%s%d" % (col(i + 2), rt)] = "=" + pv(mois)
+    for i in range(12):
+        cells["%s%d" % (col(i + 2), rt)] = "=" + pv(i)
     cells["%s%d" % (last, rt)] = "=SUM(B%d:M%d)" % (rt, rt)
     styles["A%d" % rt] = "totl"; styles["B%d:%s%d" % (rt, last, rt)] = "tot"
     rows[str(rt - 1)] = {"size": 24}
