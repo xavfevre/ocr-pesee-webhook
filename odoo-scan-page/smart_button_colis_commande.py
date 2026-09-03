@@ -58,7 +58,6 @@ Objets en prod :
        <data>
          <xpath expr="//div[@name='button_box']" position="inside">
            <button class="oe_stat_button" type="action" name="2089" icon="fa-cubes"
-                   invisible="x_nb_colis == 0"
                    context="{'search_default_x_commande_id': id}">
              <field name="x_nb_colis" widget="statinfo" string="Colis (palettes)"/>
            </button>
@@ -66,5 +65,5 @@ Objets en prod :
        </data>
 
 Contrôles : S07305 → 5 colis (dont PACK0000050), S08042 → 5, S10563 → 4,
-S07457 → 0 (bouton masqué, rien de scanné sur cette commande).
+S07457 → 0 (rien de scanné sur cette commande ; bouton visible avec « 0 »).
 """
