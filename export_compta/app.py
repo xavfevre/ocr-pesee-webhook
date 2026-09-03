@@ -366,6 +366,40 @@ def _apercu(comp, du, au, journaux):
     return agg, nouveaux
 
 
+def _controle_analytique(comp, du, au, journaux):
+    """Contrôle avant export (MAQUIGNON) : lignes de produits sur comptes 7*
+    sans section analytique Sage (plans hors « Project »). Renvoie une liste
+    [(pièce, compte, montant)] agrégée par pièce + compte."""
+    if comp != 1 or not journaux:
+        return []
+    lines = _q("account.move.line", "search_read",
+               [("company_id", "=", comp), ("parent_state", "=", "posted"),
+                 ("date", ">=", du), ("date", "<=", au),
+                 ("journal_id", "in", [j["id"] for j in journaux]),
+                 ("display_type", "=", "product")],
+               fields=["move_name", "account_id", "analytic_distribution",
+                       "debit", "credit"], limit=0)
+    acc_ids = list({l["account_id"][0] for l in lines if l["account_id"]})
+    codes = {}
+    for i in range(0, len(acc_ids), 800):
+        for a in _q("account.account", "read", acc_ids[i:i + 800], fields=["code"]):
+            codes[a["id"]] = a["code"] or ""
+    sage_ids = {a["id"] for a in _q("account.analytic.account", "search_read",
+                                    [("plan_id", "!=", PLAN_PROJECT)], fields=["id"], limit=0)}
+    manq = {}
+    for l in lines:
+        code = codes.get(l["account_id"] and l["account_id"][0], "")
+        if not code.startswith("7"):
+            continue
+        ids = {int(x) for k in (l.get("analytic_distribution") or {})
+               for x in str(k).split(",") if x.strip().isdigit()}
+        if ids & sage_ids:
+            continue
+        cle = (l["move_name"] or "?", code)
+        manq[cle] = manq.get(cle, 0.0) + (l["credit"] or 0) - (l["debit"] or 0)
+    return sorted((p, c, m) for (p, c), m in manq.items())
+
+
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -447,6 +481,17 @@ def page():
         corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures du mois jamais "
                   "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).%s</div>"
                   % (len(nouveaux), detail_nc))
+        manq = _controle_analytique(comp, du, au, journaux)
+        if manq:
+            det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
+            if len(manq) > 20:
+                det += " · … et %d autre(s)" % (len(manq) - 20)
+            corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
+                      "⚠️ <b>%d</b> ligne(s) de vente <b>sans section analytique</b> — elles partiront "
+                      "dans Sage sans analytique. À compléter dans Odoo (ou à ignorer si c'est voulu, "
+                      "ex. cession de matériel) puis recharger cette page."
+                      "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div></div>"
+                      % (len(manq), det))
         corps += ("<form method='post' action='export?token=%s'>"
                   "<input type='hidden' name='societe' value='%s'>"
                   "<input type='hidden' name='mois' value='%s'>"
