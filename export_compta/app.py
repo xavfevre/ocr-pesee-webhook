@@ -436,6 +436,39 @@ def _controle_analytique(comp, du, au, journaux):
     return sorted((p, c, m) for (p, c), m in manq.items())
 
 
+def _maintenant_paris():
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _histo_add(comp, libelle_journal, du, au):
+    """Journalise chaque téléchargement (fichier .txt ou ZIP) — 60 derniers."""
+    import json
+    key = "maquignon.export_compta_histo_%s" % comp
+    try:
+        h = json.loads(_q("ir.config_parameter", "get_param", key) or "[]")
+    except ValueError:
+        h = []
+    h.insert(0, {"j": libelle_journal, "du": du, "au": au, "fait": _maintenant_paris()})
+    _q("ir.config_parameter", "set_param", key, json.dumps(h[:60], ensure_ascii=False))
+
+
+def _dernier_maj(comp, du, au):
+    """Avance le repère « dernier export » (préremplissage du lendemain + alerte
+    rétroactive). Horodatage UTC pour comparaison avec create_date d'Odoo."""
+    from datetime import datetime
+    key = "maquignon.export_compta_dernier_%s" % comp
+    cur = _q("ir.config_parameter", "get_param", key) or ""
+    cur_au = cur.split("|")[1] if cur.count("|") == 2 else ""
+    if au > cur_au:
+        _q("ir.config_parameter", "set_param", key,
+           "%s|%s|%s" % (du, au, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+
+
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -569,11 +602,34 @@ def page():
                   "<input type='hidden' name='societe' value='%s'>%s"
                   "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> "
                   "Marquer les nouveaux clients comme transmis à Sage</label>"
-                  "<label class='chk'><input type='checkbox' name='verrou' value='1' checked> "
-                  "Verrouiller les ventes jusqu'au <b>%s</b> après l'export "
-                  "(verrou actuel : %s — jamais reculé)</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
-                  "</form>" % (token, comp, champs, au, verrou or "aucun", libelle))
+                  "</form>" % (token, comp, champs, libelle))
+        corps += ("<form method='post' action='verrou?token=%s' style='margin-top:10px;' "
+                  "onsubmit=\"return confirm('Verrouiller les ventes de cette société jusqu\\'au %s ?');\">"
+                  "<input type='hidden' name='societe' value='%s'>"
+                  "<input type='hidden' name='au' value='%s'>"
+                  "<input type='hidden' name='du' value='%s'>"
+                  "<button type='submit' class='btn sec' style='border:1.5px solid #cbd5e1;'>"
+                  "🔒 Verrouiller les ventes jusqu'au %s</button> "
+                  "<span style='font-size:12px;color:#64748b;'>verrou actuel : %s — jamais reculé, "
+                  "à faire une fois les journaux de la période téléchargés</span>"
+                  "</form>" % (token, au, comp, au, du, au, verrou or "aucun"))
+
+    import json as _j2
+    try:
+        histo = _j2.loads(_q("ir.config_parameter", "get_param",
+                             "maquignon.export_compta_histo_%s" % comp) or "[]")
+    except ValueError:
+        histo = []
+    if histo:
+        lg = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+                     % (h.get("fait", ""), h.get("j", ""), h.get("du", ""), h.get("au", ""))
+                     for h in histo[:25])
+        corps += ("<details style='margin-top:14px;'><summary style='cursor:pointer;font-weight:700;"
+                  "font-size:13px;color:#334155;'>🕘 Historique des exports (%d)</summary>"
+                  "<table style='margin-top:8px;'><tr><th>Fait le</th><th>Journal</th>"
+                  "<th>Du</th><th>Au</th></tr>%s</table></details>" % (len(histo), lg))
+
     corps = info_dernier + corps
     html = (PAGE.replace("__SOCIETES__", opts_soc)
                 .replace("__DU__", du).replace("__AU__", au)
@@ -599,12 +655,32 @@ def fichier():
     contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0])
     if contenu is None:
         return Response("Aucune écriture.", mimetype="text/plain; charset=utf-8", status=404)
+    _histo_add(j["company_id"][0], "%s — %s" % (j["code"] or "", j["name"]), du, au)
+    _dernier_maj(j["company_id"][0], du, au)
     slug = j["company_id"][1].replace(" ", "_").replace("/", "_")
     nom = "%s_%s_%s_du_%s_au_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"),
                                         du.replace("-", ""), au.replace("-", ""))
     return Response(contenu.encode("cp1252", errors="replace"),
                     mimetype="text/plain; charset=windows-1252",
                     headers={"Content-Disposition": "attachment; filename=%s" % nom})
+
+
+@bp.route("/verrou", methods=["POST"])
+def verrou():
+    _check_token()
+    comp = int(request.form["societe"])
+    au = (request.form.get("au") or "").strip()
+    import re as _re
+    if not _re.match(r"^\d{4}-\d{2}-\d{2}$", au):
+        abort(400)
+    actuel = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
+    if not actuel or au > actuel:
+        # verrou des VENTES uniquement (pas le verrou global : les relevés
+        # bancaires tardifs doivent rester importables) — jamais reculé
+        _q("res.company", "write", [comp], {"sale_lock_date": au})
+    from flask import redirect
+    return redirect("?token=%s&societe=%s&du=%s&au=%s" % (
+        request.args.get("token", ""), comp, request.form.get("du", ""), au))
 
 
 @bp.route("/export", methods=["POST"])
@@ -635,15 +711,8 @@ def export():
     if n_fichiers == 0:
         return Response("Aucune écriture sur la période pour cette société.",
                         mimetype="text/plain; charset=utf-8", status=404)
-    from datetime import datetime as _dt
-    _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
-       "%s|%s|%s" % (du, au, _dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-    if request.form.get("verrou") == "1":
-        # verrou des VENTES uniquement (pas le verrou global : les relevés
-        # bancaires tardifs doivent rester importables) — jamais reculé
-        actuel = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
-        if not actuel or au > actuel:
-            _q("res.company", "write", [comp], {"sale_lock_date": au})
+    _histo_add(comp, "📦 ZIP complet", du, au)
+    _dernier_maj(comp, du, au)
     buf.seek(0)
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
