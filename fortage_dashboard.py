@@ -31,7 +31,7 @@ MOIS_NOMS = ["Avril", "Mai", "Juin", "Juillet", "Août", "Septembre",
              "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars"]
 
 INK = "#0E2E31"; TEAL = "#01666B"; TEALD = "#013E42"
-FORMATS = {"m3": "#,##0.000", "eur": "#,##0.00 €"}
+FORMATS = {"m3": "#,##0.000", "eur": "#,##0.00[$ €]"}
 
 DOMAIN = ["&", "&", "&",
           ["move_id.move_type", "in", ["out_invoice", "out_refund"]],
