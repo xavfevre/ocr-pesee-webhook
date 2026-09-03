@@ -958,6 +958,31 @@ def parc_pdf_route():
                  headers={"Content-Disposition": "inline; filename=%s" % nom})
 
 
+@app.route("/parc-ticpe.xlsx", methods=["GET"])
+def parc_ticpe_route():
+    # Relevé Excel des heures de fonctionnement des engins (aides carrière).
+    # Même clé que le PDF du parc ; du/au facultatifs (défaut : année civile en cours).
+    import hmac
+    from datetime import date as _date
+    from flask import Response as _Resp
+    import parc_ticpe
+    uid, models = odoo_connect()
+    call_kw = _fab_dash_call_kw(models, uid)
+    ref = call_kw("ir.config_parameter", "get_param", ["maquignon.parc_pdf_key"]) or ""
+    key = (request.args.get("k") or "").strip()
+    if not (key and ref and hmac.compare_digest(key, ref)):
+        return jsonify({"error": "clé invalide"}), 403
+    auj = _date.today()
+    du = (request.args.get("du") or "").strip() or auj.replace(month=1, day=1).isoformat()
+    au = (request.args.get("au") or "").strip() or auj.isoformat()
+    if not (re.match(r"^\d{4}-\d{2}-\d{2}$", du) and re.match(r"^\d{4}-\d{2}-\d{2}$", au) and du <= au):
+        return jsonify({"error": "du/au attendus au format YYYY-MM-DD (du <= au)"}), 400
+    xlsx = parc_ticpe.generer(call_kw, du, au)
+    nom = "Heures_engins_carriere_du_%s_au_%s.xlsx" % (du.replace("-", ""), au.replace("-", ""))
+    return _Resp(xlsx, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                 headers={"Content-Disposition": "attachment; filename=%s" % nom})
+
+
 @app.route("/rebuild-fortage-dashboard", methods=["POST"])
 @require_secret
 def rebuild_fortage_dashboard():
