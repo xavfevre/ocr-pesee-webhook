@@ -20,7 +20,8 @@ et les colonnes de l'exercice courant ; les montants, eux, sont temps réel.
 import json
 from datetime import date
 
-DASH_NAME = "Redevance Tuffeau (droit de fortage)"
+DASH_NAME = "Droit de fortage"
+DASH_ID = 37                # repli si le tableau de bord est renommé dans Odoo
 DASH_GROUP_ID = 11          # groupe « États mensuels »
 COMPANY_ID = 1              # SARL MAQUIGNON
 TAG_TUFFEAU = 19            # tag produit « Pierres Tuffeau »
@@ -220,6 +221,8 @@ def rebuild(call_kw):
     doc = json.dumps(build_doc(data), ensure_ascii=False)
     json.loads(doc)
     ids = call_kw("spreadsheet.dashboard", "search", [[["name", "=", DASH_NAME]]], {})
+    if not ids:
+        ids = call_kw("spreadsheet.dashboard", "search", [[["id", "=", DASH_ID]]], {})
     if not ids:
         raise RuntimeError("dashboard %r introuvable" % DASH_NAME)
     call_kw("spreadsheet.dashboard", "write", [ids, {"spreadsheet_data": doc}], {})
