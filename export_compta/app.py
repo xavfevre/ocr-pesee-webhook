@@ -331,14 +331,16 @@ def _journaux(comp):
     # pour l'instant le cabinet n'importe que les VENTES et la CAISSE
     js = _q("account.journal", "search_read",
             [("company_id", "=", comp), ("type", "in", ["sale", "cash"])],
-            fields=["name", "code", "type"], order="type, id")
+            fields=["name", "code", "type"], order="type, id",
+            context={"lang": "fr_FR"})
     pos = _q("pos.config", "search_read", [("company_id", "=", comp)],
              fields=["journal_id"])
     pos_ids = {p["journal_id"][0] for p in pos if p["journal_id"]}
     deja = {j["id"] for j in js}
     manquants = [i for i in pos_ids if i not in deja]
     if manquants:
-        js += _q("account.journal", "read", manquants, fields=["name", "code", "type"])
+        js += _q("account.journal", "read", manquants, fields=["name", "code", "type"],
+                 context={"lang": "fr_FR"})
     for j in js:
         j["format_caisse"] = j["type"] == "cash" or j["id"] in pos_ids
         if j["id"] in pos_ids:
@@ -355,7 +357,8 @@ def _journaux(comp):
     # banques (512*) restent hors export.
     banques = _q("account.journal", "search_read",
                  [("company_id", "=", comp), ("type", "=", "bank")],
-                 fields=["name", "code", "type", "default_account_id"], order="id")
+                 fields=["name", "code", "type", "default_account_id"], order="id",
+                 context={"lang": "fr_FR"})
     acc_ids = [b["default_account_id"][0] for b in banques if b["default_account_id"]]
     codes = {a["id"]: a["code"] or "" for a in _q(
         "account.account", "read", acc_ids, fields=["code"],
@@ -434,6 +437,13 @@ def _controle_analytique(comp, du, au, journaux):
         cle = (l["move_name"] or "?", code)
         manq[cle] = manq.get(cle, 0.0) + (l["credit"] or 0) - (l["debit"] or 0)
     return sorted((p, c, m) for (p, c), m in manq.items())
+
+
+def _dfr(iso):
+    """2026-08-31 -> 31/08/2026 ; « 2026-08-31 14:22 » -> 31/08/2026 14:22."""
+    if not iso or len(iso) < 10:
+        return iso or ""
+    return "%s/%s/%s%s" % (iso[8:10], iso[5:7], iso[0:4], iso[10:])
 
 
 def _maintenant_paris():
@@ -528,15 +538,16 @@ def page():
             suggestion = (datetime.strptime(d_au, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
         except ValueError:
             suggestion = ""
-        info_dernier = ("<p class='sub'>📌 Dernier export ZIP de cette société : "
-                        "<b>du %s au %s</b> (fait le %s).</p>" % (d_du, d_au, d_fait[:10]))
+        info_dernier = ("<p class='sub'>📌 Dernier export de cette société : "
+                        "<b>du %s au %s</b> (fait le %s).</p>"
+                        % (_dfr(d_du), _dfr(d_au), _dfr(d_fait[:10])))
     # période affichée : du/au de l'URL, sinon lendemain du dernier export → aujourd'hui
     du, au, _lib = _periode({"du": request.args.get("du"), "au": request.args.get("au"),
                              "mois": d.strftime("%Y-%m")})
     if not request.args.get("du"):
         du = suggestion or du.replace(du[8:], "01")
         au = max(du, d.isoformat())
-    libelle = "du %s au %s" % (du, au)
+    libelle = "du %s au %s" % (_dfr(du), _dfr(au))
     periode_qs = "du=%s&au=%s" % (du, au)
 
     journaux = _journaux(comp)
@@ -571,19 +582,20 @@ def page():
                        [("company_id", "=", comp), ("state", "=", "posted"),
                         ("journal_id", "in", [j["id"] for j in journaux]),
                         ("date", "<=", d_au), ("create_date", ">", d_fait)],
-                       fields=["name", "date", "journal_id", "amount_total"], limit=50)
+                       fields=["name", "date", "journal_id", "amount_total"], limit=50,
+                       context={"lang": "fr_FR"})
             if retro:
                 det = " · ".join("<b>%s</b> %s (%s, %.2f €)" % (
-                    r["name"], r["date"], r["journal_id"][1], r["amount_total"] or 0)
+                    r["name"], _dfr(r["date"]), r["journal_id"][1], r["amount_total"] or 0)
                     for r in retro[:12])
                 if len(retro) > 12:
                     det += " · … et %d autre(s)" % (len(retro) - 12)
                 corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
                           "⏪ <b>%d</b> écriture(s) <b>datée(s) dans une période déjà exportée</b> "
-                          "(≤ %s) mais saisie(s) après le dernier export ZIP — elles ne sortiront pas "
+                          "(≤ %s) mais saisie(s) après le dernier export — elles ne sortiront pas "
                           "avec la plage préremplie. Les exporter à part (choisir leurs dates) ou les "
                           "passer à la main dans Sage.<div style='margin-top:6px;font-size:12px;"
-                          "font-weight:400;'>%s</div></div>" % (len(retro), d_au, det))
+                          "font-weight:400;'>%s</div></div>" % (len(retro), _dfr(d_au), det))
         manq = _controle_analytique(comp, du, au, journaux)
         if manq:
             det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
@@ -613,7 +625,7 @@ def page():
                   "🔒 Verrouiller les ventes jusqu'au %s</button> "
                   "<span style='font-size:12px;color:#64748b;'>verrou actuel : %s — jamais reculé, "
                   "à faire une fois les journaux de la période téléchargés</span>"
-                  "</form>" % (token, au, comp, au, du, au, verrou or "aucun"))
+                  "</form>" % (token, _dfr(au), comp, au, du, _dfr(au), _dfr(verrou) if verrou else "aucun"))
 
     import json as _j2
     try:
@@ -623,7 +635,8 @@ def page():
         histo = []
     if histo:
         lg = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
-                     % (h.get("fait", ""), h.get("j", ""), h.get("du", ""), h.get("au", ""))
+                     % (_dfr(h.get("fait", "")), h.get("j", ""),
+                        _dfr(h.get("du", "")), _dfr(h.get("au", "")))
                      for h in histo[:25])
         corps += ("<details style='margin-top:14px;'><summary style='cursor:pointer;font-weight:700;"
                   "font-size:13px;color:#334155;'>🕘 Historique des exports (%d)</summary>"
@@ -648,7 +661,8 @@ def fichier():
     _check_token()
     jid = int(request.args["journal"])
     du, au, _lib = _periode(request.args)
-    j = _q("account.journal", "read", [jid], fields=["name", "code", "type", "company_id"])[0]
+    j = _q("account.journal", "read", [jid], fields=["name", "code", "type", "company_id"],
+           context={"lang": "fr_FR"})[0]
     pos = _q("pos.config", "search_read", [("journal_id", "=", jid)], fields=["id"])
     j["format_caisse"] = j["type"] == "cash" or bool(pos)
     base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
