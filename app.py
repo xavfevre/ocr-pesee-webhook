@@ -938,6 +938,26 @@ def rebuild_fab_dashboard():
     return jsonify({"ok": True, "counts": counts})
 
 
+@app.route("/parc-pdf", methods=["GET"])
+def parc_pdf_route():
+    # Récap PDF du parc (bouton « 📄 PDF » de la page /parc-controles Odoo).
+    # Clé stockée dans Odoo (ir.config_parameter maquignon.parc_pdf_key).
+    import hmac
+    from datetime import date as _date
+    from flask import Response as _Resp
+    import parc_pdf
+    uid, models = odoo_connect()
+    call_kw = _fab_dash_call_kw(models, uid)
+    ref = call_kw("ir.config_parameter", "get_param", ["maquignon.parc_pdf_key"]) or ""
+    key = (request.args.get("k") or "").strip()
+    if not (key and ref and hmac.compare_digest(key, ref)):
+        return jsonify({"error": "clé invalide"}), 403
+    pdf = parc_pdf.generer(call_kw)
+    nom = "Recap_parc_controles_%s.pdf" % _date.today().strftime("%d%m%y")
+    return _Resp(pdf, mimetype="application/pdf",
+                 headers={"Content-Disposition": "inline; filename=%s" % nom})
+
+
 @app.route("/rebuild-fortage-dashboard", methods=["POST"])
 @require_secret
 def rebuild_fortage_dashboard():

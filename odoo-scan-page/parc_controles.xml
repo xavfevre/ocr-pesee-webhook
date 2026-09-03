@@ -209,6 +209,7 @@
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=mois" t-attf-class="{{'on' if vue == 'mois' else ''}}">🗓 Mois</a>
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=annee" t-attf-class="{{'on' if vue == 'annee' else ''}}">🗂 Année</a>
           <a href="#" onclick="window.print();return false;">🖨 Imprimer</a>
+          <a t-attf-href="https://ocr-pesee-webhook.onrender.com/parc-pdf?k={{request.env['ir.config_parameter'].sudo().get_param('maquignon.parc_pdf_key')}}" target="_blank">📄 PDF</a>
         </div>
       </div>
 
