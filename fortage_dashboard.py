@@ -199,8 +199,7 @@ def build_doc(data):
     gfilters = [{"id": "flt_carriere", "type": "relation", "label": "Carrière",
                  "modelName": "product.tag", "includeChildren": False,
                  "domainOfAllowedValues": [["id", "in", TAGS_CARRIERE]],
-                 "defaultValue": [TAG_PRINCIPALE],
-                 "defaultValueDisplayNames": ["Carrière principale (fortage)"]}]
+                 "defaultValue": {"operator": "in", "ids": [TAG_PRINCIPALE]}}]
     return {"version": "18.5.10", "sheets": [sheet], "styles": _styles(), "formats": FORMATS, "borders": {},
             "revisionId": "START_REVISION", "uniqueFigureIds": True,
             "settings": {"locale": {"name": "French / Français", "code": "fr_FR", "thousandsSeparator": " ",
