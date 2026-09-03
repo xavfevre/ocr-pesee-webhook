@@ -30,6 +30,11 @@
     </t>
     <t t-set="derniere_date" t-value="lambda r: last_log.get((r.x_vehicule_id.id, r.x_type_id.x_fleet_service_type_id.id)) if r.x_type_id.x_fleet_service_type_id else None or r.x_derniere_date"/>
     <t t-set="veh_short" t-value="lambda n: n.split('/')[-2] if '/' in n else n"/>
+    <!-- 1er contrôle technique à 4 ans (véhicule neuf) : pour le CT léger et
+         l'antipollution VUL, l'échéance ne peut pas tomber avant la date
+         d'immatriculation + 4 ans ; sans saisie, le 1er CT d'un véhicule de
+         moins de 4 ans est affiché au lieu de « À renseigner ». -->
+    <t t-set="echeance" t-value="lambda r, dd: (lambda per, m4: (max(per, m4) if (per and m4) else (per if per else (m4 if (m4 and m4 &gt;= today) else None))))((dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None, (r.x_vehicule_id.acquisition_date + datetime.timedelta(days=1461)) if (r.x_vehicule_id.acquisition_date and (('léger' in (r.x_type_id.x_name or '')) or ('antipollution' in (r.x_type_id.x_name or '').lower()))) else None)"/>
 
     <!-- Échéances calculées (pour les vues calendaires), filtrées par catégorie/état -->
     <t t-set="echeances" t-value="[]"/>
@@ -37,7 +42,7 @@
       <t t-if="not cats or r.x_categorie in cats">
         <t t-set="dd" t-value="derniere_date(r)"/>
         <t t-if="dd">
-          <t t-set="ech" t-value="dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)"/>
+          <t t-set="ech" t-value="echeance(r, dd)"/>
           <t t-set="e_etat" t-value="'retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')"/>
           <t t-if="not selected_etat or selected_etat == e_etat">
             <t t-set="att" t-value="r.x_vehicule_id.x_attelage_id"/>
@@ -138,6 +143,20 @@
       .pc-btn-clear:hover{background:#fecaca;filter:none;}
       .pc-btn-cancel:hover{background:#e2e8f0;filter:none;}
       .pc-viewnav a:hover:not(.on){background:#f1f5f9;}
+      .pc-printhead{display:none;}
+      @media print {
+        @page {size: A4 landscape; margin: 8mm;}
+        body{background:#fff !important;}
+        .pc-topbar, .pc-viewnav, #wrapwrap header {display:none !important;}
+        .pc-printhead{display:block;font-size:13px;margin:0 0 8px;color:#0f172a;}
+        .pc-wrap{padding:0;}
+        .pc-wrap h3{font-size:16px !important;display:none;}
+        table.pc{font-size:9px;}
+        .pc-cell{border:1px solid #cbd5e1 !important;box-shadow:none !important;
+                 -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+        .pc-att{display:none !important;}
+        div[style*="overflow-x"]{overflow:visible !important;}
+      }
       .pc-doc-ren{cursor:pointer;margin-left:7px;color:#94a3b8;font-weight:800;}
       .pc-doc-ren:hover{color:#0f172a;}
     </style>
@@ -167,7 +186,7 @@
         <t t-foreach="rows" t-as="r">
           <t t-if="not cats or r.x_categorie in cats">
           <t t-set="dd" t-value="derniere_date(r)"/>
-          <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
+          <t t-set="ech" t-value="echeance(r, dd)"/>
           <t t-set="_x" t-value="all_states.append('vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')))"/>
           </t>
         </t>
@@ -189,9 +208,17 @@
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=semaine" t-attf-class="{{'on' if vue == 'semaine' else ''}}">📅 Semaine</a>
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=mois" t-attf-class="{{'on' if vue == 'mois' else ''}}">🗓 Mois</a>
           <a t-attf-href="/parc-controles?cat={{selected_cat}}&amp;etat={{selected_etat}}&amp;vue=annee" t-attf-class="{{'on' if vue == 'annee' else ''}}">🗂 Année</a>
+          <a href="#" onclick="window.print();return false;">🖨 Imprimer</a>
         </div>
       </div>
 
+      <div class="pc-printhead">
+        <b>🚛 Parc automobile — contrôles obligatoires</b> · état au <t t-esc="today.strftime('%d/%m/%Y')"/>
+        · ⛔ en retard <t t-esc="all_states.count('retard')"/>
+        · ⚠ sous 30 j <t t-esc="all_states.count('proche')"/>
+        · ✓ à jour <t t-esc="all_states.count('ok')"/>
+        · ? à renseigner <t t-esc="all_states.count('vide')"/>
+      </div>
       <t t-if="vue == 'tableau'">
       <div style="overflow-x:auto;">
       <table class="pc">
@@ -214,7 +241,7 @@
                 <t t-if="ty.id in vrows">
                   <t t-set="r" t-value="vrows[ty.id]"/>
                   <t t-set="dd" t-value="derniere_date(r)"/>
-                  <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
+                  <t t-set="ech" t-value="echeance(r, dd)"/>
                   <t t-set="_x" t-value="vstates.append('vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok')))"/>
                 </t>
               </t>
@@ -237,7 +264,7 @@
                   <t t-if="ty.id in vrows">
                     <t t-set="r" t-value="vrows[ty.id]"/>
                     <t t-set="dd" t-value="derniere_date(r)"/>
-                    <t t-set="ech" t-value="(dd + datetime.timedelta(days=30*r.x_type_id.x_periodicite_mois)) if dd else None"/>
+                    <t t-set="ech" t-value="echeance(r, dd)"/>
                     <t t-set="etat" t-value="'vide' if not ech else ('retard' if ech &lt; today else ('proche' if (ech - today).days &lt;= 30 else 'ok'))"/>
                     <td>
                       <button type="button" t-attf-class="pc-cell {{'cv' if r.x_cv_limite else etat}}" t-att-data-id="r.id" t-att-data-veh="v.name" t-att-data-vehid="v.id" t-att-data-type="ty.x_name" t-att-data-mois="ty.x_periodicite_mois" t-att-data-date="dd or ''" t-att-data-cv="r.x_cv_limite or ''" t-att-data-combo="(v.x_attelage_id.license_plate or veh_short(v.x_attelage_id.name)) if (v.x_attelage_id and ty.id in by_veh.get(v.x_attelage_id.id, {})) else ''" t-att-data-attelid="(v.x_attelage_id and v.x_attelage_id.id) or ''" t-att-data-attelname="(v.x_attelage_id and (v.x_attelage_id.license_plate or veh_short(v.x_attelage_id.name))) or ''">
@@ -247,6 +274,9 @@
                         <t t-elif="dd">
                           <t t-esc="dd.strftime('%d/%m/%y')"/><br/>
                           <t t-if="ech">→ <t t-esc="ech.strftime('%d/%m/%y')"/></t>
+                        </t>
+                        <t t-elif="ech">
+                          1er contrôle<br/>→ <t t-esc="ech.strftime('%d/%m/%y')"/>
                         </t>
                         <t t-else="">À renseigner</t>
                       </button>
@@ -580,7 +610,7 @@
         document.getElementById('pcDocUp').addEventListener('click', function(){
           var f = document.getElementById('pcDocFile').files[0];
           if(!f){ alert('Choisissez un fichier.'); return; }
-          if(f.size > 20 * 1024 * 1024){ alert('Fichier trop volumineux (20 Mo max).'); return; }
+          if(f.size &gt; 20 * 1024 * 1024){ alert('Fichier trop volumineux (20 Mo max).'); return; }
           var reader = new FileReader();
           reader.onload = function(){
             var b64 = reader.result.split(',')[1];

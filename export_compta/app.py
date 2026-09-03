@@ -167,11 +167,14 @@ def _lignes_a(base, analytiques, sections, tot_debit, tot_credit):
     return lignes
 
 
-def _export_ventes(journal, du, au, base_url, clients_vus, comp):
-    """Format action 1459 : écritures groupées par (compte, analytique)."""
-    moves = _q("account.move", "search_read",
-               [("journal_id", "=", journal["id"]), ("state", "=", "posted"),
-                 ("date", ">=", du), ("date", "<=", au)],
+def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None):
+    """Format action 1459 : écritures groupées par (compte, analytique).
+    move_ids : restreint aux pièces données (export des écritures rétroactives)."""
+    dom = [("journal_id", "=", journal["id"]), ("state", "=", "posted"),
+           ("date", ">=", du), ("date", "<=", au)]
+    if move_ids is not None:
+        dom.append(("id", "in", move_ids))
+    moves = _q("account.move", "search_read", dom,
                fields=["name", "date", "invoice_date_due"], limit=0)  # ordre par défaut d'Odoo, comme l'action 1459
     if not moves:
         return None
@@ -237,11 +240,13 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp):
     return "\n".join(out)
 
 
-def _export_caisse(journal, du, au, clients_vus, comp):
+def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None):
     """Format action 1671 : ligne à ligne (tickets comptoir)."""
-    lines = _q("account.move.line", "search_read",
-               [("journal_id", "=", journal["id"]), ("parent_state", "=", "posted"),
-                 ("date", ">=", du), ("date", "<=", au)],
+    dom = [("journal_id", "=", journal["id"]), ("parent_state", "=", "posted"),
+           ("date", ">=", du), ("date", "<=", au)]
+    if move_ids is not None:
+        dom.append(("move_id", "in", move_ids))
+    lines = _q("account.move.line", "search_read", dom,
                fields=["move_id", "date", "account_id", "debit", "credit", "partner_id",
                        "name", "analytic_distribution"], limit=0,
                order="date asc, move_id asc, id asc")
@@ -479,6 +484,25 @@ def _dernier_maj(comp, du, au):
            "%s|%s|%s" % (du, au, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
 
 
+def _pieces_retro(comp, journaux):
+    """Pièces datées dans la période déjà exportée mais saisies après le dernier
+    export. Renvoie (d_au, d_fait, [moves]) ou (None, None, [])."""
+    dernier = _q("ir.config_parameter", "get_param",
+                 "maquignon.export_compta_dernier_%s" % comp) or ""
+    if dernier.count("|") != 2:
+        return None, None, []
+    d_du, d_au, d_fait = dernier.split("|")
+    if not (d_au and d_fait):
+        return None, None, []
+    moves = _q("account.move", "search_read",
+               [("company_id", "=", comp), ("state", "=", "posted"),
+                ("journal_id", "in", [j["id"] for j in journaux]),
+                ("date", "<=", d_au), ("create_date", ">", d_fait)],
+               fields=["name", "date", "journal_id", "amount_total"], limit=200,
+               context={"lang": "fr_FR"}, order="date asc, name asc")
+    return d_au, d_fait, moves
+
+
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -577,25 +601,21 @@ def page():
         corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures de la période jamais "
                   "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).%s</div>"
                   % (len(nouveaux), detail_nc))
-        if dernier.count("|") == 2 and d_au and d_fait:
-            retro = _q("account.move", "search_read",
-                       [("company_id", "=", comp), ("state", "=", "posted"),
-                        ("journal_id", "in", [j["id"] for j in journaux]),
-                        ("date", "<=", d_au), ("create_date", ">", d_fait)],
-                       fields=["name", "date", "journal_id", "amount_total"], limit=50,
-                       context={"lang": "fr_FR"})
-            if retro:
-                det = " · ".join("<b>%s</b> %s (%s, %.2f €)" % (
-                    r["name"], _dfr(r["date"]), r["journal_id"][1], r["amount_total"] or 0)
-                    for r in retro[:12])
-                if len(retro) > 12:
-                    det += " · … et %d autre(s)" % (len(retro) - 12)
-                corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
-                          "⏪ <b>%d</b> écriture(s) <b>datée(s) dans une période déjà exportée</b> "
-                          "(≤ %s) mais saisie(s) après le dernier export — elles ne sortiront pas "
-                          "avec la plage préremplie. Les exporter à part (choisir leurs dates) ou les "
-                          "passer à la main dans Sage.<div style='margin-top:6px;font-size:12px;"
-                          "font-weight:400;'>%s</div></div>" % (len(retro), _dfr(d_au), det))
+        r_au, r_fait, retro = _pieces_retro(comp, journaux)
+        if retro:
+            det = " · ".join("<b>%s</b> %s (%s, %.2f €)" % (
+                r["name"], _dfr(r["date"]), r["journal_id"][1], r["amount_total"] or 0)
+                for r in retro)
+            corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
+                      "⏪ <b>%d</b> écriture(s) <b>datée(s) dans une période déjà exportée</b> "
+                      "(≤ %s) mais saisie(s) après le dernier export — elles ne sortiront pas "
+                      "avec la plage préremplie."
+                      "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div>"
+                      "<div style='margin-top:8px;'><a class='btn' href='retro?token=%s&societe=%s'>"
+                      "⬇ Exporter ces écritures pour Sage</a> "
+                      "<span style='font-size:12px;font-weight:400;'>fichier au même format — "
+                      "l'alerte s'efface une fois le fichier téléchargé</span></div></div>"
+                      % (len(retro), _dfr(r_au), det, token, comp))
         manq = _controle_analytique(comp, du, au, journaux)
         if manq:
             det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
@@ -650,10 +670,10 @@ def page():
     return Response(html, mimetype="text/html")
 
 
-def _fichier_journal(j, du, au, base_url, clients_vus, comp):
+def _fichier_journal(j, du, au, base_url, clients_vus, comp, move_ids=None):
     if j.get("format_caisse") or j["type"] == "cash":
-        return _export_caisse(j, du, au, clients_vus, comp), "export_tickets_comptoir"
-    return _export_ventes(j, du, au, base_url, clients_vus, comp), "export_journal"
+        return _export_caisse(j, du, au, clients_vus, comp, move_ids), "export_tickets_comptoir"
+    return _export_ventes(j, du, au, base_url, clients_vus, comp, move_ids), "export_journal"
 
 
 @bp.route("/fichier", methods=["GET"])
@@ -677,6 +697,57 @@ def fichier():
     return Response(contenu.encode("cp1252", errors="replace"),
                     mimetype="text/plain; charset=windows-1252",
                     headers={"Content-Disposition": "attachment; filename=%s" % nom})
+
+
+@bp.route("/retro", methods=["GET"])
+def retro():
+    """Exporte les écritures rétroactives (datées dans la période déjà exportée
+    mais saisies depuis) au format Sage, puis rafraîchit l'horodatage du repère
+    pour effacer l'alerte. Un fichier par journal, ZIP si plusieurs."""
+    _check_token()
+    comp = int(request.args["societe"])
+    journaux = _journaux(comp)
+    d_au, d_fait, moves = _pieces_retro(comp, journaux)
+    if not moves:
+        return Response("Aucune écriture rétroactive.", mimetype="text/plain; charset=utf-8", status=404)
+    base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
+    d_min = min(m["date"] for m in moves)
+    par_journal = {}
+    for m in moves:
+        par_journal.setdefault(m["journal_id"][0], []).append(m["id"])
+    comp_nom = _q("res.company", "read", [comp], fields=["name"])[0]["name"]
+    slug = comp_nom.replace(" ", "_").replace("/", "_")
+    fichiers = []
+    for j in journaux:
+        if j["id"] not in par_journal:
+            continue
+        contenu, prefixe = _fichier_journal(j, d_min, d_au, base_url, set(), comp,
+                                            move_ids=par_journal[j["id"]])
+        if contenu:
+            nom = "retro_%s_%s_%s_jusquau_%s.txt" % (prefixe.replace("export_", ""), slug,
+                                                     j["name"].replace(" ", "_"), d_au.replace("-", ""))
+            fichiers.append((nom, contenu))
+    if not fichiers:
+        return Response("Aucune écriture rétroactive.", mimetype="text/plain; charset=utf-8", status=404)
+    # repère rafraîchi (mêmes bornes, horodatage neuf) -> l'alerte s'efface
+    from datetime import datetime as _dt
+    dernier = _q("ir.config_parameter", "get_param", "maquignon.export_compta_dernier_%s" % comp) or ""
+    d_du = dernier.split("|")[0] if dernier.count("|") == 2 else d_min
+    _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
+       "%s|%s|%s" % (d_du, d_au, _dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+    _histo_add(comp, "⏪ Écritures rétroactives (%d pièce(s))" % len(moves), d_min, d_au)
+    if len(fichiers) == 1:
+        nom, contenu = fichiers[0]
+        return Response(contenu.encode("cp1252", errors="replace"),
+                        mimetype="text/plain; charset=windows-1252",
+                        headers={"Content-Disposition": "attachment; filename=%s" % nom})
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for nom, contenu in fichiers:
+            z.writestr(nom, contenu.encode("cp1252", errors="replace"))
+    return Response(buf.getvalue(), mimetype="application/zip",
+                    headers={"Content-Disposition": "attachment; filename=retro_%s_jusquau_%s.zip"
+                             % (slug, d_au.replace("-", ""))})
 
 
 @bp.route("/verrou", methods=["POST"])
