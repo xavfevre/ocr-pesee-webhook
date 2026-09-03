@@ -918,6 +918,7 @@ import threading
 import time as _time
 
 import fab_dashboard
+import fortage_dashboard
 
 
 def _fab_dash_call_kw(models, uid):
@@ -935,6 +936,15 @@ def rebuild_fab_dashboard():
     counts = fab_dashboard.rebuild(_fab_dash_call_kw(models, uid))
     app.logger.info(f"fab-dashboard redimensionné: {counts}")
     return jsonify({"ok": True, "counts": counts})
+
+
+@app.route("/rebuild-fortage-dashboard", methods=["POST"])
+@require_secret
+def rebuild_fortage_dashboard():
+    uid, models = odoo_connect()
+    res = fortage_dashboard.rebuild(_fab_dash_call_kw(models, uid))
+    app.logger.info(f"fortage-dashboard recalculé: {res}")
+    return jsonify({"ok": True, "counts": res})
 
 
 # ─── EXPORT PAIE DES HEURES SALARIÉS ─────────────────────────────────────────
@@ -1126,6 +1136,12 @@ def _fab_dash_nightly():
             app.logger.info(f"fab-dashboard recalage nocturne: {counts}")
         except Exception as e:
             app.logger.warning(f"fab-dashboard recalage nocturne échoué: {e}")
+        try:
+            uid, models = odoo_connect()
+            res = fortage_dashboard.rebuild(_fab_dash_call_kw(models, uid))
+            app.logger.info(f"fortage-dashboard recalage nocturne: {res}")
+        except Exception as e:
+            app.logger.warning(f"fortage-dashboard recalage nocturne échoué: {e}")
 
 
 if ODOO_URL and ODOO_PASSWORD:
