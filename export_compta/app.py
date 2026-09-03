@@ -479,6 +479,23 @@ def page():
         v = f"{mm // 12:04d}-{mm % 12 + 1:02d}"
         opts_mois += '<option value="%s"%s>%s</option>' % (v, " selected" if v == mois else "", v)
 
+    # dernier export ZIP de la société : mémorisé pour reprendre au lendemain
+    dernier = (_q("ir.config_parameter", "get_param",
+                  "maquignon.export_compta_dernier_%s" % comp) or "")
+    suggestion = ""
+    info_dernier = ""
+    if dernier.count("|") == 2:
+        d_du, d_au, d_fait = dernier.split("|")
+        from datetime import datetime, timedelta
+        try:
+            suggestion = (datetime.strptime(d_au, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        except ValueError:
+            suggestion = ""
+        info_dernier = ("<p class='sub'>📌 Dernier export ZIP de cette société : "
+                        "<b>du %s au %s</b> (fait le %s) — le champ « du » est prérempli "
+                        "au lendemain, choisir « au » lance l'aperçu.</p>"
+                        % (d_du, d_au, d_fait))
+
     journaux = _journaux(comp)
     agg, nouveaux = _apercu(comp, du, au, journaux)
     lignes_html = ""
@@ -526,8 +543,9 @@ def page():
                   "Marquer les nouveaux clients comme transmis à Sage</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
                   "</form>" % (token, comp, champs, libelle))
+    corps = info_dernier + corps
     html = (PAGE.replace("__SOCIETES__", opts_soc).replace("__MOIS__", opts_mois)
-                .replace("__DU__", du if libre else "").replace("__AU__", au if libre else "")
+                .replace("__DU__", du if libre else suggestion).replace("__AU__", au if libre else "")
                 .replace("__TOKEN__", token).replace("__CORPS__", corps))
     return Response(html, mimetype="text/html")
 
@@ -586,6 +604,8 @@ def export():
     if n_fichiers == 0:
         return Response("Aucune écriture sur la période pour cette société.",
                         mimetype="text/plain; charset=utf-8", status=404)
+    _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
+       "%s|%s|%s" % (du, au, date.today().isoformat()))
     buf.seek(0)
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
