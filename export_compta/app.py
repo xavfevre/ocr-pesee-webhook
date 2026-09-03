@@ -539,23 +539,6 @@ def page():
     libelle = "du %s au %s" % (du, au)
     periode_qs = "du=%s&au=%s" % (du, au)
 
-    # dernier export ZIP de la société : mémorisé pour reprendre au lendemain
-    dernier = (_q("ir.config_parameter", "get_param",
-                  "maquignon.export_compta_dernier_%s" % comp) or "")
-    suggestion = ""
-    info_dernier = ""
-    if dernier.count("|") == 2:
-        d_du, d_au, d_fait = dernier.split("|")
-        from datetime import datetime, timedelta
-        try:
-            suggestion = (datetime.strptime(d_au, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-        except ValueError:
-            suggestion = ""
-        info_dernier = ("<p class='sub'>📌 Dernier export ZIP de cette société : "
-                        "<b>du %s au %s</b> (fait le %s) — le champ « du » est prérempli "
-                        "au lendemain, choisir « au » lance l'aperçu.</p>"
-                        % (d_du, d_au, d_fait))
-
     journaux = _journaux(comp)
     agg, nouveaux = _apercu(comp, du, au, journaux)
     lignes_html = ""
@@ -619,9 +602,6 @@ def page():
                   "<input type='hidden' name='societe' value='%s'>%s"
                   "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> "
                   "Marquer les nouveaux clients comme transmis à Sage</label>"
-                  "<label class='chk'><input type='checkbox' name='verrou' value='1' checked> "
-                  "Verrouiller les ventes jusqu'au <b>%s</b> après l'export "
-                  "(verrou actuel : %s — jamais reculé)</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
                   "</form>" % (token, comp, champs, libelle))
         corps += ("<form method='post' action='verrou?token=%s' style='margin-top:10px;' "
