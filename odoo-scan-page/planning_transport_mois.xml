@@ -232,8 +232,8 @@
           var y = parseInt(m.slice(0,4),10), mo = parseInt(m.slice(5,7),10);
           var fin = new Date(y, mo, 0).getDate();
           var au = m + '-' + ('0' + fin).slice(-2);
-          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
-            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2078]], kwargs:{context:{active_model:'project.task', sede_du: m + '-01', sede_au: au}}}})})
+          fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({action_id:2078, ctx:{sede_du: m + '-01', sede_au: au}})})
           .then(function(r){ return r.json(); }).then(function(d){
             sd.disabled = false; sd.textContent = '⚡ SEDE';
             if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
@@ -255,8 +255,8 @@
           b.disabled = true; b.textContent = '…';
           var y = parseInt(m.slice(0,4),10), mo = parseInt(m.slice(5,7),10);
           var au = m + '-' + ('0' + (new Date(y, mo, 0).getDate())).slice(-2);
-          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
-            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2081]], kwargs:{context:{active_model:'project.task', tb_recette: b.getAttribute('data-rec'), tb_du: m + '-01', tb_au: au}}}})})
+          fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({action_id:2081, ctx:{tb_recette: b.getAttribute('data-rec'), tb_du: m + '-01', tb_au: au}})})
           .then(function(r){ return r.json(); }).then(function(d){
             b.disabled = false; b.textContent = old;
             if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }

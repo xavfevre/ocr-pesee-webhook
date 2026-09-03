@@ -145,7 +145,7 @@
       </div>
     </div>
     <div id="cam-pop" style="display:none;position:fixed;inset:0;background:#000;z-index:100000;">
-      <video id="cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+      <video id="cam-video" autoplay="autoplay" playsinline="playsinline" muted="muted" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>
       <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
       <div id="cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre (palette, OF ou emplacement)…</div>
       <button type="button" id="cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
@@ -318,7 +318,12 @@
             if(q &lt; 1 || q &gt; mx){ return; }
             var m = prompt('Motif du rebut :', 'Casse mise en palette') || '';
             if(m.replace(/\s/g,'') === ''){ return; }
-            rpc('ir.actions.server','run',[[1987]],{context:{active_model:'mrp.production', active_ids:[ofid], active_id:ofid, rebut_n:q, rebut_motif:m}})
+            fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({action_id:1987, ctx:{active_id:ofid, rebut_n:q, rebut_motif:m}})
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d.error){ throw new Error(d.error.message); }
+              return d.result;
+            })
               .then(function(res){ setRes('💥 Rebut enregistré — OF relancé : ' + ((res &amp;&amp; res.new_of) || '')); beep(true); return refresh(); })
               .then(function(){ input.focus(); })
               .catch(function(e){ alert('Erreur : ' + e.message); });

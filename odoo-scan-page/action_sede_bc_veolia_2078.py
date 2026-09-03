@@ -1,4 +1,5 @@
-# Action serveur 2078 — bouton « ⚡ SEDE » de /planning-transport-mois
+# Action serveur Odoo 2078 — ARCHIVE avant suppression (03/09/2026) — portée vers Render (web_actions.py)
+# Compteur de lignes de l'abonnement Odoo (« Maintenance par 100 lignes »).
 
 # SEDE : pour chaque transport VEOLIA AGRICULTURE du mois sans BC, reproduit la
 # procédure manuelle d'Isabelle : BC confirmé avec l'article « Location de
@@ -80,4 +81,3 @@ for t in tasks:
     faits.append(so.name)
 action = {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
           'annulees': annulees, 'sans_bon': sans_bon[:40], 'futurs': futurs, 'non_faits': non_faits}
-
