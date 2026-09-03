@@ -1109,6 +1109,15 @@ HEURES_ACTIONS_AUTORISEES = {
     2069,  # décision manager sur une demande de congés (jeton de la demande)
     2090,  # plages de paie par salarié mémorisées dès la saisie (clé responsables)
 }
+
+# Actions des pages web (parc, planning transport, poste de scan) portées vers
+# Render (web_actions.py) pour libérer le compteur de lignes de l'abonnement.
+WEB_ACTIONS_AUTORISEES = {
+    1987,  # tablette : déclarer un rebut (poste de scan, vue opérateur)
+    2055,  # parc auto : enregistrer une intervention (/parc-controles)
+    2078,  # SEDE : générer les BC VEOLIA (planning transport mois)
+    2081,  # boutons transport : BC automatiques par recette (planning mois)
+}
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
 _HEURES_CONN = {}
 
@@ -1129,7 +1138,8 @@ def heures_rpc():
     donnees = request.get_json(silent=True) or {}
     action_id = donnees.get("action_id")
     ctx = donnees.get("ctx")
-    if action_id not in HEURES_ACTIONS_AUTORISEES or not isinstance(ctx, dict):
+    if (action_id not in HEURES_ACTIONS_AUTORISEES
+            and action_id not in WEB_ACTIONS_AUTORISEES) or not isinstance(ctx, dict):
         return _heures_cors(jsonify({"error": {"message": "action non autorisée"}}))
 
     try:
@@ -1150,9 +1160,16 @@ def heures_rpc():
         def call(model, method, *params, **kw):
             return x(models, uid, model, method, *params, **kw)
 
-        # Logique portée d'Odoo vers Render (heures_actions.py) : mêmes
-        # numéros d'action, même contrat ctx -> dict, mêmes messages.
-        resultat = heures_actions.executer(call, int(action_id), ctx)
+        # Logique portée d'Odoo vers Render (heures_actions.py / web_actions.py) :
+        # mêmes numéros d'action, même contrat ctx -> dict, mêmes messages.
+        if int(action_id) in WEB_ACTIONS_AUTORISEES:
+            import web_actions
+            try:
+                resultat = web_actions.executer(call, int(action_id), ctx)
+            except web_actions.WebErreur as exc:
+                return _heures_cors(jsonify({"error": {"message": str(exc)}}))
+        else:
+            resultat = heures_actions.executer(call, int(action_id), ctx)
         return _heures_cors(jsonify({"result": resultat if isinstance(resultat, dict) else {}}))
     except heures_actions.HeuresErreur as exc:
         # Équivalent du UserError : message affiché tel quel par la page.

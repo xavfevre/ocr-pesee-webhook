@@ -1,3 +1,6 @@
+# Action serveur Odoo 1987 — ARCHIVE avant suppression (03/09/2026) — portée vers Render (web_actions.py)
+# Compteur de lignes de l'abonnement Odoo (« Maintenance par 100 lignes »).
+
 
 of = env['mrp.production'].browse(env.context.get('active_id')).sudo()
 n = int(env.context.get('rebut_n') or 0)

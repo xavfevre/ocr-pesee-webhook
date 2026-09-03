@@ -1,3 +1,6 @@
+# Action serveur Odoo 2081 — ARCHIVE avant suppression (03/09/2026) — portée vers Render (web_actions.py)
+# Compteur de lignes de l'abonnement Odoo (« Maintenance par 100 lignes »).
+
 # Boutons transport (vue mois) : BC automatiques par recette client.
 # Regles communes : tache du mois affiche, NON annulee, SANS BC existant,
 # NON future, et A L'ETAT « Fait » (etat kanban) — sinon comptee/ignoree.

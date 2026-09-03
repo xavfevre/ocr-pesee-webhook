@@ -484,6 +484,16 @@
             return d.result;
           });
         }
+        function rendu(ctx){
+          // action 2055 portée sur Render (compteur de lignes de l'abonnement)
+          ctx.active_model = 'x_controle_vehicule';
+          return fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({action_id:2055, ctx:ctx})
+          }).then(function(r){ return r.json(); }).then(function(d){
+            if(d.error){ throw new Error(d.error.message); }
+            return d.result;
+          });
+        }
         function loadDocs(){
           var box = document.getElementById('pcDocList');
           box.textContent = 'Chargement…';
@@ -581,12 +591,9 @@
         pop.addEventListener('click', function(e){ if(e.target === pop){ closePop(); } });
         function save(dateVal){
           if(!curId){ return; }
-          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:'ir.actions.server', method:'run', args:[[2055]], kwargs:{context:{active_model:'x_controle_vehicule', pc_id:curId, pc_date:dateVal || '', pc_combo_too:(dateVal &amp;&amp; document.getElementById('pcComboZone').style.display !== 'none' &amp;&amp; document.getElementById('pcComboChk').checked) ? 1 : 0}}}})
-          }).then(function(r){return r.json();}).then(function(d){
-            if(d.error){ alert('Échec : ' + (d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
-            location.reload();
-          }).catch(function(){ alert('Échec réseau'); });
+          rendu({pc_id:curId, pc_date:dateVal || '', pc_combo_too:(dateVal &amp;&amp; document.getElementById('pcComboZone').style.display !== 'none' &amp;&amp; document.getElementById('pcComboChk').checked) ? 1 : 0})
+            .then(function(){ location.reload(); })
+            .catch(function(e){ alert('Échec : ' + (e.message || 'réseau')); });
         }
         document.getElementById('pcPopSave').addEventListener('click', function(){ save(document.getElementById('pcPopDate').value); });
         document.getElementById('pcPopValid').addEventListener('click', function(){
@@ -598,7 +605,7 @@
         function runCtx(ctx){
           ctx.active_model = 'x_controle_vehicule';
           ctx.pc_id = curId;
-          rpc('ir.actions.server', 'run', [[2055]], {context: ctx}).then(function(){ location.reload(); })
+          rendu(ctx).then(function(){ location.reload(); })
             .catch(function(e){ alert('Échec : ' + e.message); });
         }
         document.getElementById('pcCvSetBtn').addEventListener('click', function(){
