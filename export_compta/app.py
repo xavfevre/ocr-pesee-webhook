@@ -349,6 +349,23 @@ def _journaux(comp):
             j["explication"] = "Factures et avoirs clients (hors comptoir)"
         else:
             j["explication"] = "Relevés bancaires"
+    # journaux « à encaisser » (CB / chèques, compte 5112*) : des banques au sens
+    # Odoo, mais exportés vers Sage comme le faisait l'action historique 1459
+    # (ex. « CB à encaisser » / « Chèque à encaisser » de Châtel). Les vraies
+    # banques (512*) restent hors export.
+    banques = _q("account.journal", "search_read",
+                 [("company_id", "=", comp), ("type", "=", "bank")],
+                 fields=["name", "code", "type", "default_account_id"], order="id")
+    acc_ids = [b["default_account_id"][0] for b in banques if b["default_account_id"]]
+    codes = {a["id"]: a["code"] or "" for a in _q(
+        "account.account", "read", acc_ids, fields=["code"],
+        context={"allowed_company_ids": [comp]})} if acc_ids else {}
+    for b in banques:
+        aid = b["default_account_id"] and b["default_account_id"][0]
+        if codes.get(aid, "").startswith("5112"):
+            b["format_caisse"] = False
+            b["explication"] = "Encaissements différés (CB / chèques à encaisser) — format ventes, comme l'export historique"
+            js.append(b)
     return js
 
 
@@ -537,12 +554,16 @@ def page():
         champs = ("<input type='hidden' name='du' value='%s'>"
                   "<input type='hidden' name='au' value='%s'>" % (du, au)) if libre \
             else "<input type='hidden' name='mois' value='%s'>" % mois
+        verrou = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
         corps += ("<form method='post' action='export?token=%s'>"
                   "<input type='hidden' name='societe' value='%s'>%s"
                   "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> "
                   "Marquer les nouveaux clients comme transmis à Sage</label>"
+                  "<label class='chk'><input type='checkbox' name='verrou' value='1' checked> "
+                  "Verrouiller les ventes jusqu'au <b>%s</b> après l'export "
+                  "(verrou actuel : %s — jamais reculé)</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
-                  "</form>" % (token, comp, champs, libelle))
+                  "</form>" % (token, comp, champs, au, verrou or "aucun", libelle))
     corps = info_dernier + corps
     html = (PAGE.replace("__SOCIETES__", opts_soc).replace("__MOIS__", opts_mois)
                 .replace("__DU__", du if libre else suggestion).replace("__AU__", au if libre else "")
@@ -606,6 +627,12 @@ def export():
                         mimetype="text/plain; charset=utf-8", status=404)
     _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
        "%s|%s|%s" % (du, au, date.today().isoformat()))
+    if request.form.get("verrou") == "1":
+        # verrou des VENTES uniquement (pas le verrou global : les relevés
+        # bancaires tardifs doivent rester importables) — jamais reculé
+        actuel = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
+        if not actuel or au > actuel:
+            _q("res.company", "write", [comp], {"sale_lock_date": au})
     buf.seek(0)
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
