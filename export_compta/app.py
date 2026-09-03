@@ -112,6 +112,44 @@ def _ana_libelle(line, analytiques):
     return " | ".join(n for n in (analytiques.get(i, "") for i in ids) if n)
 
 
+def _sections_pct(line, analytiques):
+    """{id section Sage: %} de la ligne (clés composées décomposées : chaque
+    section d'une clé reçoit le % entier de la clé, comme dans Odoo)."""
+    out = {}
+    for k, pct in (line.get("analytic_distribution") or {}).items():
+        for part in str(k).split(","):
+            part = part.strip()
+            if part.isdigit() and int(part) in analytiques:
+                out[int(part)] = out.get(int(part), 0.0) + (pct or 0.0)
+    return out
+
+
+def _lignes_a(base, analytiques, sections, tot_debit, tot_credit):
+    """Lignes analytiques « A » : une par section Sage, montants au prorata des %.
+    Une seule section = montants du groupe tels quels (comportement historique) ;
+    plusieurs sections = ventilation, la dernière absorbe l'écart d'arrondi.
+    base(debit, credit, analytique) rend la ligne sans le type d'écriture final."""
+    ids = sorted(sections)
+    lignes, cum_d, cum_c = [], 0.0, 0.0
+    for i, sid in enumerate(ids):
+        sd, sc = sections[sid]
+        if i == len(ids) - 1:
+            sd, sc = tot_debit - cum_d, tot_credit - cum_c
+        else:
+            sd, sc = round(sd, 2), round(sc, 2)
+            cum_d += sd
+            cum_c += sc
+        if sd > 0 and sc > 0:
+            legs = [(sd, 0), (0, sc)]
+        elif sd or sc:
+            legs = [(sd, sc)]
+        else:
+            continue
+        for d, c in legs:
+            lignes.append(base(d, c, analytiques[sid]) + "A")
+    return lignes
+
+
 def _export_ventes(journal, du, au, base_url, clients_vus):
     """Format action 1459 : écritures groupées par (compte, analytique)."""
     moves = _q("account.move", "search_read",
@@ -156,23 +194,29 @@ def _export_ventes(journal, du, au, base_url, clients_vus):
                     code_client, url = "", ""
                 groupes[cle] = {"code_client": code_client, "ref_ligne": l["ref"] or "",
                                 "nom": part.get("name") or "", "url": url,
-                                "debit": 0, "credit": 0}
+                                "debit": 0, "credit": 0, "sections": {}}
             groupes[cle]["debit"] += debit
             groupes[cle]["credit"] += credit
+            for sid, pct in _sections_pct(l, analytiques).items():
+                s = groupes[cle]["sections"].setdefault(sid, [0.0, 0.0])
+                s[0] += debit * pct / 100.0
+                s[1] += credit * pct / 100.0
         for (code_compte, ana), g in groupes.items():
             libelle = "%s %s" % (numero, g["nom"])
             if g["debit"] > 0 and g["credit"] > 0:
                 montants = [(g["debit"], 0), (0, g["credit"])]
             else:
                 montants = [(g["debit"], g["credit"])]
-            for debit, credit in montants:
-                base = "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f;%.2f;%s;1;%s;" % (
+            def base(d, c, a, g=g, code_compte=code_compte, libelle=libelle):
+                return "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f;%.2f;%s;1;%s;" % (
                     piece, numero, journal["code"] or "", d_fac,
                     g["code_client"], g["ref_ligne"], g["nom"],
-                    code_compte, libelle, d_ech, debit, credit, g["url"], ana)
-                out.append(base + "G")
-                if ana and code_compte.startswith("7"):
-                    out.append(base + "A")
+                    code_compte, libelle, d_ech, d, c, g["url"], a)
+            for debit, credit in montants:
+                out.append(base(debit, credit, ana) + "G")
+            if ana and code_compte.startswith("7"):
+                out.extend(_lignes_a(base, analytiques, g["sections"],
+                                     round(g["debit"], 2), round(g["credit"], 2)))
     return "\n".join(out)
 
 
@@ -224,12 +268,20 @@ def _export_caisse(journal, du, au, clients_vus):
                         repli = partenaires.get(sib["partner_id"][0]) or {}
                         break
             libelle = (repli.get("name") or "").replace(";", ",")
-        base = "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f;%.2f;;1;%s;" % (
-            piece, numero, journal["code"] or "", d_fac, code_client, numero, nom,
-            code_compte, libelle, d_ech, l["debit"] or 0, l["credit"] or 0, ana)
-        out.append(base + "G")
+        debit, credit = l["debit"] or 0, l["credit"] or 0
+
+        def base(d, c, a, code_client=code_client, nom=nom,
+                 code_compte=code_compte, libelle=libelle, numero=numero,
+                 piece=piece, d_fac=d_fac, d_ech=d_ech):
+            return "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f;%.2f;;1;%s;" % (
+                piece, numero, journal["code"] or "", d_fac, code_client, numero,
+                nom, code_compte, libelle, d_ech, d, c, a)
+        out.append(base(debit, credit, ana) + "G")
         if ana and code_compte.startswith("7"):
-            out.append(base + "A")
+            sections = {sid: [debit * pct / 100.0, credit * pct / 100.0]
+                        for sid, pct in _sections_pct(l, analytiques).items()}
+            out.extend(_lignes_a(base, analytiques, sections,
+                                 round(debit, 2), round(credit, 2)))
     return "\n".join(out)
 
 
