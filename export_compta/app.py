@@ -62,6 +62,19 @@ def _mois_bornes(mois):
     return (f"{y:04d}-{mo:02d}-01", f"{y:04d}-{mo:02d}-{calendar.monthrange(y, mo)[1]:02d}")
 
 
+def _periode(args):
+    """Bornes (du, au) : plage libre du/au (YYYY-MM-DD, prioritaire — rapprochements
+    en cours de mois) sinon le mois complet. Renvoie aussi le libellé affiché."""
+    import re
+    du, au = (args.get("du") or "").strip(), (args.get("au") or "").strip()
+    if (re.match(r"^\d{4}-\d{2}-\d{2}$", du) and re.match(r"^\d{4}-\d{2}-\d{2}$", au)
+            and du <= au):
+        return du, au, "du %s au %s" % (du, au)
+    mois = args.get("mois") or ""
+    du, au = _mois_bornes(mois)
+    return du, au, mois
+
+
 def _ddmmyy(iso):
     return (iso[8:10] + iso[5:7] + iso[2:4]) if iso else ""
 
@@ -336,6 +349,23 @@ def _journaux(comp):
             j["explication"] = "Factures et avoirs clients (hors comptoir)"
         else:
             j["explication"] = "Relevés bancaires"
+    # journaux « à encaisser » (CB / chèques, compte 5112*) : des banques au sens
+    # Odoo, mais exportés vers Sage comme le faisait l'action historique 1459
+    # (ex. « CB à encaisser » / « Chèque à encaisser » de Châtel). Les vraies
+    # banques (512*) restent hors export.
+    banques = _q("account.journal", "search_read",
+                 [("company_id", "=", comp), ("type", "=", "bank")],
+                 fields=["name", "code", "type", "default_account_id"], order="id")
+    acc_ids = [b["default_account_id"][0] for b in banques if b["default_account_id"]]
+    codes = {a["id"]: a["code"] or "" for a in _q(
+        "account.account", "read", acc_ids, fields=["code"],
+        context={"allowed_company_ids": [comp]})} if acc_ids else {}
+    for b in banques:
+        aid = b["default_account_id"] and b["default_account_id"][0]
+        if codes.get(aid, "").startswith("5112"):
+            b["format_caisse"] = False
+            b["explication"] = "Encaissements différés (CB / chèques à encaisser) — format ventes, comme l'export historique"
+            js.append(b)
     return js
 
 
@@ -416,7 +446,7 @@ body{font-family:system-ui,sans-serif;background:#f1f5f9;margin:0;padding:24px;c
 h1{font-size:20px;margin:0 0 4px;}p.sub{color:#64748b;font-size:13px;margin:0 0 16px;}
 form.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px;}
 label{display:block;font-weight:700;font-size:12.5px;color:#334155;margin-bottom:3px;}
-select{padding:8px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:14px;}
+select,input[type=date]{padding:8px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:14px;}
 button,a.btn{border:none;border-radius:9px;background:#0f172a;color:#fff;font-weight:800;font-size:13px;
 padding:9px 14px;cursor:pointer;text-decoration:none;display:inline-block;}
 button:hover,a.btn:hover{filter:brightness(1.2);}
@@ -435,7 +465,9 @@ historiques) + fichier des nouveaux clients à créer dans Sage. Un dossier Sage
 <form class="bar" method="get" action="">
 <input type="hidden" name="token" value="__TOKEN__">
 <div><label>Société</label><select name="societe" onchange="this.form.submit()">__SOCIETES__</select></div>
-<div><label>Mois</label><select name="mois" onchange="this.form.submit()">__MOIS__</select></div>
+<div><label>Mois complet</label><select name="mois" onchange="this.form.du.value='';this.form.au.value='';this.form.submit()">__MOIS__</select></div>
+<div><label>ou du</label><input type="date" name="du" value="__DU__" onchange="if(this.form.au.value)this.form.submit()"></div>
+<div><label>au</label><input type="date" name="au" value="__AU__" onchange="if(this.form.du.value)this.form.submit()"></div>
 </form>
 __CORPS__
 </div></body></html>"""
@@ -450,7 +482,11 @@ def page():
     d = date.today()
     mois_prec = f"{(d.year * 12 + d.month - 2) // 12:04d}-{(d.year * 12 + d.month - 2) % 12 + 1:02d}"
     mois = request.args.get("mois") or mois_prec
-    du, au = _mois_bornes(mois)
+    args = dict(request.args)
+    args["mois"] = mois
+    du, au, libelle = _periode(args)
+    libre = libelle != mois
+    periode_qs = ("du=%s&au=%s" % (du, au)) if libre else ("mois=%s" % mois)
 
     opts_soc = "".join('<option value="%s"%s>%s</option>' % (
         c["id"], " selected" if c["id"] == comp else "", c["name"]) for c in comps)
@@ -460,6 +496,23 @@ def page():
         v = f"{mm // 12:04d}-{mm % 12 + 1:02d}"
         opts_mois += '<option value="%s"%s>%s</option>' % (v, " selected" if v == mois else "", v)
 
+    # dernier export ZIP de la société : mémorisé pour reprendre au lendemain
+    dernier = (_q("ir.config_parameter", "get_param",
+                  "maquignon.export_compta_dernier_%s" % comp) or "")
+    suggestion = ""
+    info_dernier = ""
+    if dernier.count("|") == 2:
+        d_du, d_au, d_fait = dernier.split("|")
+        from datetime import datetime, timedelta
+        try:
+            suggestion = (datetime.strptime(d_au, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        except ValueError:
+            suggestion = ""
+        info_dernier = ("<p class='sub'>📌 Dernier export ZIP de cette société : "
+                        "<b>du %s au %s</b> (fait le %s) — le champ « du » est prérempli "
+                        "au lendemain, choisir « au » lance l'aperçu.</p>"
+                        % (d_du, d_au, d_fait))
+
     journaux = _journaux(comp)
     agg, nouveaux = _apercu(comp, du, au, journaux)
     lignes_html = ""
@@ -467,7 +520,7 @@ def page():
         a = agg.get(j["id"])
         if not a:
             continue
-        url = "fichier?token=%s&journal=%s&mois=%s" % (token, j["id"], mois)
+        url = "fichier?token=%s&journal=%s&%s" % (token, j["id"], periode_qs)
         lignes_html += ("<tr><td>%s</td><td>%s<div style='font-size:11px;color:#64748b;font-weight:400;'>%s</div></td>"
                         "<td>%s</td><td class='num'>%s</td>"
                         "<td class='num'>%s</td><td class='num'>%.2f €</td>"
@@ -476,7 +529,7 @@ def page():
                             TYPES.get(j["type"], j["type"]),
                             len(a["pieces"]), a["nlignes"], a["debit"], url))
     if not lignes_html:
-        corps = "<p><b>Aucune écriture validée sur %s pour cette société.</b></p>" % mois
+        corps = "<p><b>Aucune écriture validée sur %s pour cette société.</b></p>" % libelle
     else:
         corps = ("<table><tr><th>Code</th><th>Journal</th><th>Type</th><th>Pièces</th>"
                  "<th>Lignes</th><th>Total débit</th><th></th></tr>%s</table>" % lignes_html)
@@ -484,7 +537,7 @@ def page():
         if nouveaux:
             detail_nc = ("<div style='margin-top:6px;font-size:12px;'>%s</div>"
                          % " · ".join("<b>%s</b> %s" % (r, n) for r, n in nouveaux))
-        corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures du mois jamais "
+        corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures de la période jamais "
                   "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).%s</div>"
                   % (len(nouveaux), detail_nc))
         manq = _controle_analytique(comp, du, au, journaux)
@@ -498,14 +551,22 @@ def page():
                       "ex. cession de matériel) puis recharger cette page."
                       "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div></div>"
                       % (len(manq), det))
+        champs = ("<input type='hidden' name='du' value='%s'>"
+                  "<input type='hidden' name='au' value='%s'>" % (du, au)) if libre \
+            else "<input type='hidden' name='mois' value='%s'>" % mois
+        verrou = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
         corps += ("<form method='post' action='export?token=%s'>"
-                  "<input type='hidden' name='societe' value='%s'>"
-                  "<input type='hidden' name='mois' value='%s'>"
+                  "<input type='hidden' name='societe' value='%s'>%s"
                   "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> "
                   "Marquer les nouveaux clients comme transmis à Sage</label>"
+                  "<label class='chk'><input type='checkbox' name='verrou' value='1' checked> "
+                  "Verrouiller les ventes jusqu'au <b>%s</b> après l'export "
+                  "(verrou actuel : %s — jamais reculé)</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
-                  "</form>" % (token, comp, mois, mois))
+                  "</form>" % (token, comp, champs, au, verrou or "aucun", libelle))
+    corps = info_dernier + corps
     html = (PAGE.replace("__SOCIETES__", opts_soc).replace("__MOIS__", opts_mois)
+                .replace("__DU__", du if libre else suggestion).replace("__AU__", au if libre else "")
                 .replace("__TOKEN__", token).replace("__CORPS__", corps))
     return Response(html, mimetype="text/html")
 
@@ -520,7 +581,7 @@ def _fichier_journal(j, du, au, base_url, clients_vus, comp):
 def fichier():
     _check_token()
     jid = int(request.args["journal"])
-    du, au = _mois_bornes(request.args["mois"])
+    du, au, _lib = _periode(request.args)
     j = _q("account.journal", "read", [jid], fields=["name", "code", "type", "company_id"])[0]
     pos = _q("pos.config", "search_read", [("journal_id", "=", jid)], fields=["id"])
     j["format_caisse"] = j["type"] == "cash" or bool(pos)
@@ -540,7 +601,7 @@ def fichier():
 def export():
     _check_token()
     comp = int(request.form["societe"])
-    du, au = _mois_bornes(request.form["mois"])
+    du, au, _lib = _periode(request.form)
     marquer = request.form.get("marquer") == "1"
     comp_nom = _q("res.company", "read", [comp], fields=["name"])[0]["name"]
     base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
@@ -564,6 +625,14 @@ def export():
     if n_fichiers == 0:
         return Response("Aucune écriture sur la période pour cette société.",
                         mimetype="text/plain; charset=utf-8", status=404)
+    _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
+       "%s|%s|%s" % (du, au, date.today().isoformat()))
+    if request.form.get("verrou") == "1":
+        # verrou des VENTES uniquement (pas le verrou global : les relevés
+        # bancaires tardifs doivent rester importables) — jamais reculé
+        actuel = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
+        if not actuel or au > actuel:
+            _q("res.company", "write", [comp], {"sale_lock_date": au})
     buf.seek(0)
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
