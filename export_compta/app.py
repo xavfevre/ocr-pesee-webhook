@@ -77,24 +77,39 @@ def _referentiels(line_rows):
     ana_ids = set()
     for l in line_rows:
         for k in (l.get("analytic_distribution") or {}):
-            if str(k).isdigit():
-                ana_ids.add(int(k))
+            for part in str(k).split(","):
+                if part.strip().isdigit():
+                    ana_ids.add(int(part))
     comptes = {a["id"]: a for a in _q("account.account", "read", acc_ids,
                                       fields=["code", "name"])} if acc_ids else {}
     partenaires = {p["id"]: p for p in _q("res.partner", "read", part_ids,
                                           fields=["ref", "name"])} if part_ids else {}
-    analytiques = {a["id"]: a["name"] for a in _q("account.analytic.account", "read",
-                                                  list(ana_ids), fields=["name"])} if ana_ids else {}
+    # sections Sage uniquement : le plan « Project » (id 1 — Demande de transport,
+    # Interne, Service sur site) est de l'analytique opérationnelle des modules
+    # projet/transport et ne doit jamais partir vers Sage.
+    analytiques = {a["id"]: a["name"]
+                   for a in _q("account.analytic.account", "read", list(ana_ids),
+                               fields=["name", "plan_id"])
+                   if a["plan_id"] and a["plan_id"][0] != PLAN_PROJECT} if ana_ids else {}
     return comptes, partenaires, analytiques
 
 
+PLAN_PROJECT = 1
+
+
 def _ana_libelle(line, analytiques):
-    """Fidèle à l'action historique : une clé composée (« 14,2 ») faisait
-    échouer son try/except → analytique vide pour toute la ligne."""
+    """Sections Sage de la ligne. Les clés composées (« 13,2 » = section Sage +
+    compte du plan Project) sont décomposées pour garder la section — l'action
+    historique les faisait échouer et exportait un analytique vide."""
     dist = line.get("analytic_distribution") or {}
-    if any(not str(k).isdigit() for k in dist):
-        return ""
-    return " | ".join(n for n in (analytiques.get(int(k), "") for k in dist) if n)
+    ids, vus = [], set()
+    for k in dist:
+        for part in str(k).split(","):
+            part = part.strip()
+            if part.isdigit() and int(part) not in vus:
+                vus.add(int(part))
+                ids.append(int(part))
+    return " | ".join(n for n in (analytiques.get(i, "") for i in ids) if n)
 
 
 def _export_ventes(journal, du, au, base_url, clients_vus):
