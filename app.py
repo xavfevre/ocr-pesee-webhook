@@ -972,13 +972,18 @@ def parc_ticpe_route():
     key = (request.args.get("k") or "").strip()
     if not (key and ref and hmac.compare_digest(key, ref)):
         return jsonify({"error": "clé invalide"}), 403
-    auj = _date.today()
-    du = (request.args.get("du") or "").strip() or auj.replace(month=1, day=1).isoformat()
-    au = (request.args.get("au") or "").strip() or auj.isoformat()
-    if not (re.match(r"^\d{4}-\d{2}-\d{2}$", du) and re.match(r"^\d{4}-\d{2}-\d{2}$", au) and du <= au):
-        return jsonify({"error": "du/au attendus au format YYYY-MM-DD (du <= au)"}), 400
-    xlsx = parc_ticpe.generer(call_kw, du, au)
-    nom = "Heures_engins_carriere_du_%s_au_%s.xlsx" % (du.replace("-", ""), au.replace("-", ""))
+    du = (request.args.get("du") or "").strip()
+    au = (request.args.get("au") or "").strip()
+    if du or au:
+        # période unique explicite ; sans du/au : multi-années (une feuille
+        # par an depuis la première saisie + récap toutes années)
+        if not (re.match(r"^\d{4}-\d{2}-\d{2}$", du) and re.match(r"^\d{4}-\d{2}-\d{2}$", au) and du <= au):
+            return jsonify({"error": "du/au attendus au format YYYY-MM-DD (du <= au)"}), 400
+        xlsx = parc_ticpe.generer(call_kw, du, au)
+        nom = "Heures_engins_carriere_du_%s_au_%s.xlsx" % (du.replace("-", ""), au.replace("-", ""))
+    else:
+        xlsx = parc_ticpe.generer(call_kw)
+        nom = "Heures_engins_carriere_%s.xlsx" % _date.today().strftime("%d%m%y")
     return _Resp(xlsx, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                  headers={"Content-Disposition": "attachment; filename=%s" % nom})
 
