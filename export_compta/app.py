@@ -436,6 +436,39 @@ def _controle_analytique(comp, du, au, journaux):
     return sorted((p, c, m) for (p, c), m in manq.items())
 
 
+def _maintenant_paris():
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _histo_add(comp, libelle_journal, du, au):
+    """Journalise chaque téléchargement (fichier .txt ou ZIP) — 60 derniers."""
+    import json
+    key = "maquignon.export_compta_histo_%s" % comp
+    try:
+        h = json.loads(_q("ir.config_parameter", "get_param", key) or "[]")
+    except ValueError:
+        h = []
+    h.insert(0, {"j": libelle_journal, "du": du, "au": au, "fait": _maintenant_paris()})
+    _q("ir.config_parameter", "set_param", key, json.dumps(h[:60], ensure_ascii=False))
+
+
+def _dernier_maj(comp, du, au):
+    """Avance le repère « dernier export » (préremplissage du lendemain + alerte
+    rétroactive). Horodatage UTC pour comparaison avec create_date d'Odoo."""
+    from datetime import datetime
+    key = "maquignon.export_compta_dernier_%s" % comp
+    cur = _q("ir.config_parameter", "get_param", key) or ""
+    cur_au = cur.split("|")[1] if cur.count("|") == 2 else ""
+    if au > cur_au:
+        _q("ir.config_parameter", "set_param", key,
+           "%s|%s|%s" % (du, au, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+
+
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -465,9 +498,8 @@ historiques) + fichier des nouveaux clients à créer dans Sage. Un dossier Sage
 <form class="bar" method="get" action="">
 <input type="hidden" name="token" value="__TOKEN__">
 <div><label>Société</label><select name="societe" onchange="this.form.submit()">__SOCIETES__</select></div>
-<div><label>Mois complet</label><select name="mois" onchange="this.form.du.value='';this.form.au.value='';this.form.submit()">__MOIS__</select></div>
-<div><label>ou du</label><input type="date" name="du" value="__DU__" onchange="if(this.form.au.value)this.form.submit()"></div>
-<div><label>au</label><input type="date" name="au" value="__AU__" onchange="if(this.form.du.value)this.form.submit()"></div>
+<div><label>Du</label><input type="date" name="du" value="__DU__" onchange="if(this.form.au.value)this.form.submit()"></div>
+<div><label>Au</label><input type="date" name="au" value="__AU__" onchange="if(this.form.du.value)this.form.submit()"></div>
 </form>
 __CORPS__
 </div></body></html>"""
@@ -480,21 +512,32 @@ def page():
     comps = _q("res.company", "search_read", [], fields=["name"], order="id")
     comp = int(request.args.get("societe") or comps[0]["id"])
     d = date.today()
-    mois_prec = f"{(d.year * 12 + d.month - 2) // 12:04d}-{(d.year * 12 + d.month - 2) % 12 + 1:02d}"
-    mois = request.args.get("mois") or mois_prec
-    args = dict(request.args)
-    args["mois"] = mois
-    du, au, libelle = _periode(args)
-    libre = libelle != mois
-    periode_qs = ("du=%s&au=%s" % (du, au)) if libre else ("mois=%s" % mois)
 
     opts_soc = "".join('<option value="%s"%s>%s</option>' % (
         c["id"], " selected" if c["id"] == comp else "", c["name"]) for c in comps)
-    opts_mois = ""
-    for i in range(12):
-        mm = d.year * 12 + d.month - 1 - i
-        v = f"{mm // 12:04d}-{mm % 12 + 1:02d}"
-        opts_mois += '<option value="%s"%s>%s</option>' % (v, " selected" if v == mois else "", v)
+
+    # dernier export ZIP de la société : mémorisé pour reprendre au lendemain
+    dernier = (_q("ir.config_parameter", "get_param",
+                  "maquignon.export_compta_dernier_%s" % comp) or "")
+    suggestion = ""
+    info_dernier = ""
+    if dernier.count("|") == 2:
+        d_du, d_au, d_fait = dernier.split("|")
+        from datetime import datetime, timedelta
+        try:
+            suggestion = (datetime.strptime(d_au, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        except ValueError:
+            suggestion = ""
+        info_dernier = ("<p class='sub'>📌 Dernier export ZIP de cette société : "
+                        "<b>du %s au %s</b> (fait le %s).</p>" % (d_du, d_au, d_fait[:10]))
+    # période affichée : du/au de l'URL, sinon lendemain du dernier export → aujourd'hui
+    du, au, _lib = _periode({"du": request.args.get("du"), "au": request.args.get("au"),
+                             "mois": d.strftime("%Y-%m")})
+    if not request.args.get("du"):
+        du = suggestion or du.replace(du[8:], "01")
+        au = max(du, d.isoformat())
+    libelle = "du %s au %s" % (du, au)
+    periode_qs = "du=%s&au=%s" % (du, au)
 
     # dernier export ZIP de la société : mémorisé pour reprendre au lendemain
     dernier = (_q("ir.config_parameter", "get_param",
@@ -540,6 +583,24 @@ def page():
         corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures de la période jamais "
                   "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).%s</div>"
                   % (len(nouveaux), detail_nc))
+        if dernier.count("|") == 2 and d_au and d_fait:
+            retro = _q("account.move", "search_read",
+                       [("company_id", "=", comp), ("state", "=", "posted"),
+                        ("journal_id", "in", [j["id"] for j in journaux]),
+                        ("date", "<=", d_au), ("create_date", ">", d_fait)],
+                       fields=["name", "date", "journal_id", "amount_total"], limit=50)
+            if retro:
+                det = " · ".join("<b>%s</b> %s (%s, %.2f €)" % (
+                    r["name"], r["date"], r["journal_id"][1], r["amount_total"] or 0)
+                    for r in retro[:12])
+                if len(retro) > 12:
+                    det += " · … et %d autre(s)" % (len(retro) - 12)
+                corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
+                          "⏪ <b>%d</b> écriture(s) <b>datée(s) dans une période déjà exportée</b> "
+                          "(≤ %s) mais saisie(s) après le dernier export ZIP — elles ne sortiront pas "
+                          "avec la plage préremplie. Les exporter à part (choisir leurs dates) ou les "
+                          "passer à la main dans Sage.<div style='margin-top:6px;font-size:12px;"
+                          "font-weight:400;'>%s</div></div>" % (len(retro), d_au, det))
         manq = _controle_analytique(comp, du, au, journaux)
         if manq:
             det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
@@ -552,8 +613,7 @@ def page():
                       "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div></div>"
                       % (len(manq), det))
         champs = ("<input type='hidden' name='du' value='%s'>"
-                  "<input type='hidden' name='au' value='%s'>" % (du, au)) if libre \
-            else "<input type='hidden' name='mois' value='%s'>" % mois
+                  "<input type='hidden' name='au' value='%s'>" % (du, au))
         verrou = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
         corps += ("<form method='post' action='export?token=%s'>"
                   "<input type='hidden' name='societe' value='%s'>%s"
@@ -563,10 +623,36 @@ def page():
                   "Verrouiller les ventes jusqu'au <b>%s</b> après l'export "
                   "(verrou actuel : %s — jamais reculé)</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
-                  "</form>" % (token, comp, champs, au, verrou or "aucun", libelle))
+                  "</form>" % (token, comp, champs, libelle))
+        corps += ("<form method='post' action='verrou?token=%s' style='margin-top:10px;' "
+                  "onsubmit=\"return confirm('Verrouiller les ventes de cette société jusqu\\'au %s ?');\">"
+                  "<input type='hidden' name='societe' value='%s'>"
+                  "<input type='hidden' name='au' value='%s'>"
+                  "<input type='hidden' name='du' value='%s'>"
+                  "<button type='submit' class='btn sec' style='border:1.5px solid #cbd5e1;'>"
+                  "🔒 Verrouiller les ventes jusqu'au %s</button> "
+                  "<span style='font-size:12px;color:#64748b;'>verrou actuel : %s — jamais reculé, "
+                  "à faire une fois les journaux de la période téléchargés</span>"
+                  "</form>" % (token, au, comp, au, du, au, verrou or "aucun"))
+
+    import json as _j2
+    try:
+        histo = _j2.loads(_q("ir.config_parameter", "get_param",
+                             "maquignon.export_compta_histo_%s" % comp) or "[]")
+    except ValueError:
+        histo = []
+    if histo:
+        lg = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+                     % (h.get("fait", ""), h.get("j", ""), h.get("du", ""), h.get("au", ""))
+                     for h in histo[:25])
+        corps += ("<details style='margin-top:14px;'><summary style='cursor:pointer;font-weight:700;"
+                  "font-size:13px;color:#334155;'>🕘 Historique des exports (%d)</summary>"
+                  "<table style='margin-top:8px;'><tr><th>Fait le</th><th>Journal</th>"
+                  "<th>Du</th><th>Au</th></tr>%s</table></details>" % (len(histo), lg))
+
     corps = info_dernier + corps
-    html = (PAGE.replace("__SOCIETES__", opts_soc).replace("__MOIS__", opts_mois)
-                .replace("__DU__", du if libre else suggestion).replace("__AU__", au if libre else "")
+    html = (PAGE.replace("__SOCIETES__", opts_soc)
+                .replace("__DU__", du).replace("__AU__", au)
                 .replace("__TOKEN__", token).replace("__CORPS__", corps))
     return Response(html, mimetype="text/html")
 
@@ -589,12 +675,32 @@ def fichier():
     contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0])
     if contenu is None:
         return Response("Aucune écriture.", mimetype="text/plain; charset=utf-8", status=404)
+    _histo_add(j["company_id"][0], "%s — %s" % (j["code"] or "", j["name"]), du, au)
+    _dernier_maj(j["company_id"][0], du, au)
     slug = j["company_id"][1].replace(" ", "_").replace("/", "_")
     nom = "%s_%s_%s_du_%s_au_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"),
                                         du.replace("-", ""), au.replace("-", ""))
     return Response(contenu.encode("cp1252", errors="replace"),
                     mimetype="text/plain; charset=windows-1252",
                     headers={"Content-Disposition": "attachment; filename=%s" % nom})
+
+
+@bp.route("/verrou", methods=["POST"])
+def verrou():
+    _check_token()
+    comp = int(request.form["societe"])
+    au = (request.form.get("au") or "").strip()
+    import re as _re
+    if not _re.match(r"^\d{4}-\d{2}-\d{2}$", au):
+        abort(400)
+    actuel = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
+    if not actuel or au > actuel:
+        # verrou des VENTES uniquement (pas le verrou global : les relevés
+        # bancaires tardifs doivent rester importables) — jamais reculé
+        _q("res.company", "write", [comp], {"sale_lock_date": au})
+    from flask import redirect
+    return redirect("?token=%s&societe=%s&du=%s&au=%s" % (
+        request.args.get("token", ""), comp, request.form.get("du", ""), au))
 
 
 @bp.route("/export", methods=["POST"])
@@ -625,14 +731,8 @@ def export():
     if n_fichiers == 0:
         return Response("Aucune écriture sur la période pour cette société.",
                         mimetype="text/plain; charset=utf-8", status=404)
-    _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
-       "%s|%s|%s" % (du, au, date.today().isoformat()))
-    if request.form.get("verrou") == "1":
-        # verrou des VENTES uniquement (pas le verrou global : les relevés
-        # bancaires tardifs doivent rester importables) — jamais reculé
-        actuel = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
-        if not actuel or au > actuel:
-            _q("res.company", "write", [comp], {"sale_lock_date": au})
+    _histo_add(comp, "📦 ZIP complet", du, au)
+    _dernier_maj(comp, du, au)
     buf.seek(0)
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
