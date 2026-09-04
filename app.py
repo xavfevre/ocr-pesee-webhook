@@ -191,7 +191,9 @@ def extract_with_mistral(image_base64, mime_type="image/jpeg"):
     """Appel Mistral Vision : cascade de modèles (403 palier) + retry sur 429."""
     image_base64 = resize_image(image_base64)
     from mistralai import Mistral  # import paresseux : accélère le boot du service
-    client = Mistral(api_key=MISTRAL_API_KEY)
+    # timeout par appel : sans lui, une requête qui pend suffit à faire tuer le
+    # worker par gunicorn (le budget global ne borne que les pauses entre essais)
+    client = Mistral(api_key=MISTRAL_API_KEY, timeout_ms=30000)
     last_error = None
     modeles = list(MISTRAL_MODELES)
     if _mistral_modele_ok.get("m") in modeles:
@@ -202,13 +204,16 @@ def extract_with_mistral(image_base64, mime_type="image/jpeg"):
     # les 429 — le worker est alors TUÉ avant le except de la route et le bon
     # reste bloqué sur « ⏳ OCR en cours ». On abandonne proprement avant.
     debut = time.monotonic()
-    BUDGET_S = 75
+    BUDGET_S = 60
     for modele in modeles:
         for attempt in range(4):
             if time.monotonic() - debut > BUDGET_S:
                 raise last_error or RuntimeError("OCR : Mistral surchargé (budget temps dépassé)")
             if attempt > 0:
                 wait = attempt * 3
+                if time.monotonic() - debut + wait > BUDGET_S:
+                    # ne jamais entamer une pause que le budget ne couvre pas
+                    raise last_error or RuntimeError("OCR : Mistral surchargé (budget temps dépassé)")
                 app.logger.info("Rate limit - retry %d/3 dans %ds" % (attempt, wait))
                 time.sleep(wait)
             try:
