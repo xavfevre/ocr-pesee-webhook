@@ -367,18 +367,26 @@ def odoo_order_id_from_worksheet(models, uid, worksheet_id: int, model: str):
 def ocr_pesee():
     """
     Payload (webhook natif Odoo) : {"_id": <id>, "_model": "x_project_task_worksheet_template_1"}
-    """
-    worksheet_id = None
-    model = ODOO_WORKSHEET_MODEL
-    try:
-        data = request.get_json(force=True)
-        app.logger.info(f"Webhook reçu: {data}")
-        worksheet_id = data.get("_id") or data.get("id") or data.get("worksheet_id")
-        model = data.get("_model") or data.get("model") or ODOO_WORKSHEET_MODEL
-        if not worksheet_id:
-            return jsonify({"error": "id requis"}), 400
-        worksheet_id = int(worksheet_id)
 
+    Traitement ASYNCHRONE : la photo (plusieurs Mo via XML-RPC) + la cascade
+    Mistral peuvent dépasser le timeout gunicorn — le worker était tué en
+    plein traitement et le bon restait bloqué sur « ⏳ OCR en cours ». La
+    route répond immédiatement et le travail part dans un thread, hors de
+    portée du timeout ; le résultat (✅/❌) est écrit sur la feuille.
+    """
+    data = request.get_json(force=True)
+    app.logger.info(f"Webhook reçu: {data}")
+    worksheet_id = data.get("_id") or data.get("id") or data.get("worksheet_id")
+    model = data.get("_model") or data.get("model") or ODOO_WORKSHEET_MODEL
+    if not worksheet_id:
+        return jsonify({"error": "id requis"}), 400
+    import threading as _th
+    _th.Thread(target=_ocr_traite, args=(int(worksheet_id), model), daemon=True).start()
+    return jsonify({"status": "accepted", "worksheet_id": int(worksheet_id)})
+
+
+def _ocr_traite(worksheet_id, model):
+    try:
         uid, models = odoo_connect()
 
         # 0. Statut "en cours"
@@ -401,15 +409,11 @@ def ocr_pesee():
         if order_id:
             section_status = odoo_upsert_section(models, uid, order_id, _section_name(extracted))
 
-        return jsonify({"status": "ok", "extracted": extracted,
-                        "worksheet_id": worksheet_id, "section": section_status})
+        app.logger.info(f"OCR terminé pour {worksheet_id} (section: {section_status})")
 
     except Exception as e:
-        app.logger.error(f"Erreur webhook: {e}")
-        if worksheet_id:
-            odoo_write_statut(worksheet_id, model, f"❌ OCR erreur: {str(e)[:100]}")
-        code = 422 if isinstance(e, json.JSONDecodeError) else 500
-        return jsonify({"error": str(e)}), code
+        app.logger.error(f"Erreur OCR {worksheet_id}: {e}")
+        odoo_write_statut(worksheet_id, model, f"❌ OCR erreur: {str(e)[:100]}")
 
 
 @app.route("/add-section", methods=["POST"])
