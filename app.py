@@ -197,8 +197,16 @@ def extract_with_mistral(image_base64, mime_type="image/jpeg"):
     if _mistral_modele_ok.get("m") in modeles:
         modeles.remove(_mistral_modele_ok["m"])
         modeles.insert(0, _mistral_modele_ok["m"])
+    # budget temps global : la cascade complète (5 modèles × 4 tentatives avec
+    # pauses) peut dépasser le timeout gunicorn (120 s) quand Mistral enchaîne
+    # les 429 — le worker est alors TUÉ avant le except de la route et le bon
+    # reste bloqué sur « ⏳ OCR en cours ». On abandonne proprement avant.
+    debut = time.monotonic()
+    BUDGET_S = 75
     for modele in modeles:
         for attempt in range(4):
+            if time.monotonic() - debut > BUDGET_S:
+                raise last_error or RuntimeError("OCR : Mistral surchargé (budget temps dépassé)")
             if attempt > 0:
                 wait = attempt * 3
                 app.logger.info("Rate limit - retry %d/3 dans %ds" % (attempt, wait))
