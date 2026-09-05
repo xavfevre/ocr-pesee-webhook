@@ -257,6 +257,7 @@
           var w = document.getElementById('trmWait'); if(w){ w.remove(); }
           document.querySelectorAll('#trmSede,.trm-rec,#trmRefresh').forEach(function(x){ x.disabled = false; });
         }
+        function trmAlert(msg, reload){ setTimeout(function(){ alert(msg); if(reload){ location.reload(); } }, 80); }
         var TRM_RESEAU = 'Connexion coupée pendant le traitement (délai dépassé ou service redémarré).\n\nLes bons de commande déjà créés sont conservés : la page va s’actualiser, relancez ensuite le même bouton — les transports déjà pourvus d’un BC seront ignorés.';
         var sd=document.getElementById('trmSede'); if(sd){ sd.addEventListener('click', function(){
           if(trmBusy){ return; }
@@ -272,15 +273,14 @@
             body: JSON.stringify({action_id:2078, ctx:{sede_du: m + '-01', sede_au: au}})})
           .then(function(r){ return r.json(); }).then(function(d){
             trmWaitOff(); sd.textContent = '⚡ SEDE';
-            if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
+            if(d.error){ trmAlert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
             var r = d.result || {};
             var msg = 'SEDE — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
             if(r.deja){ msg += '\n' + r.deja + ' tâche(s) avec BC déjà existant (ignorées)'; }
             if(r.annulees){ msg += '\n' + r.annulees + ' tâche(s) annulée(s) (ignorées)'; }
             if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
-            alert(msg);
-            location.reload();
-          }).catch(function(){ trmWaitOff(); sd.textContent = '⚡ SEDE'; alert(TRM_RESEAU); location.reload(); });
+            trmAlert(msg, true);
+          }).catch(function(){ trmWaitOff(); sd.textContent = '⚡ SEDE'; trmAlert(TRM_RESEAU, true); });
         }); }
         document.querySelectorAll('.trm-rec').forEach(function(b){ b.addEventListener('click', function(){
           if(trmBusy){ return; }
@@ -296,7 +296,7 @@
             body: JSON.stringify({action_id:2081, ctx:{tb_recette: b.getAttribute('data-rec'), tb_du: m + '-01', tb_au: au}})})
           .then(function(r){ return r.json(); }).then(function(d){
             trmWaitOff(); b.textContent = old;
-            if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
+            if(d.error){ trmAlert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
             var r = d.result || {};
             var msg = b.getAttribute('data-lbl') + ' — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
             if(r.deja){ msg += '\n' + r.deja + ' tâche(s) avec BC déjà existant (ignorées)'; }
@@ -305,9 +305,8 @@
             if(r.non_faits){ msg += '\n' + r.non_faits + ' tâche(s) pas à l\u2019état « Fait » (ignorées)'; }
             if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
             if(r.a_verifier &amp;&amp; r.a_verifier.length){ msg += '\n⚠ À vérifier : ' + r.a_verifier.join(' · '); }
-            alert(msg);
-            location.reload();
-          }).catch(function(){ trmWaitOff(); b.textContent = old; alert(TRM_RESEAU); location.reload(); });
+            trmAlert(msg, true);
+          }).catch(function(){ trmWaitOff(); b.textContent = old; trmAlert(TRM_RESEAU, true); });
         }); });
         var mp=document.getElementById('trmMonthPick'); if(mp){ mp.addEventListener('change', function(){
           if(!/^\d{4}-\d{2}$/.test(mp.value || '')){ return; }
