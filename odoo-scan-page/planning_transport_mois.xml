@@ -54,6 +54,14 @@
       .trm-cl-wrap{max-height:110px;overflow-y:auto;margin-top:5px;padding:6px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:inset 0 1px 3px rgba(0,0,0,.04);}
       .trm-cl-lbl{display:inline-flex;align-items:center;gap:5px;border:1px solid #cbd5e1;border-radius:14px;padding:2px 10px 2px 7px;font-size:11.5px;font-weight:700;cursor:pointer;margin:2px;background:#fff;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,.05);}
       .trm-cl-lbl input{cursor:pointer;margin:0;}
+      #trmWait{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.62);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;cursor:wait;}
+      #trmWait .trm-wait-card{background:#fff;border-radius:18px;padding:26px 34px;max-width:440px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:'Segoe UI',sans-serif;}
+      #trmWait .trm-spin{width:58px;height:58px;margin:0 auto 14px;border:6px solid #ede9fe;border-top-color:#6d28d9;border-radius:50%;animation:trmspin .9s linear infinite;}
+      @keyframes trmspin{to{transform:rotate(360deg);}}
+      #trmWait .trm-wait-t{font-size:17px;font-weight:800;color:#3b0764;margin-bottom:6px;}
+      #trmWait .trm-wait-s{font-size:13px;color:#475569;line-height:1.45;}
+      #trmWait .trm-wait-c{margin-top:10px;font-size:12px;color:#94a3b8;font-variant-numeric:tabular-nums;}
+      #trmWait .trm-wait-w{margin-top:12px;font-size:12.5px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:6px 10px;}
     </style>
 
     <div class="container-fluid px-2 px-md-3 my-2">
@@ -223,19 +231,47 @@
         var a=document.getElementById('clAll'); if(a){ a.addEventListener('click', function(){ document.querySelectorAll('.trm-cl').forEach(function(cb){cb.checked=true;}); applyFilter(); }); }
         var n=document.getElementById('clNone'); if(n){ n.addEventListener('click', function(){ document.querySelectorAll('.trm-cl').forEach(function(cb){cb.checked=false;}); applyFilter(); }); }
         var rf=document.getElementById('trmRefresh'); if(rf){ rf.addEventListener('click', function(){ location.reload(); }); }
+        // ── Voile d'attente : bloque la page (et les autres boutons) pendant la génération des BC
+        var trmBusy = false, trmTimer = null;
+        function trmWaitOn(lbl){
+          trmBusy = true;
+          document.querySelectorAll('#trmSede,.trm-rec,#trmRefresh').forEach(function(x){ x.disabled = true; });
+          var w = document.createElement('div'); w.id = 'trmWait';
+          var card = document.createElement('div'); card.className = 'trm-wait-card';
+          function el(cls, txt){ var e = document.createElement('div'); e.className = cls; if(txt){ e.textContent = txt; } card.appendChild(e); return e; }
+          el('trm-spin');
+          el('trm-wait-t', 'Génération des bons de commande « ' + lbl + ' »…');
+          el('trm-wait-s', 'Odoo crée un BC confirmé par transport (≈ 2 à 3 s par bon). Un mois complet peut prendre plusieurs minutes.');
+          el('trm-wait-w', '⚠ Ne recliquez pas et ne fermez pas la page.');
+          var c = el('trm-wait-c', 'Temps écoulé : '); var cs = document.createElement('span'); cs.id = 'trmWaitC'; cs.textContent = '0'; c.appendChild(cs); c.appendChild(document.createTextNode(' s'));
+          w.appendChild(card);
+          document.body.appendChild(w);
+          var t0 = Date.now();
+          trmTimer = setInterval(function(){ var c = document.getElementById('trmWaitC'); if(c){ c.textContent = Math.round((Date.now() - t0) / 1000); } }, 1000);
+          window.onbeforeunload = function(){ return 'Génération en cours — quitter la page ne l’interrompt pas mais vous perdrez le compte-rendu.'; };
+        }
+        function trmWaitOff(){
+          trmBusy = false;
+          if(trmTimer){ clearInterval(trmTimer); trmTimer = null; }
+          window.onbeforeunload = null;
+          var w = document.getElementById('trmWait'); if(w){ w.remove(); }
+          document.querySelectorAll('#trmSede,.trm-rec,#trmRefresh').forEach(function(x){ x.disabled = false; });
+        }
+        var TRM_RESEAU = 'Connexion coupée pendant le traitement (délai dépassé ou service redémarré).\n\nLes bons de commande déjà créés sont conservés : la page va s’actualiser, relancez ensuite le même bouton — les transports déjà pourvus d’un BC seront ignorés.';
         var sd=document.getElementById('trmSede'); if(sd){ sd.addEventListener('click', function(){
+          if(trmBusy){ return; }
           var mp0 = document.getElementById('trmMonthPick');
           var m = (mp0 &amp;&amp; mp0.value) || '';
           if(!/^\d{4}-\d{2}$/.test(m)){ alert('Mois affiché introuvable.'); return; }
           if(!confirm('Générer les bons de commande VEOLIA AGRICULTURE (LA SEDE) pour ' + m + ' ?\n\nPour chaque transport du mois SANS bon de commande : BC confirmé avec « Location Semi Fond-mouvant - par jours » (qté 1) + section Bon de pesée.\nTâches annulées et BC déjà existants ignorés.')){ return; }
-          sd.disabled = true; sd.textContent = '… en cours';
+          sd.disabled = true; sd.textContent = '… en cours'; trmWaitOn('SEDE');
           var y = parseInt(m.slice(0,4),10), mo = parseInt(m.slice(5,7),10);
           var fin = new Date(y, mo, 0).getDate();
           var au = m + '-' + ('0' + fin).slice(-2);
           fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc', {method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({action_id:2078, ctx:{sede_du: m + '-01', sede_au: au}})})
           .then(function(r){ return r.json(); }).then(function(d){
-            sd.disabled = false; sd.textContent = '⚡ SEDE';
+            trmWaitOff(); sd.textContent = '⚡ SEDE';
             if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
             var r = d.result || {};
             var msg = 'SEDE — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
@@ -244,21 +280,22 @@
             if(r.sans_bon &amp;&amp; r.sans_bon.length){ msg += '\n⚠ BC créés SANS bon de pesée (feuille vide) : ' + r.sans_bon.join(' · '); }
             alert(msg);
             location.reload();
-          }).catch(function(){ sd.disabled = false; sd.textContent = '⚡ SEDE'; alert('Échec réseau — êtes-vous connecté à Odoo ?'); });
+          }).catch(function(){ trmWaitOff(); sd.textContent = '⚡ SEDE'; alert(TRM_RESEAU); location.reload(); });
         }); }
         document.querySelectorAll('.trm-rec').forEach(function(b){ b.addEventListener('click', function(){
+          if(trmBusy){ return; }
           var mp0 = document.getElementById('trmMonthPick');
           var m = (mp0 &amp;&amp; mp0.value) || '';
           if(!/^\d{4}-\d{2}$/.test(m)){ alert('Mois affiché introuvable.'); return; }
           if(!confirm('Générer les bons de commande « ' + b.getAttribute('data-lbl') + ' » pour ' + m + ' ?\n\nPour chaque transport du mois SANS bon de commande : BC confirmé + articles de la recette + section Bon de pesée.\nTâches annulées et BC déjà existants ignorés.')){ return; }
           var old = b.textContent;
-          b.disabled = true; b.textContent = '…';
+          b.disabled = true; b.textContent = '…'; trmWaitOn(b.getAttribute('data-lbl'));
           var y = parseInt(m.slice(0,4),10), mo = parseInt(m.slice(5,7),10);
           var au = m + '-' + ('0' + (new Date(y, mo, 0).getDate())).slice(-2);
           fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc', {method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({action_id:2081, ctx:{tb_recette: b.getAttribute('data-rec'), tb_du: m + '-01', tb_au: au}})})
           .then(function(r){ return r.json(); }).then(function(d){
-            b.disabled = false; b.textContent = old;
+            trmWaitOff(); b.textContent = old;
             if(d.error){ alert('Échec : ' + ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)); return; }
             var r = d.result || {};
             var msg = b.getAttribute('data-lbl') + ' — ' + (r.faits || 0) + ' bon(s) de commande créé(s)';
@@ -270,7 +307,7 @@
             if(r.a_verifier &amp;&amp; r.a_verifier.length){ msg += '\n⚠ À vérifier : ' + r.a_verifier.join(' · '); }
             alert(msg);
             location.reload();
-          }).catch(function(){ b.disabled = false; b.textContent = old; alert('Échec réseau — êtes-vous connecté à Odoo ?'); });
+          }).catch(function(){ trmWaitOff(); b.textContent = old; alert(TRM_RESEAU); location.reload(); });
         }); });
         var mp=document.getElementById('trmMonthPick'); if(mp){ mp.addEventListener('change', function(){
           if(!/^\d{4}-\d{2}$/.test(mp.value || '')){ return; }
