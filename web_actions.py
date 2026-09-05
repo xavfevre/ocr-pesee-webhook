@@ -23,10 +23,19 @@ def executer(call, action_id, ctx):
             2078: _sede_veolia, 2081: _boutons_transport}[action_id](call, ctx)
 
 
+def _creer(call, model, vals):
+    """create via XML-RPC : les vals doivent partir en dict, pas en [dict].
+    Avec une liste, Odoo renvoie une liste d'ids ([id] et non id) : un
+    many2one alimenté avec [id] est vidé silencieusement (d'où le
+    « Expected singleton: sale.order() » des BC automatiques)."""
+    rid = call(model, 'create', vals)
+    return rid[0] if isinstance(rid, list) else rid
+
+
 # ─── 2055 · Parc auto : enregistrer une intervention ─────────────────────────
 
 def _log_srv(call, vals):
-    return call('fleet.vehicle.log.services', 'create', [vals])
+    return _creer(call, 'fleet.vehicle.log.services', vals)
 
 
 def _parc_intervention(call, ctx):
@@ -179,19 +188,19 @@ def _rebut(call, ctx):
     scrap_note = ''
     if of['state'] == 'done' and vol_reb > 0:
         try:
-            sc = call('stock.scrap', 'create',
-                      [{'product_id': of['product_id'][0], 'scrap_qty': vol_reb,
-                        'product_uom_id': of['product_uom_id'][0], 'production_id': ofid,
-                        'company_id': of['company_id'][0]}])
+            sc = _creer(call, 'stock.scrap',
+                        {'product_id': of['product_id'][0], 'scrap_qty': vol_reb,
+                         'product_uom_id': of['product_uom_id'][0], 'production_id': ofid,
+                         'company_id': of['company_id'][0]})
             _sur(lambda: call('stock.scrap', 'action_validate', [sc]))
             etat = call('stock.scrap', 'read', [sc], fields=['state', 'location_id',
                                                                'product_uom_id'])[0]
             if etat['state'] != 'done':
-                wiz = call('stock.warn.insufficient.qty.scrap', 'create',
-                           [{'product_id': of['product_id'][0],
-                             'location_id': etat['location_id'][0], 'scrap_id': sc,
-                             'quantity': vol_reb,
-                             'product_uom_name': etat['product_uom_id'][1]}])
+                wiz = _creer(call, 'stock.warn.insufficient.qty.scrap',
+                             {'product_id': of['product_id'][0],
+                              'location_id': etat['location_id'][0], 'scrap_id': sc,
+                              'quantity': vol_reb,
+                              'product_uom_name': etat['product_uom_id'][1]})
                 _sur(lambda: call('stock.warn.insufficient.qty.scrap', 'action_done', [wiz]))
             scrap_note = ' · %.3f m3 sortis du stock (rebut)' % vol_reb
         except Exception:
@@ -267,15 +276,15 @@ def _feuille_tache(call, tid):
 
 def _cree_bc(call, t, lignes):
     """BC confirmé daté du transport, lignes produits, tâche rattachée."""
-    so = call('sale.order', 'create',
-              [{'partner_id': t['partner_id'][0], 'company_id': t['company_id'][0],
-                'origin': t['name'],
-                # date du BC = date du transport : les validités de tarifs (listes
-                # de prix datées) s'appliquent au jour de la prestation
-                'date_order': t['planned_date_begin']}])
+    so = _creer(call, 'sale.order',
+                {'partner_id': t['partner_id'][0], 'company_id': t['company_id'][0],
+                 'origin': t['name'],
+                 # date du BC = date du transport : les validités de tarifs (listes
+                 # de prix datées) s'appliquent au jour de la prestation
+                 'date_order': t['planned_date_begin']})
     for vals in lignes:
         vals['order_id'] = so
-        call('sale.order.line', 'create', [vals])
+        _creer(call, 'sale.order.line', vals)
     _sur(lambda: call('sale.order', 'action_confirm', [so]))
     if t['planned_date_begin']:
         # action_confirm remet la date du jour : on recale sur la date du transport
@@ -289,9 +298,9 @@ def _section_bc(call, so_id, nom_section):
     first = call('sale.order.line', 'search_read',
                  [['order_id', '=', so_id], ['display_type', '=', False]],
                  fields=['sequence'], order='sequence asc', limit=1)
-    call('sale.order.line', 'create',
-         [{'order_id': so_id, 'display_type': 'line_section', 'name': nom_section,
-           'sequence': (first[0]['sequence'] - 1) if first else 10}])
+    _creer(call, 'sale.order.line',
+           {'order_id': so_id, 'display_type': 'line_section', 'name': nom_section,
+            'sequence': (first[0]['sequence'] - 1) if first else 10})
 
 
 def _post_bon(call, so_id, ws, pied):
@@ -548,7 +557,7 @@ def _boutons_transport(call, ctx):
             prod0 = call('product.product', 'read', [lignes[0][0]], fields=['name'])[0]
             etiquette = 'Appro CG' if 'APPRO' in _norm(prod0['name'] or '') else 'Liv Client CG'
             tag = call('crm.tag', 'search', [['name', '=', etiquette]], limit=1)
-            tid = tag[0] if tag else call('crm.tag', 'create', [{'name': etiquette}])
+            tid = tag[0] if tag else _creer(call, 'crm.tag', {'name': etiquette})
             call('sale.order', 'write', [so], {'tag_ids': [(4, tid)]})
         for l0 in call('sale.order.line', 'search_read',
                        [['order_id', '=', so], ['display_type', '=', False]],
