@@ -111,7 +111,14 @@
                   </div>
                   <t t-set="so_rest" t-value="so.order_line.filtered(lambda l: not l.display_type and l.qty_to_invoice &gt; 0)"/>
                   <t t-set="so_rest_amt" t-value="sum([l.price_unit * l.qty_to_invoice * (1 - (l.discount or 0) / 100.0) for l in so_rest])"/>
-                  <div class="sdc-meta">🧾 <t t-if="so.invoice_ids.filtered(lambda i: i.state == 'posted' and i.move_type == 'out_invoice')">Partiellement facturé · </t>reste <t t-esc="'%.0f' % so_rest_amt"/>€ HT<t t-if="so_rest"> : <t t-esc="', '.join([(l.product_id.name or l.name)[:28] for l in so_rest][:3])"/></t> · commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
+                  <t t-set="so_partiel" t-value="bool(so.invoice_ids.filtered(lambda i: i.state == 'posted' and i.move_type == 'out_invoice'))"/>
+                  <!-- reste à facturer bien visible : bandeau orange, montant en gros -->
+                  <div style="margin-top:5px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:4px 7px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                    <span style="font-size:11px;font-weight:800;color:#9a3412;">🧾 Reste à facturer<t t-if="so_partiel"> <small style="font-weight:600;">(partiel)</small></t></span>
+                    <span style="font-size:15px;font-weight:900;color:#c2410c;white-space:nowrap;"><t t-esc="'{:,.0f}'.format(so_rest_amt).replace(',', ' ')"/> € HT</span>
+                  </div>
+                  <div class="sdc-meta" t-if="so_rest"><t t-esc="', '.join([(l.product_id.name or l.name)[:28] for l in so_rest][:3])"/><t t-if="len(so_rest) &gt; 3"> +<t t-esc="len(so_rest) - 3"/></t></div>
+                  <div class="sdc-meta">commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
                   <div class="sdc-meta" t-attf-style="{{'color:#b91c1c;font-weight:800;' if so_all_done else ''}}">🏭 <t t-esc="len(so_ofs)"/> OF<t t-if="so_ofs"> · <t t-esc="len(so_ofs.filtered(lambda o: o.state == 'done'))"/> terminé(s)</t><t t-if="so_all_done"> — tout fabriqué, à facturer !</t></div>
                   <t t-set="so_pal" t-value="so_ofs.mapped('x_studio_colis') | request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',so_ofs.ids)]).mapped('x_studio_colis_id')"/>
                   <t t-if="so_pal"><div class="sdc-meta">📦 <t t-esc="', '.join(so_pal.mapped('name'))"/></div></t>
