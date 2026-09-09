@@ -94,12 +94,12 @@
   </xpath>
   <xpath expr="//p[@class='mt-5']" position="replace">
     <div class="mt-5" style="border:2px solid #b45309;background:#fff7ed;border-radius:6px;padding:6px 10px;font-size:10pt;">
-      <strong style="color:#9a3412;">⚠ RESTE À LIVRER — non compris dans ce bon</strong>
-      <span style="color:#7c2d12;"> (quantités de la commande encore à expédier, prochaine livraison)</span>
+      <strong style="color:#9a3412;">⚠ RELIQUATS — non compris dans ce bon</strong>
+      <span style="color:#7c2d12;"> (reste de la commande à expédier lors d'une prochaine livraison)</span>
     </div>
   </xpath>
   <xpath expr="//th[@name='th_sb_quantity']" position="replace">
-    <th name="th_sb_quantity" class="text-end"><strong>Quantité restante</strong></th>
+    <th name="th_sb_quantity" class="text-end"><strong>Reliquat</strong></th>
   </xpath>
   <xpath expr="//table[@name='stock_move_table']" position="before">
     <t t-set="fmtq2" t-value="lambda v: int(v) if v == int(v) else round(v, 3)"/>
