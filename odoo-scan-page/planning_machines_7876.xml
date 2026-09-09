@@ -116,7 +116,9 @@
     try{ var s = JSON.parse(localStorage.getItem('pf_grps')||'null'); if(s){ state = s; } }catch(e){}
     function apply(){
       document.querySelectorAll('.pf-col[data-grp]').forEach(function(c){
-        c.style.display = state[c.getAttribute('data-grp')] ? '' : 'none';
+        var g = c.getAttribute('data-grp');
+        // la colonne Standby (groupe 'sb') n'est jamais masquée par les boutons de groupe
+        c.style.display = (g === 'sb' || state[g]) ? '' : 'none';
       });
       leg.querySelectorAll('button[data-grp]').forEach(function(b){
         var on = state[b.getAttribute('data-grp')];
