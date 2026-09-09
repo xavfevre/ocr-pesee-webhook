@@ -232,6 +232,9 @@
         <t t-set="dom" t-value="[('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1),('employee_assigned_ids','in',[int(op)]),('workcenter_id','!=',27),'|',('state','in',['ready','progress']),'&amp;',('state','=','done'),('date_start','&gt;=',dfday)]"/>
         <t t-set="ots" t-value="request.env['mrp.workorder'].sudo().search(dom, limit=300).sorted(key=lambda w: (0 if w.production_id.priority == '1' else 1, w.production_id.name or '', w.id))"/>
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
+        <!-- palettisation partielle : lignes « Répartition OF / Palette » déjà posées pour les OF affichés -->
+        <t t-set="reps_by_of" t-value="{}"/>
+        <t t-set="_r0" t-value="[reps_by_of.setdefault(r.x_studio_of_id.id, []).append((r.x_studio_colis_id.name or '?', int(r.x_studio_qte or 0))) for r in request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',ots.mapped('production_id').ids)]) if r.x_studio_of_id]"/>
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
         <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
         <t t-set="rep_cnt" t-value="dict((g['x_studio_colis_id'][0], g['x_studio_colis_id_count']) for g in request.env['x_repartition_palette'].sudo().read_group([('x_studio_colis_id','in',colis_ouverts.ids)], ['id'], ['x_studio_colis_id']))"/>
@@ -268,6 +271,34 @@
           <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(80vw,430px);height:140px;border:3px solid #22d3ee;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,.45);"/>
           <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
           <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
+        </div>
+        <div id="vo-qte-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:1002;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;padding:18px;width:min(360px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.4);">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <strong style="font-size:17px;">📦 Combien sur la palette ?</strong>
+              <button type="button" id="vo-qte-close" class="btn btn-sm btn-outline-secondary">✕</button>
+            </div>
+            <div style="font-size:12.5px;color:#64748b;margin-bottom:6px;"><span id="vo-qte-of"/> · disponibles : <b id="vo-qte-max"/></div>
+            <div id="vo-qte-disp" style="font-size:44px;font-weight:900;text-align:center;color:#0f172a;line-height:1.1;margin:4px 0 10px;"/>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              <button type="button" class="vo-qk btn btn-light" data-k="1" style="font-size:24px;font-weight:800;padding:12px 0;">1</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="2" style="font-size:24px;font-weight:800;padding:12px 0;">2</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="3" style="font-size:24px;font-weight:800;padding:12px 0;">3</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="4" style="font-size:24px;font-weight:800;padding:12px 0;">4</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="5" style="font-size:24px;font-weight:800;padding:12px 0;">5</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="6" style="font-size:24px;font-weight:800;padding:12px 0;">6</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="7" style="font-size:24px;font-weight:800;padding:12px 0;">7</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="8" style="font-size:24px;font-weight:800;padding:12px 0;">8</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="9" style="font-size:24px;font-weight:800;padding:12px 0;">9</button>
+              <button type="button" class="vo-qk btn btn-outline-secondary" data-k="C" style="font-size:18px;font-weight:800;padding:12px 0;">C</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="0" style="font-size:24px;font-weight:800;padding:12px 0;">0</button>
+              <button type="button" class="vo-qk btn btn-outline-secondary" data-k="back" style="font-size:18px;font-weight:800;padding:12px 0;">⌫</button>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+              <button type="button" id="vo-qte-all" class="btn btn-outline-primary flex-grow-1" style="font-weight:800;padding:12px 0;">Tout (<span id="vo-qte-max2"/>)</button>
+              <button type="button" id="vo-qte-ok" class="btn btn-success flex-grow-1" style="font-weight:800;padding:12px 0;font-size:17px;">✓ Choisir la palette</button>
+            </div>
+          </div>
         </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
@@ -352,7 +383,7 @@
           <t t-set="lum" t-value="(int(col[1:3],16)*299 + int(col[3:5],16)*587 + int(col[5:7],16)*114)/1000.0 if (col and len(col)==7) else 0"/>
           <t t-set="htxt" t-value="'#1a1a1a' if lum &gt; 150 else '#ffffff'"/>
           <t t-set="plans" t-value="all_plans.filtered(lambda a: a.res_id == of.id)"/>
-          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'" t-att-data-scieprim="'1' if 'primaire' in (w.name or '').lower() else ''" t-att-data-bloc="of.x_studio_bloc.x_name or ''" t-att-data-note="of.x_note_atelier or ''">
+          <div t-attf-class="vo-card {{'doned' if w.state == 'done' else ''}}" t-attf-style="border-left-color:{{col}};" t-att-data-id="w.id" t-att-data-state="w.state" t-att-data-nbr="of.x_studio_nbr or 0" t-att-data-fait="w.x_studio_nbr_fait or 0" t-attf-data-dims="{{'%.3f' % (of.x_studio_long_m_1 or 0)}} {{'%.3f' % (of.x_studio_larg_m_1 or 0)}} {{'%.3f' % (of.x_studio_haut_m_1 or 0)}}" t-att-data-client="of.x_studio_nom_du_client or ''" t-att-data-ref="of.x_studio_ref_commande_client or ''" t-att-data-machine="w.workcenter_id.name or ''" t-att-data-site="w.workcenter_id.x_studio_site or ''" t-att-data-palette="of.x_studio_palette or ''" t-att-data-of="of.name or ''" t-att-data-start="w.date_start and w.date_start.strftime('%Y-%m-%d %H:%M:%S') or ''" t-att-data-ofid="of.id" t-att-data-coliso="of.x_studio_colis.name or ''" t-att-data-ofdone="'1' if of.state == 'done' else '0'" t-att-data-scieprim="'1' if 'primaire' in (w.name or '').lower() else ''" t-att-data-bloc="of.x_studio_bloc.x_name or ''" t-att-data-note="of.x_note_atelier or ''" t-att-data-placed="sum([q for n, q in reps_by_of.get(of.id, [])])" t-att-data-reps="' · '.join(['%s: %s' % (n, q) for n, q in reps_by_of.get(of.id, [])])" t-att-data-lastop="'1' if (not of.workorder_ids or w.id == of.workorder_ids.sorted(key=lambda o: (o.sequence or 0, o.id))[-1:].id) else ''">
             <div class="vo-head" t-attf-style="background:{{col}};color:{{htxt}};">
               <span><t t-if="is_taille">✂ </t><t t-esc="w.name"/> <small>· <t t-esc="w.workcenter_id.name"/></small></span>
               <span><t t-esc="pierre"/></span>
@@ -730,27 +761,67 @@ var dataC=document.getElementById('vo-colis-data');
         try{ var _dcP=document.getElementById('vo-colis-data'); var _opP=JSON.parse((_dcP&amp;&amp;_dcP.getAttribute('data-colis'))||'[]');
             if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opP.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
         function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
+        // ── palettisation (partielle ou entière) via le relais Render 2101 ──
+        var voQte=null;   // quantité choisie au pavé (null = tout ce qui est disponible)
         function assignC(ofid, cid, cname, card, after){
-          fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
+          var ctx={of_id:ofid, qte:(voQte||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
+          fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action_id:2101, ctx:ctx})
           }).then(function(r){return r.json();}).then(function(d){
             if(after){ after(); }
             if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
               if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
               alert('\u00c9chec : '+_m); return; }
-            if(cid){ saveLastC(cid,cname); }
+            var r=d.result||{};
+            if(r.colis_id){ saveLastC(r.colis_id, r.colis||cname); }
             if(popC){ popC.style.display='none'; }
+            voQte=null;
             if(card){
-              card.setAttribute('data-coliso', cname);
-              document.querySelectorAll('.vo-card').forEach(function(c){ if(c.getAttribute('data-ofid')===card.getAttribute('data-ofid')){ c.setAttribute('data-coliso', cname); render(c); renderP(c); } });
+              var reps=(r.reps||[]).map(function(x){ return x.colis+': '+x.qte; }).join(' · ');
+              document.querySelectorAll('.vo-card').forEach(function(c){ if(c.getAttribute('data-ofid')===card.getAttribute('data-ofid')){
+                if(r.entier){ c.setAttribute('data-coliso', r.colis||cname); }
+                c.setAttribute('data-placed', String(r.place||0)); c.setAttribute('data-reps', reps);
+                render(c); renderP(c); } });
             }
-          }).catch(function(e){ if(after){ after(); } alert('Échec : '+e); });
+          }).catch(function(e){ if(after){ after(); } alert('Échec réseau : '+e); });
+        }
+        // pavé « Combien sur la palette ? »
+        var qPop=document.getElementById('vo-qte-pop'), qPend=null, qStr='';
+        function qDisp(){ var d=document.getElementById('vo-qte-disp'); if(d &amp;&amp; qPend){ d.textContent=(qStr===''?qPend.max:qStr); d.style.color=(qStr===''?'#94a3b8':'#0f172a'); } }
+        function qOpen(p, ok){
+          qPend={max:p.max, ok:ok}; qStr='';
+          document.getElementById('vo-qte-of').textContent=(p.of||'')+(p.info?' — '+p.info:'');
+          document.getElementById('vo-qte-max').textContent=p.max; document.getElementById('vo-qte-max2').textContent=p.max;
+          qDisp(); if(qPop){ qPop.style.display='flex'; }
+        }
+        function qClose(){ if(qPop){ qPop.style.display='none'; } qPend=null; qStr=''; }
+        if(qPop){
+          qPop.addEventListener('click', function(e){
+            var k=e.target.closest('.vo-qk'); if(k &amp;&amp; qPend){ var d=k.getAttribute('data-k');
+              if(d==='C'){ qStr=''; } else if(d==='back'){ qStr=qStr.slice(0,-1); } else { var nv=(qStr+d).replace(/^0+/,''); if(parseInt(nv||'0')&gt;qPend.max){ nv=String(qPend.max); } qStr=nv; }
+              qDisp(); return; }
+            if(e.target.closest('#vo-qte-close')){ qClose(); return; }
+            if(e.target.closest('#vo-qte-all')){ var f=qPend.ok; var mx=qPend.max; qClose(); f(mx); return; }
+            if(e.target.closest('#vo-qte-ok')){ var q=(qStr===''?qPend.max:parseInt(qStr)); if(!(q&gt;0)){ return; } var f2=qPend.ok; qClose(); f2(q); return; }
+          });
+        }
+        // flux commun : quantité (si plusieurs pièces) puis choix de la palette
+        function palFlow(card, dispo){
+          var nbr=parseInt(card.getAttribute('data-nbr'))||1, placed=parseInt(card.getAttribute('data-placed'))||0;
+          var go=function(q){ voQte=q; curOfP=parseInt(card.getAttribute('data-ofid')); curCardP=card; if(popC){ popC.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchP(); setTimeout(function(){ s.focus(); },80); } } };
+          if(dispo&lt;=1 &amp;&amp; nbr&lt;=1){ go(dispo||1); return; }
+          qOpen({max:dispo, of:card.getAttribute('data-of')||'OF', info:(placed?placed+' déjà sur palette, ':'')+(nbr-placed)+' restantes sur '+nbr}, go);
         }
         function bindColis(root, card){
           var b=root.querySelector('.vo-addcolis2');
-          if(b){ b.onclick=function(){ curOfP=parseInt(card.getAttribute('data-ofid')); curCardP=card; if(popC){ popC.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchP(); setTimeout(function(){ s.focus(); },80); } } }; }
+          var nbrB=parseInt(card.getAttribute('data-nbr'))||1, placedB=parseInt(card.getAttribute('data-placed'))||0, dispoB=Math.max(1, nbrB-placedB);
+          if(b){ b.onclick=function(){ palFlow(card, dispoB); }; }
           var q=root.querySelector('.vo-lastcolis2');
-          if(q){ q.onclick=function(){ q.disabled=true; assignC(parseInt(card.getAttribute('data-ofid')), lastColis.id, lastColis.name, card, function(){ q.disabled=false; }); }; }
+          if(q){ q.onclick=function(){ var go=function(qq){ q.disabled=true; voQte=qq; assignC(parseInt(card.getAttribute('data-ofid')), lastColis.id, lastColis.name, card, function(){ q.disabled=false; }); }; if(dispoB&lt;=1 &amp;&amp; nbrB&lt;=1){ go(1); } else { qOpen({max:dispoB, of:card.getAttribute('data-of')||'OF', info:(placedB?placedB+' déjà sur palette, ':'')+dispoB+' restantes sur '+nbrB}, go); } }; }
+          var pb=root.querySelector('.vo-palpart');
+          if(pb){ pb.onclick=function(){ palFlow(card, parseInt(pb.getAttribute('data-dispo'))||1); }; }
+          var pq=root.querySelector('.vo-palpartq');
+          if(pq){ pq.onclick=function(){ var dq=parseInt(pq.getAttribute('data-dispo'))||1; var go=function(qq){ pq.disabled=true; voQte=qq; assignC(parseInt(card.getAttribute('data-ofid')), lastColis.id, lastColis.name, card, function(){ pq.disabled=false; }); }; qOpen({max:dq, of:card.getAttribute('data-of')||'OF', info:dq+' pièce(s) faite(s) pas encore sur palette'}, go); }; }
         }
 var dataC=document.getElementById('vo-colis-data');
           var COLIS=[]; try{ COLIS=JSON.parse((dataC &amp;&amp; dataC.getAttribute('data-colis'))||'[]'); }catch(e){}
@@ -816,10 +887,13 @@ var dataC=document.getElementById('vo-colis-data');
           if(st==='done'){
             badge.innerHTML='&lt;span class="badge text-bg-secondary"&gt;✓ Terminé&lt;/span&gt;';
             var coliso=card.getAttribute('data-coliso')||'';
+            var repsD=card.getAttribute('data-reps')||'', placedD=parseInt(card.getAttribute('data-placed'))||0, nbrD=parseInt(card.getAttribute('data-nbr'))||1;
             var ch='';
             if(coliso){ ch=' &lt;span class="vo-pal"&gt;📦 '+coliso+'&lt;/span&gt;'; }
+            else if(repsD &amp;&amp; placedD&gt;=nbrD){ ch=' &lt;span class="vo-pal"&gt;📦 '+repsD+'&lt;/span&gt;'; }
             else {
-              ch=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis&lt;/button&gt;';
+              if(repsD){ ch=' &lt;span class="vo-pal" style="background:#fef3c7;color:#92400e;"&gt;📦 '+repsD+' · reste '+(nbrD-placedD)+'&lt;/span&gt;'; }
+              ch+=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis'+(repsD?' ('+(nbrD-placedD)+')':'')+'&lt;/button&gt;';
               if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
             }
             acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch+' &lt;button type="button" class="vo-rebut2 btn btn-outline-danger" style="font-weight:800;"&gt;💥 Rebut&lt;/button&gt;';
@@ -877,10 +951,15 @@ var dataC=document.getElementById('vo-colis-data');
           var st=card.getAttribute('data-state');
           if(nbr &lt;= 1 || st==='done' || st==='blocked'){ box.innerHTML=''; return; }
           var reste=Math.max(0, nbr-fait);
+          var placedP=parseInt(card.getAttribute('data-placed'))||0, repsP=card.getAttribute('data-reps')||'', lastop=card.getAttribute('data-lastop')==='1';
+          var dispoP=Math.max(0, Math.min(nbr, fait)-placedP);
           box.innerHTML = '&lt;span class="vo-fait"&gt;Fait '+fait+' / '+nbr+'&lt;/span&gt;'
             + '&lt;span class="vo-reste'+(reste===0?' zero':'')+'"&gt;'+(reste===0?'✅ Tout fait':'Reste '+reste)+'&lt;/span&gt;'
             + '&lt;button type="button" class="vo-p1 btn btn-primary"'+(reste===0?' disabled="disabled"':'')+'&gt;+1 pièce&lt;/button&gt;'
-            + (fait&gt;0 ? '&lt;button type="button" class="vo-m1 btn btn-outline-secondary btn-sm"&gt;−1&lt;/button&gt;' : '');
+            + (fait&gt;0 ? '&lt;button type="button" class="vo-m1 btn btn-outline-secondary btn-sm"&gt;−1&lt;/button&gt;' : '')
+            + (repsP ? '&lt;div style="width:100%;font-size:12px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:6px;padding:2px 6px;margin-top:4px;"&gt;📦 '+repsP+(placedP&lt;nbr?' · '+(nbr-placedP)+' encore à mettre':'')+'&lt;/div&gt;' : '')
+            + (lastop &amp;&amp; dispoP&gt;0 ? '&lt;div style="width:100%;margin-top:4px;"&gt;&lt;button type="button" class="vo-palpart btn btn-warning" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;📦 Palettiser ('+dispoP+' faite'+(dispoP&gt;1?'s':'')+')&lt;/button&gt;'+(lastColis &amp;&amp; lastColis.id?' &lt;button type="button" class="vo-palpartq btn btn-success btn-sm" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;':'')+'&lt;/div&gt;' : '');
+          bindColis(box, card);
           function saveF(nf){
             fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'mrp.workorder',method:'write',args:[[parseInt(card.getAttribute('data-id'))],{x_studio_nbr_fait:nf}],kwargs:{}}})
