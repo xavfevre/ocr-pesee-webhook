@@ -126,6 +126,9 @@
                     ⚠ Facturé en trop : <t t-esc="', '.join(['%s × %s' % (('%g' % (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered))), (l.product_id.name or l.name)[:26]) for l in so_over][:2])"/> — <t t-esc="'%.2f' % so_over_amt"/> € HT → avoir ou corriger la quantité
                   </div>
                   <div class="sdc-meta" t-if="not so_n_done" style="color:#94a3b8;">⏳ fabrication pas terminée — rien à facturer pour l'instant</div>
+                  <!-- facturé mais livraison non validée : la commande reste « à facturer » avec un reste de 0 -->
+                  <t t-set="so_undeliv" t-value="so.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment and l.qty_delivered + 0.001 &lt; l.qty_invoiced and l.qty_invoiced &lt;= l.product_uom_qty + 0.001)"/>
+                  <div class="sdc-meta" t-if="so_n_done and not so_rest and not so_over and so_undeliv" style="color:#1d4ed8;font-weight:700;">🚚 Tout est facturé mais la livraison n'est pas validée (<t t-esc="len(so_undeliv)"/> ligne(s)) — valider le BL pour solder</div>
                   <div class="sdc-meta">commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
                   <div class="sdc-meta" t-attf-style="{{'color:#b91c1c;font-weight:800;' if so_all_done else ''}}">🏭 <t t-esc="len(so_ofs)"/> OF<t t-if="so_ofs"> · <t t-esc="len(so_ofs.filtered(lambda o: o.state == 'done'))"/> terminé(s)</t><t t-if="so_all_done"> — tout fabriqué, à facturer !</t></div>
                   <t t-set="so_pal" t-value="so_ofs.mapped('x_studio_colis') | request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',so_ofs.ids)]).mapped('x_studio_colis_id')"/>
