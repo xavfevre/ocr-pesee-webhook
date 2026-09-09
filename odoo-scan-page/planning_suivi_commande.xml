@@ -68,21 +68,24 @@
           <t t-set="col_n" t-value="len(ofnf_sos) if stg[3] == 'ofnf' else len(col_tasks)"/>
           <div class="sdc-col" t-attf-style="{{'border:2px dashed #b45309;margin-left:14px;' if stg[3] == 'ofnf' else ''}}">
             <div class="sdc-colh" t-attf-style="background:{{stg[2]}};">
-              <span><t t-esc="stg[1]"/><small t-if="stg[3] == 'ofnf'" style="display:block;font-size:9.5px;opacity:.85;">filtre · toutes étapes</small></span>
+              <span><t t-esc="stg[1]"/><small t-if="stg[3] == 'ofnf'" style="display:block;font-size:9.5px;opacity:.85;">filtre · toutes étapes · rouge = tous les OF terminés</small></span>
               <small><t t-esc="col_n"/> · <t t-esc="'%.0f' % col_total"/>€</small>
             </div>
             <t t-if="stg[3] == 'ofnf'">
               <t t-foreach="ofnf_sos" t-as="so">
                 <t t-set="so_ofs" t-value="so.order_line.mapped('x_of_ids').filtered(lambda o: o.state != 'cancel')"/>
                 <t t-set="so_task" t-value="all_records.filtered(lambda t: so in t.x_studio_devis_commandes_1)[:1]"/>
-                <div class="sdc-card" t-attf-style="border-left-color:{{stg[2]}};">
+                <t t-set="so_all_done" t-value="bool(so_ofs) and not so_ofs.filtered(lambda o: o.state != 'done')"/>
+                <div class="sdc-card" t-attf-style="{{'border-left-color:#dc2626;background:#fef2f2;border-color:#fca5a5;' if so_all_done else 'border-left-color:' + stg[2] + ';'}}">
                   <a t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" class="sdc-title"><t t-esc="so.partner_id.name"/></a>
                   <div class="sdc-so">
                     <span><a t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="text-decoration:none;color:#334155;font-weight:700;"><t t-esc="so.name"/></a> <span class="sdc-badge" style="background:#16a34a;">Commande</span></span>
                     <span class="sdc-amt"><t t-esc="'%.0f' % so.amount_total"/>€</span>
                   </div>
-                  <div class="sdc-meta">🧾 À facturer · commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
-                  <div class="sdc-meta">🏭 <t t-esc="len(so_ofs)"/> OF<t t-if="so_ofs"> · <t t-esc="len(so_ofs.filtered(lambda o: o.state == 'done'))"/> terminé(s)</t></div>
+                  <t t-set="so_rest" t-value="so.order_line.filtered(lambda l: not l.display_type and l.qty_to_invoice &gt; 0)"/>
+                  <t t-set="so_rest_amt" t-value="sum([l.price_unit * l.qty_to_invoice * (1 - (l.discount or 0) / 100.0) for l in so_rest])"/>
+                  <div class="sdc-meta">🧾 <t t-if="so.invoice_ids.filtered(lambda i: i.state == 'posted' and i.move_type == 'out_invoice')">Partiellement facturé · </t>reste <t t-esc="'%.0f' % so_rest_amt"/>€ HT<t t-if="so_rest"> : <t t-esc="', '.join([(l.product_id.name or l.name)[:28] for l in so_rest][:3])"/></t> · commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
+                  <div class="sdc-meta" t-attf-style="{{'color:#b91c1c;font-weight:800;' if so_all_done else ''}}">🏭 <t t-esc="len(so_ofs)"/> OF<t t-if="so_ofs"> · <t t-esc="len(so_ofs.filtered(lambda o: o.state == 'done'))"/> terminé(s)</t><t t-if="so_all_done"> — tout fabriqué, à facturer !</t></div>
                   <t t-set="so_pal" t-value="so_ofs.mapped('x_studio_colis') | request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',so_ofs.ids)]).mapped('x_studio_colis_id')"/>
                   <t t-if="so_pal"><div class="sdc-meta">📦 <t t-esc="', '.join(so_pal.mapped('name'))"/></div></t>
                   <t t-if="so_task"><div class="sdc-meta">📋 <a t-attf-href="/web#id={{so_task.id}}&amp;model=project.task&amp;view_type=form" target="_blank" style="color:#64748b;"><t t-esc="so_task.name"/></a></div></t>
