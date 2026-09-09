@@ -20,9 +20,8 @@
       table.onf th{background:#0f172a;color:#fff;padding:10px 11px;text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;cursor:pointer;user-select:none;}
       table.onf th.num, table.onf td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
       table.onf td{padding:10px 11px;border-bottom:1px solid #e2e8f0;vertical-align:top;line-height:1.35;}
-      table.onf tr.done td{background:#fef2f2;}
       table.onf tr:hover td{background:#f8fafc;}
-      table.onf tr.done:hover td{background:#fee2e2;}
+      table.onf tr:nth-child(even) td{background:#fafbfc;}
       .onf-cli{font-weight:800;color:#0f172a;text-decoration:none;font-size:16.5px;}
       .onf-cli:hover{color:#2563eb;}
       .onf-bc{font-weight:700;color:#334155;text-decoration:none;}
