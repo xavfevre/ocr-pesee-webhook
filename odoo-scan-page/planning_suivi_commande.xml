@@ -39,7 +39,7 @@
         <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
         <li class="nav-item"><a class="nav-link" href="/planning-mois">📆 Vue mois</a></li>
         <li class="nav-item"><a class="nav-link active fw-bold" href="#">📋 Suivi devis/commande</a></li>
-        <li class="nav-item"><a class="nav-link" href="/of-non-facture">📊 OF non facturés</a></li>
+        <li class="nav-item"><a class="nav-link" href="/of-non-facture">💶 Suivi facturation</a></li>
       </ul>
 
       <form method="get" class="d-flex justify-content-center gap-2 mb-2">
