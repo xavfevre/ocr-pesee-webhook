@@ -167,7 +167,7 @@ def _lignes_a(base, analytiques, sections, tot_debit, tot_credit):
     return lignes
 
 
-def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None):
+def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, sortis=None):
     """Format action 1459 : écritures groupées par (compte, analytique).
     move_ids : restreint aux pièces données (export des écritures rétroactives)."""
     dom = [("journal_id", "=", journal["id"]), ("state", "=", "posted"),
@@ -179,6 +179,8 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None):
     if not moves:
         return None
     mids = [m["id"] for m in moves]
+    if sortis is not None:
+        sortis.update(mids)
     lines = _q("account.move.line", "search_read", [("move_id", "in", mids)],
                fields=["move_id", "account_id", "debit", "credit", "partner_id",
                        "ref", "analytic_distribution"], limit=0, order="id asc")
@@ -240,7 +242,7 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None):
     return "\n".join(out)
 
 
-def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None):
+def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=None):
     """Format action 1671 : ligne à ligne (tickets comptoir)."""
     dom = [("journal_id", "=", journal["id"]), ("parent_state", "=", "posted"),
            ("date", ">=", du), ("date", "<=", au)]
@@ -253,6 +255,8 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None):
     if not lines:
         return None
     mids = list({l["move_id"][0] for l in lines})
+    if sortis is not None:
+        sortis.update(mids)
     moves = {m["id"]: m for m in _q("account.move", "read", mids,
                                     fields=["name", "invoice_date_due", "partner_id"])}
     comptes, partenaires, analytiques = _referentiels(lines, comp)
@@ -663,6 +667,15 @@ def page():
                   "<table style='margin-top:8px;'><tr><th>Fait le</th><th>Journal</th>"
                   "<th>Du</th><th>Au</th></tr>%s</table></details>" % (len(histo), lg))
 
+    corps += ("<form method='get' action='facture' class='nc' style='background:#eff6ff;border-color:#bfdbfe;"
+              "color:#1e3a8a;display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>"
+              "<input type='hidden' name='token' value='%s'><input type='hidden' name='societe' value='%s'>"
+              "🧾 <b>Exporter une seule facture</b> (oubliée ou saisie après l'export) : "
+              "<input type='text' name='numero' placeholder='FAC/26-27/0600' required "
+              "style='padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;min-width:170px;'>"
+              "<button type='submit' class='btn' style='padding:6px 12px;'>⬇ .txt de cette facture</button>"
+              "<span style='font-size:12px;font-weight:400;'>même format que le journal ; la facture est marquée "
+              "« Transféré Sage » dans Odoo</span></form>" % (token, comp))
     corps = info_dernier + corps
     html = (PAGE.replace("__SOCIETES__", opts_soc)
                 .replace("__DU__", du).replace("__AU__", au)
@@ -670,10 +683,23 @@ def page():
     return Response(html, mimetype="text/html")
 
 
-def _fichier_journal(j, du, au, base_url, clients_vus, comp, move_ids=None):
+def _fichier_journal(j, du, au, base_url, clients_vus, comp, move_ids=None, sortis=None):
     if j.get("format_caisse") or j["type"] == "cash":
-        return _export_caisse(j, du, au, clients_vus, comp, move_ids), "export_tickets_comptoir"
-    return _export_ventes(j, du, au, base_url, clients_vus, comp, move_ids), "export_journal"
+        return _export_caisse(j, du, au, clients_vus, comp, move_ids, sortis), "export_tickets_comptoir"
+    return _export_ventes(j, du, au, base_url, clients_vus, comp, move_ids, sortis), "export_journal"
+
+
+def _marquer_transferees(sortis):
+    """Horodate les pièces exportées (account.move.x_sage_envoye_le) : la liste
+    des factures Odoo affiche « Transféré Sage » et un filtre « non transférées ».
+    Une pièce déjà marquée garde sa première date."""
+    if not sortis:
+        return
+    from datetime import datetime as _dt
+    ids = _q("account.move", "search", [("id", "in", list(sortis)), ("x_sage_envoye_le", "=", False)])
+    if ids:
+        _q("account.move", "write", ids, {"x_sage_envoye_le": _dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")})
+    return len(ids)
 
 
 @bp.route("/fichier", methods=["GET"])
@@ -686,9 +712,11 @@ def fichier():
     pos = _q("pos.config", "search_read", [("journal_id", "=", jid)], fields=["id"])
     j["format_caisse"] = j["type"] == "cash" or bool(pos)
     base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
-    contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0])
+    sortis = set()
+    contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0], sortis=sortis)
     if contenu is None:
         return Response("Aucune écriture.", mimetype="text/plain; charset=utf-8", status=404)
+    _marquer_transferees(sortis)
     _histo_add(j["company_id"][0], "%s — %s" % (j["code"] or "", j["name"]), du, au)
     _dernier_maj(j["company_id"][0], du, au)
     slug = j["company_id"][1].replace(" ", "_").replace("/", "_")
@@ -718,11 +746,12 @@ def retro():
     comp_nom = _q("res.company", "read", [comp], fields=["name"])[0]["name"]
     slug = comp_nom.replace(" ", "_").replace("/", "_")
     fichiers = []
+    sortis_retro = set()
     for j in journaux:
         if j["id"] not in par_journal:
             continue
         contenu, prefixe = _fichier_journal(j, d_min, d_au, base_url, set(), comp,
-                                            move_ids=par_journal[j["id"]])
+                                            move_ids=par_journal[j["id"]], sortis=sortis_retro)
         if contenu:
             nom = "retro_%s_%s_%s_jusquau_%s.txt" % (prefixe.replace("export_", ""), slug,
                                                      j["name"].replace(" ", "_"), d_au.replace("-", ""))
@@ -735,6 +764,7 @@ def retro():
     d_du = dernier.split("|")[0] if dernier.count("|") == 2 else d_min
     _q("ir.config_parameter", "set_param", "maquignon.export_compta_dernier_%s" % comp,
        "%s|%s|%s" % (d_du, d_au, _dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+    _marquer_transferees(sortis_retro)
     _histo_add(comp, "⏪ Écritures rétroactives (%d pièce(s))" % len(moves), d_min, d_au)
     if len(fichiers) == 1:
         nom, contenu = fichiers[0]
@@ -748,6 +778,48 @@ def retro():
     return Response(buf.getvalue(), mimetype="application/zip",
                     headers={"Content-Disposition": "attachment; filename=retro_%s_jusquau_%s.zip"
                              % (slug, d_au.replace("-", ""))})
+
+
+@bp.route("/facture", methods=["GET"])
+def facture():
+    """Exporte UNE facture / un avoir (n° Odoo) au format de son journal, la
+    marque transférée et l'ajoute à l'historique. Utile pour une pièce oubliée
+    ou saisie après l'export de la période."""
+    _check_token()
+    numero = (request.args.get("numero") or "").strip()
+    comp = int(request.args.get("societe") or 0)
+    if not numero:
+        return Response("Indiquez un numéro de facture.", mimetype="text/plain; charset=utf-8", status=400)
+    dom = [("name", "=ilike", numero), ("state", "=", "posted")]
+    if comp:
+        dom.append(("company_id", "=", comp))
+    mv = _q("account.move", "search_read", dom, fields=["name", "date", "journal_id", "company_id",
+                                                       "x_sage_envoye_le", "amount_total"], limit=2)
+    if not mv:
+        return Response("Facture « %s » introuvable (ou non validée)." % numero,
+                        mimetype="text/plain; charset=utf-8", status=404)
+    if len(mv) > 1:
+        return Response("Plusieurs pièces portent ce numéro : précisez la société.",
+                        mimetype="text/plain; charset=utf-8", status=409)
+    mv = mv[0]
+    j = _q("account.journal", "read", [mv["journal_id"][0]], fields=["name", "code", "type", "company_id"],
+           context={"lang": "fr_FR"})[0]
+    pos = _q("pos.config", "search_read", [("journal_id", "=", j["id"])], fields=["id"])
+    j["format_caisse"] = j["type"] == "cash" or bool(pos)
+    base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
+    sortis = set()
+    contenu, prefixe = _fichier_journal(j, mv["date"], mv["date"], base_url, set(),
+                                        mv["company_id"][0], move_ids=[mv["id"]], sortis=sortis)
+    if contenu is None:
+        return Response("Aucune écriture exportable pour %s." % mv["name"],
+                        mimetype="text/plain; charset=utf-8", status=404)
+    _marquer_transferees(sortis)
+    _histo_add(mv["company_id"][0], "🧾 Facture seule %s" % mv["name"], mv["date"], mv["date"])
+    slug = mv["company_id"][1].replace(" ", "_").replace("/", "_")
+    nom = "%s_%s_%s.txt" % (prefixe, slug, mv["name"].replace("/", "-"))
+    return Response(contenu.encode("cp1252", errors="replace"),
+                    mimetype="text/plain; charset=windows-1252",
+                    headers={"Content-Disposition": "attachment; filename=%s" % nom})
 
 
 @bp.route("/verrou", methods=["POST"])
@@ -779,11 +851,12 @@ def export():
     slug = comp_nom.replace(" ", "_").replace("/", "_")
     suffixe = "du_%s_au_%s" % (du.replace("-", ""), au.replace("-", ""))
     clients_vus = set()
+    sortis = set()
     buf = io.BytesIO()
     n_fichiers = 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for j in _journaux(comp):
-            contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus, comp)
+            contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus, comp, sortis=sortis)
             if contenu is None:
                 continue
             nom = "%s_%s_%s_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"), suffixe)
@@ -796,6 +869,7 @@ def export():
     if n_fichiers == 0:
         return Response("Aucune écriture sur la période pour cette société.",
                         mimetype="text/plain; charset=utf-8", status=404)
+    _marquer_transferees(sortis)
     _histo_add(comp, "📦 ZIP complet", du, au)
     _dernier_maj(comp, du, au)
     buf.seek(0)
