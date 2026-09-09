@@ -111,14 +111,20 @@
                   </div>
                   <t t-set="so_rest" t-value="so.order_line.filtered(lambda l: not l.display_type and l.qty_to_invoice &gt; 0)"/>
                   <t t-set="so_rest_amt" t-value="sum([l.price_unit * l.qty_to_invoice * (1 - (l.discount or 0) / 100.0) for l in so_rest])"/>
+                  <!-- facturé en trop : quantité à facturer négative (facture modifiée à la main) -->
+                  <t t-set="so_over" t-value="so.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment and l.qty_invoiced &gt; max(l.product_uom_qty, l.qty_delivered) + 0.001)"/>
+                  <t t-set="so_over_amt" t-value="sum([l.price_unit * (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered)) * (1 - (l.discount or 0) / 100.0) for l in so_over])"/>
                   <t t-set="so_partiel" t-value="bool(so.invoice_ids.filtered(lambda i: i.state == 'posted' and i.move_type == 'out_invoice'))"/>
                   <t t-set="so_n_done" t-value="len(so_ofs.filtered(lambda o: o.state == 'done'))"/>
                   <!-- reste à facturer bien visible : bandeau orange, montant en gros — seulement si au moins un OF est terminé (sinon rien n'est facturable) -->
-                  <div t-if="so_n_done" style="margin-top:5px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:4px 7px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                  <div t-if="so_n_done and (so_rest or not so_over)" style="margin-top:5px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:4px 7px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
                     <span style="font-size:11px;font-weight:800;color:#9a3412;">🧾 Reste à facturer<t t-if="so_partiel"> <small style="font-weight:600;">(partiel)</small></t></span>
                     <span style="font-size:15px;font-weight:900;color:#c2410c;white-space:nowrap;"><t t-esc="'{:,.0f}'.format(so_rest_amt).replace(',', ' ')"/> € HT</span>
                   </div>
                   <div class="sdc-meta" t-if="so_rest and so_n_done"><t t-esc="', '.join([(l.product_id.name or l.name)[:28] for l in so_rest][:3])"/><t t-if="len(so_rest) &gt; 3"> +<t t-esc="len(so_rest) - 3"/></t></div>
+                  <div t-if="so_over" style="margin-top:5px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:800;color:#991b1b;">
+                    ⚠ Facturé en trop : <t t-esc="', '.join(['%s × %s' % (('%g' % (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered))), (l.product_id.name or l.name)[:26]) for l in so_over][:2])"/> — <t t-esc="'%.2f' % so_over_amt"/> € HT → avoir ou corriger la quantité
+                  </div>
                   <div class="sdc-meta" t-if="not so_n_done" style="color:#94a3b8;">⏳ fabrication pas terminée — rien à facturer pour l'instant</div>
                   <div class="sdc-meta">commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
                   <div class="sdc-meta" t-attf-style="{{'color:#b91c1c;font-weight:800;' if so_all_done else ''}}">🏭 <t t-esc="len(so_ofs)"/> OF<t t-if="so_ofs"> · <t t-esc="len(so_ofs.filtered(lambda o: o.state == 'done'))"/> terminé(s)</t><t t-if="so_all_done"> — tout fabriqué, à facturer !</t></div>
@@ -146,7 +152,10 @@
                     <!-- dossier en étape Facturé mais commande pas entièrement facturée : badge d'alerte avec le reste -->
                     <t t-set="t_rest" t-value="so.order_line.filtered(lambda l: not l.display_type and l.qty_to_invoice &gt; 0)"/>
                     <t t-set="t_rest_amt" t-value="sum([l.price_unit * l.qty_to_invoice * (1 - (l.discount or 0) / 100.0) for l in t_rest])"/>
-                    <div class="sdc-meta"><span class="sdc-badge" style="background:#f97316;" t-att-title="', '.join([(l.product_id.name or l.name) for l in t_rest])">⚠ reste <t t-esc="'%.0f' % t_rest_amt"/>€ HT à facturer</span><t t-if="t_rest"> <span style="color:#9a3412;"><t t-esc="', '.join([(l.product_id.name or l.name)[:22] for l in t_rest][:2])"/></span></t></div>
+                    <t t-set="t_over" t-value="so.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment and l.qty_invoiced &gt; max(l.product_uom_qty, l.qty_delivered) + 0.001)"/>
+                    <t t-set="t_over_amt" t-value="sum([l.price_unit * (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered)) * (1 - (l.discount or 0) / 100.0) for l in t_over])"/>
+                    <div class="sdc-meta" t-if="t_rest"><span class="sdc-badge" style="background:#f97316;" t-att-title="', '.join([(l.product_id.name or l.name) for l in t_rest])">⚠ reste <t t-esc="'%.0f' % t_rest_amt"/>€ HT à facturer</span> <span style="color:#9a3412;"><t t-esc="', '.join([(l.product_id.name or l.name)[:22] for l in t_rest][:2])"/></span></div>
+                    <div class="sdc-meta" t-if="t_over"><span class="sdc-badge" style="background:#dc2626;" t-att-title="', '.join([(l.product_id.name or l.name) for l in t_over])">⚠ facturé en trop <t t-esc="'%.2f' % t_over_amt"/>€ HT</span> <span style="color:#991b1b;"><t t-esc="', '.join(['%s × %s' % (('%g' % (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered))), (l.product_id.name or l.name)[:20]) for l in t_over][:2])"/> → avoir</span></div>
                   </t>
                   <t t-elif="so.invoice_status == 'to invoice'"><div class="sdc-meta">🧾 À facturer</div></t>
                 </t>
