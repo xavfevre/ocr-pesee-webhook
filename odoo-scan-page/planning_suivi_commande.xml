@@ -5,7 +5,9 @@
     <t t-set="dom" t-value="[('project_id','=',13)]"/>
     <t t-if="q"><t t-set="dom" t-value="dom + ['|','|',('name','ilike',q),('partner_id.name','ilike',q),('x_studio_devis_commandes_1.name','ilike',q)]"/></t>
     <t t-set="all_records" t-value="request.env['project.task'].sudo().search(dom, order='id desc')"/>
-    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé','#0d6efd','paye')]"/>
+    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé','#0d6efd','paye'),(0,'🏭 OF non facturé','#b45309','ofnf')]"/>
+    <!-- « OF non facturé » = même règle que le bouton de la liste des commandes : BC confirmé, à facturer, ≥ 1 OF non annulé (toutes étapes confondues) -->
+    <t t-set="_so_ofnf" t-value="lambda s: s.state == 'sale' and s.invoice_status == 'to invoice' and bool(s.order_line.mapped('x_of_ids').filtered(lambda o: o.state != 'cancel'))"/>
 
     <style>
       header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
@@ -51,14 +53,17 @@
             <t t-if="stg[3] == 'nonpaye'">
               <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
             </t>
+            <t t-if="stg[3] == 'ofnf'">
+              <t t-set="col_tasks" t-value="all_records.filtered(lambda t: t.x_studio_devis_commandes_1.filtered(_so_ofnf))"/>
+            </t>
             <t t-if="stg[3] == 'paye'">
               <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice') and not t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
             </t>
-          <t t-set="_colsos" t-value="lambda t: (t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft','sent')) if stg[3] == 'devis' else (t.x_studio_devis_commandes_1.filtered(lambda s: s.state not in ('draft','sent')) if stg[3] in ('cmd','nonpaye','paye') else t.x_studio_devis_commandes_1))"/>
+          <t t-set="_colsos" t-value="lambda t: (t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft','sent')) if stg[3] == 'devis' else (t.x_studio_devis_commandes_1.filtered(lambda s: s.state not in ('draft','sent')) if stg[3] in ('cmd','nonpaye','paye') else (t.x_studio_devis_commandes_1.filtered(_so_ofnf) if stg[3] == 'ofnf' else t.x_studio_devis_commandes_1)))"/>
           <t t-set="col_total" t-value="sum([so.amount_total for t in col_tasks for so in _colsos(t)])"/>
-          <div class="sdc-col">
+          <div class="sdc-col" t-attf-style="{{'border:2px dashed #b45309;margin-left:14px;' if stg[3] == 'ofnf' else ''}}">
             <div class="sdc-colh" t-attf-style="background:{{stg[2]}};">
-              <span><t t-esc="stg[1]"/></span>
+              <span><t t-esc="stg[1]"/><small t-if="stg[3] == 'ofnf'" style="display:block;font-size:9.5px;opacity:.85;">filtre · toutes étapes</small></span>
               <small><t t-esc="len(col_tasks)"/> · <t t-esc="'%.0f' % col_total"/>€</small>
             </div>
             <t t-foreach="col_tasks" t-as="task">
