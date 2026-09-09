@@ -1,0 +1,156 @@
+<t t-name="website.of_non_facture">
+  <t t-call="website.layout">
+    <!-- Commandes confirmées, à facturer, avec au moins un OF non annulé (même règle que le bouton
+         « OF non facturé » de la liste des commandes et que la colonne du Suivi devis/commande). -->
+    <t t-set="sos" t-value="request.env['sale.order'].sudo().search([('state','=','sale'),('invoice_status','=','to invoice'),('order_line.x_of_ids.state','!=','cancel')], order='date_order asc, id asc')"/>
+    <t t-set="taches" t-value="request.env['project.task'].sudo().search([('project_id','=',13),('x_studio_devis_commandes_1','in',sos.ids)])"/>
+    <t t-set="tache_par_so" t-value="{}"/>
+    <t t-set="_t0" t-value="[tache_par_so.setdefault(s.id, t) for t in taches for s in t.x_studio_devis_commandes_1]"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#eef2f6 !important;}
+      .onf-bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13.5px;}
+      .onf-bar label{display:flex;gap:6px;align-items:center;font-weight:700;margin:0;cursor:pointer;}
+      .onf-bar input[type=text]{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px 10px;font-weight:600;min-width:220px;}
+      .onf-bar select{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px 8px;font-weight:600;}
+      .onf-tot{margin-left:auto;font-weight:800;color:#0f172a;background:#f1f5f9;border-radius:8px;padding:6px 12px;}
+      table.onf{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+      table.onf th{background:#0f172a;color:#fff;padding:8px 9px;text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;cursor:pointer;user-select:none;}
+      table.onf th.num, table.onf td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+      table.onf td{padding:7px 9px;border-bottom:1px solid #e2e8f0;vertical-align:top;}
+      table.onf tr.done td{background:#fef2f2;}
+      table.onf tr:hover td{background:#f8fafc;}
+      table.onf tr.done:hover td{background:#fee2e2;}
+      .onf-cli{font-weight:800;color:#0f172a;text-decoration:none;}
+      .onf-cli:hover{color:#2563eb;}
+      .onf-bc{font-weight:700;color:#334155;text-decoration:none;}
+      .onf-of{font-weight:800;}
+      .onf-of.ok{color:#b91c1c;}
+      .onf-badge{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800;white-space:nowrap;}
+      .onf-badge.done{background:#fee2e2;color:#991b1b;}
+      .onf-badge.prog{background:#dbeafe;color:#1e40af;}
+      .onf-badge.wait{background:#f1f5f9;color:#475569;}
+      .onf-rest{font-weight:900;color:#c2410c;font-size:14px;}
+      .onf-rest.zero{color:#94a3b8;font-weight:600;font-size:13px;}
+      .onf-sit{font-size:11.5px;color:#475569;}
+      .onf-sit b{color:#991b1b;}
+      .onf-lines{font-size:11px;color:#64748b;}
+      .onf-task{font-size:11.5px;color:#64748b;text-decoration:none;}
+      .onf-task:hover{color:#2563eb;}
+      .onf-empty{padding:30px;text-align:center;color:#64748b;background:#fff;border-radius:12px;}
+    </style>
+
+    <div class="container-fluid px-2 px-md-3 my-2">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#2c3e50;letter-spacing:1px;">📊 OF non facturés</h3>
+
+      <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=complet">🏭 Board complet</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=secondaire">🪚 Sciage secondaire</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=primaire">🪨 Sciage primaire</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-operateurs">👷 Vue opérateurs</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-mois">📆 Vue mois</a></li>
+        <li class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
+        <li class="nav-item"><a class="nav-link active fw-bold" href="#">📊 OF non facturés</a></li>
+      </ul>
+
+      <div class="onf-bar">
+        <label><input type="checkbox" id="onf-fdone" checked="checked"/> ✅ OF tous terminés</label>
+        <label><input type="checkbox" id="onf-frest"/> 🧾 Reste à facturer &gt; 0</label>
+        <input type="text" id="onf-q" placeholder="Client, n° de BC, dossier…"/>
+        <select id="onf-sort">
+          <option value="date">Tri : date de commande</option>
+          <option value="rest">Tri : reste à facturer ↓</option>
+          <option value="amount">Tri : montant ↓</option>
+          <option value="client">Tri : client</option>
+        </select>
+        <span class="onf-tot"><span id="onf-n">0</span> commande(s) · reste <span id="onf-sum">0</span> € HT</span>
+      </div>
+
+      <t t-if="not sos"><div class="onf-empty">Aucune commande confirmée à facturer avec ordre de fabrication.</div></t>
+      <table t-if="sos" class="onf" id="onf-table">
+        <thead><tr>
+          <th>Client</th><th>Commande</th><th>Date</th><th class="num">Montant TTC</th>
+          <th>OF</th><th>Fabrication</th><th class="num">Reste à facturer HT</th><th>Situation</th><th>Dossier</th>
+        </tr></thead>
+        <tbody>
+          <t t-foreach="sos" t-as="so">
+            <t t-set="ofs" t-value="so.order_line.mapped('x_of_ids').filtered(lambda o: o.state != 'cancel')"/>
+            <t t-set="n_done" t-value="len(ofs.filtered(lambda o: o.state == 'done'))"/>
+            <t t-set="all_done" t-value="bool(ofs) and n_done == len(ofs)"/>
+            <t t-set="rest" t-value="so.order_line.filtered(lambda l: not l.display_type and l.qty_to_invoice &gt; 0)"/>
+            <t t-set="rest_amt" t-value="sum([l.price_unit * l.qty_to_invoice * (1 - (l.discount or 0) / 100.0) for l in rest])"/>
+            <t t-set="over" t-value="so.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment and l.qty_invoiced &gt; max(l.product_uom_qty, l.qty_delivered) + 0.001)"/>
+            <t t-set="over_amt" t-value="sum([l.price_unit * (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered)) * (1 - (l.discount or 0) / 100.0) for l in over])"/>
+            <t t-set="undeliv" t-value="so.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment and l.qty_delivered + 0.001 &lt; l.qty_invoiced and l.qty_invoiced &lt;= l.product_uom_qty + 0.001)"/>
+            <t t-set="partiel" t-value="bool(so.invoice_ids.filtered(lambda i: i.state == 'posted' and i.move_type == 'out_invoice'))"/>
+            <t t-set="task" t-value="tache_par_so.get(so.id)"/>
+            <tr t-attf-class="{{'done' if all_done else ''}}" t-att-data-alldone="'1' if all_done else '0'" t-att-data-rest="'%.2f' % (rest_amt if n_done else 0)" t-att-data-amount="'%.2f' % so.amount_total" t-att-data-date="so.date_order.strftime('%Y-%m-%d')" t-att-data-client="(so.partner_id.name or '').lower()" t-att-data-q="((so.partner_id.name or '') + ' ' + so.name + ' ' + (task.name if task else '') + ' ' + (so.client_order_ref or '')).lower()">
+              <td><a class="onf-cli" t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank"><t t-esc="so.partner_id.name"/></a>
+                <div class="onf-lines" t-if="so.client_order_ref"><t t-esc="so.client_order_ref[:40]"/></div></td>
+              <td><a class="onf-bc" t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank"><t t-esc="so.name"/></a></td>
+              <td><t t-esc="so.date_order.strftime('%d/%m/%y')"/></td>
+              <td class="num"><t t-esc="'{:,.0f}'.format(so.amount_total).replace(',', ' ')"/> €</td>
+              <td><span t-attf-class="onf-of {{'ok' if all_done else ''}}"><t t-esc="n_done"/> / <t t-esc="len(ofs)"/></span></td>
+              <td>
+                <span t-if="all_done" class="onf-badge done">✅ tout fabriqué</span>
+                <span t-elif="n_done" class="onf-badge prog">🔧 en cours (<t t-esc="n_done"/> fini<t t-if="n_done &gt; 1">s</t>)</span>
+                <span t-else="" class="onf-badge wait">⏳ pas commencé</span>
+              </td>
+              <td class="num">
+                <span t-if="n_done and rest_amt &gt; 0" class="onf-rest"><t t-esc="'{:,.0f}'.format(rest_amt).replace(',', ' ')"/> €</span>
+                <span t-else="" class="onf-rest zero"><t t-if="not n_done">—</t><t t-else="">0 €</t></span>
+              </td>
+              <td>
+                <div class="onf-sit" t-if="n_done and rest"><t t-if="partiel">Partiellement facturé · </t><t t-esc="', '.join([(l.product_id.name or l.name)[:26] for l in rest][:3])"/><t t-if="len(rest) &gt; 3"> +<t t-esc="len(rest) - 3"/></t></div>
+                <div class="onf-sit" t-if="over"><b>⚠ Facturé en trop</b> : <t t-esc="', '.join(['%s × %s' % (('%g' % (l.qty_invoiced - max(l.product_uom_qty, l.qty_delivered))), (l.product_id.name or l.name)[:22]) for l in over][:2])"/> — <t t-esc="'%.2f' % over_amt"/> € HT</div>
+                <div class="onf-sit" t-if="n_done and not rest and not over and undeliv" style="color:#1d4ed8;">🚚 Facturé, livraison non validée (<t t-esc="len(undeliv)"/> ligne(s))</div>
+                <div class="onf-sit" t-if="not n_done" style="color:#94a3b8;">rien à facturer tant que rien n'est fabriqué</div>
+              </td>
+              <td><a t-if="task" class="onf-task" t-attf-href="/web#id={{task.id}}&amp;model=project.task&amp;view_type=form" target="_blank">📋 <t t-esc="task.name[:34]"/></a></td>
+            </tr>
+          </t>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      (function(){
+        var tb = document.querySelector('#onf-table tbody'); if(!tb){ return; }
+        var fdone = document.getElementById('onf-fdone'), frest = document.getElementById('onf-frest');
+        var q = document.getElementById('onf-q'), sort = document.getElementById('onf-sort');
+        var KEY = 'onf_filtres';
+        try{ var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if(s){ fdone.checked = s.d !== 0; frest.checked = s.r === 1; sort.value = s.s || 'date'; } }catch(e){}
+        function apply(){
+          var rows = Array.prototype.slice.call(tb.querySelectorAll('tr'));
+          var term = (q.value || '').trim().toLowerCase();
+          var n = 0, sum = 0;
+          rows.forEach(function(r){
+            var ok = true;
+            if(fdone.checked &amp;&amp; r.getAttribute('data-alldone') !== '1'){ ok = false; }
+            if(frest.checked &amp;&amp; !(parseFloat(r.getAttribute('data-rest')) &gt; 0)){ ok = false; }
+            if(term &amp;&amp; r.getAttribute('data-q').indexOf(term) === -1){ ok = false; }
+            r.style.display = ok ? '' : 'none';
+            if(ok){ n++; sum += parseFloat(r.getAttribute('data-rest')) || 0; }
+          });
+          var k = sort.value;
+          rows.sort(function(a, b){
+            if(k === 'rest'){ return parseFloat(b.getAttribute('data-rest')) - parseFloat(a.getAttribute('data-rest')); }
+            if(k === 'amount'){ return parseFloat(b.getAttribute('data-amount')) - parseFloat(a.getAttribute('data-amount')); }
+            if(k === 'client'){ return a.getAttribute('data-client').localeCompare(b.getAttribute('data-client')); }
+            return a.getAttribute('data-date').localeCompare(b.getAttribute('data-date'));
+          });
+          rows.forEach(function(r){ tb.appendChild(r); });
+          document.getElementById('onf-n').textContent = n;
+          document.getElementById('onf-sum').textContent = Math.round(sum).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+          try{ localStorage.setItem(KEY, JSON.stringify({d: fdone.checked ? 1 : 0, r: frest.checked ? 1 : 0, s: k})); }catch(e){}
+        }
+        [fdone, frest, sort].forEach(function(el){ el.addEventListener('change', apply); });
+        q.addEventListener('input', apply);
+        apply();
+      })();
+    </script>
+  </t>
+</t>
