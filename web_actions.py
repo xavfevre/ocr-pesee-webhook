@@ -10,6 +10,7 @@ Actions portées (originaux archivés dans odoo-scan-page/action_*.py) :
   2055  Parc auto : enregistrer une intervention (/parc-controles)
   2078  SEDE : générer les BC VEOLIA (planning transport mois)
   2081  Boutons transport : BC automatiques par recette (planning mois)
+  2101  Tablette : palettiser N pièces d'un OF (même OF pas terminé)
 """
 import datetime
 
@@ -20,7 +21,8 @@ class WebErreur(Exception):
 
 def executer(call, action_id, ctx):
     return {1987: _rebut, 2055: _parc_intervention,
-            2078: _sede_veolia, 2081: _boutons_transport}[action_id](call, ctx)
+            2078: _sede_veolia, 2081: _boutons_transport,
+            2101: _palettiser}[action_id](call, ctx)
 
 
 def _creer(call, model, vals):
@@ -623,3 +625,82 @@ def _boutons_transport(call, ctx):
     return {'ok': 1, 'faits': len(faits), 'bons': faits[:100], 'deja': deja,
             'annulees': annulees, 'sans_bon': sans_bon[:40],
             'a_verifier': a_verifier[:40], 'futurs': futurs, 'non_faits': non_faits}
+
+
+# ─── 2101 · Tablette : palettiser N pièces d'un OF ───────────────────────────
+# Les opérateurs mettent les pièces déjà faites sur une palette sans attendre
+# la fin de l'OF (ex. OF de 12 : 4 sur PACK A, puis 3 sur PACK B…). Même
+# stockage que le poste de scan : lignes x_repartition_palette (OF / colis /
+# qté). Un OF terminé posé en entier d'un coup garde le comportement historique
+# (x_studio_colis sur l'OF, comme l'action 1971).
+
+def _palettiser(call, ctx):
+    of_id = int(ctx.get('of_id') or 0)
+    qte = int(ctx.get('qte') or 0)
+    colis_id = int(ctx.get('colis_id') or 0)
+    colis_name = (ctx.get('colis_name') or '').strip()
+    if not of_id:
+        raise WebErreur('OF manquant.')
+    of = call('mrp.production', 'read', [of_id],
+              fields=['name', 'state', 'x_studio_nbr', 'x_studio_colis', 'workorder_ids'])
+    if not of:
+        raise WebErreur('OF introuvable.')
+    of = of[0]
+    if of['state'] == 'cancel':
+        raise WebErreur('%s est annulé.' % of['name'])
+    if of['x_studio_colis']:
+        raise WebErreur('%s est déjà en entier dans %s.' % (of['name'], of['x_studio_colis'][1]))
+    # colis
+    if colis_id:
+        colis = call('stock.package', 'read', [colis_id], fields=['name', 'x_studio_cloturee'])
+    elif colis_name:
+        colis = call('stock.package', 'search_read', [['name', '=ilike', colis_name]],
+                     fields=['name', 'x_studio_cloturee'], limit=1)
+    else:
+        raise WebErreur('Aucun colis indiqué.')
+    if not colis:
+        raise WebErreur('Colis introuvable : %s' % (colis_name or colis_id))
+    colis = colis[0]
+    if colis['x_studio_cloturee']:
+        raise WebErreur('%s est clôturé.' % colis['name'])
+    total = int(of['x_studio_nbr'] or 1)
+    lignes = call('x_repartition_palette', 'search_read', [['x_studio_of_id', '=', of_id]],
+                  fields=['x_studio_colis_id', 'x_studio_qte'])
+    place = sum(int(l['x_studio_qte'] or 0) for l in lignes)
+    # pièces disponibles : OF terminé -> tout ce qui reste ; sinon -> pièces faites
+    # sur la dernière opération (compteur « +1 pièce » de la tablette)
+    if of['state'] == 'done':
+        faites = total
+    else:
+        wos = call('mrp.workorder', 'read', of['workorder_ids'],
+                   fields=['sequence', 'x_studio_nbr_fait', 'state']) if of['workorder_ids'] else []
+        wos.sort(key=lambda w: (w.get('sequence') or 0, w['id']))
+        faites = int(wos[-1]['x_studio_nbr_fait'] or 0) if wos else 0
+        if wos and wos[-1]['state'] == 'done':
+            faites = total
+    dispo = max(0, min(total, faites) - place)
+    if dispo <= 0:
+        if place >= total:
+            raise WebErreur('%s est déjà entièrement réparti (%d pcs).' % (of['name'], total))
+        raise WebErreur("%s : aucune pièce disponible (faites %d, déjà sur palette %d). "
+                        "Comptez d'abord les pièces avec « +1 pièce »." % (of['name'], faites, place))
+    q = max(1, min(qte or dispo, dispo))
+    entier = (of['state'] == 'done' and not lignes and q >= total)
+    if entier:
+        call('mrp.production', 'write', [of_id], {'x_studio_colis': colis['id']})
+    else:
+        meme = [l for l in lignes if l['x_studio_colis_id'] and l['x_studio_colis_id'][0] == colis['id']]
+        if meme:
+            call('x_repartition_palette', 'write', [meme[0]['id']],
+                 {'x_studio_qte': int(meme[0]['x_studio_qte'] or 0) + q})
+        else:
+            _creer(call, 'x_repartition_palette',
+                   {'x_name': '%s / %s' % (of['name'], colis['name']), 'x_studio_of_id': of_id,
+                    'x_studio_colis_id': colis['id'], 'x_studio_qte': q})
+    lignes = call('x_repartition_palette', 'search_read', [['x_studio_of_id', '=', of_id]],
+                  fields=['x_studio_colis_id', 'x_studio_qte'])
+    place = sum(int(l['x_studio_qte'] or 0) for l in lignes)
+    return {'ok': 1, 'of': of['name'], 'colis_id': colis['id'], 'colis': colis['name'], 'qte': q,
+            'entier': 1 if entier else 0, 'total': total, 'place': total if entier else place,
+            'reste': 0 if entier else total - place,
+            'reps': [{'colis': l['x_studio_colis_id'][1], 'qte': int(l['x_studio_qte'] or 0)} for l in lignes]}
