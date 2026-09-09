@@ -674,16 +674,22 @@ def page():
         # ── 1. Points à vérifier ──
         alertes = ""
         if total_deja:
+            # case à cocher bien visible : recharge la page en mode « inclure » (ou normal)
+            base_url_page = "?token=%s&societe=%s&%s" % (token, comp, periode_qs)
+            case = ("<label style='display:flex;gap:10px;align-items:center;margin-top:10px;padding:9px 12px;border-radius:9px;"
+                    "cursor:pointer;font-weight:800;font-size:14px;background:%s;border:2px solid %s;color:%s;'>"
+                    "<input type='checkbox' style='width:20px;height:20px;cursor:pointer;'%s "
+                    "onchange=\"location.href='%s' + (this.checked ? '&inclure=1' : '')\"> "
+                    "Inclure les %d pièce(s) déjà transférée(s) dans les fichiers"
+                    "<span style='font-weight:500;font-size:12.5px;'>— uniquement si le fichier précédent a été perdu ou jamais importé</span></label>"
+                    % ("#fee2e2" if inclure else "#fff", "#dc2626" if inclure else "#a7f3d0", "#7f1d1d" if inclure else "#065f46",
+                       " checked" if inclure else "", base_url_page, total_deja))
             if inclure:
-                alertes += _alert("bad", "⚠", "Mode « inclure » : %d pièce(s) déjà transférée(s) seront ré-exportées" % total_deja,
-                                  "Risque de doublon dans Sage — à réserver au cas d'un fichier perdu ou jamais importé.",
-                                  "<div style='margin-top:8px;'><a class='btn sec' href='?token=%s&societe=%s&%s'>Revenir au mode normal</a></div>"
-                                  % (token, comp, periode_qs))
+                alertes += _alert("bad", "⚠", "Ré-export activé : %d pièce(s) déjà transférée(s) seront de nouveau dans les fichiers" % total_deja,
+                                  "Risque de doublon dans Sage. Décochez la case pour revenir au mode normal.", case)
             else:
                 alertes += _alert("ok", "🛡", "Garde-fou : %d pièce(s) déjà transférée(s) à Sage sont exclues des fichiers" % total_deja,
-                                  "Seules les pièces jamais transférées sortiront. "
-                                  "<a href='?token=%s&societe=%s&%s&inclure=1'>Les inclure quand même</a> (fichier perdu ou jamais importé)."
-                                  % (token, comp, periode_qs))
+                                  "Seules les pièces jamais transférées sortiront.", case)
         if nouveaux:
             alertes += _alert("info", "👤", "%d nouveau(x) client(s) à créer dans Sage — inclus dans le ZIP (nouveaux_clients_*.txt)" % len(nouveaux),
                               " · ".join("<b>%s</b> %s" % (r, n) for r, n in nouveaux))
