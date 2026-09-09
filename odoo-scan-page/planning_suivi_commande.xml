@@ -5,7 +5,9 @@
     <t t-set="dom" t-value="[('project_id','=',13)]"/>
     <t t-if="q"><t t-set="dom" t-value="dom + ['|','|',('name','ilike',q),('partner_id.name','ilike',q),('x_studio_devis_commandes_1.name','ilike',q)]"/></t>
     <t t-set="all_records" t-value="request.env['project.task'].sudo().search(dom, order='id desc')"/>
-    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé','#0d6efd','paye'),(0,'🏭 OF non facturé','#b45309','ofnf')]"/>
+    <t t-set="stages" t-value="[(113,'📥 Nouvelle demande','#64748b',''),(119,'📝 Devis','#f59e0b','devis'),(114,'✅ Commande validée','#16a34a','cmd'),(115,'🏭 En fabrication','#2563eb','cmd'),(116,'📦 Prêt à expédier','#0891b2','cmd'),(117,'🚚 Expédié','#7c3aed','cmd'),(118,'💰 Facturé · non payé','#15803d','nonpaye'),(118,'💶 Facturé · payé','#0d6efd','paye'),(0,'🏭 OF non facturé','#b45309','ofnf'),(0,'⏸ Standby','#475569','sb')]"/>
+    <!-- « Standby » : commandes dont au moins un OF a une opération garée sur le poste 27 « A replanifier (STANDBY) » -->
+    <t t-set="sb_sos" t-value="request.env['sale.order'].sudo().browse([])"/>
     <!-- « OF non facturé » = même règle que le bouton de la liste des commandes : BC confirmé, à facturer, ≥ 1 OF non annulé (toutes étapes confondues) -->
     <t t-set="ofnf_sos" t-value="request.env['sale.order'].sudo().browse([])"/>
     <t t-set="_so_ofnf" t-value="lambda s: s.state == 'sale' and s.invoice_status == 'to invoice' and bool(s.order_line.mapped('x_of_ids').filtered(lambda o: o.state != 'cancel'))"/>
@@ -54,6 +56,13 @@
             <t t-if="stg[3] == 'nonpaye'">
               <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
             </t>
+            <t t-if="stg[3] == 'sb'">
+              <t t-set="col_tasks" t-value="all_records.browse([])"/>
+              <t t-set="sb_wos" t-value="request.env['mrp.workorder'].sudo().search([('workcenter_id','=',27),('state','not in',['done','cancel'])])"/>
+              <t t-set="sb_ofs_all" t-value="sb_wos.mapped('production_id').filtered(lambda o: o.state not in ('done','cancel'))"/>
+              <t t-set="sb_sos" t-value="sb_ofs_all.mapped('sale_line_id.order_id').filtered(lambda so: so.state != 'cancel').sorted(key=lambda so: (so.date_order, so.id))"/>
+              <t t-if="q"><t t-set="sb_sos" t-value="sb_sos.filtered(lambda so: q.lower() in (so.name or '').lower() or q.lower() in (so.partner_id.name or '').lower() or q.lower() in (so.client_order_ref or '').lower())"/></t>
+            </t>
             <t t-if="stg[3] == 'ofnf'">
               <t t-set="col_tasks" t-value="all_records.browse([])"/>
               <t t-set="ofnf_dom" t-value="[('state','=','sale'),('invoice_status','=','to invoice'),('order_line.x_of_ids.state','!=','cancel')]"/>
@@ -64,13 +73,31 @@
               <t t-set="col_tasks" t-value="col_tasks.filtered(lambda t: t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice') and not t.x_studio_devis_commandes_1.invoice_ids.filtered(lambda x: x.state == 'posted' and x.move_type == 'out_invoice' and x.payment_state not in ('paid', 'in_payment', 'reversed', 'partial')))"/>
             </t>
           <t t-set="_colsos" t-value="lambda t: (t.x_studio_devis_commandes_1.filtered(lambda s: s.state in ('draft','sent')) if stg[3] == 'devis' else (t.x_studio_devis_commandes_1.filtered(lambda s: s.state not in ('draft','sent')) if stg[3] in ('cmd','nonpaye','paye') else (t.x_studio_devis_commandes_1.filtered(_so_ofnf) if stg[3] == 'ofnf' else t.x_studio_devis_commandes_1)))"/>
-          <t t-set="col_total" t-value="sum([so.amount_total for so in ofnf_sos]) if stg[3] == 'ofnf' else sum([so.amount_total for t in col_tasks for so in _colsos(t)])"/>
-          <t t-set="col_n" t-value="len(ofnf_sos) if stg[3] == 'ofnf' else len(col_tasks)"/>
-          <div class="sdc-col" t-attf-style="{{'border:2px dashed #b45309;margin-left:14px;' if stg[3] == 'ofnf' else ''}}">
+          <t t-set="col_total" t-value="sum([so.amount_total for so in ofnf_sos]) if stg[3] == 'ofnf' else (sum([so.amount_total for so in sb_sos]) if stg[3] == 'sb' else sum([so.amount_total for t in col_tasks for so in _colsos(t)]))"/>
+          <t t-set="col_n" t-value="len(ofnf_sos) if stg[3] == 'ofnf' else (len(sb_sos) if stg[3] == 'sb' else len(col_tasks))"/>
+          <div class="sdc-col" t-attf-style="{{'border:2px dashed #b45309;margin-left:14px;' if stg[3] == 'ofnf' else ('border:2px dashed #475569;' if stg[3] == 'sb' else '')}}">
             <div class="sdc-colh" t-attf-style="background:{{stg[2]}};">
-              <span><t t-esc="stg[1]"/><small t-if="stg[3] == 'ofnf'" style="display:block;font-size:9.5px;opacity:.85;">filtre · toutes étapes · rouge = tous les OF terminés</small></span>
+              <span><t t-esc="stg[1]"/><small t-if="stg[3] == 'ofnf'" style="display:block;font-size:9.5px;opacity:.85;">filtre · toutes étapes · rouge = tous les OF terminés</small><small t-if="stg[3] == 'sb'" style="display:block;font-size:9.5px;opacity:.85;">filtre · OF garés sur « A replanifier »</small></span>
               <small><t t-esc="col_n"/> · <t t-esc="'%.0f' % col_total"/>€</small>
             </div>
+            <t t-if="stg[3] == 'sb'">
+              <t t-foreach="sb_sos" t-as="so">
+                <t t-set="so_ofs" t-value="so.order_line.mapped('x_of_ids').filtered(lambda o: o.state != 'cancel')"/>
+                <t t-set="so_sb" t-value="so_ofs.filtered(lambda o: o.id in sb_ofs_all.ids)"/>
+                <t t-set="so_task" t-value="all_records.filtered(lambda t: so in t.x_studio_devis_commandes_1)[:1]"/>
+                <div class="sdc-card" t-attf-style="border-left-color:{{stg[2]}};background:#f8fafc;">
+                  <a t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" class="sdc-title"><t t-esc="so.partner_id.name"/></a>
+                  <div class="sdc-so">
+                    <span><a t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank" style="text-decoration:none;color:#334155;font-weight:700;"><t t-esc="so.name"/></a> <span class="sdc-badge" t-attf-style="background:{{'#16a34a' if so.state == 'sale' else '#f59e0b'}};"><t t-esc="'Commande' if so.state == 'sale' else 'Devis'"/></span></span>
+                    <span class="sdc-amt"><t t-esc="'%.0f' % so.amount_total"/>€</span>
+                  </div>
+                  <div class="sdc-meta" style="color:#334155;font-weight:800;">⏸ <t t-esc="len(so_sb)"/> OF en standby / <t t-esc="len(so_ofs)"/> OF · commande du <t t-esc="so.date_order.strftime('%d/%m/%y')"/></div>
+                  <div class="sdc-meta"><t t-esc="', '.join([o.name for o in so_sb][:6])"/><t t-if="len(so_sb) &gt; 6">…</t></div>
+                  <t t-if="so_task"><div class="sdc-meta">📋 <a t-attf-href="/web#id={{so_task.id}}&amp;model=project.task&amp;view_type=form" target="_blank" style="color:#64748b;"><t t-esc="so_task.name"/></a></div></t>
+                </div>
+              </t>
+              <t t-if="not sb_sos"><div class="text-muted text-center small py-2">—</div></t>
+            </t>
             <t t-if="stg[3] == 'ofnf'">
               <t t-foreach="ofnf_sos" t-as="so">
                 <t t-set="so_ofs" t-value="so.order_line.mapped('x_of_ids').filtered(lambda o: o.state != 'cancel')"/>
@@ -122,7 +149,7 @@
                 <t t-if="palettes"><div class="sdc-meta">📦 <t t-esc="', '.join(palettes.mapped('name'))"/></div></t>
               </div>
             </t>
-            <t t-if="not col_tasks and stg[3] != 'ofnf'"><div class="text-muted text-center small py-2">—</div></t>
+            <t t-if="not col_tasks and stg[3] not in ('ofnf', 'sb')"><div class="text-muted text-center small py-2">—</div></t>
           </div>
         </t>
       </div>
