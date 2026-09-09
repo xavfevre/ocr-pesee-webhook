@@ -640,16 +640,21 @@ def page():
                   "Marquer les nouveaux clients comme transmis à Sage</label>"
                   "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
                   "</form>" % (token, comp, champs, libelle))
-        corps += ("<form method='post' action='verrou?token=%s' style='margin-top:10px;' "
-                  "onsubmit=\"return confirm('Verrouiller les ventes de cette société jusqu\\'au %s ?');\">"
-                  "<input type='hidden' name='societe' value='%s'>"
-                  "<input type='hidden' name='au' value='%s'>"
-                  "<input type='hidden' name='du' value='%s'>"
-                  "<button type='submit' class='btn sec' style='border:1.5px solid #cbd5e1;'>"
-                  "🔒 Verrouiller les ventes jusqu'au %s</button> "
-                  "<span style='font-size:12px;color:#64748b;'>verrou actuel : %s — jamais reculé, "
-                  "à faire une fois les journaux de la période téléchargés</span>"
-                  "</form>" % (token, _dfr(au), comp, au, du, _dfr(au), _dfr(verrou) if verrou else "aucun"))
+        # verrou des ventes : date saisie librement (pré-remplie avec la fin de période),
+        # verrou en vigueur mis en avant
+        corps += ("<form method='post' action='verrou?token=%s' class='nc' style='margin-top:12px;background:#f8fafc;"
+                  "border-color:#cbd5e1;color:#0f172a;display:flex;gap:12px;align-items:center;flex-wrap:wrap;' "
+                  "onsubmit=\"return confirm('Verrouiller les ventes de cette société jusqu\\'au ' + this.au.value.split('-').reverse().join('/') + ' ?');\">"
+                  "<input type='hidden' name='societe' value='%s'><input type='hidden' name='du' value='%s'>"
+                  "<span style='background:#0f172a;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;'>"
+                  "🔒 Ventes verrouillées jusqu'au <b style='font-size:17px;'>%s</b></span>"
+                  "<label style='display:flex;gap:6px;align-items:center;font-weight:700;'>Nouveau verrou jusqu'au "
+                  "<input type='date' name='au' value='%s' min='%s' required "
+                  "style='padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;'></label>"
+                  "<button type='submit' class='btn sec' style='border:1.5px solid #cbd5e1;'>🔒 Verrouiller</button>"
+                  "<span style='font-size:12px;color:#64748b;font-weight:400;'>jamais reculé — à faire une fois les journaux "
+                  "de la période téléchargés</span></form>"
+                  % (token, comp, du, _dfr(verrou) if verrou else "aucun verrou", au, verrou or ""))
 
     import json as _j2
     try:
