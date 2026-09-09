@@ -234,7 +234,7 @@
         <t t-set="all_plans" t-value="request.env['ir.attachment'].sudo().search([('res_model','=','mrp.production'),('res_id','in',ots.mapped('production_id').ids),('mimetype','=','application/pdf')])"/>
         <!-- palettisation partielle : lignes « Répartition OF / Palette » déjà posées pour les OF affichés -->
         <t t-set="reps_by_of" t-value="{}"/>
-        <t t-set="_r0" t-value="[reps_by_of.setdefault(r.x_studio_of_id.id, []).append((r.x_studio_colis_id.name or '?', int(r.x_studio_qte or 0))) for r in request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',ots.mapped('production_id').ids)]) if r.x_studio_of_id]"/>
+        <t t-set="_r0" t-value="[reps_by_of.setdefault(r.x_studio_of_id.id, []).append(((r.x_studio_colis_id.name or '?') + (' 🔒' if r.x_studio_colis_id.x_studio_cloturee else ''), int(r.x_studio_qte or 0))) for r in request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',ots.mapped('production_id').ids)]) if r.x_studio_of_id]"/>
         <t t-set="colis_ouverts" t-value="request.env['stock.package'].sudo().search([('x_studio_cloturee','!=',True)], order='id desc', limit=300)"/>
         <t t-set="colis_cnt" t-value="dict((g['x_studio_colis'][0], g['x_studio_colis_count']) for g in request.env['mrp.production'].sudo().read_group([('x_studio_colis','in',colis_ouverts.ids)], ['id'], ['x_studio_colis']))"/>
         <t t-set="rep_cnt" t-value="dict((g['x_studio_colis_id'][0], g['x_studio_colis_id_count']) for g in request.env['x_repartition_palette'].sudo().read_group([('x_studio_colis_id','in',colis_ouverts.ids)], ['id'], ['x_studio_colis_id']))"/>
@@ -777,7 +777,7 @@ var dataC=document.getElementById('vo-colis-data');
             if(popC){ popC.style.display='none'; }
             voQte=null;
             if(card){
-              var reps=(r.reps||[]).map(function(x){ return x.colis+': '+x.qte; }).join(' · ');
+              var reps=(r.reps||[]).map(function(x){ return x.colis+(x.cloturee?' 🔒':'')+': '+x.qte; }).join(' · ');
               document.querySelectorAll('.vo-card').forEach(function(c){ if(c.getAttribute('data-ofid')===card.getAttribute('data-ofid')){
                 if(r.entier){ c.setAttribute('data-coliso', r.colis||cname); }
                 c.setAttribute('data-placed', String(r.place||0)); c.setAttribute('data-reps', reps);
@@ -892,7 +892,7 @@ var dataC=document.getElementById('vo-colis-data');
             if(coliso){ ch=' &lt;span class="vo-pal"&gt;📦 '+coliso+'&lt;/span&gt;'; }
             else if(repsD &amp;&amp; placedD&gt;=nbrD){ ch=' &lt;span class="vo-pal"&gt;📦 '+repsD+'&lt;/span&gt;'; }
             else {
-              if(repsD){ ch=' &lt;span class="vo-pal" style="background:#fef3c7;color:#92400e;"&gt;📦 '+repsD+' · reste '+(nbrD-placedD)+'&lt;/span&gt;'; }
+              if(repsD){ ch=' &lt;span class="vo-pal" style="background:#fef3c7;color:#92400e;"&gt;📦 '+repsD+'&lt;/span&gt;'; }
               ch+=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis'+(repsD?' ('+(nbrD-placedD)+')':'')+'&lt;/button&gt;';
               if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
             }
@@ -957,7 +957,7 @@ var dataC=document.getElementById('vo-colis-data');
             + '&lt;span class="vo-reste'+(reste===0?' zero':'')+'"&gt;'+(reste===0?'✅ Tout fait':'Reste '+reste)+'&lt;/span&gt;'
             + '&lt;button type="button" class="vo-p1 btn btn-primary"'+(reste===0?' disabled="disabled"':'')+'&gt;+1 pièce&lt;/button&gt;'
             + (fait&gt;0 ? '&lt;button type="button" class="vo-m1 btn btn-outline-secondary btn-sm"&gt;−1&lt;/button&gt;' : '')
-            + (repsP ? '&lt;div style="width:100%;font-size:12px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:6px;padding:2px 6px;margin-top:4px;"&gt;📦 '+repsP+(placedP&lt;nbr?' · '+(nbr-placedP)+' encore à mettre':'')+'&lt;/div&gt;' : '')
+            + (repsP ? '&lt;div style="width:100%;font-size:12px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:6px;padding:2px 6px;margin-top:4px;"&gt;📦 '+repsP+'&lt;/div&gt;' : '')
             + (lastop &amp;&amp; dispoP&gt;0 ? '&lt;div style="width:100%;margin-top:4px;"&gt;&lt;button type="button" class="vo-palpart btn btn-warning" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;📦 Palettiser ('+dispoP+' faite'+(dispoP&gt;1?'s':'')+')&lt;/button&gt;'+(lastColis &amp;&amp; lastColis.id?' &lt;button type="button" class="vo-palpartq btn btn-success btn-sm" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;':'')+'&lt;/div&gt;' : '');
           bindColis(box, card);
           function saveF(nf){

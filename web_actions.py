@@ -700,7 +700,11 @@ def _palettiser(call, ctx):
     lignes = call('x_repartition_palette', 'search_read', [['x_studio_of_id', '=', of_id]],
                   fields=['x_studio_colis_id', 'x_studio_qte'])
     place = sum(int(l['x_studio_qte'] or 0) for l in lignes)
+    fermes = {c['id'] for c in call('stock.package', 'search_read',
+              [['id', 'in', [l['x_studio_colis_id'][0] for l in lignes if l['x_studio_colis_id']]],
+               ['x_studio_cloturee', '=', True]], fields=['id'])} if lignes else set()
     return {'ok': 1, 'of': of['name'], 'colis_id': colis['id'], 'colis': colis['name'], 'qte': q,
             'entier': 1 if entier else 0, 'total': total, 'place': total if entier else place,
             'reste': 0 if entier else total - place,
-            'reps': [{'colis': l['x_studio_colis_id'][1], 'qte': int(l['x_studio_qte'] or 0)} for l in lignes]}
+            'reps': [{'colis': l['x_studio_colis_id'][1], 'qte': int(l['x_studio_qte'] or 0),
+                      'cloturee': 1 if l['x_studio_colis_id'][0] in fermes else 0} for l in lignes]}
