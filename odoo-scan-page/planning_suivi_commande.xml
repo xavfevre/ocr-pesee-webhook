@@ -106,6 +106,12 @@
                     <span class="sdc-amt"><t t-esc="'%.0f' % so.amount_total"/>€</span>
                   </div>
                   <t t-if="so.invoice_status == 'invoiced'"><div class="sdc-meta">💰 Facturé</div></t>
+                  <t t-elif="so.invoice_status == 'to invoice' and stg[3] in ('nonpaye', 'paye')">
+                    <!-- dossier en étape Facturé mais commande pas entièrement facturée : badge d'alerte avec le reste -->
+                    <t t-set="t_rest" t-value="so.order_line.filtered(lambda l: not l.display_type and l.qty_to_invoice &gt; 0)"/>
+                    <t t-set="t_rest_amt" t-value="sum([l.price_unit * l.qty_to_invoice * (1 - (l.discount or 0) / 100.0) for l in t_rest])"/>
+                    <div class="sdc-meta"><span class="sdc-badge" style="background:#f97316;" t-att-title="', '.join([(l.product_id.name or l.name) for l in t_rest])">⚠ reste <t t-esc="'%.0f' % t_rest_amt"/>€ HT à facturer</span><t t-if="t_rest"> <span style="color:#9a3412;"><t t-esc="', '.join([(l.product_id.name or l.name)[:22] for l in t_rest][:2])"/></span></t></div>
+                  </t>
                   <t t-elif="so.invoice_status == 'to invoice'"><div class="sdc-meta">🧾 À facturer</div></t>
                 </t>
                 <t t-set="nof" t-value="len(task.x_studio_of)"/>
