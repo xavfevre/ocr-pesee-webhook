@@ -92,6 +92,15 @@
   <xpath expr="//table[@name='stock_move_line_table']" position="attributes">
     <attribute name="t-elif">o.move_line_ids and o.state == 'done' and not o.sale_id and not has_palettes</attribute>
   </xpath>
+  <xpath expr="//p[@class='mt-5']" position="replace">
+    <div class="mt-5" style="border:2px solid #b45309;background:#fff7ed;border-radius:6px;padding:6px 10px;font-size:10pt;">
+      <strong style="color:#9a3412;">⚠ RESTE À LIVRER — non compris dans ce bon</strong>
+      <span style="color:#7c2d12;"> (quantités de la commande encore à expédier, prochaine livraison)</span>
+    </div>
+  </xpath>
+  <xpath expr="//th[@name='th_sb_quantity']" position="replace">
+    <th name="th_sb_quantity" class="text-end"><strong>Quantité restante</strong></th>
+  </xpath>
   <xpath expr="//table[@name='stock_move_table']" position="before">
     <t t-set="fmtq2" t-value="lambda v: int(v) if v == int(v) else round(v, 3)"/>
     <t t-set="of_names" t-value="[m.x_studio_n_of for m in o.move_ids if m.x_studio_n_of]"/>
@@ -107,8 +116,9 @@
         </tr>
       </thead>
       <tbody>
-        <t t-set="pal_of" t-value="lambda m: (of_by_name[m.x_studio_n_of].x_studio_palette or 'Sans palette') if m.x_studio_n_of in of_by_name else 'Sans palette'"/>
-        <t t-set="palnum" t-value="lambda s: int(''.join(c for c in s.split('-')[0] if c.isdigit()) or 999)"/>
+        <t t-set="pal_of" t-value="lambda m: (of_by_name[m.x_studio_n_of].x_studio_palette or 'Hors palette (forfaits / unités)') if m.x_studio_n_of in of_by_name else 'Hors palette (forfaits / unités)'"/>
+        <t t-set="is_fab" t-value="lambda m: m.x_studio_n_of in of_by_name"/>
+        <t t-set="palnum" t-value="lambda s: 999 if s.startswith('Hors palette') else int(''.join(c for c in s.split('-')[0] if c.isdigit()) or 998)"/>
         <t t-set="moves_sorted" t-value="o.move_ids.filtered(lambda m: m.product_uom_qty).sorted(key=lambda m: (palnum(pal_of(m)), pal_of(m), m.x_studio_n_of or ''))"/>
         <t t-foreach="moves_sorted" t-as="m">
           <t t-set="pal" t-value="pal_of(m)"/>
@@ -129,8 +139,12 @@
           </tr>
         </t>
         <tr style="border-top:2px solid #2c3e50; background-color:#f0f4f8;">
-          <td colspan="2" style="padding:6px 8px;"><strong>TOTAL — <t t-out="len(set(pal_of(x) for x in moves_sorted))"/> palette(s), <t t-out="len(moves_sorted)"/> pièce(s)</strong></td>
-          <td class="text-end" style="padding:6px 8px;"><strong><t t-out="fmtq2(sum(x.quantity for x in moves_sorted))"/></strong></td>
+          <t t-set="n_pal" t-value="len(set(pal_of(x) for x in moves_sorted if not pal_of(x).startswith('Hors palette')))"/>
+          <t t-set="n_fab" t-value="len([1 for x in moves_sorted if is_fab(x)])"/>
+          <t t-set="n_aut" t-value="len(moves_sorted) - n_fab"/>
+          <td colspan="2" style="padding:6px 8px;"><strong>TOTAL — <t t-out="n_pal"/> palette(s), <t t-out="len(moves_sorted)"/> pièce(s)</strong>
+            <span style="color:#475569;"> : <t t-out="n_fab"/> pièce(s) fabriquée(s)<t t-if="n_aut"> + <t t-out="n_aut"/> forfait(s) / unité(s)</t></span></td>
+          <td class="text-end" style="padding:6px 8px;"><strong><t t-out="fmtq2(sum(x.quantity for x in moves_sorted if is_fab(x)))"/> <t t-if="n_fab">m³</t></strong></td>
           <td class="text-end" style="padding:6px 8px;">
             <t t-set="totw" t-value="sum(x.x_studio_poids_kg or 0 for x in moves_sorted)"/>
             <strong t-if="totw &gt; 0"><t t-out="'%.0f kg' % totw"/></strong>
