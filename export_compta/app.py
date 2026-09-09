@@ -167,13 +167,15 @@ def _lignes_a(base, analytiques, sections, tot_debit, tot_credit):
     return lignes
 
 
-def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, sortis=None):
+def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, sortis=None, inclure=False):
     """Format action 1459 : écritures groupées par (compte, analytique).
     move_ids : restreint aux pièces données (export des écritures rétroactives)."""
     dom = [("journal_id", "=", journal["id"]), ("state", "=", "posted"),
            ("date", ">=", du), ("date", "<=", au)]
     if move_ids is not None:
         dom.append(("id", "in", move_ids))
+    if not inclure:
+        dom.append(("x_sage_envoye_le", "=", False))   # garde-fou : jamais deux fois la même pièce
     moves = _q("account.move", "search_read", dom,
                fields=["name", "date", "invoice_date_due"], limit=0)  # ordre par défaut d'Odoo, comme l'action 1459
     if not moves:
@@ -242,12 +244,14 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
     return "\n".join(out)
 
 
-def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=None):
+def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=None, inclure=False):
     """Format action 1671 : ligne à ligne (tickets comptoir)."""
     dom = [("journal_id", "=", journal["id"]), ("parent_state", "=", "posted"),
            ("date", ">=", du), ("date", "<=", au)]
     if move_ids is not None:
         dom.append(("move_id", "in", move_ids))
+    if not inclure:
+        dom.append(("move_id.x_sage_envoye_le", "=", False))
     lines = _q("account.move.line", "search_read", dom,
                fields=["move_id", "date", "account_id", "debit", "credit", "partner_id",
                        "name", "analytic_distribution"], limit=0,
@@ -390,6 +394,8 @@ def _apercu(comp, du, au, journaux):
                fields=["journal_id", "move_id", "debit", "account_id", "partner_id"],
                limit=0)
     agg, clients = {}, set()
+    deja = set(_q("account.move", "search", [("id", "in", list({l["move_id"][0] for l in lines})),
+                                                ("x_sage_envoye_le", "!=", False)])) if lines else set()
     acc_ids = list({l["account_id"][0] for l in lines if l["account_id"]})
     codes = {}
     for i in range(0, len(acc_ids), 800):
@@ -398,7 +404,9 @@ def _apercu(comp, du, au, journaux):
             codes[a["id"]] = a["code"] or ""
     for l in lines:
         jid = l["journal_id"][0]
-        a = agg.setdefault(jid, {"nlignes": 0, "debit": 0.0, "pieces": set()})
+        a = agg.setdefault(jid, {"nlignes": 0, "debit": 0.0, "pieces": set(), "deja": set()})
+        if l["move_id"][0] in deja:
+            a["deja"].add(l["move_id"][0])
         a["nlignes"] += 1
         a["debit"] += l["debit"] or 0
         a["pieces"].add(l["move_id"][0])
@@ -580,24 +588,44 @@ def page():
 
     journaux = _journaux(comp)
     agg, nouveaux = _apercu(comp, du, au, journaux)
+    inclure = request.args.get("inclure") == "1"
     lignes_html = ""
+    total_deja = 0
     for j in journaux:
         a = agg.get(j["id"])
         if not a:
             continue
-        url = "fichier?token=%s&journal=%s&%s" % (token, j["id"], periode_qs)
+        n_deja = len(a["deja"]); total_deja += n_deja
+        url = "fichier?token=%s&journal=%s&%s%s" % (token, j["id"], periode_qs, "&inclure=1" if inclure else "")
+        deja_html = ""
+        if n_deja:
+            deja_html = ("<div style='font-size:11px;font-weight:700;color:%s;'>%s %d déjà transférée(s)%s</div>"
+                         % ("#b91c1c" if inclure else "#0f766e", "⚠" if inclure else "✓", n_deja,
+                            " — INCLUSES dans le fichier" if inclure else " — exclues du fichier"))
         lignes_html += ("<tr><td>%s</td><td>%s<div style='font-size:11px;color:#64748b;font-weight:400;'>%s</div></td>"
-                        "<td>%s</td><td class='num'>%s</td>"
+                        "<td>%s</td><td class='num'>%s%s</td>"
                         "<td class='num'>%s</td><td class='num'>%.2f €</td>"
                         "<td><a class='btn sec' href='%s'>⬇ .txt</a></td></tr>" % (
                             j["code"] or "", j["name"], j.get("explication", ""),
                             TYPES.get(j["type"], j["type"]),
-                            len(a["pieces"]), a["nlignes"], a["debit"], url))
+                            len(a["pieces"]), deja_html, a["nlignes"], a["debit"], url))
     if not lignes_html:
         corps = "<p><b>Aucune écriture validée sur %s pour cette société.</b></p>" % libelle
     else:
         corps = ("<table><tr><th>Code</th><th>Journal</th><th>Type</th><th>Pièces</th>"
                  "<th>Lignes</th><th>Total débit</th><th></th></tr>%s</table>" % lignes_html)
+        if total_deja:
+            if inclure:
+                corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>⚠ Mode « inclure » : "
+                          "<b>%d</b> pièce(s) déjà transférée(s) à Sage seront <b>ré-exportées</b> (risque de doublon dans Sage). "
+                          "<a class='btn sec' href='?token=%s&societe=%s&%s' style='margin-left:8px;'>Revenir au mode normal</a></div>"
+                          % (total_deja, token, comp, periode_qs))
+            else:
+                corps += ("<div class='nc' style='background:#ecfdf5;border-color:#a7f3d0;color:#065f46;'>🛡 Garde-fou : "
+                          "<b>%d</b> pièce(s) de cette période déjà transférée(s) à Sage sont <b>exclues</b> des fichiers. "
+                          "<a href='?token=%s&societe=%s&%s&inclure=1' style='color:#065f46;font-weight:700;margin-left:8px;'>"
+                          "Les inclure quand même</a> <span style='font-weight:400;font-size:12px;'>(fichier perdu ou jamais importé)</span></div>"
+                          % (total_deja, token, comp, periode_qs))
         detail_nc = ""
         if nouveaux:
             detail_nc = ("<div style='margin-top:6px;font-size:12px;'>%s</div>"
@@ -632,7 +660,7 @@ def page():
                       "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div></div>"
                       % (len(manq), det))
         champs = ("<input type='hidden' name='du' value='%s'>"
-                  "<input type='hidden' name='au' value='%s'>" % (du, au))
+                  "<input type='hidden' name='au' value='%s'>%s" % (du, au, "<input type='hidden' name='inclure' value='1'>" if inclure else ""))
         verrou = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
         corps += ("<form method='post' action='export?token=%s'>"
                   "<input type='hidden' name='societe' value='%s'>%s"
@@ -688,10 +716,10 @@ def page():
     return Response(html, mimetype="text/html")
 
 
-def _fichier_journal(j, du, au, base_url, clients_vus, comp, move_ids=None, sortis=None):
+def _fichier_journal(j, du, au, base_url, clients_vus, comp, move_ids=None, sortis=None, inclure=False):
     if j.get("format_caisse") or j["type"] == "cash":
-        return _export_caisse(j, du, au, clients_vus, comp, move_ids, sortis), "export_tickets_comptoir"
-    return _export_ventes(j, du, au, base_url, clients_vus, comp, move_ids, sortis), "export_journal"
+        return _export_caisse(j, du, au, clients_vus, comp, move_ids, sortis, inclure), "export_tickets_comptoir"
+    return _export_ventes(j, du, au, base_url, clients_vus, comp, move_ids, sortis, inclure), "export_journal"
 
 
 def _marquer_transferees(sortis):
@@ -718,9 +746,11 @@ def fichier():
     j["format_caisse"] = j["type"] == "cash" or bool(pos)
     base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
     sortis = set()
-    contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0], sortis=sortis)
+    inclure = request.args.get("inclure") == "1"
+    contenu, prefixe = _fichier_journal(j, du, au, base_url, set(), j["company_id"][0], sortis=sortis, inclure=inclure)
     if contenu is None:
-        return Response("Aucune écriture.", mimetype="text/plain; charset=utf-8", status=404)
+        return Response("Aucune écriture (ou toutes déjà transférées à Sage — voir « Les inclure quand même » sur la page).",
+                        mimetype="text/plain; charset=utf-8", status=404)
     _marquer_transferees(sortis)
     _histo_add(j["company_id"][0], "%s — %s" % (j["code"] or "", j["name"]), du, au)
     _dernier_maj(j["company_id"][0], du, au)
@@ -807,6 +837,19 @@ def facture():
         return Response("Plusieurs pièces portent ce numéro : précisez la société.",
                         mimetype="text/plain; charset=utf-8", status=409)
     mv = mv[0]
+    if mv["x_sage_envoye_le"] and request.args.get("force") != "1":
+        from urllib.parse import quote as _quote
+        html = ("<html><body style='font-family:Segoe UI,sans-serif;padding:30px;max-width:640px;'>"
+                "<h2>🛡 %s a déjà été transférée à Sage</h2>"
+                "<p>Transférée le <b>%s</b> (heure UTC). La ré-exporter créerait un <b>doublon</b> dans Sage.</p>"
+                "<p><a href='javascript:history.back()' style='display:inline-block;padding:10px 16px;background:#0f172a;color:#fff;"
+                "border-radius:8px;text-decoration:none;font-weight:700;'>← Retour</a> &nbsp; "
+                "<a href='facture?token=%s&societe=%s&numero=%s&force=1' style='display:inline-block;padding:10px 16px;"
+                "background:#fee2e2;color:#7f1d1d;border:1.5px solid #fca5a5;border-radius:8px;text-decoration:none;font-weight:700;'>"
+                "Exporter quand même</a> <span style='font-size:12px;color:#64748b;'>(fichier perdu ou jamais importé)</span></p>"
+                "</body></html>" % (mv["name"], mv["x_sage_envoye_le"][:16], request.args.get("token", ""),
+                                    comp, _quote(numero)))
+        return Response(html, mimetype="text/html", status=409)
     j = _q("account.journal", "read", [mv["journal_id"][0]], fields=["name", "code", "type", "company_id"],
            context={"lang": "fr_FR"})[0]
     pos = _q("pos.config", "search_read", [("journal_id", "=", j["id"])], fields=["id"])
@@ -814,7 +857,7 @@ def facture():
     base_url = _q("ir.config_parameter", "get_param", "web.base.url") or ""
     sortis = set()
     contenu, prefixe = _fichier_journal(j, mv["date"], mv["date"], base_url, set(),
-                                        mv["company_id"][0], move_ids=[mv["id"]], sortis=sortis)
+                                        mv["company_id"][0], move_ids=[mv["id"]], sortis=sortis, inclure=True)
     if contenu is None:
         return Response("Aucune écriture exportable pour %s." % mv["name"],
                         mimetype="text/plain; charset=utf-8", status=404)
@@ -857,11 +900,12 @@ def export():
     suffixe = "du_%s_au_%s" % (du.replace("-", ""), au.replace("-", ""))
     clients_vus = set()
     sortis = set()
+    inclure = request.form.get("inclure") == "1"
     buf = io.BytesIO()
     n_fichiers = 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for j in _journaux(comp):
-            contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus, comp, sortis=sortis)
+            contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus, comp, sortis=sortis, inclure=inclure)
             if contenu is None:
                 continue
             nom = "%s_%s_%s_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"), suffixe)
@@ -872,7 +916,7 @@ def export():
             z.writestr("nouveaux_clients_%s_%s.txt" % (slug, suffixe),
                        contenu_nc.encode("cp1252", errors="replace"))
     if n_fichiers == 0:
-        return Response("Aucune écriture sur la période pour cette société.",
+        return Response("Aucune écriture sur la période pour cette société (ou toutes déjà transférées à Sage).",
                         mimetype="text/plain; charset=utf-8", status=404)
     _marquer_transferees(sortis)
     _histo_add(comp, "📦 ZIP complet", du, au)
