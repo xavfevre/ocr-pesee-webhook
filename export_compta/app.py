@@ -520,35 +520,83 @@ TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Export comptable Sage</title><style>
-body{font-family:system-ui,sans-serif;background:#f1f5f9;margin:0;padding:24px;color:#0f172a;}
-.card{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.09);max-width:760px;margin:0 auto;padding:24px;}
-h1{font-size:20px;margin:0 0 4px;}p.sub{color:#64748b;font-size:13px;margin:0 0 16px;}
-form.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px;}
-label{display:block;font-weight:700;font-size:12.5px;color:#334155;margin-bottom:3px;}
-select,input[type=date]{padding:8px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:14px;}
-button,a.btn{border:none;border-radius:9px;background:#0f172a;color:#fff;font-weight:800;font-size:13px;
-padding:9px 14px;cursor:pointer;text-decoration:none;display:inline-block;}
-button:hover,a.btn:hover{filter:brightness(1.2);}
-a.btn.sec{background:#e2e8f0;color:#0f172a;}
+:root{--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--bg:#f1f5f9;}
+*{box-sizing:border-box;}
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);margin:0;padding:22px 16px 40px;color:var(--ink);}
+.wrap{max-width:980px;margin:0 auto;}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+h1{font-size:22px;margin:0;letter-spacing:-.2px;}
+p.sub{color:var(--mut);font-size:13px;margin:4px 0 0;max-width:640px;line-height:1.45;}
+.tools{display:flex;gap:8px;flex-wrap:wrap;}
+.tools a{font-size:12.5px;font-weight:700;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:8px 12px;text-decoration:none;}
+.tools a:hover{border-color:#94a3b8;}
+.card{background:#fff;border-radius:14px;box-shadow:0 1px 5px rgba(15,23,42,.08);padding:18px 20px;margin-bottom:14px;}
+form.bar{display:flex;gap:14px;flex-wrap:wrap;align-items:end;}
+form.bar label{display:block;font-weight:700;font-size:12px;color:var(--mut);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;}
+select,input[type=date],input[type=text]{padding:9px 11px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:14px;font-weight:600;color:var(--ink);background:#fff;}
+select{min-width:240px;}
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:14px;}
+.stat{border:1.5px solid var(--line);border-radius:11px;padding:10px 13px;}
+.stat .k{font-size:11.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;}
+.stat .v{font-size:17px;font-weight:800;margin-top:2px;}
+.stat .s{font-size:12px;color:var(--mut);margin-top:2px;}
+.stat.lock{background:var(--ink);color:#fff;border-color:var(--ink);}
+.stat.lock .k,.stat.lock .s{color:#cbd5e1;}
+h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:10px;}
+h2 .n{display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:13px;align-items:center;justify-content:center;font-weight:800;}
+h2 small{font-weight:500;color:var(--mut);font-size:12.5px;}
 table{border-collapse:collapse;width:100%;font-size:13.5px;}
-th{background:#0f172a;color:#fff;padding:7px 9px;text-align:left;font-size:12px;}
-td{border-bottom:1px solid #e2e8f0;padding:7px 9px;}
-td.num{text-align:right;font-variant-numeric:tabular-nums;}
-.nc{background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:10px 13px;margin:14px 0;font-size:13.5px;font-weight:600;color:#713f12;}
-.chk{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;color:#334155;margin:10px 0;}
-</style></head><body><div class="card">
-<h1>📤 Export comptable Sage</h1>
-<p class="sub">Fichiers d'écritures au format d'import du cabinet (identiques aux exports
-historiques) + fichier des nouveaux clients à créer dans Sage. Un dossier Sage par société.</p>
-<p class="sub">🏦 <a href="rappro?token=__TOKEN__">Import du rapprochement bancaire Sage</a> — passe les factures pointées par Charlotte à « Payé ».</p>
+th{background:#f8fafc;color:#334155;padding:8px 10px;text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1.5px solid var(--line);}
+td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top;}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+.jname{font-weight:800;}.jexp{font-size:11.5px;color:var(--mut);font-weight:400;margin-top:1px;}
+.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800;}
+.tag.ok{background:#ecfdf5;color:#065f46;}.tag.warn{background:#fee2e2;color:#991b1b;}.tag.mut{background:#f1f5f9;color:#475569;}
+button,a.btn{border:none;border-radius:9px;background:var(--ink);color:#fff;font-weight:800;font-size:13.5px;padding:10px 16px;cursor:pointer;text-decoration:none;display:inline-block;line-height:1.2;}
+button:hover,a.btn:hover{filter:brightness(1.25);}
+a.btn.sec,button.sec{background:#fff;color:var(--ink);border:1.5px solid #cbd5e1;}
+a.btn.sec:hover,button.sec:hover{filter:none;border-color:#64748b;}
+button.big{font-size:15px;padding:13px 20px;}
+.alert{border-radius:11px;padding:11px 14px;margin:0 0 10px;font-size:13.5px;border:1.5px solid;display:flex;gap:10px;align-items:flex-start;line-height:1.45;}
+.alert .i{font-size:18px;line-height:1;margin-top:1px;}
+.alert .t{font-weight:800;}
+.alert .d{font-size:12px;font-weight:400;margin-top:4px;color:inherit;opacity:.85;}
+.alert.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46;}
+.alert.info{background:#fefce8;border-color:#fde68a;color:#713f12;}
+.alert.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d;}
+.alert a{color:inherit;font-weight:800;}
+.alert:last-child{margin-bottom:0;}
+.actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1.5px solid var(--line);}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;color:#334155;}
+.lockrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.hint{font-size:12px;color:var(--mut);font-weight:400;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:720px){.grid2{grid-template-columns:1fr;}}
+details summary{cursor:pointer;font-weight:800;font-size:13.5px;color:#334155;list-style:none;}
+details summary::-webkit-details-marker{display:none;}
+details summary:before{content:'▸ ';}details[open] summary:before{content:'▾ ';}
+.empty{color:var(--mut);font-size:14px;padding:10px 0;}
+</style></head><body><div class="wrap">
+<div class="head"><div><h1>📤 Export comptable Sage</h1>
+<p class="sub">Fichiers d'écritures au format d'import du cabinet + fichier des nouveaux clients à créer dans Sage. Un dossier Sage par société.</p></div>
+<div class="tools"><a href="rappro?token=__TOKEN__">🏦 Rapprochement bancaire Sage</a></div></div>
+<div class="card">
 <form class="bar" method="get" action="">
 <input type="hidden" name="token" value="__TOKEN__">
 <div><label>Société</label><select name="societe" onchange="this.form.submit()">__SOCIETES__</select></div>
 <div><label>Du</label><input type="date" name="du" value="__DU__" onchange="if(this.form.au.value)this.form.submit()"></div>
 <div><label>Au</label><input type="date" name="au" value="__AU__" onchange="if(this.form.du.value)this.form.submit()"></div>
 </form>
+__STATUS__
+</div>
 __CORPS__
 </div></body></html>"""
+
+
+def _alert(kind, icon, titre, detail="", extra=""):
+    return ("<div class='alert %s'><span class='i'>%s</span><div><div class='t'>%s</div>%s%s</div></div>"
+            % (kind, icon, titre, ("<div class='d'>%s</div>" % detail) if detail else "", extra))
 
 
 @bp.route("/", methods=["GET"])
@@ -566,7 +614,7 @@ def page():
     dernier = (_q("ir.config_parameter", "get_param",
                   "maquignon.export_compta_dernier_%s" % comp) or "")
     suggestion = ""
-    info_dernier = ""
+    stat_dernier = "<div class='stat'><div class='k'>Dernier export</div><div class='v'>aucun</div></div>"
     if dernier.count("|") == 2:
         d_du, d_au, d_fait = dernier.split("|")
         from datetime import datetime, timedelta
@@ -574,9 +622,8 @@ def page():
             suggestion = (datetime.strptime(d_au, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
         except ValueError:
             suggestion = ""
-        info_dernier = ("<p class='sub'>📌 Dernier export de cette société : "
-                        "<b>du %s au %s</b> (fait le %s).</p>"
-                        % (_dfr(d_du), _dfr(d_au), _dfr(d_fait[:10])))
+        stat_dernier = ("<div class='stat'><div class='k'>📌 Dernier export</div><div class='v'>%s → %s</div>"
+                        "<div class='s'>fait le %s</div></div>" % (_dfr(d_du), _dfr(d_au), _dfr(d_fait[:10])))
     # période affichée : du/au de l'URL, sinon lendemain du dernier export → aujourd'hui
     du, au, _lib = _periode({"du": request.args.get("du"), "au": request.args.get("au"),
                              "mois": d.strftime("%Y-%m")})
@@ -585,134 +632,132 @@ def page():
         au = max(du, d.isoformat())
     libelle = "du %s au %s" % (_dfr(du), _dfr(au))
     periode_qs = "du=%s&au=%s" % (du, au)
+    verrou = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
+    stat_verrou = ("<div class='stat lock'><div class='k'>🔒 Ventes verrouillées</div><div class='v'>jusqu'au %s</div>"
+                   "<div class='s'>plus aucune écriture de vente possible avant cette date</div></div>"
+                   % (_dfr(verrou) if verrou else "— aucun verrou"))
+    stat_periode = ("<div class='stat'><div class='k'>📅 Période affichée</div><div class='v'>%s</div>"
+                    "<div class='s'>pré-remplie au lendemain du dernier export</div></div>" % libelle)
+    status = "<div class='status'>%s%s%s</div>" % (stat_dernier, stat_verrou, stat_periode)
 
     journaux = _journaux(comp)
     agg, nouveaux = _apercu(comp, du, au, journaux)
     inclure = request.args.get("inclure") == "1"
     lignes_html = ""
-    total_deja = 0
+    total_deja = total_pieces = 0
     for j in journaux:
         a = agg.get(j["id"])
         if not a:
             continue
         n_deja = len(a["deja"]); total_deja += n_deja
+        n_sort = len(a["pieces"]) if inclure else len(a["pieces"]) - n_deja
+        total_pieces += n_sort
         url = "fichier?token=%s&journal=%s&%s%s" % (token, j["id"], periode_qs, "&inclure=1" if inclure else "")
-        deja_html = ""
-        if n_deja:
-            deja_html = ("<div style='font-size:11px;font-weight:700;color:%s;'>%s %d déjà transférée(s)%s</div>"
-                         % ("#b91c1c" if inclure else "#0f766e", "⚠" if inclure else "✓", n_deja,
-                            " — INCLUSES dans le fichier" if inclure else " — exclues du fichier"))
-        lignes_html += ("<tr><td>%s</td><td>%s<div style='font-size:11px;color:#64748b;font-weight:400;'>%s</div></td>"
-                        "<td>%s</td><td class='num'>%s%s</td>"
-                        "<td class='num'>%s</td><td class='num'>%.2f €</td>"
-                        "<td><a class='btn sec' href='%s'>⬇ .txt</a></td></tr>" % (
-                            j["code"] or "", j["name"], j.get("explication", ""),
-                            TYPES.get(j["type"], j["type"]),
-                            len(a["pieces"]), deja_html, a["nlignes"], a["debit"], url))
+        if n_deja and inclure:
+            tag = "<div style='margin-top:3px;'><span class='tag warn'>⚠ %d déjà transférée(s) incluses</span></div>" % n_deja
+        elif n_deja:
+            tag = "<div style='margin-top:3px;'><span class='tag ok'>✓ %d déjà transférée(s) exclues</span></div>" % n_deja
+        else:
+            tag = ""
+        btn = ("<a class='btn sec' href='%s'>⬇ .txt</a>" % url) if n_sort else "<span class='tag mut'>rien à sortir</span>"
+        lignes_html += ("<tr><td><span class='tag mut'>%s</span></td><td><div class='jname'>%s</div><div class='jexp'>%s</div></td>"
+                        "<td>%s</td><td class='num'><b>%d</b>%s</td>"
+                        "<td class='num'>%s</td><td class='num'>%.2f €</td><td class='num'>%s</td></tr>" % (
+                            j["code"] or "—", j["name"], j.get("explication", ""),
+                            TYPES.get(j["type"], j["type"]), n_sort, tag, a["nlignes"], a["debit"], btn))
+
+    corps = ""
     if not lignes_html:
-        corps = "<p><b>Aucune écriture validée sur %s pour cette société.</b></p>" % libelle
+        corps += ("<div class='card'><h2><span class='n'>1</span>Journaux de la période</h2>"
+                  "<p class='empty'>Aucune écriture validée <b>%s</b> pour cette société.</p></div>" % libelle)
     else:
-        corps = ("<table><tr><th>Code</th><th>Journal</th><th>Type</th><th>Pièces</th>"
-                 "<th>Lignes</th><th>Total débit</th><th></th></tr>%s</table>" % lignes_html)
+        # ── 1. Points à vérifier ──
+        alertes = ""
         if total_deja:
             if inclure:
-                corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>⚠ Mode « inclure » : "
-                          "<b>%d</b> pièce(s) déjà transférée(s) à Sage seront <b>ré-exportées</b> (risque de doublon dans Sage). "
-                          "<a class='btn sec' href='?token=%s&societe=%s&%s' style='margin-left:8px;'>Revenir au mode normal</a></div>"
-                          % (total_deja, token, comp, periode_qs))
+                alertes += _alert("bad", "⚠", "Mode « inclure » : %d pièce(s) déjà transférée(s) seront ré-exportées" % total_deja,
+                                  "Risque de doublon dans Sage — à réserver au cas d'un fichier perdu ou jamais importé.",
+                                  "<div style='margin-top:8px;'><a class='btn sec' href='?token=%s&societe=%s&%s'>Revenir au mode normal</a></div>"
+                                  % (token, comp, periode_qs))
             else:
-                corps += ("<div class='nc' style='background:#ecfdf5;border-color:#a7f3d0;color:#065f46;'>🛡 Garde-fou : "
-                          "<b>%d</b> pièce(s) de cette période déjà transférée(s) à Sage sont <b>exclues</b> des fichiers. "
-                          "<a href='?token=%s&societe=%s&%s&inclure=1' style='color:#065f46;font-weight:700;margin-left:8px;'>"
-                          "Les inclure quand même</a> <span style='font-weight:400;font-size:12px;'>(fichier perdu ou jamais importé)</span></div>"
-                          % (total_deja, token, comp, periode_qs))
-        detail_nc = ""
+                alertes += _alert("ok", "🛡", "Garde-fou : %d pièce(s) déjà transférée(s) à Sage sont exclues des fichiers" % total_deja,
+                                  "Seules les pièces jamais transférées sortiront. "
+                                  "<a href='?token=%s&societe=%s&%s&inclure=1'>Les inclure quand même</a> (fichier perdu ou jamais importé)."
+                                  % (token, comp, periode_qs))
         if nouveaux:
-            detail_nc = ("<div style='margin-top:6px;font-size:12px;'>%s</div>"
-                         % " · ".join("<b>%s</b> %s" % (r, n) for r, n in nouveaux))
-        corps += ("<div class='nc'>👤 <b>%s</b> client(s) des écritures de la période jamais "
-                  "transmis à Sage — inclus dans le ZIP (nouveaux_clients_*.txt).%s</div>"
-                  % (len(nouveaux), detail_nc))
+            alertes += _alert("info", "👤", "%d nouveau(x) client(s) à créer dans Sage — inclus dans le ZIP (nouveaux_clients_*.txt)" % len(nouveaux),
+                              " · ".join("<b>%s</b> %s" % (r, n) for r, n in nouveaux))
         r_au, r_fait, retro = _pieces_retro(comp, journaux)
         if retro:
             det = " · ".join("<b>%s</b> %s (%s, %.2f €)" % (
-                r["name"], _dfr(r["date"]), r["journal_id"][1], r["amount_total"] or 0)
-                for r in retro)
-            corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
-                      "⏪ <b>%d</b> écriture(s) <b>datée(s) dans une période déjà exportée</b> "
-                      "(≤ %s) mais saisie(s) après le dernier export — elles ne sortiront pas "
-                      "avec la plage préremplie."
-                      "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div>"
-                      "<div style='margin-top:8px;'><a class='btn' href='retro?token=%s&societe=%s'>"
-                      "⬇ Exporter ces écritures pour Sage</a> "
-                      "<span style='font-size:12px;font-weight:400;'>fichier au même format — "
-                      "l'alerte s'efface une fois le fichier téléchargé</span></div></div>"
-                      % (len(retro), _dfr(r_au), det, token, comp))
+                r["name"], _dfr(r["date"]), r["journal_id"][1], r["amount_total"] or 0) for r in retro)
+            alertes += _alert("bad", "⏪", "%d écriture(s) datée(s) dans une période déjà exportée (≤ %s) mais saisie(s) depuis" % (len(retro), _dfr(r_au)),
+                              det + "<br>Elles ne sortiront pas avec la plage pré-remplie.",
+                              "<div style='margin-top:8px;'><a class='btn' href='retro?token=%s&societe=%s'>⬇ Exporter ces écritures pour Sage</a> "
+                              "<span class='hint'>même format — l'alerte s'efface une fois le fichier téléchargé</span></div>" % (token, comp))
         manq = _controle_analytique(comp, du, au, journaux)
         if manq:
-            det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
+            det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
             if len(manq) > 20:
                 det += " · … et %d autre(s)" % (len(manq) - 20)
-            corps += ("<div class='nc' style='background:#fef2f2;border-color:#fecaca;color:#7f1d1d;'>"
-                      "⚠️ <b>%d</b> ligne(s) de vente <b>sans section analytique</b> — elles partiront "
-                      "dans Sage sans analytique. À compléter dans Odoo (ou à ignorer si c'est voulu, "
-                      "ex. cession de matériel) puis recharger cette page."
-                      "<div style='margin-top:6px;font-size:12px;font-weight:400;'>%s</div></div>"
-                      % (len(manq), det))
-        champs = ("<input type='hidden' name='du' value='%s'>"
-                  "<input type='hidden' name='au' value='%s'>%s" % (du, au, "<input type='hidden' name='inclure' value='1'>" if inclure else ""))
-        verrou = _q("res.company", "read", [comp], fields=["sale_lock_date"])[0]["sale_lock_date"]
-        corps += ("<form method='post' action='export?token=%s'>"
+            alertes += _alert("bad", "⚠️", "%d ligne(s) de vente sans section analytique" % len(manq),
+                              det + "<br>Elles partiront dans Sage sans analytique : à compléter dans Odoo (ou à ignorer si voulu, ex. cession de matériel) puis recharger.")
+        if not alertes:
+            alertes = _alert("ok", "✅", "Rien à signaler pour cette période", "Aucun nouveau client, aucune écriture rétroactive, analytique complète.")
+        corps += ("<div class='card'><h2><span class='n'>1</span>Vérifier <small>avant d'exporter</small></h2>%s</div>" % alertes)
+
+        # ── 2. Exporter ──
+        champs = ("<input type='hidden' name='du' value='%s'><input type='hidden' name='au' value='%s'>%s"
+                  % (du, au, "<input type='hidden' name='inclure' value='1'>" if inclure else ""))
+        corps += ("<div class='card'><h2><span class='n'>2</span>Exporter <small>%s · %d pièce(s) à sortir</small></h2>"
+                  "<table><tr><th>Code</th><th>Journal</th><th>Type</th><th style='text-align:right'>Pièces</th>"
+                  "<th style='text-align:right'>Lignes</th><th style='text-align:right'>Total débit</th><th></th></tr>%s</table>"
+                  "<form method='post' action='export?token=%s' class='actions'>"
                   "<input type='hidden' name='societe' value='%s'>%s"
-                  "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> "
-                  "Marquer les nouveaux clients comme transmis à Sage</label>"
-                  "<button type='submit'>📦 Télécharger le ZIP complet (%s)</button>"
-                  "</form>" % (token, comp, champs, libelle))
-        # verrou des ventes : date saisie librement (pré-remplie avec la fin de période),
-        # verrou en vigueur mis en avant
-        corps += ("<form method='post' action='verrou?token=%s' class='nc' style='margin-top:12px;background:#f8fafc;"
-                  "border-color:#cbd5e1;color:#0f172a;display:flex;gap:12px;align-items:center;flex-wrap:wrap;' "
+                  "<button type='submit' class='big'>📦 Télécharger le ZIP complet</button>"
+                  "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> Marquer les nouveaux clients comme transmis à Sage</label>"
+                  "</form></div>" % (libelle, total_pieces, lignes_html, token, comp, champs))
+
+        # ── 3. Verrouiller ──
+        corps += ("<div class='card'><h2><span class='n'>3</span>Verrouiller les ventes <small>une fois les fichiers importés dans Sage</small></h2>"
+                  "<form method='post' action='verrou?token=%s' class='lockrow' "
                   "onsubmit=\"return confirm('Verrouiller les ventes de cette société jusqu\\'au ' + this.au.value.split('-').reverse().join('/') + ' ?');\">"
                   "<input type='hidden' name='societe' value='%s'><input type='hidden' name='du' value='%s'>"
-                  "<span style='background:#0f172a;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;'>"
-                  "🔒 Ventes verrouillées jusqu'au <b style='font-size:17px;'>%s</b></span>"
-                  "<label style='display:flex;gap:6px;align-items:center;font-weight:700;'>Nouveau verrou jusqu'au "
-                  "<input type='date' name='au' value='%s' min='%s' required "
-                  "style='padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;'></label>"
-                  "<button type='submit' class='btn sec' style='border:1.5px solid #cbd5e1;'>🔒 Verrouiller</button>"
-                  "<span style='font-size:12px;color:#64748b;font-weight:400;'>jamais reculé — à faire une fois les journaux "
-                  "de la période téléchargés</span></form>"
+                  "<span style='background:#0f172a;color:#fff;border-radius:9px;padding:9px 13px;font-size:14px;'>"
+                  "🔒 Verrouillé jusqu'au <b style='font-size:17px;'>%s</b></span>"
+                  "<label style='display:flex;gap:8px;align-items:center;font-weight:700;'>Nouveau verrou jusqu'au "
+                  "<input type='date' name='au' value='%s' min='%s' required></label>"
+                  "<button type='submit' class='sec'>🔒 Verrouiller</button>"
+                  "<span class='hint'>jamais reculé — bloque toute écriture de vente antérieure</span></form></div>"
                   % (token, comp, du, _dfr(verrou) if verrou else "aucun verrou", au, verrou or ""))
 
+    # ── Outils ──
     import json as _j2
     try:
         histo = _j2.loads(_q("ir.config_parameter", "get_param",
                              "maquignon.export_compta_histo_%s" % comp) or "[]")
     except ValueError:
         histo = []
+    histo_html = "<p class='empty'>Aucun export enregistré.</p>"
     if histo:
         lg = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
-                     % (_dfr(h.get("fait", "")), h.get("j", ""),
-                        _dfr(h.get("du", "")), _dfr(h.get("au", "")))
+                     % (_dfr(h.get("fait", "")), h.get("j", ""), _dfr(h.get("du", "")), _dfr(h.get("au", "")))
                      for h in histo[:25])
-        corps += ("<details style='margin-top:14px;'><summary style='cursor:pointer;font-weight:700;"
-                  "font-size:13px;color:#334155;'>🕘 Historique des exports (%d)</summary>"
-                  "<table style='margin-top:8px;'><tr><th>Fait le</th><th>Journal</th>"
-                  "<th>Du</th><th>Au</th></tr>%s</table></details>" % (len(histo), lg))
-
-    corps += ("<form method='get' action='facture' class='nc' style='background:#eff6ff;border-color:#bfdbfe;"
-              "color:#1e3a8a;display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>"
+        histo_html = ("<table style='margin-top:8px;'><tr><th>Fait le</th><th>Journal</th><th>Du</th><th>Au</th></tr>%s</table>" % lg)
+    corps += ("<div class='grid2'>"
+              "<div class='card'><h2>🧾 Exporter une seule facture <small>oubliée ou saisie après l'export</small></h2>"
+              "<form method='get' action='facture' style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>"
               "<input type='hidden' name='token' value='%s'><input type='hidden' name='societe' value='%s'>"
-              "🧾 <b>Exporter une seule facture</b> (oubliée ou saisie après l'export) : "
-              "<input type='text' name='numero' placeholder='FAC/26-27/0600' required "
-              "style='padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;min-width:170px;'>"
-              "<button type='submit' class='btn' style='padding:6px 12px;'>⬇ .txt de cette facture</button>"
-              "<span style='font-size:12px;font-weight:400;'>même format que le journal ; la facture est marquée "
-              "« Transféré Sage » dans Odoo</span></form>" % (token, comp))
-    corps = info_dernier + corps
+              "<input type='text' name='numero' placeholder='FAC/26-27/0600' required style='min-width:180px;'>"
+              "<button type='submit'>⬇ .txt</button></form>"
+              "<p class='hint' style='margin:10px 0 0;'>Même format que le journal. La facture est marquée « Transféré Sage » dans Odoo ; "
+              "si elle l'est déjà, la page demande confirmation.</p></div>"
+              "<div class='card'><details%s><summary>🕘 Historique des exports (%d)</summary>%s</details></div>"
+              "</div>" % (token, comp, "" if histo else " open", len(histo), histo_html))
+
     html = (PAGE.replace("__SOCIETES__", opts_soc)
                 .replace("__DU__", du).replace("__AU__", au)
-                .replace("__TOKEN__", token).replace("__CORPS__", corps))
+                .replace("__TOKEN__", token).replace("__STATUS__", status).replace("__CORPS__", corps))
     return Response(html, mimetype="text/html")
 
 
