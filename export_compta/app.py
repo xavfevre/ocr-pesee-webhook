@@ -1567,22 +1567,29 @@ def _gl_analyse(comp, clients):
                     deja_lettre = s2
                     break
             if deja_lettre is not None:
-                ouverts = []
+                ouverts, en_paiement = [], False
                 for cl, e, es in items:
                     for f in es:
                         i2 = invs.get(f["fac"]) if f["fac"] else None
                         if i2 and i2["state"] == "posted" and i2["payment_state"] in ("not_paid", "partial"):
                             ouverts.append("%s %s" % (cl["nom"][:20], f["fac"]))
-                if ouverts:
-                    anomalies.append("remise %s n°%s du %s (%.2f €) : la ligne de relevé du %s est DÉJÀ lettrée dans Odoo alors que %s reste(nt) ouverte(s) — à vérifier dans Odoo"
-                                     % (journal_nom(jid2), piece, items[0][1]["date"][:10], total, str(deja_lettre["date"])[:10], ", ".join(ouverts)[:120]))
-                for cl, e, es in items:
-                    regs_pris.add(id(e))
-                    for f in es:
-                        i2 = invs.get(f["fac"]) if f["fac"] else None
-                        if i2:
-                            invs_pris.add(i2["id"])
-                continue
+                        if i2 and i2["payment_state"] == "in_payment":
+                            en_paiement = True
+                if en_paiement and not ouverts:
+                    pass   # paiement Odoo existant à lettrer : logique classique (« lettrer le paiement existant »)
+                else:
+                    if ouverts:
+                        anomalies.append("remise %s n°%s du %s (%.2f €) : la ligne de relevé du %s est DÉJÀ lettrée dans Odoo alors que %s reste(nt) ouverte(s) — à vérifier dans Odoo"
+                                         % (journal_nom(jid2), piece, items[0][1]["date"][:10], total, str(deja_lettre["date"])[:10], ", ".join(ouverts)[:120]))
+                    else:
+                        deja += len(items)
+                    for cl, e, es in items:
+                        regs_pris.add(id(e))
+                        for f in es:
+                            i2 = invs.get(f["fac"]) if f["fac"] else None
+                            if i2:
+                                invs_pris.add(i2["id"])
+                    continue
         if s_ok is None and not cheque_like:
             continue   # virement isolé : logique classique
         if par_brut:
