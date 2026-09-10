@@ -925,7 +925,8 @@ def rotate_image():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok"})
+    # commit déployé (variable fournie par Render) : permet de vérifier qu'un push est bien en ligne
+    return jsonify({"status": "ok", "commit": (os.environ.get("RENDER_GIT_COMMIT") or "")[:12]})
 
 
 # ─── Tableau de bord « Fabrication — Commandes en cours » ────────────────────
