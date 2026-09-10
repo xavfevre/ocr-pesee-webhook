@@ -1,0 +1,6 @@
+<data>
+  <!-- Chatel Granulats : la recherche ne doit pas afficher les prix (le « détail » = prix) -->
+  <xpath expr="//input[@type='search']" position="attributes">
+    <attribute name="t-att-data-display-detail">'false'</attribute>
+  </xpath>
+</data>
