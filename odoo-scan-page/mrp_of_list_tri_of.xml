@@ -1,0 +1,3 @@
+<data>
+  <xpath expr="//list" position="attributes"><attribute name="default_order">name asc</attribute></xpath>
+</data>

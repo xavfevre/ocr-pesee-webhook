@@ -1,0 +1,3 @@
+<data>
+  <xpath expr="//list" position="attributes"><attribute name="default_order">x_of_num asc, sequence asc, id asc</attribute></xpath>
+</data>
