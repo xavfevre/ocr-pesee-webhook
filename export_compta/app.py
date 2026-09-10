@@ -1173,7 +1173,7 @@ def _rappro_applique(comp, journal, props, avance=None):
                                   [("company_id", "=", comp), ("journal_id", "=", jid),
                                    ("state", "=", "in_process"),
                                    ("reconciled_invoice_ids", "in", prop["ids"])],
-                                  limit=5, order="id desc")
+                                  limit=50, order="id desc")
                     pay_ids += nouveaux
                 moves = [p["move_id"][0] for p in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p["move_id"]]
                 l_att_rows = _q("account.move.line", "search_read",
@@ -1324,7 +1324,14 @@ def _gl_parse(fichier):
     return [cl for cl in clients if cl["ecritures"]]
 
 
+_REMISE_RE = None
+
+
 def _gl_analyse(comp, clients):
+    global _REMISE_RE
+    import re as _re0
+    if _REMISE_RE is None:
+        _REMISE_RE = _re0.compile(r"rem(ise)?\s*(de\s*)?ch|ch[eè]que|chq", _re0.I)
     """Groupes (client, lettre) équilibrés → propositions par facture Odoo."""
     import re as _re
     from collections import defaultdict
@@ -1402,6 +1409,7 @@ def _gl_analyse(comp, clients):
         return sorted(cands, key=lambda c: c[0])[0][1]
 
     props, anomalies, deja = [], [], 0
+    cands = []   # factures « paiement absent » : candidates à une remise de chèques groupée
     for cl in clients:
         groupes = defaultdict(list)
         for e in cl["ecritures"]:
@@ -1486,8 +1494,57 @@ def _gl_analyse(comp, clients):
                                   "type": "facture", "ids": [inv["id"]], "journal_id": jid,
                                   "detail": ["aucun paiement saisi dans Odoo — cocher pour créer le paiement de %.2f € au %s et lettrer"
                                              % (montant, date_reg)]})
+                    if abs(montant - round(inv["amount_residual"], 2)) < 0.005:
+                        cands.append({"idx": len(props) - 1, "amount": montant, "date": date_reg, "jid": jid,
+                                      "inv": inv["id"], "lib": "%s — %s" % (cl["nom"][:24], e["fac"])})
                 else:
                     deja += 1
+    # ── remises de chèques : une ligne « REM CHQ DE n / REMISE CHEQUES » du relevé = somme de
+    #    plusieurs chèques (factures de clients différents). On cherche la combinaison exacte
+    #    (± 7 jours, jusqu'à 6 chèques) et on propose un rapprochement « relevé » groupé.
+    import datetime as _dt
+    remises = [s2 for s2 in stmt if s2["id"] not in stmt_uses and _REMISE_RE.search(s2["payment_ref"] or "")]
+    utilises = set()
+    for s2 in sorted(remises, key=lambda r: str(r["date"])):
+        try:
+            d2 = _dt.date.fromisoformat(str(s2["date"])[:10])
+        except Exception:
+            continue
+        pool = []
+        for cd in cands:
+            if cd["idx"] in utilises or cd["jid"] != s2["journal_id"][0]:
+                continue
+            try:
+                ecart = abs((_dt.date.fromisoformat(cd["date"][:10]) - d2).days)
+            except Exception:
+                continue
+            if ecart <= 7:
+                pool.append(cd)
+        pool = sorted(pool, key=lambda cd: cd["date"])[:24]
+        cible = round(s2["amount"], 2)
+        trouve = None
+        for taille in range(1, min(6, len(pool)) + 1):
+            for combo in _combi(pool, taille):
+                if abs(round(sum(cd["amount"] for cd in combo), 2) - cible) < 0.005:
+                    trouve = combo
+                    break
+            if trouve:
+                break
+        if not trouve:
+            continue
+        for cd in trouve:
+            utilises.add(cd["idx"])
+        stmt_uses.add(s2["id"])
+        props.append({
+            "ligne": {"date": str(s2["date"])[:10], "piece": "REMISE", "credit": 0.0, "debit": cible,
+                      "lib": "Remise de chèques du %s — %d chèque(s) : %s"
+                             % (str(s2["date"])[:10], len(trouve), ", ".join(cd["lib"][:30] for cd in trouve)[:120])},
+            "type": "releve", "ids": [cd["inv"] for cd in trouve], "pay_ids": [],
+            "stmt_moves": [s2["move_id"][0]], "journal_id": s2["journal_id"][0],
+            "detail": ["relevé %s : %s (%.2f €)" % (str(s2["date"])[:10], (s2["payment_ref"] or "")[:45], s2["amount"])]
+                      + ["chèque %.2f € — %s" % (cd["amount"], cd["lib"]) for cd in trouve]})
+    if utilises:
+        props = [pr for i, pr in enumerate(props) if i not in utilises]
     return props, anomalies, deja
 
 
