@@ -697,6 +697,15 @@ def _palettiser(call, ctx):
             _creer(call, 'x_repartition_palette',
                    {'x_name': '%s / %s' % (of['name'], colis['name']), 'x_studio_of_id': of_id,
                     'x_studio_colis_id': colis['id'], 'x_studio_qte': q})
+    # opérateur (tablette) : marque la palette comme « posée par » lui (liste « Mes palettes »)
+    op = int(ctx.get('op') or 0)
+    if op:
+        try:
+            deja = call('stock.package', 'read', [colis['id']], fields=['x_operateur_ids'])[0]['x_operateur_ids']
+            if op not in deja:
+                call('stock.package', 'write', [colis['id']], {'x_operateur_ids': [[4, op]]})
+        except Exception as e:  # secondaire : ne doit pas faire échouer la pose
+            print('palettiser: marquage opérateur %s impossible : %s' % (op, e))
     lignes = call('x_repartition_palette', 'search_read', [['x_studio_of_id', '=', of_id]],
                   fields=['x_studio_colis_id', 'x_studio_qte'])
     place = sum(int(l['x_studio_qte'] or 0) for l in lignes)
