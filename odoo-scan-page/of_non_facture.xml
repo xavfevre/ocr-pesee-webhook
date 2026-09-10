@@ -62,6 +62,7 @@
           <option value="client">Tri : client</option>
         </select>
         <span class="onf-tot"><span id="onf-n">0</span> commande(s) · reste <span id="onf-sum">0</span> € HT</span>
+        <button type="button" id="onf-xls" title="Exporter les lignes affichées (filtres et tri conservés) dans un fichier Excel" style="border:1.5px solid #15803d;background:#dcfce7;color:#14532d;border-radius:9px;padding:7px 13px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;">📥 Export Excel</button>
       </div>
 
       <t t-if="not sos"><div class="onf-empty">Aucune commande confirmée à facturer avec ordre de fabrication.</div></t>
@@ -145,6 +146,43 @@
         [fdone, frest, sort].forEach(function(el){ el.addEventListener('change', apply); });
         q.addEventListener('input', apply);
         apply();
+        /* ── Export Excel des lignes affichées (SheetJS chargé à la demande) ── */
+        var xb = document.getElementById('onf-xls');
+        function txt(td){ return (td ? td.textContent : '').replace(/\s+/g, ' ').trim(); }
+        function exporter(){
+          var rows = Array.prototype.slice.call(tb.querySelectorAll('tr')).filter(function(r){ return r.style.display !== 'none'; });
+          var data = [['Client', 'Réf. client', 'Commande', 'Date', 'Montant TTC', 'OF terminés', 'OF total', 'Fabrication', 'Reste à facturer HT', 'Situation', 'Dossier']];
+          var tot = 0;
+          rows.forEach(function(r){
+            var td = r.querySelectorAll('td');
+            var cli = td[0].querySelector('.onf-cli'), ref = td[0].querySelector('.onf-lines');
+            var of = txt(td[4]).split('/');
+            var rest = parseFloat(r.getAttribute('data-rest')) || 0; tot += rest;
+            data.push([txt(cli), txt(ref), txt(td[1]), r.getAttribute('data-date'), parseFloat(r.getAttribute('data-amount')) || 0,
+                       parseInt(of[0], 10) || 0, parseInt(of[1], 10) || 0, txt(td[5]), rest, txt(td[7]), txt(td[8])]);
+          });
+          data.push([]); data.push(['TOTAL', '', rows.length + ' commande(s)', '', '', '', '', '', Math.round(tot * 100) / 100, '', '']);
+          var ws = XLSX.utils.aoa_to_sheet(data);
+          ws['!cols'] = [{wch:30},{wch:26},{wch:12},{wch:11},{wch:13},{wch:10},{wch:9},{wch:16},{wch:18},{wch:60},{wch:34}];
+          for(var i = 2; i &lt;= data.length; i++){
+            var cE = ws['E' + i], cI = ws['I' + i], cD = ws['D' + i];
+            if(cE &amp;&amp; typeof cE.v === 'number'){ cE.z = '# ##0.00 €'; }
+            if(cI &amp;&amp; typeof cI.v === 'number'){ cI.z = '# ##0.00 €'; }
+            if(cD &amp;&amp; typeof cD.v === 'string' &amp;&amp; /^\d{4}-\d{2}-\d{2}$/.test(cD.v)){ cD.v = cD.v.split('-').reverse().join('/'); }
+          }
+          ws['!autofilter'] = {ref: 'A1:K' + (rows.length + 1)};
+          var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Suivi facturation');
+          var d = new Date(), fn = 'suivi_facturation_' + d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) + '.xlsx';
+          XLSX.writeFile(wb, fn);
+        }
+        if(xb){ xb.addEventListener('click', function(){
+          if(window.XLSX){ exporter(); return; }
+          xb.disabled = true; xb.textContent = '⏳ Préparation…';
+          var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          sc.onload = function(){ xb.disabled = false; xb.textContent = '📥 Export Excel'; exporter(); };
+          sc.onerror = function(){ xb.disabled = false; xb.textContent = '📥 Export Excel'; alert("Impossible de charger l'outil d'export (réseau)."); };
+          document.head.appendChild(sc);
+        }); }
       })();
     </script>
     </t>
