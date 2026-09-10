@@ -448,9 +448,8 @@
                 <div t-if="of.x_detail_tranches" style="margin:6px 0 2px;background:#f1f5f9;border:1.5px solid #cbd5e1;border-radius:9px;padding:6px 9px;font-size:12px;line-height:1.35;color:#0f172a;max-height:190px;overflow:auto;">
                   <div style="font-weight:900;color:#334155;margin-bottom:3px;">🪨 Pierres à tirer de ce bloc</div>
                   <t t-foreach="[b for b in of.x_detail_tranches.split('--- OF : ') if b.strip()]" t-as="blk">
-                    <t t-set="bl" t-value="[l.strip() for l in blk.split('
-') if l.strip()]"/>
-                    <div style="padding:3px 0;border-top:1px solid #e2e8f0;"><b t-esc="bl[0].replace(' ---', '')"/><t t-foreach="bl[1:]" t-as="li"> · <t t-esc="li.replace('Produit : ', '')"/></t></div>
+                    <t t-set="bl" t-value="[l.strip() for l in blk.splitlines() if l.strip()]"/>
+                    <div style="padding:3px 0;border-top:1px solid #e2e8f0;"><b t-esc="bl[0].replace(' ---', '')"/><t t-foreach="bl[1:]" t-as="li"><t t-if="not li.startswith('Produit')"><br/><t t-esc="li.replace('Long. (m)', 'L').replace('Larg. (m)', 'l').replace('Haut. (m)', 'H').replace('Nbr. :', 'Nbr :')"/></t></t></div>
                   </t>
                 </div>
                 <div class="vo-pieces"/>
