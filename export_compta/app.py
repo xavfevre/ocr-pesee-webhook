@@ -1152,6 +1152,100 @@ def _rappro_applique(comp, journal, props, avance=None):
         l = prop["ligne"]
         jid = prop.get("journal_id") or journal["id"]
         compte_attente, compte_banque, jnom = infos(jid)
+        if prop["type"] in ("remise", "remise_attente", "remise_partielle"):
+            # v3 : remise de chèques / CB Sage — un paiement par client, puis rapprochement
+            # avec la vraie ligne de relevé (ou dépôt par lot en attente de la ligne)
+            try:
+                pml_lot = None
+                if prop["type"] == "remise_attente":
+                    pml_lot = _q("account.payment.method.line", "search",
+                                 [("journal_id", "=", jid), ("payment_type", "=", "inbound"),
+                                  ("payment_method_id.code", "=", "batch_payment")], limit=1)
+                    pml_lot = pml_lot[0] if pml_lot else None
+                pay_ids = list(prop.get("pay_ids") or [])
+                for lo in prop["lots"]:
+                    ctx = {"active_model": "account.move", "active_ids": lo["ids"]}
+                    vals = {"journal_id": jid, "payment_date": l["date"], "group_payment": True,
+                            "amount": lo["amount"],
+                            "communication": ("Remise %s — %s" % (prop["ligne"]["piece"], lo["client"]))[:60]}
+                    if pml_lot:
+                        vals["payment_method_line_id"] = pml_lot
+                    wid = _q("account.payment.register", "create", [vals], context=ctx)
+                    wid = wid[0] if isinstance(wid, list) else wid
+                    try:
+                        _q("account.payment.register", "action_create_payments", [wid], context=ctx)
+                    except Exception:
+                        pass
+                    nouveaux = _q("account.payment", "search",
+                                  [("company_id", "=", comp), ("journal_id", "=", jid),
+                                   ("state", "=", "in_process"),
+                                   ("reconciled_invoice_ids", "in", lo["ids"])],
+                                  limit=10, order="id desc")
+                    if not nouveaux:
+                        raise Exception("paiement non créé pour %s" % lo["client"])
+                    pay_ids += nouveaux[:1]
+                if prop["type"] == "remise_attente":
+                    meth = _q("account.payment.method", "search", [("code", "=", "batch_payment"), ("payment_type", "=", "inbound")], limit=1)
+                    bvals = {"journal_id": jid, "date": l["date"], "batch_type": "inbound",
+                             "payment_ids": [(6, 0, pay_ids)]}
+                    if meth:
+                        bvals["payment_method_id"] = meth[0]
+                    _q("account.batch.payment", "create", [bvals])
+                    faits += 1
+                    continue
+                if prop["type"] == "remise_partielle":
+                    faits += 1   # paiements créés ; le rapprochement se termine dans le widget
+                    continue
+                moves = [p_["move_id"][0] for p_ in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p_["move_id"]]
+                l_att_rows = _q("account.move.line", "search_read",
+                                [("move_id", "in", moves), ("account_id", "=", compte_attente), ("reconciled", "=", False)],
+                                fields=["debit"])
+                l_att = [r["id"] for r in l_att_rows]
+                l_stmt, tot_stmt = [], 0.0
+                for sm in prop.get("stmt_moves") or []:
+                    for ml in _q("account.move.line", "search_read",
+                                 [("move_id", "=", sm), ("reconciled", "=", False)],
+                                 fields=["account_id", "credit"]):
+                        if ml["account_id"] and ml["account_id"][0] != compte_banque and ml["credit"] > 0:
+                            if ml["account_id"][0] != compte_attente:
+                                _q("account.move.line", "write", [ml["id"]], {"account_id": compte_attente})
+                            l_stmt.append(ml["id"])
+                            tot_stmt += ml["credit"]
+                if not l_att or not l_stmt:
+                    raise Exception("lignes à réconcilier introuvables")
+                ids = l_att + l_stmt
+                ecart = round(sum(r["debit"] for r in l_att_rows) - tot_stmt, 2)
+                if abs(ecart) >= 0.005 and not prop.get("cb") and abs(ecart) > 0.05:
+                    raise Exception("écart de %.2f € entre paiements et relevé — à finir dans le widget" % ecart)
+                if abs(ecart) >= 0.005:
+                    # commission CB (ou petit écart) : frais bancaires 62782000 si présent, sinon compte d'écart
+                    cpt = _q("account.account", "search", [("code", "=", "62782000"), ("company_ids", "in", [comp])],
+                             limit=1, context={"allowed_company_ids": [comp]})
+                    cpt = cpt[0] if cpt else _compte_ecart(comp, "charge" if ecart > 0 else "produit")
+                    if not cpt:
+                        raise Exception("écart de %.2f € et aucun compte de frais/écart" % ecart)
+                    m_ec = _q("account.move", "create", [{
+                        "journal_id": jid, "date": l["date"],
+                        "ref": "Commission / écart remise Sage n°%s" % prop["ligne"]["piece"],
+                        "line_ids": [
+                            (0, 0, {"account_id": cpt if ecart > 0 else compte_attente,
+                                    "debit": abs(ecart), "credit": 0.0, "name": "Commission remise n°%s" % prop["ligne"]["piece"]}),
+                            (0, 0, {"account_id": compte_attente if ecart > 0 else cpt,
+                                    "debit": 0.0, "credit": abs(ecart), "name": "Commission remise n°%s" % prop["ligne"]["piece"]}),
+                        ]}], context={"allowed_company_ids": [comp]})
+                    m_ec = m_ec[0] if isinstance(m_ec, list) else m_ec
+                    _q("account.move", "action_post", [m_ec])
+                    ids += _q("account.move.line", "search", [("move_id", "=", m_ec), ("account_id", "=", compte_attente)])
+                try:
+                    _q("account.move.line", "reconcile", ids)
+                except Exception:
+                    verif = _q("account.move.line", "read", ids, fields=["reconciled"])
+                    if not all(v["reconciled"] for v in verif):
+                        raise
+                faits += 1
+            except Exception as exc:
+                erreurs.append("%s : %s" % (l["lib"][:50], _erreur_propre(exc)))
+            continue
         if prop["type"] == "releve":
             # v2 : la banque connectée a déjà l'écriture (ligne de relevé) —
             # on crée le paiement manquant puis on réconcilie l'attente du/des
@@ -1324,14 +1418,7 @@ def _gl_parse(fichier):
     return [cl for cl in clients if cl["ecritures"]]
 
 
-_REMISE_RE = None
-
-
 def _gl_analyse(comp, clients):
-    global _REMISE_RE
-    import re as _re0
-    if _REMISE_RE is None:
-        _REMISE_RE = _re0.compile(r"rem(ise)?\s*(de\s*)?ch|ch[eè]que|chq", _re0.I)
     """Groupes (client, lettre) équilibrés → propositions par facture Odoo."""
     import re as _re
     from collections import defaultdict
@@ -1409,7 +1496,173 @@ def _gl_analyse(comp, clients):
         return sorted(cands, key=lambda c: c[0])[0][1]
 
     props, anomalies, deja = [], [], 0
-    cands = []   # factures « paiement absent » : candidates à une remise de chèques groupée
+    # ── v3 : remises de chèques / CB — dans Sage, n° de pièce du journal banque = n° de remise ──
+    import datetime as _dt
+    RE_CHQ = _re.compile(r"remise\s*ch|ch[eè]que|chq", _re.I)
+    RE_CB = _re.compile(r"^\s*CB\b", _re.I)
+
+    def brut_de(ref):
+        mb = _re.search(r"BRUT\s+([\d\s]+,\d{2})", ref or "")
+        try:
+            return round(float(mb.group(1).replace(" ", "").replace(",", ".")), 2) if mb else None
+        except Exception:
+            return None
+
+    # tous les règlements sur journaux banque, lettrés ou non, par (journal Odoo, pièce Sage)
+    remises = defaultdict(list)   # -> [(client, règlement, écritures de sa lettre ou [])]
+    for cl in clients:
+        gl_l = defaultdict(list)
+        for e in cl["ecritures"]:
+            if e["lettre"]:
+                gl_l[e["lettre"]].append(e)
+        for e in cl["ecritures"]:
+            if e["credit"] > 0 and e["journal"]:
+                jid2 = journal_pour(e["journal"])
+                if jid2 in cables:
+                    remises[(jid2, e["piece"])].append((cl, e, gl_l.get(e["lettre"], []) if e["lettre"] else []))
+    invs_pris = set()   # factures déjà couvertes par une remise
+    regs_pris = set()   # règlements consommés (id() des dicts)
+    today = _dt.date.today()
+    # lignes de relevé déjà lettrées : si la remise y correspond, elle a été traitée autrement dans Odoo
+    stmt_lettre = _q("account.bank.statement.line", "search_read",
+                     [("company_id", "=", comp), ("is_reconciled", "=", True), ("amount", ">", 0),
+                      ("date", ">=", (today - _dt.timedelta(days=400)).strftime("%Y-%m-%d"))],
+                     fields=["date", "amount", "journal_id", "payment_ref"], limit=0)
+    for (jid2, piece), items in sorted(remises.items(), key=lambda kv: kv[1][0][1]["date"]):
+        total = round(sum(e["credit"] for _, e, _ in items), 2)
+        try:
+            dref = _dt.date.fromisoformat(items[0][1]["date"][:10])
+        except Exception:
+            continue
+        cheque_like = any(RE_CHQ.search(e["lib"]) or RE_CB.search(e["lib"]) for _, e, _ in items)
+        est_cb = all(RE_CB.search(e["lib"]) for _, e, _ in items)
+        s_ok, par_brut = None, False
+        for s2 in stmt:
+            if s2["id"] in stmt_uses or s2["journal_id"][0] != jid2:
+                continue
+            try:
+                ecart_j = abs((_dt.date.fromisoformat(str(s2["date"])[:10]) - dref).days)
+            except Exception:
+                continue
+            if ecart_j > 15:
+                continue
+            b2 = brut_de(s2["payment_ref"])
+            if b2 is not None and abs(b2 - total) < 0.005:
+                s_ok, par_brut = s2, True
+                break
+            if abs(s2["amount"] - total) < 0.005 and (cheque_like or len(items) > 1):
+                s_ok = s2
+                break
+        if s_ok is None:
+            deja_lettre = None
+            for s2 in stmt_lettre:
+                if s2["journal_id"][0] != jid2:
+                    continue
+                try:
+                    ecart_j = abs((_dt.date.fromisoformat(str(s2["date"])[:10]) - dref).days)
+                except Exception:
+                    continue
+                b2 = brut_de(s2["payment_ref"])
+                if ecart_j <= 15 and (abs(s2["amount"] - total) < 0.005 or (b2 is not None and abs(b2 - total) < 0.005)):
+                    deja_lettre = s2
+                    break
+            if deja_lettre is not None:
+                ouverts = []
+                for cl, e, es in items:
+                    for f in es:
+                        i2 = invs.get(f["fac"]) if f["fac"] else None
+                        if i2 and i2["state"] == "posted" and i2["payment_state"] in ("not_paid", "partial"):
+                            ouverts.append("%s %s" % (cl["nom"][:20], f["fac"]))
+                if ouverts:
+                    anomalies.append("remise %s n°%s du %s (%.2f €) : la ligne de relevé du %s est DÉJÀ lettrée dans Odoo alors que %s reste(nt) ouverte(s) — à vérifier dans Odoo"
+                                     % (journal_nom(jid2), piece, items[0][1]["date"][:10], total, str(deja_lettre["date"])[:10], ", ".join(ouverts)[:120]))
+                for cl, e, es in items:
+                    regs_pris.add(id(e))
+                    for f in es:
+                        i2 = invs.get(f["fac"]) if f["fac"] else None
+                        if i2:
+                            invs_pris.add(i2["id"])
+                continue
+        if s_ok is None and not cheque_like:
+            continue   # virement isolé : logique classique
+        if par_brut:
+            est_cb = True
+        # composition par (client, lettre) : plusieurs chèques d'une même lettre s'additionnent
+        par_lettre = {}
+        for cl, e, es in items:
+            key = (cl["code"], e["lettre"] or ("~%d" % id(e)))
+            par_lettre.setdefault(key, {"cl": cl, "regs": [], "es": es})["regs"].append(e)
+        lots, pay_exist, detail, deja_rem, sans_lettre = [], [], [], 0, 0.0
+        for key, g in par_lettre.items():
+            cl, regs_g, es = g["cl"], g["regs"], g["es"]
+            credit_g = round(sum(e["credit"] for e in regs_g), 2)
+            typ = "CB" if (est_cb or any(RE_CB.search(e["lib"]) for e in regs_g)) else ("chèque" if any(RE_CHQ.search(e["lib"]) for e in regs_g) else "règlement")
+            if not es:
+                sans_lettre += credit_g
+                detail.append("%s %.2f € — %s : non lettré dans Sage, à traiter dans le widget" % (typ, credit_g, cl["nom"][:28]))
+                continue
+            facs2 = [f for f in es if f["fac"] and f["debit"] > 0]
+            etats2 = [invs.get(f["fac"]) for f in facs2]
+            ouv = [i for i in etats2 if i and i["state"] == "posted" and i["payment_state"] in ("not_paid", "partial") and i["id"] not in invs_pris]
+            enc = [i for i in etats2 if i and i["payment_state"] == "in_payment" and i["id"] in pay_par_inv]
+            for i in enc:
+                pid = pay_par_inv[i["id"]]["id"]
+                if pid not in pay_exist:
+                    pay_exist.append(pid)
+                    detail.append("%s %.2f € — %s : paiement %s déjà saisi, sera rapproché" % (typ, credit_g, cl["nom"][:28], pay_par_inv[i["id"]]["name"]))
+            for e in regs_g:
+                regs_pris.add(id(e))
+            if not ouv:
+                if not enc:
+                    deja_rem += 1
+                    sans_lettre += credit_g if not any(i and i["payment_state"] in ("paid", "reversed") for i in etats2) else 0.0
+                continue
+            residu = round(sum(i["amount_residual"] for i in ouv), 2)
+            montant = round(min(credit_g, residu), 2)
+            if montant <= 0:
+                deja_rem += 1
+                continue
+            lots.append({"ids": [i["id"] for i in ouv], "amount": montant, "client": cl["nom"][:30], "lettre": key[1]})
+            for i in ouv:
+                invs_pris.add(i["id"])
+            autres = [f for f in es if f["credit"] > 0 and f not in regs_g and not (RE_CHQ.search(f["lib"]) or RE_CB.search(f["lib"]))]
+            detail.append("%s %.2f € — %s%s" % (typ, credit_g, cl["nom"][:28],
+                          (" (+ %s à lettrer dans Odoo)" % ", ".join("%s %.2f €" % (f["lib"][:18], f["credit"]) for f in autres)) if autres else ""))
+        if not lots and not pay_exist:
+            deja += deja_rem
+            continue
+        somme = round(sum(lo["amount"] for lo in lots), 2)
+        montant_exist = round(sum(pay_par_inv[i]["amount"] for i in pay_par_inv if pay_par_inv[i]["id"] in pay_exist), 2) if pay_exist else 0.0
+        couvert = round(somme + montant_exist, 2)
+        base = {"ligne": {"date": items[0][1]["date"][:10], "piece": str(piece), "credit": 0.0, "debit": somme,
+                          "lib": "Remise %s n°%s du %s — %d règlement(s), %.2f €" % ("CB" if est_cb else "chèques", piece, items[0][1]["date"][:10], len(items), total)},
+                "journal_id": jid2, "lots": lots, "ids": [i for lo in lots for i in lo["ids"]], "pay_ids": pay_exist,
+                "total": total, "cb": bool(est_cb)}
+        if s_ok is not None:
+            stmt_uses.add(s_ok["id"])
+            net = round(s_ok["amount"], 2)
+            det = ["relevé %s : %s (%.2f €)" % (str(s_ok["date"])[:10], (s_ok["payment_ref"] or "")[:45], net)]
+            reste = round(total - couvert, 2)
+            if est_cb and abs(total - net) >= 0.005:
+                det.append("commission bancaire %.2f € passée en frais bancaires" % round(total - net, 2))
+            if abs(reste) < 0.05:
+                base.update({"type": "remise", "stmt_moves": [s_ok["move_id"][0]], "net": net, "detail": det + detail})
+            else:
+                det.append("⚠ %.2f € de cette remise non expliqués (non lettrés dans Sage ou déjà réglés autrement) : paiements créés, rapprochement à finir dans le widget" % reste)
+                base.update({"type": "remise_partielle", "stmt_moves": [s_ok["move_id"][0]], "net": net, "detail": det + detail})
+        else:
+            if (today - dref).days > 45:
+                anomalies.append("remise %s n°%s du %s (%.2f €) : introuvable sur le relevé Odoo (±15 j) — à vérifier"
+                                 % (journal_nom(jid2), piece, items[0][1]["date"][:10], total))
+                for lo in lots:
+                    for i in lo["ids"]:
+                        invs_pris.discard(i)
+                for cl, e, es in items:
+                    regs_pris.discard(id(e))
+                continue
+            base.update({"type": "remise_attente",
+                         "detail": ["pas encore sur le relevé Odoo : paiements créés et regroupés en « Dépôt par lot » n°%s — le rapprochement se fera à l'arrivée de la ligne" % piece] + detail})
+        props.append(base)
     for cl in clients:
         groupes = defaultdict(list)
         for e in cl["ecritures"]:
@@ -1418,8 +1671,9 @@ def _gl_analyse(comp, clients):
         for lettre, es in sorted(groupes.items()):
             sd = round(sum(e["debit"] for e in es), 2)
             sc = round(sum(e["credit"] for e in es), 2)
-            facs = [e for e in es if e["fac"] and e["debit"] > 0]
-            regs = [e for e in es if e["credit"] > 0]
+            facs = [e for e in es if e["fac"] and e["debit"] > 0
+                    and not (invs.get(e["fac"]) and invs[e["fac"]]["id"] in invs_pris)]
+            regs = [e for e in es if e["credit"] > 0 and id(e) not in regs_pris]
             if not facs or not regs:
                 continue
             if abs(sd - sc) > 0.01:
@@ -1494,57 +1748,8 @@ def _gl_analyse(comp, clients):
                                   "type": "facture", "ids": [inv["id"]], "journal_id": jid,
                                   "detail": ["aucun paiement saisi dans Odoo — cocher pour créer le paiement de %.2f € au %s et lettrer"
                                              % (montant, date_reg)]})
-                    if abs(montant - round(inv["amount_residual"], 2)) < 0.005:
-                        cands.append({"idx": len(props) - 1, "amount": montant, "date": date_reg, "jid": jid,
-                                      "inv": inv["id"], "lib": "%s — %s" % (cl["nom"][:24], e["fac"])})
                 else:
                     deja += 1
-    # ── remises de chèques : une ligne « REM CHQ DE n / REMISE CHEQUES » du relevé = somme de
-    #    plusieurs chèques (factures de clients différents). On cherche la combinaison exacte
-    #    (± 7 jours, jusqu'à 6 chèques) et on propose un rapprochement « relevé » groupé.
-    import datetime as _dt
-    remises = [s2 for s2 in stmt if s2["id"] not in stmt_uses and _REMISE_RE.search(s2["payment_ref"] or "")]
-    utilises = set()
-    for s2 in sorted(remises, key=lambda r: str(r["date"])):
-        try:
-            d2 = _dt.date.fromisoformat(str(s2["date"])[:10])
-        except Exception:
-            continue
-        pool = []
-        for cd in cands:
-            if cd["idx"] in utilises or cd["jid"] != s2["journal_id"][0]:
-                continue
-            try:
-                ecart = abs((_dt.date.fromisoformat(cd["date"][:10]) - d2).days)
-            except Exception:
-                continue
-            if ecart <= 7:
-                pool.append(cd)
-        pool = sorted(pool, key=lambda cd: cd["date"])[:24]
-        cible = round(s2["amount"], 2)
-        trouve = None
-        for taille in range(1, min(6, len(pool)) + 1):
-            for combo in _combi(pool, taille):
-                if abs(round(sum(cd["amount"] for cd in combo), 2) - cible) < 0.005:
-                    trouve = combo
-                    break
-            if trouve:
-                break
-        if not trouve:
-            continue
-        for cd in trouve:
-            utilises.add(cd["idx"])
-        stmt_uses.add(s2["id"])
-        props.append({
-            "ligne": {"date": str(s2["date"])[:10], "piece": "REMISE", "credit": 0.0, "debit": cible,
-                      "lib": "Remise de chèques du %s — %d chèque(s) : %s"
-                             % (str(s2["date"])[:10], len(trouve), ", ".join(cd["lib"][:30] for cd in trouve)[:120])},
-            "type": "releve", "ids": [cd["inv"] for cd in trouve], "pay_ids": [],
-            "stmt_moves": [s2["move_id"][0]], "journal_id": s2["journal_id"][0],
-            "detail": ["relevé %s : %s (%.2f €)" % (str(s2["date"])[:10], (s2["payment_ref"] or "")[:45], s2["amount"])]
-                      + ["chèque %.2f € — %s" % (cd["amount"], cd["lib"]) for cd in trouve]})
-    if utilises:
-        props = [pr for i, pr in enumerate(props) if i not in utilises]
     return props, anomalies, deja
 
 
@@ -1622,6 +1827,15 @@ def rappro_analyse():
             l = pr["ligne"]
             if pr["type"] == "releve":
                 statut = "<span class='ok'>✓ rapprocher avec le relevé bancaire</span>"
+                coche = "checked"
+            elif pr["type"] == "remise":
+                statut = "<span class='ok'>✓ remise groupée : %d paiement(s) créé(s) et rapprochés avec le relevé</span>" % len(pr["lots"])
+                coche = "checked"
+            elif pr["type"] == "remise_attente":
+                statut = "<span style='color:#1d4ed8;font-weight:700;'>📦 remise pas encore en banque : %d paiement(s) + dépôt par lot</span>" % len(pr["lots"])
+                coche = "checked"
+            elif pr["type"] == "remise_partielle":
+                statut = "<span style='color:#b45309;font-weight:700;'>◐ remise partiellement expliquée : %d paiement(s) créé(s), rapprochement à finir dans le widget</span>" % len(pr["lots"])
                 coche = "checked"
             elif pr["type"] == "paiements":
                 statut = "<span class='ok'>✓ lettrer le paiement existant</span>"
@@ -1786,12 +2000,21 @@ def _rappro_recap(retenus, props, stats, faits, erreurs):
     n_lettres = sum(1 for p in retenus if p["type"] == "paiements")
     n_releves = sum(1 for p in retenus if p["type"] == "releve")
     n_crees = sum(1 for p in retenus if p["type"] == "facture")
+    n_remises = sum(1 for p in retenus if p["type"] == "remise")
+    n_rem_att = sum(1 for p in retenus if p["type"] == "remise_attente")
+    n_rem_part = sum(1 for p in retenus if p["type"] == "remise_partielle")
     ecartes = len(props) - len(retenus)
     lignes_recap = ["<b>%d</b> appliqué(s) — factures passées « Payé »" % faits]
     if n_lettres:
         lignes_recap.append("dont %d lettrage(s) de paiements déjà saisis" % n_lettres)
     if n_releves:
         lignes_recap.append("dont %d groupe(s) rapprochés avec les relevés bancaires" % n_releves)
+    if n_remises:
+        lignes_recap.append("dont %d remise(s) de chèques / CB rapprochée(s) avec le relevé" % n_remises)
+    if n_rem_part:
+        lignes_recap.append("dont %d remise(s) partiellement expliquée(s) — paiements créés, à finir dans le widget de rapprochement" % n_rem_part)
+    if n_rem_att:
+        lignes_recap.append("dont %d remise(s) en attente de relevé (dépôt par lot créé — à rapprocher dans le widget à l'arrivée de la ligne)" % n_rem_att)
     if n_crees:
         lignes_recap.append("<span style='color:#b45309;'>⚠ dont %d paiement(s) créé(s) faute de saisie dans Odoo (oubli à vérifier)</span>" % n_crees)
     if stats.get("deja"):
