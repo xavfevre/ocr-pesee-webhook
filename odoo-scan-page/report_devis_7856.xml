@@ -112,7 +112,7 @@
   <!-- Maquignon: Recapitulatif par produit (comme la facture) -->
   <xpath expr="//div[@id='total']/div" position="before">
     <div class="col-6 pe-4" style="float:left;width:50%;">
-      <t t-set="recap_lines" t-value="doc.order_line.filtered(lambda l: l.product_id and not l.display_type)"/>
+      <t t-set="recap_lines" t-value="doc.order_line.filtered(lambda l: l.product_id and not l.display_type and not (l.parent_id and (l.parent_id.collapse_composition or (l.parent_id.parent_id and l.parent_id.parent_id.collapse_composition))))"/>
       <t t-if="recap_lines">
         <table class="table table-borderless product-recap-table" style="font-size: 11px;">
           <thead><tr style="background-color: #f8f9fa;">

@@ -1,0 +1,53 @@
+<data>
+  <!-- Maquignon: tailles de police v18 (11px) entete + corps + totaux -->
+  <xpath expr="//div[@id='informations']" position="attributes">
+    <attribute name="style">font-size: 11px;</attribute>
+  </xpath>
+  <xpath expr="//table[@name='invoice_line_table']" position="attributes">
+    <attribute name="style">font-size: 11px;</attribute>
+  </xpath>
+  <xpath expr="//table[hasclass('o_total_table')]" position="attributes">
+    <attribute name="style">font-size: 11px;</attribute>
+  </xpath>
+  <!-- Maquignon: RECAPITULATIF PAR PRODUIT (recupere prod v18) -->
+  <xpath expr="//div[@id='payment_term']" position="before">
+<!-- Maquignon : les articles d'une section « composition masquée » n'apparaissent pas dans le récapitulatif -->
+<t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type == 'product' and l.product_id and not (l.parent_id and (l.parent_id.collapse_composition or (l.parent_id.parent_id and l.parent_id.parent_id.collapse_composition))))"/>
+                    <t t-if="product_lines">
+                        <div style="max-width: 50%;" class="mt-3 mb-2">
+                            <table class="table table-borderless product-recap-table" style="font-size: 11px;">
+                                <thead>
+                                    <tr style="background-color: #f8f9fa;">
+                                        <th class="text-start"><strong>Récapitulatif par produit</strong></th>
+                                        <th class="text-end"><strong>Quantité totale</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Groupement par (produit, UdF) avec fallback sur l'UdM si UdF vide -->
+                                    <t t-set="combo_keys" t-value="list(set([(l.product_id.id, l.x_studio_udf or l.product_uom_id.name) for l in product_lines]))"/>
+                                    <t t-foreach="combo_keys" t-as="combo">
+                                        <t t-set="matching" t-value="product_lines.filtered(lambda l: l.product_id.id == combo[0] and (l.x_studio_udf or l.product_uom_id.name) == combo[1])"/>
+                                        <t t-set="rep_line" t-value="matching[0]"/>
+                                        <t t-set="total_qty" t-value="sum(matching.mapped('quantity'))"/>
+                                        <tr>
+                                            <td t-out="rep_line.product_id.display_name">Produit</td>
+                                            <td class="text-end text-nowrap">
+                                                <span t-out="'%.3f' % total_qty">0.000</span>
+                                                <span t-out="combo[1]" class="ms-1">Tonne</span>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+  </xpath>
+  <!-- Maquignon: colspan sous-total de section (colonnes REF. + Réf. Pierre) -->
+  <xpath expr="//t[@t-set='line_colspan']" position="attributes"><attribute name="t-value">3 + (1 if display_discount else 0) + (1 if display_taxes and not line.tax_ids else 0) + (1 if any(l.x_studio_date_de_distribution for l in o.invoice_line_ids) else 0) + (1 if any(l.x_studio_ref_pierre for l in o.invoice_line_ids) else 0)</attribute></xpath>
+
+  <xpath expr="//div[@id='informations']" position="inside">
+    <style>.o_main_table .o_small-fs { font-size: 11px !important; }</style>
+  </xpath>
+  <!-- Maquignon: totaux colles a droite (pe-0) + alignes verticalement (mt-3) comme le recap -->
+  <xpath expr="//div[@id='right-elements']" position="attributes"><attribute name="t-attf-class">#{'col-5 mt-3 pe-0' if report_type == 'pdf' else 'col-12 col-md-5'} ms-5 d-inline-block float-end</attribute></xpath>
+</data>
