@@ -39,7 +39,6 @@
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}">👷 Vue opérateurs</a></li>
           <li class="nav-item"><a class="nav-link active fw-bold" href="#">📅 Vue semaine</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">📆 Vue mois</a></li>
-          <li t-if="request.env.user.has_group('maquignon.group_suivi_commandes')" class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
         </ul>
         <div class="d-flex align-items-center mb-2 flex-wrap gap-3">
           <h3 class="mb-0">Planning fabrication (opérations) — semaine du <t t-esc="monday.strftime('%d/%m/%Y')"/></h3>
