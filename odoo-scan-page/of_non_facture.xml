@@ -47,12 +47,6 @@
       <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#2c3e50;letter-spacing:1px;">💶 Suivi facturation</h3>
 
       <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
-        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=complet">🏭 Board complet</a></li>
-        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=secondaire">🪚 Sciage secondaire</a></li>
-        <li class="nav-item"><a class="nav-link" href="/planning-machines?board=primaire">🪨 Sciage primaire</a></li>
-        <li class="nav-item"><a class="nav-link" href="/planning-operateurs">👷 Vue opérateurs</a></li>
-        <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
-        <li class="nav-item"><a class="nav-link" href="/planning-mois">📆 Vue mois</a></li>
         <li t-if="request.env.user.has_group('maquignon.group_suivi_commandes')" class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
         <li class="nav-item"><a class="nav-link active fw-bold" href="#">💶 Suivi facturation</a></li>
       </ul>
