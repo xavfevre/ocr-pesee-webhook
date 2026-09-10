@@ -1186,12 +1186,18 @@ def _rappro_applique(comp, journal, props, avance=None):
                         raise Exception("paiement non créé pour %s" % lo["client"])
                     pay_ids += nouveaux[:1]
                 if prop["type"] == "remise_attente":
-                    meth = _q("account.payment.method", "search", [("code", "=", "batch_payment"), ("payment_type", "=", "inbound")], limit=1)
-                    bvals = {"journal_id": jid, "date": l["date"], "batch_type": "inbound",
-                             "payment_ids": [(6, 0, pay_ids)]}
-                    if meth:
-                        bvals["payment_method_id"] = meth[0]
-                    _q("account.batch.payment", "create", [bvals])
+                    deja_lot = [p_ for p_ in _q("account.payment", "read", pay_ids, fields=["batch_payment_id"]) if p_["batch_payment_id"]]
+                    sans_lot = [p_["id"] for p_ in _q("account.payment", "read", pay_ids, fields=["batch_payment_id"]) if not p_["batch_payment_id"]]
+                    if sans_lot:
+                        if deja_lot:
+                            _q("account.batch.payment", "write", [deja_lot[0]["batch_payment_id"][0]], {"payment_ids": [(4, i) for i in sans_lot]})
+                        else:
+                            meth = _q("account.payment.method", "search", [("code", "=", "batch_payment"), ("payment_type", "=", "inbound")], limit=1)
+                            bvals = {"journal_id": jid, "date": l["date"], "batch_type": "inbound",
+                                     "payment_ids": [(6, 0, sans_lot)]}
+                            if meth:
+                                bvals["payment_method_id"] = meth[0]
+                            _q("account.batch.payment", "create", [bvals])
                     faits += 1
                     continue
                 if prop["type"] == "remise_partielle":
@@ -1628,6 +1634,15 @@ def _gl_analyse(comp, clients):
                     detail.append("%s %.2f € — %s : paiement %s déjà saisi, sera rapproché" % (typ, credit_g, cl["nom"][:28], pay_par_inv[i["id"]]["name"]))
             for e in regs_g:
                 regs_pris.add(id(e))
+            if enc or any(i and i["payment_state"] in ("paid", "reversed") for i in etats2):
+                # un paiement existe déjà pour cette lettre : on ne crée rien de plus, le solde restant
+                # (avoir, acompte, écart) se lettre à la main dans Odoo
+                if ouv:
+                    detail.append("%s %.2f € — %s : paiement déjà présent, reste %.2f € sur facture(s) à lettrer (avoir / acompte)"
+                                  % (typ, credit_g, cl["nom"][:28], round(sum(i["amount_residual"] for i in ouv), 2)))
+                    for i in ouv:
+                        invs_pris.add(i["id"])
+                continue
             if not ouv:
                 if not enc:
                     deja_rem += 1
@@ -1810,7 +1825,7 @@ encaissements pointés passent les paiements et factures Odoo à « Payé », à
 Sociétés concernées : SARL Maquignon, Châtel'Granulats et Carrière d'Haims (Distri Béton
 reste rapprochée dans Odoo).</p>
 __CORPS__
-<p style="margin-top:16px;"><a class="retour" href="./?token=__TOKEN__">← Retour à l'export Sage</a></p>
+<p style="margin-top:16px;"><a class="retour" href="/export-compta/?token=__TOKEN__">← Retour à l'export Sage</a></p>
 </div></body></html>"""
 
 
