@@ -124,6 +124,9 @@
         <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
         <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
         <t t-set="saisies" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',monday.strftime('%Y-%m-%d')),('x_date','&lt;=',(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]))"/>
+        <!-- heures « en plus, à récupérer » déjà saisies, par date (x_recup_ligne) -->
+        <t t-set="recups" t-value="{}"/>
+        <t t-set="_rq" t-value="[recups.update({l.x_date.strftime('%Y-%m-%d'): recups.get(l.x_date.strftime('%Y-%m-%d'), 0.0) + (l.x_heures or 0.0)}) for l in request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',emp.id)])]"/>
         <div class="mh-brand">
           <img t-attf-src="/web/image/res.company/{{emp.company_id.id}}/logo" t-att-alt="emp.company_id.name"/>
           <div>
@@ -229,12 +232,12 @@
           <t t-set="lock" t-value="s and s.x_type in ('cp', 'maladie', 'ferie', 'absence', 'recup', 'repos')"/>
           <div t-attf-class="mh-day t-{{s and s.x_type or 'vide'}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % (s.x_theo if (s and s.x_type == 'travail') else theo)"
                t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)"
-               t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-type="s and s.x_type or ''">
+               t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-type="s and s.x_type or ''" t-att-data-recup="'%g' % recups.get(dstr, 0)">
             <div class="mh-dh">
               <span class="mh-dname"><t t-esc="jours[i]"/> <t t-esc="d.strftime('%d/%m')"/></span>
               <span class="mh-state" t-att-data-role="'state'">
                 <t t-if="s">
-                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h<t t-if="s.x_decouchage"> · 🛏</t></t>
+                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="'%.2f' % s.x_heures"/> h<t t-if="s.x_decouchage"> · 🛏</t><t t-if="recups.get(dstr)"> · 🔄 +<t t-esc="'%g' % recups.get(dstr)"/> h</t></t>
                   <t t-elif="s.x_type == 'cp'">🌴 Congés</t>
                   <t t-elif="s.x_type == 'maladie'">🤒 Maladie</t>
                   <t t-elif="s.x_type == 'ferie'">🎉 Férié</t>
@@ -305,6 +308,11 @@
               <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#334155;margin:6px 0 2px;cursor:pointer;">
                 <input type="checkbox" data-f="decouchage" t-att-checked="'checked' if (s and s.x_decouchage) else None" style="width:17px;height:17px;"/>
                 🛏 Découchage (nuit en déplacement)
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#075985;margin:4px 0 2px;">
+                🔄 + heures à récupérer
+                <input type="number" data-f="recup" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % recups.get(dstr)) if recups.get(dstr) else ''" style="width:72px;margin-left:auto;border:1.5px solid #7dd3fc;border-radius:8px;padding:5px 6px;font-weight:800;text-align:center;"/>
+                <span style="color:#94a3b8;font-weight:700;">h</span>
               </label>
               <button type="button" class="mh-save" data-act="save">💾 Enregistrer ces heures</button>
             </t>
@@ -417,7 +425,8 @@
         </div>
 
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
-          <div style="font-weight:900;font-size:16px;margin-bottom:8px;">🌴 Demander des congés</div>
+          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🌴 Demander des congés / 🔄 une récup</div>
+          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Congés payés, récupération (journée, demi-journée ou horaires précis), sans solde… La demande part au bureau pour validation. Les heures faites <b>en plus</b> se saisissent jour par jour dans « + heures à récupérer ».</div>
           <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 10px;align-items:center;">
             <label style="font-weight:800;color:#64748b;font-size:13px;">Du</label>
             <input type="date" id="mh-dc-du" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
@@ -426,7 +435,7 @@
             <label style="font-weight:800;color:#64748b;font-size:13px;">Type</label>
             <select id="mh-dc-type" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;">
               <option value="cp">Congés payés</option>
-              <option value="recup">Récupération</option>
+              <option value="recup">Récupération (poser des heures à récupérer)</option>
               <option value="sans_solde">Sans solde</option>
               <option value="maternite">Congé maternité</option>
               <option value="paternite">Congé paternité</option>
@@ -459,30 +468,6 @@
                 <span t-if="dc.x_statut == 'attente'" style="color:#b45309;font-weight:800;">⏳ En attente</span>
                 <span t-elif="dc.x_statut == 'approuve'" style="color:#15803d;font-weight:800;">✓ Approuvé</span>
                 <span t-else="" style="color:#b91c1c;font-weight:800;" t-att-title="dc.x_reponse or ''">✗ Refusé</span>
-              </div>
-            </t>
-          </div>
-        </div>
-        <!-- ===== Mettre des heures en récup ===== -->
-        <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
-          <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🔄 Mettre des heures en récup</div>
-          <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Heures faites en plus, à récupérer plus tard — elles s'ajoutent à votre solde et sont visibles par le bureau.</div>
-          <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 10px;align-items:center;">
-            <label style="font-weight:800;color:#64748b;font-size:13px;">Date</label>
-            <input type="date" id="mh-ra-date" t-att-value="today.strftime('%Y-%m-%d')" t-att-max="today.strftime('%Y-%m-%d')" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
-            <label style="font-weight:800;color:#64748b;font-size:13px;">Heures</label>
-            <input type="number" id="mh-ra-h" step="0.25" min="0.25" max="12" placeholder="ex. 2" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;font-weight:700;width:100%;box-sizing:border-box;min-width:0;"/>
-            <label style="font-weight:800;color:#64748b;font-size:13px;">Note</label>
-            <input type="text" id="mh-ra-note" placeholder="facultatif — ex. chargement tardif" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:7px;width:100%;box-sizing:border-box;min-width:0;"/>
-          </div>
-          <button type="button" id="mh-ra-go" style="margin-top:10px;width:100%;border:none;border-radius:10px;padding:11px;background:#0284c7;color:#fff;font-weight:900;font-size:15px;cursor:pointer;">🔄 Ajouter à mon compteur</button>
-          <t t-set="rl6" t-value="rl_all[:6]"/>
-          <div t-if="rl6" style="margin-top:10px;">
-            <div style="font-weight:800;color:#64748b;font-size:12.5px;margin-bottom:4px;">HEURES MISES EN RÉCUP</div>
-            <t t-foreach="rl6" t-as="rl">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;padding:4px 0;border-top:1px solid #f1f5f9;">
-                <span><b><t t-esc="rl.x_date.strftime('%d/%m/%Y')"/></b> · +<t t-esc="'%g' % rl.x_heures"/> h<t t-if="rl.x_note"> · <t t-esc="rl.x_note"/></t><t t-if="cp_ref and rl.x_date &lt;= cp_ref"> <span style="color:#94a3b8;font-weight:700;font-size:11px;">(déjà intégré au solde arrêté)</span></t></span>
-                <button type="button" class="mh-ra-del" t-att-data-id="rl.id" title="Supprimer cette ligne" style="border:none;background:none;cursor:pointer;font-size:14px;">🗑</button>
               </div>
             </t>
           </div>
@@ -559,6 +544,12 @@
                hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af};
     var dec = card.querySelector('input[data-f=decouchage]');
     ctx.hj_decouchage = (dec &amp;&amp; dec.checked) ? 1 : 0;
+    var rq = card.querySelector('input[data-f=recup]');
+    if(rq){
+      var rv = (rq.value === '') ? 0 : parseFloat(rq.value);
+      if(isNaN(rv) || rv &lt; 0 || rv &gt; 12){ alert('Heures à récupérer : entre 0 et 12 h.'); return; }
+      ctx.hj_recup = rv;
+    }
     card.style.opacity = .5;
     rpcAction(2012, ctx).then(function(r){return r.json();}).then(function(d){
       card.style.opacity = 1;
@@ -569,6 +560,7 @@
       card.className = 'mh-day t-'+typ;
       var st = card.querySelector('[data-role="state"]');
       st.textContent = (typ==='travail') ? ('✓ '+(res.heures||0).toFixed(2)+' h') : LBL[typ];
+      if(rq){ card.setAttribute('data-recup', String(res.recup||0)); if(typ==='travail' &amp;&amp; res.recup){ st.textContent += ' · 🔄 +'+res.recup+' h'; } }
       if(typ !== 'travail'){ card.querySelectorAll('.mh-times input').forEach(function(i){ i.value=''; }); }
       totals();
       if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
@@ -626,24 +618,6 @@
       setTimeout(function(){ cogo.textContent = '💾 Enregistrer mes coordonnées'; cogo.style.background = '#0f172a'; }, 2500);
     }).catch(function(){ cogo.disabled = false; alert('Échec réseau'); });
   }); }
-  var rago = document.getElementById('mh-ra-go');
-  if(rago){ rago.addEventListener('click', function(){
-    var rd = document.getElementById('mh-ra-date').value, rh = document.getElementById('mh-ra-h').value;
-    if(!rd || !rh){ alert("Indiquez la date et le nombre d'heures."); return; }
-    rago.disabled = true;
-    rpcAction(2012, {active_model:'x_heures_jour', recup_add:1, ra_emp:EMP, ra_token:TOK, ra_date:rd, ra_h:rh, ra_note:document.getElementById('mh-ra-note').value}).then(function(r){return r.json();}).then(function(d){
-      rago.disabled = false;
-      if(d.error){ handleErr(d); return; }
-      location.reload();
-    }).catch(function(){ rago.disabled = false; alert('Échec réseau'); });
-  }); }
-  document.querySelectorAll('.mh-ra-del').forEach(function(b){ b.addEventListener('click', function(){
-    if(!confirm('Supprimer cette ligne de récup ?')) return;
-    rpcAction(2012, {active_model:'x_heures_jour', recup_del:1, ra_emp:EMP, ra_token:TOK, ra_id:parseInt(b.getAttribute('data-id'),10)}).then(function(r){return r.json();}).then(function(d){
-      if(d.error){ handleErr(d); return; }
-      location.reload();
-    }).catch(function(){ alert('Échec réseau'); });
-  }); });
 })();
         </script>
       </t>

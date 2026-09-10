@@ -227,8 +227,31 @@ def _a2012(call, ctx):
                         "employee_id": emp["id"],
                         "check_in": ci.strftime("%Y-%m-%d %H:%M:%S"),
                         "check_out": co.strftime("%Y-%m-%d %H:%M:%S")}])
+        # « + heures à récupérer » saisies avec la journée : une ligne x_recup_ligne par jour
+        rq = None
+        if "hj_recup" in ctx and typ == "travail":
+            try:
+                rq = float(ctx.get("hj_recup") or 0.0)
+            except (TypeError, ValueError):
+                raise HeuresErreur("Heures à récupérer invalides.")
+            if rq < 0 or rq > 12:
+                raise HeuresErreur("Heures à récupérer : entre 0 et 12 h.")
+            rq = round(rq * 4) / 4.0
+            lignes = call("x_recup_ligne", "search_read",
+                          [["x_employee_id", "=", emp["id"]], ["x_date", "=", dstr]], ["id", "x_heures"])
+            if rq > 0:
+                if lignes:
+                    call("x_recup_ligne", "write", [lignes[0]["id"]], {"x_heures": rq})
+                    if len(lignes) > 1:
+                        call("x_recup_ligne", "unlink", [l["id"] for l in lignes[1:]])
+                else:
+                    call("x_recup_ligne", "create", [{
+                        "x_employee_id": emp["id"], "x_date": dstr, "x_heures": rq,
+                        "x_note": "saisi avec les heures du jour"}])
+            elif lignes:
+                call("x_recup_ligne", "unlink", [l["id"] for l in lignes])
         action = {"hj_ok": 1, "heures": heures, "theo": theo, "hs": hs,
-                  "partiel": 1 if partiel else 0}
+                  "partiel": 1 if partiel else 0, "recup": rq or 0}
 
     # --- Récup : mouvements d'heures saisis par le salarié (ou le bureau) ---
     if ctx.get("recup_add") or ctx.get("recup_del"):
