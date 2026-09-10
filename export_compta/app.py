@@ -1850,7 +1850,8 @@ def rappro_analyse():
             else:
                 # lettré dans Sage mais AUCUN paiement saisi dans Odoo : oubli
                 # de saisie probable -> alerte, décochée par défaut
-                statut = "<span style='color:#b45309;font-weight:700;'>⚠ paiement absent d'Odoo (oubli de saisie ?)</span>"
+                statut = ("<span style='color:#b45309;font-weight:700;'>⚠ paiement absent d'Odoo (oubli de saisie ?)</span>"
+                          "<br/><span style='color:#0f172a;font-weight:700;'>☐ cochez la case à gauche pour confirmer la création du paiement</span>")
                 coche = ""
             rows += ("<tr><td><input type='checkbox' name='sel' value='%d' %s/></td>"
                      "<td>%s</td><td>%s</td><td style='text-align:right;'>%.2f €</td>"
@@ -1874,8 +1875,11 @@ def rappro_analyse():
 <input type="hidden" name="journal" value="%d"/>
 <input type="hidden" name="props" value='%s'/>
 <input type="hidden" name="stats" value='%s'/>
+<div style="margin:6px 0;font-size:13px;"><a href="#" onclick="document.querySelectorAll('input[name=sel]:not(:disabled)').forEach(function(c){c.checked=true;});majN();return false;">☑ Tout cocher</a> · <a href="#" onclick="document.querySelectorAll('input[name=sel]').forEach(function(c){c.checked=false;});majN();return false;">☐ Tout décocher</a></div>
 <table><tr><th></th><th>Réglée le</th><th>Facture — client</th><th>Montant</th><th>Action</th></tr>%s</table>
-<button type="submit">✅ Appliquer le lettrage (%d)</button></form>"""
+<button type="submit" id="btn-appliquer">✅ Appliquer le lettrage (%d)</button>
+<script>function majN(){var n=document.querySelectorAll('input[name=sel]:checked').length;var b=document.getElementById('btn-appliquer');if(b){b.textContent='✅ Appliquer le lettrage ('+n+' coché'+(n>1?'s':'')+')';b.disabled=(n===0);}}
+document.querySelectorAll('input[name=sel]').forEach(function(c){c.addEventListener('change',majN);});majN();</script></form>"""
                      % (len(clients), len(props), deja, note_al, note_ano, token, comp,
                         js[0] if js else 0, _json.dumps(props).replace("'", "&#39;"),
                         _json.dumps({"deja": deja, "ano": len(anomalies)}),
