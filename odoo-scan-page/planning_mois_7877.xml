@@ -1,0 +1,112 @@
+<t t-name="website.planning_mois">
+  <t t-call="website.layout">
+    <div id="wrap" class="oe_structure">
+      <section class="container-fluid px-3 py-3">
+
+    <t t-set="colors" t-value="{'TUFFEAU': '#5B8DEF', 'HAIMS': '#4CAF50', 'MIGNE': '#E0973F', 'RICHEMONT': '#3BC9B5', 'TERVOUX': '#D946C8', 'SIREUIL': '#F2D63B'}"/>
+      <t t-set="tcolors" t-value="{'SIREUIL': '#5C4A00'}"/>
+    <style>
+      .ofc{position:relative;}
+      .ofc:hover{z-index:40;}
+      .of-pop{display:none;position:absolute;left:0;top:calc(100% - 4px);z-index:80;background:#fff;border:1px solid #bbb;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,.2);padding:7px 9px;min-width:230px;max-width:320px;font-size:11px;color:#333;font-weight:400;}
+      .ofc:hover .of-pop{display:block;}
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element, .o_header_sales_one {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      #wrap {padding-top:0 !important; margin-top:0 !important;}
+    </style>
+
+        <t t-set="mparam" t-value="request.httprequest.args.get('month')"/>
+        <t t-set="q" t-value="(request.httprequest.args.get('q') or '').strip()"/>
+        <t t-set="bc" t-value="(request.httprequest.args.get('bc') or '').strip()"/>
+        <t t-set="tp" t-value="(request.httprequest.args.get('tp') or '').strip().upper()"/>
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="first" t-value="mparam and datetime.datetime.strptime(mparam, '%Y-%m').date() or today.replace(day=1)"/>
+        <t t-set="prev_m" t-value="(first - datetime.timedelta(days=1)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="next_m" t-value="(first + datetime.timedelta(days=32)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="start_monday" t-value="first - datetime.timedelta(days=first.weekday())"/>
+        <t t-set="mois_noms" t-value="['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']"/>
+        <t t-set="ots" t-value="website.env['mrp.workorder'].sudo().search([('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1)] + (q and ['|','|','|','|',('name','ilike',q),('production_id.name','ilike',q),('production_id.origin','ilike',q),('production_id.x_studio_nom_du_client','ilike',q),('production_id.x_studio_ref_commande_client','ilike',q)] or []), order='date_start')"/>
+        <t t-set="bcs" t-value="q and sorted(set([o for o in ots.mapped('production_id.origin') if o])) or []"/>
+        <t t-set="ots" t-value="ots.filtered(lambda w: w.production_id.origin == bc) if bc else ots"/>
+        <t t-set="ots" t-value="ots.filtered(lambda w: ((w.production_id.x_studio_catgorie and len((w.production_id.x_studio_catgorie.display_name or '').split('/')) &gt; 1) and w.production_id.x_studio_catgorie.display_name.split('/')[1].strip().upper() or 'AUTRE') == tp) if tp else ots"/>
+        <t t-set="late_n" t-value="len(ots.filtered(lambda w: w.state != 'done' and ((not w.date_start) or today &gt; w.date_start.date())))"/>
+        <t t-set="day_names" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi']"/>
+
+        <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=complet&amp;q={{q}}&amp;bc={{bc}}">🏭 Board complet</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=secondaire&amp;q={{q}}&amp;bc={{bc}}">🪚 Sciage secondaire</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=primaire&amp;q={{q}}&amp;bc={{bc}}">🪨 Sciage primaire</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}">👷 Vue opérateurs</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-fabrication?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">📅 Vue semaine</a></li>
+          <li class="nav-item"><a class="nav-link active fw-bold" href="#">📆 Vue mois</a></li>
+          <li t-if="request.env.user.has_group('maquignon.group_suivi_commandes')" class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
+        </ul>
+        <div class="d-flex align-items-center mb-2 flex-wrap gap-3">
+          <h3 class="mb-0">Planning fabrication — <t t-esc="mois_noms[first.month - 1]"/> <t t-esc="first.year"/></h3>
+          <div class="d-flex gap-2 flex-wrap">
+            <a t-attf-href="/planning-mois?month={{prev_m}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-secondary">← Mois préc.</a>
+            <a t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-secondary">Ce mois</a>
+            <a t-attf-href="/planning-mois?month={{next_m}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-secondary">Mois suiv. →</a>
+            <form method="get" action="/planning-mois" class="d-flex gap-1">
+              <input type="hidden" name="month" t-att-value="first.strftime('%Y-%m')"/>
+              <input type="hidden" name="tp" t-att-value="tp"/>
+              <input name="q" t-att-value="q" placeholder="Client / BC / OF..." class="form-control form-control-sm" style="width:170px;"/>
+              <button type="submit" class="btn btn-sm btn-outline-dark">🔍</button>
+              <a t-if="q" t-attf-href="/planning-mois?month={{first.strftime('%Y-%m')}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-danger" title="Effacer le filtre">✕</a>
+            </form>
+          </div>
+        </div>
+
+        <div t-if="q or bc" class="alert alert-warning py-1 px-2 mb-2 small">Filtre actif : <strong t-esc="q"/><t t-if="bc"> — BC : <strong t-esc="bc"/></t></div>
+        <div t-if="q and bcs" class="d-flex gap-1 flex-wrap align-items-center mb-2">
+          <span class="small text-muted me-1">Commandes :</span>
+          <a t-attf-href="/planning-mois?month={{first.strftime('%Y-%m')}}&amp;q={{q}}&amp;tp={{tp}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if not bc else 'btn-outline-secondary'}}">Toutes</a>
+          <t t-foreach="bcs[:20]" t-as="b">
+            <a t-attf-href="/planning-mois?month={{first.strftime('%Y-%m')}}&amp;q={{q}}&amp;bc={{b}}&amp;tp={{tp}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if bc == b else 'btn-outline-secondary'}}" t-esc="b"/>
+          </t>
+        </div>
+        <div class="d-flex gap-2 mb-2 small flex-wrap align-items-center">
+          <span class="text-muted">Pierre :</span>
+          <a t-attf-href="/planning-mois?month={{first.strftime('%Y-%m')}}&amp;q={{q}}&amp;bc={{bc}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if not tp else 'btn-outline-secondary'}}">Toutes</a>
+          <t t-foreach="sorted(colors) + ['AUTRE']" t-as="pk">
+            <a t-attf-href="/planning-mois?month={{first.strftime('%Y-%m')}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{pk}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if tp == pk else 'btn-outline-secondary'}}">
+              <span t-attf-style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{colors.get(pk, '#9AA0A6')}};margin-right:4px;"/><t t-esc="pk.capitalize()"/>
+            </a>
+          </t>
+        </div>
+        <div t-if="late_n" class="alert alert-danger py-1 px-2 mb-2 small">⚠ <strong t-esc="late_n"/> opération(s) en retard — <a href="/planning-fabrication">voir la vue semaine</a></div>
+
+        <t t-foreach="range(6)" t-as="r">
+          <t t-set="row_start" t-value="start_monday + datetime.timedelta(days=r*7)"/>
+          <t t-if="row_start.month == first.month or (row_start + datetime.timedelta(days=4)).month == first.month">
+            <div class="row gx-2 mb-2">
+              <t t-foreach="range(5)" t-as="c">
+                <t t-set="d" t-value="row_start + datetime.timedelta(days=c)"/>
+                <t t-set="in_month" t-value="d.month == first.month"/>
+                <div class="col">
+                  <div t-attf-style="background:{{'#E7F1FB' if d == today else ('#F4F5F7' if in_month else '#FBFBFC')}};min-height:110px;{{'opacity:.45;' if not in_month else ''}}" class="p-2 rounded">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <strong style="font-size:12px;"><t t-esc="day_names[c]"/> <t t-esc="d.strftime('%d/%m')"/></strong>
+                      <a t-attf-href="/planning-machines?day={{d.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}" class="text-muted" style="font-size:11px;text-decoration:none;" title="Ouvrir le board de ce jour">🏭</a>
+                    </div>
+                    <t t-set="day_ots" t-value="ots.filtered(lambda w: w.date_start and w.date_start.date() == d)"/>
+                    <t t-foreach="sorted(day_ots, key=lambda w: ((w.production_id.origin or ''), w.name or ''))" t-as="w">
+                      <t t-set="ofm" t-value="w.production_id"/>
+                      <t t-set="pname" t-value="ofm.x_studio_catgorie and ofm.x_studio_catgorie.display_name or ''"/>
+                      <t t-set="pname" t-value="len(pname.split('/')) &gt; 1 and pname.split('/')[1].strip().upper() or (pname or 'AUTRE')"/>
+                      <t t-set="is_t" t-value="'taille' in (w.name or '').lower() or 'taille' in (w.workcenter_id.name or '').lower()"/>
+                      <a t-attf-href="/web#id={{ofm.id}}&amp;model=mrp.production&amp;view_type=form" target="_blank" t-attf-style="display:block;background:{{colors.get(pname, '#9AA0A6')}};color:{{tcolors.get(pname, '#fff')}};text-shadow:{{'none' if pname in tcolors else '0 1px 1px rgba(0,0,0,.3)'}};border-radius:4px;padding:1px 6px;margin-bottom:2px;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none;{{'opacity:.5;text-decoration:line-through;' if w.state == 'done' else ''}}{{'box-shadow:inset 0 0 0 1.5px #C0392B;' if is_t and w.state != 'done' else ''}}" t-att-title="(ofm.origin or '') + ' ' + (ofm.x_studio_nom_du_client or '') + ' - ' + (w.name or '')">
+                        <t t-if="is_t">✂ </t><strong t-if="ofm.origin"><t t-esc="ofm.origin"/> · </strong><t t-if="ofm.x_studio_nom_du_client"><t t-esc="ofm.x_studio_nom_du_client"/> · </t><t t-esc="w.name"/>
+                      </a>
+                    </t>
+                  </div>
+                </div>
+              </t>
+            </div>
+          </t>
+        </t>
+        <script>setTimeout(function () { window.location.reload(); }, 300000);</script>
+      </section>
+    </div>
+  </t>
+</t>

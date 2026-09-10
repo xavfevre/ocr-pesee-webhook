@@ -1,5 +1,7 @@
 <t t-name="website.of_non_facture">
   <t t-call="website.layout">
+    <t t-set="peut_voir" t-value="request.env.user.has_group('maquignon.group_suivi_commandes')"/>
+    <t t-if="peut_voir">
     <!-- Commandes confirmées, à facturer, avec au moins un OF non annulé (même règle que le bouton
          « OF non facturé » de la liste des commandes et que la colonne du Suivi devis/commande). -->
     <t t-set="sos" t-value="request.env['sale.order'].sudo().search([('state','=','sale'),('invoice_status','=','to invoice'),('order_line.x_of_ids.state','!=','cancel')], order='date_order asc, id asc')"/>
@@ -51,7 +53,7 @@
         <li class="nav-item"><a class="nav-link" href="/planning-operateurs">👷 Vue opérateurs</a></li>
         <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
         <li class="nav-item"><a class="nav-link" href="/planning-mois">📆 Vue mois</a></li>
-        <li class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
+        <li t-if="request.env.user.has_group('maquignon.group_suivi_commandes')" class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
         <li class="nav-item"><a class="nav-link active fw-bold" href="#">💶 Suivi facturation</a></li>
       </ul>
 
@@ -151,5 +153,7 @@
         apply();
       })();
     </script>
+    </t>
+    <div t-if="not peut_voir" class="container my-5"><div class="alert alert-warning fs-5 fw-bold">🔒 Accès réservé — administrateurs et Céline.</div></div>
   </t>
 </t>

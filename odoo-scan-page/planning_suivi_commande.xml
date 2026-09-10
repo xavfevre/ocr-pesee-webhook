@@ -1,5 +1,7 @@
 <t t-name="website.planning_suivi_commande">
   <t t-call="website.layout">
+    <t t-set="peut_voir" t-value="request.env.user.has_group('maquignon.group_suivi_commandes')"/>
+    <t t-if="peut_voir">
     <t t-set="q" t-value="(request.params.get('q') or '').strip()"/>
     <t t-set="hidefact" t-value="request.params.get('hidefact')"/>
     <t t-set="dom" t-value="[('project_id','=',13)]"/>
@@ -39,7 +41,7 @@
         <li class="nav-item"><a class="nav-link" href="/planning-fabrication">📅 Vue semaine</a></li>
         <li class="nav-item"><a class="nav-link" href="/planning-mois">📆 Vue mois</a></li>
         <li class="nav-item"><a class="nav-link active fw-bold" href="#">📋 Suivi devis/commande</a></li>
-        <li class="nav-item"><a class="nav-link" href="/of-non-facture">💶 Suivi facturation</a></li>
+        <li t-if="request.env.user.has_group('maquignon.group_suivi_commandes')" class="nav-item"><a class="nav-link" href="/of-non-facture">💶 Suivi facturation</a></li>
       </ul>
 
       <form method="get" class="d-flex justify-content-center gap-2 mb-2">
@@ -176,5 +178,7 @@
         </t>
       </div>
     </div>
+    </t>
+    <div t-if="not peut_voir" class="container my-5"><div class="alert alert-warning fs-5 fw-bold">🔒 Accès réservé — administrateurs et Céline.</div></div>
   </t>
 </t>

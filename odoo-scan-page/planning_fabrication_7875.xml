@@ -1,0 +1,202 @@
+<t t-name="website.planning_fabrication">
+  <t t-call="website.layout">
+    <div id="wrap" class="oe_structure">
+      <section class="container-fluid px-3 py-3">
+
+    <t t-set="colors" t-value="{'TUFFEAU': '#5B8DEF', 'HAIMS': '#4CAF50', 'MIGNE': '#E0973F', 'RICHEMONT': '#3BC9B5', 'TERVOUX': '#D946C8', 'SIREUIL': '#F2D63B'}"/>
+      <t t-set="tcolors" t-value="{'SIREUIL': '#5C4A00'}"/>
+    <style>
+      .ofc{position:relative;}
+      .ofc:hover{z-index:40;}
+      .of-pop{display:none;position:absolute;left:0;top:calc(100% - 4px);z-index:80;background:#fff;border:1px solid #bbb;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,.2);padding:7px 9px;min-width:230px;max-width:320px;font-size:11px;color:#333;font-weight:400;}
+      .ofc:hover .of-pop{display:block;}
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element, .o_header_sales_one {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      #wrap {padding-top:0 !important; margin-top:0 !important;}
+    </style>
+
+        <t t-set="wparam" t-value="request.httprequest.args.get('week')"/>
+        <t t-set="q" t-value="(request.httprequest.args.get('q') or '').strip()"/>
+        <t t-set="bc" t-value="(request.httprequest.args.get('bc') or '').strip()"/>
+        <t t-set="mode" t-value="request.httprequest.args.get('mode') or 'pierre'"/>
+        <t t-set="tp" t-value="(request.httprequest.args.get('tp') or '').strip().upper()"/>
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="monday" t-value="wparam and datetime.datetime.strptime(wparam, '%Y-%m-%d').date() or (today - datetime.timedelta(days=today.weekday()))"/>
+        <t t-set="prev_w" t-value="(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')"/>
+        <t t-set="next_w" t-value="(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')"/>
+        <t t-set="ots" t-value="website.env['mrp.workorder'].sudo().search([('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1)] + (q and ['|','|','|','|',('name','ilike',q),('production_id.name','ilike',q),('production_id.origin','ilike',q),('production_id.x_studio_nom_du_client','ilike',q),('production_id.x_studio_ref_commande_client','ilike',q)] or []), order='date_start')"/>
+        <t t-set="bcs" t-value="q and sorted(set([o for o in ots.mapped('production_id.origin') if o])) or []"/>
+        <t t-set="ots" t-value="ots.filtered(lambda w: w.production_id.origin == bc) if bc else ots"/>
+        <t t-set="ots" t-value="ots.filtered(lambda w: ((w.production_id.x_studio_catgorie and len((w.production_id.x_studio_catgorie.display_name or '').split('/')) &gt; 1) and w.production_id.x_studio_catgorie.display_name.split('/')[1].strip().upper() or 'AUTRE') == tp) if tp else ots"/>
+        <t t-set="so_map" t-value="{r['name']: r for r in website.env['sale.order'].sudo().search_read([('name','in', [o for o in ots.mapped('production_id.origin') if o])], ['name','create_date'])}"/>
+        <t t-set="employees" t-value="website.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
+        <t t-set="day_names" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi']"/>
+
+        <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:15px;white-space:nowrap;">
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=complet&amp;q={{q}}&amp;bc={{bc}}">🏭 Board complet</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=secondaire&amp;q={{q}}&amp;bc={{bc}}">🪚 Sciage secondaire</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=primaire&amp;q={{q}}&amp;bc={{bc}}">🪨 Sciage primaire</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}">👷 Vue opérateurs</a></li>
+          <li class="nav-item"><a class="nav-link active fw-bold" href="#">📅 Vue semaine</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">📆 Vue mois</a></li>
+          <li t-if="request.env.user.has_group('maquignon.group_suivi_commandes')" class="nav-item"><a class="nav-link" href="/planning-suivi-commande">📋 Suivi devis/commande</a></li>
+        </ul>
+        <div class="d-flex align-items-center mb-2 flex-wrap gap-3">
+          <h3 class="mb-0">Planning fabrication (opérations) — semaine du <t t-esc="monday.strftime('%d/%m/%Y')"/></h3>
+          <div class="d-flex gap-2 flex-wrap">
+            <a t-attf-href="/planning-fabrication?week={{prev_w}}&amp;mode={{mode}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-secondary">← Sem. préc.</a>
+            <a t-attf-href="/planning-fabrication?mode={{mode}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-secondary">Aujourd'hui</a>
+            <a t-attf-href="/planning-fabrication?week={{next_w}}&amp;mode={{mode}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" class="btn btn-sm btn-outline-secondary">Sem. suiv. →</a>
+            <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode=pierre&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" t-attf-class="btn btn-sm {{'btn-dark' if mode == 'pierre' else 'btn-outline-dark'}}">Par pierre</a>
+            <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode=client&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" t-attf-class="btn btn-sm {{'btn-dark' if mode == 'client' else 'btn-outline-dark'}}">Par client</a>
+            <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode=commande&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}" t-attf-class="btn btn-sm {{'btn-dark' if mode == 'commande' else 'btn-outline-dark'}}">Par commande</a>
+            <form method="get" action="/planning-fabrication" class="d-flex gap-1">
+              <input type="hidden" name="week" t-att-value="monday.strftime('%Y-%m-%d')"/>
+              <input type="hidden" name="mode" t-att-value="mode"/>
+              <input type="hidden" name="tp" t-att-value="tp"/>
+              <input name="q" t-att-value="q" placeholder="Client / BC / OF..." class="form-control form-control-sm" style="width:170px;"/>
+              <button type="submit" class="btn btn-sm btn-outline-dark">🔍</button>
+              <a t-if="q" t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode={{mode}}" class="btn btn-sm btn-outline-danger" title="Effacer le filtre">✕</a>
+            </form>
+          </div>
+        </div>
+
+        <div t-if="q or bc" class="alert alert-warning py-1 px-2 mb-2 small">Filtre actif : <strong t-esc="q"/><t t-if="bc"> — BC : <strong t-esc="bc"/></t></div>
+        <div t-if="q and bcs" class="d-flex gap-1 flex-wrap align-items-center mb-2">
+          <span class="small text-muted me-1">Commandes :</span>
+          <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode={{mode}}&amp;q={{q}}&amp;tp={{tp}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if not bc else 'btn-outline-secondary'}}">Toutes</a>
+          <t t-foreach="bcs[:20]" t-as="b">
+            <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode={{mode}}&amp;q={{q}}&amp;bc={{b}}&amp;tp={{tp}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if bc == b else 'btn-outline-secondary'}}" t-esc="b"/>
+          </t>
+        </div>
+
+        <div class="d-flex gap-2 mb-3 small flex-wrap align-items-center">
+          <span class="text-muted">Pierre :</span>
+          <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode={{mode}}&amp;q={{q}}&amp;bc={{bc}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if not tp else 'btn-outline-secondary'}}">Toutes</a>
+          <t t-foreach="sorted(colors) + ['AUTRE']" t-as="pk">
+            <a t-attf-href="/planning-fabrication?week={{monday.strftime('%Y-%m-%d')}}&amp;mode={{mode}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{pk}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if tp == pk else 'btn-outline-secondary'}}">
+              <span t-attf-style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{colors.get(pk, '#9AA0A6')}};margin-right:4px;"/><t t-esc="pk.capitalize()"/>
+            </a>
+          </t>
+        </div>
+
+        <select id="pf-emp-tpl" style="display:none;">
+          <option value="">— Opérateur —</option>
+          <t t-foreach="employees" t-as="e"><option t-att-value="e.id" t-esc="e.name"/></t>
+        </select>
+
+        <div class="d-none d-md-block">
+        <div class="row gx-2">
+          <t t-if="False">
+          <div class="col">
+            <div class="p-2 rounded" style="background:#FBEAEA;min-height:300px;">
+              <t t-set="late" t-value="ots.filtered(lambda w: w.state != 'done' and ((not w.date_start) or monday &gt; w.date_start.date()))"/>
+              <h6 class="text-danger">⚠ À replanifier (<t t-esc="len(late)"/>)</h6>
+              <t t-set="cards" t-value="sorted(late, key=lambda w: (w.production_id.x_studio_nom_du_client or '')) if mode == 'client' else (sorted(late, key=lambda w: (w.production_id.origin or '')) if mode == 'commande' else late)"/>
+              <t t-foreach="cards" t-as="w"><t t-call="website.planning_machine_card"/></t>
+            </div>
+          </div>
+          </t>
+          <t t-foreach="range(5)" t-as="i">
+            <t t-set="day_date" t-value="monday + datetime.timedelta(days=i)"/>
+            <div class="col">
+              <div t-attf-style="background:{{'#E7F1FB' if day_date == today else '#F4F5F7'}};min-height:300px;" class="p-2 rounded">
+                <h6><t t-esc="day_names[i]"/> <small class="text-muted"><t t-esc="day_date.strftime('%d/%m')"/></small></h6>
+                <t t-set="day_ots" t-value="ots.filtered(lambda w: w.date_start and (w.date_start.date() == day_date or (i == 4 and w.date_start.date() &gt; day_date and 3 &gt; (w.date_start.date() - day_date).days)))"/>
+                <t t-set="cards" t-value="sorted(day_ots, key=lambda w: (w.production_id.x_studio_nom_du_client or '')) if mode == 'client' else (sorted(day_ots, key=lambda w: (w.production_id.origin or '')) if mode == 'commande' else day_ots)"/>
+                <t t-foreach="cards" t-as="w"><t t-call="website.planning_machine_card"/></t>
+              </div>
+            </div>
+          </t>
+        </div>
+        </div>
+
+        <!-- ===== VERSION MOBILE : sections empilées par jour ===== -->
+        <div class="d-md-none">
+          <t t-set="mlate" t-value="ots.filtered(lambda w: w.state != 'done' and ((not w.date_start) or monday &gt; w.date_start.date()))"/>
+          <t t-if="False">
+          <div class="p-2 rounded mb-2" style="background:#FBEAEA;">
+            <h6 class="text-danger mb-1">⚠ À replanifier (<t t-esc="len(mlate)"/>)</h6>
+            <t t-foreach="mlate" t-as="w"><t t-call="website.planning_machine_card"/></t>
+          </div>
+          </t>
+          <t t-foreach="range(5)" t-as="i">
+            <t t-set="day_date" t-value="monday + datetime.timedelta(days=i)"/>
+            <t t-set="m_ots" t-value="ots.filtered(lambda w: w.date_start and (w.date_start.date() == day_date or (i == 4 and w.date_start.date() &gt; day_date and 3 &gt; (w.date_start.date() - day_date).days)))"/>
+            <div t-attf-class="card mb-2 {{'border-primary' if day_date == today else ''}}">
+              <div t-attf-class="card-header py-1 {{'bg-primary text-white' if day_date == today else 'bg-light'}}">
+                <h6 class="mb-0"><t t-esc="day_names[i]"/> <t t-esc="day_date.strftime('%d/%m')"/> <small>(<t t-esc="len(m_ots)"/> op.)</small></h6>
+              </div>
+              <div class="card-body p-2">
+                <t t-if="m_ots"><t t-foreach="m_ots" t-as="w"><t t-call="website.planning_machine_card"/></t></t>
+                <t t-else=""><div class="text-center text-muted small py-1">Aucune opération</div></t>
+              </div>
+            </div>
+          </t>
+        </div>
+
+        <script>
+        // 
+        (function () {
+          function rpcWrite(woId, vals, cb) {
+            fetch('/web/dataset/call_kw', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {
+                model: 'mrp.workorder', method: 'write', args: [[woId], vals], kwargs: {}
+              }})
+            }).then(function (r) { return r.json(); }).then(function (data) {
+              if (data.error) { cb(false, data.error.data &amp;&amp; data.error.data.message || data.error.message); }
+              else { cb(true); }
+            }).catch(function (e) { cb(false, String(e)); });
+          }
+          var tpl = document.getElementById('pf-emp-tpl');
+          document.querySelectorAll('select.pf-op').forEach(function (sel) {
+            sel.innerHTML = tpl.innerHTML;
+            sel.value = sel.getAttribute('data-op') || '';
+            sel.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+            sel.addEventListener('change', function () {
+              var woId = parseInt(sel.closest('.pf-card').getAttribute('data-id'));
+              var v = sel.value;
+              rpcWrite(woId, { employee_assigned_ids: v ? [[6, false, [parseInt(v)]]] : [[5]] }, function (ok, msg) {
+                sel.style.outline = ok ? '2px solid #2E9E5B' : '2px solid #D33';
+                if (!ok) alert('Échec affectation opérateur : ' + msg);
+              });
+            });
+          });
+                    // Pastille ✓ = terminer l'ordre de travail
+          document.querySelectorAll('.pf-done').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+              ev.preventDefault(); ev.stopPropagation();
+              if (!confirm('Terminer cette opération ?')) { return; }
+              var woId = parseInt(b.closest('.pf-card').getAttribute('data-id'));
+              fetch('/web/dataset/call_kw', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { model: 'mrp.workorder', method: 'button_finish', args: [[woId]], kwargs: {} } })
+              }).then(function (r) { return r.json(); }).then(function (d) {
+                if (d.error) { alert('Échec : ' + (d.error.data &amp;&amp; d.error.data.message || d.error.message)); }
+                else { window.location.reload(); }
+              }).catch(function (e) { alert('Échec : ' + e); });
+            });
+          });
+
+          // Clic sur le n° de commande = filtre toggle
+          var bcEls = document.querySelectorAll('.pf-bc');
+          for (var bi = 0; bi &lt; bcEls.length; bi++) {
+            (function (el) {
+              el.addEventListener('click', function (ev) {
+                ev.preventDefault(); ev.stopPropagation();
+                var u = new URL(window.location);
+                var v = el.getAttribute('data-bc');
+                if (u.searchParams.get('bc') === v) { u.searchParams.delete('bc'); } else { u.searchParams.set('bc', v); }
+                window.location.href = u.toString();
+              });
+            })(bcEls[bi]);
+          }
+          setTimeout(function () { window.location.reload(); }, 300000);
+        })();
+        // 
+        </script>
+      </section>
+    </div>
+  </t>
+</t>
