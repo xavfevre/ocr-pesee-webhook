@@ -1,0 +1,92 @@
+<data>
+  <xpath expr="//field[@name='planning_overlap']" position="replace"/>
+  <xpath expr="//form[1]/header[1]/button[@name='action_timer_start']" position="attributes">
+    <attribute name="invisible">True</attribute>
+  </xpath>
+  <xpath expr="//field[@name='timer_start']" position="attributes">
+    <attribute name="invisible">True</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/div[@name='button_box']/button[@name='action_fsm_worksheet']" position="attributes">
+    <attribute name="string">CMR / Lettre de voiture</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[1]/label[1]" position="before">
+    <field name="create_date"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[1]/field[@name='user_ids']" position="attributes">
+    <attribute name="string">Gestionnaire de la tache</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[1]/field[@name='user_ids']" position="after">
+    <field name="x_studio_transport" invisible="project_id not in [2]"/>
+    <field name="x_vehicle_id" invisible="True"/>
+    <field name="x_studio_imatcamionft" invisible="True"/>
+    <field name="x_studio_chauffeur" context="{'allowed_company_ids': [1, 13]}" domain="[(&quot;category_ids&quot;, &quot;=&quot;, [3])]" invisible="project_id not in [2]" options="{'no_create': True, 'no_create_edit': True}"/>
+    <field name="x_studio_operateurs" context="{'allowed_company_ids': [1, 13]}" string="Opérateurs" widget="many2many_tags" invisible="project_id not in [2]" options="{'no_create': True, 'no_create_edit': True}"/>
+    <field name="x_studio_nomchauffeurft" invisible="True"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[2]/field[@name='partner_id']" position="attributes">
+    <attribute name="domain">[("company_id", "in", [1])]</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[2]/label[3]" position="attributes">
+    <attribute name="string">Article Feuille de Temps</attribute>
+  </xpath>
+  <xpath expr="//field[@name='under_warranty']" position="attributes">
+    <attribute name="invisible">True</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[2]/div[not(@name)][2]" position="after">
+    <field name="x_studio_client" invisible="project_id in [2]"/>
+    <field name="x_studio_date_livraison_prevue" invisible="project_id in [2]"/>
+    <field name="x_studio_montant_ht" invisible="True"/>
+    <field name="x_studio_notes" invisible="project_id in [2]"/>
+    <field name="currency_id"/>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]/group[2]/div[not(@name)][3]/field[@name='allocated_hours']" position="attributes">
+    <attribute name="invisible">True</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/group[1]" position="after">
+    <group name="studio_group_285_1inrg7uo6">
+      <group name="studio_group_285_left" string="Adresse de chargement" invisible="project_id not in [2]">
+        <field name="x_studio_adresse_de_chargement" help="Saisir une adresse"/>
+      </group>
+      <group name="studio_group_285_right" string="Adresse de Livraison" invisible="project_id not in [2]">
+        <field name="x_studio_adresse_de_livraison_3" widget="text"/>
+      </group>
+    </group>
+  </xpath>
+  <xpath expr="//page[@name='sub_tasks_page']" position="attributes">
+    <attribute name="invisible">project_id in [2]</attribute>
+  </xpath>
+  <xpath expr="//form[1]/sheet[1]/notebook[1]" position="inside">
+    <page string="Fichier Joints" name="studio_page_28_1inrbs0p0" invisible="True">
+      <group name="studio_group_28">
+        <group name="studio_group_28_left">
+          <field widget="file" filename="x_studio_fichier_1_filename" name="x_studio_fichier_1" string="Lettre d'affrètement"/>
+          <field widget="file" invisible="True" name="x_studio_fichier_1_filename"/>
+        </group>
+        <group name="studio_group_28_right">
+          <field widget="file" filename="x_studio_fichier_2_filename" name="x_studio_fichier_2" string="Divers"/>
+          <field widget="file" invisible="True" name="x_studio_fichier_2_filename"/>
+        </group>
+      </group>
+    </page>
+    <page string="Devis / Commandes" name="studio_page_5uk_1jivb9h9n" invisible="project_id not in [13]">
+      <group name="studio_group_5uk">
+        <field name="x_studio_devis_commandes_1" string="Devis/BC"/>
+      </group>
+    </page>
+    <page string="Ordres de fabrication" name="studio_page_847_1jivbau4a">
+      <group name="studio_group_847">
+        <field name="x_studio_of"/>
+      </group>
+    </page>
+    <page string="Ordres de travail" name="studio_page_788_1jivbbanu">
+      <group name="studio_group_788">
+        <field name="x_studio_odt"/>
+      </group>
+    </page>
+    <page string="Colis" name="studio_page_pm_1jivbbq36">
+      <group name="studio_group_pm">
+        <field name="x_studio_colis"/>
+      </group>
+    </page>
+  </xpath>
+</data>
