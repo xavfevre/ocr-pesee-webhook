@@ -349,7 +349,9 @@
         <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin:14px 0;">
           <div style="font-weight:900;font-size:16px;margin-bottom:2px;">🌴 Mes congés</div>
           <div style="color:#94a3b8;font-size:11.5px;font-weight:700;margin-bottom:10px;">Période du <t t-esc="per_start.strftime('%d/%m/%Y')"/> à aujourd'hui</div>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.5px;color:#94a3b8;text-align:center;margin-bottom:2px;">ACQUIS · À PRENDRE</div>
             <t t-if="droit &gt; 0">
               <div style="background:#FFFBEB;border:2px solid #fde68a;border-radius:10px;padding:6px 10px;text-align:center;">
                 <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="'%g' % (droit - n_cp_deduit)"/> j</div>
@@ -357,6 +359,14 @@
                 <div style="font-size:10px;color:#94a3b8;">sur <t t-esc="'%g' % droit"/> j acquis</div>
               </div>
             </t>
+            <div t-attf-style="background:{{'#DBEAFE' if rec_solde &gt;= 0 else '#FEE2E2'}};border:2px solid {{'#93c5fd' if rec_solde &gt;= 0 else '#fca5a5'}};border-radius:10px;padding:6px 10px;text-align:center;">
+              <div t-attf-style="font-size:22px;font-weight:900;color:{{'#1d4ed8' if rec_solde &gt;= 0 else '#b91c1c'}};"><t t-esc="('+' if rec_solde &gt; 0 else '') + ('%g' % round(rec_solde, 2))"/> h</div>
+              <div t-attf-style="font-size:11px;font-weight:800;color:{{'#1d4ed8' if rec_solde &gt;= 0 else '#b91c1c'}};">🔄 À récupérer</div>
+              <div style="font-size:10px;color:#94a3b8;">solde d'heures</div>
+            </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.5px;color:#94a3b8;text-align:center;margin-bottom:2px;">PRIS</div>
             <div style="background:#FEF3C7;border-radius:10px;padding:8px 10px;text-align:center;">
               <div style="font-size:22px;font-weight:900;color:#92400e;"><t t-esc="n_cp"/> j</div>
               <div style="font-size:11px;font-weight:800;color:#92400e;">CP pris</div>
@@ -368,11 +378,6 @@
               <div t-if="n_rec and rec_h_periode" style="font-size:10px;color:#0369a1;">soit <t t-esc="'%g' % round(rec_h_periode, 2)"/> h</div>
               <div t-elif="not n_rec and rec_part_rows" style="font-size:10px;color:#0369a1;">(demi-journées / horaires)</div>
             </div>
-            <div t-attf-style="background:{{'#DBEAFE' if rec_solde &gt;= 0 else '#FEE2E2'}};border:2px solid {{'#93c5fd' if rec_solde &gt;= 0 else '#fca5a5'}};border-radius:10px;padding:6px 10px;text-align:center;">
-              <div t-attf-style="font-size:22px;font-weight:900;color:{{'#1d4ed8' if rec_solde &gt;= 0 else '#b91c1c'}};"><t t-esc="('+' if rec_solde &gt; 0 else '') + ('%g' % round(rec_solde, 2))"/> h</div>
-              <div t-attf-style="font-size:11px;font-weight:800;color:{{'#1d4ed8' if rec_solde &gt;= 0 else '#b91c1c'}};">🔄 À récupérer</div>
-              <div style="font-size:10px;color:#94a3b8;">solde d'heures</div>
-            </div>
             <div style="background:#FEE2E2;border-radius:10px;padding:8px 10px;text-align:center;">
               <div style="font-size:22px;font-weight:900;color:#991b1b;"><t t-esc="n_mal"/> j</div>
               <div style="font-size:11px;font-weight:800;color:#991b1b;">Maladie</div>
@@ -380,6 +385,7 @@
             <div t-if="n_abs" style="background:#FECACA;border-radius:10px;padding:8px 10px;text-align:center;">
               <div style="font-size:22px;font-weight:900;color:#7f1d1d;"><t t-esc="n_abs"/> j</div>
               <div style="font-size:11px;font-weight:800;color:#7f1d1d;">Absences</div>
+            </div>
             </div>
           </div>
           <div t-if="droit_n1" style="margin-top:7px;color:#64748b;font-size:11px;font-weight:700;">Acquis : N <t t-esc="'%g' % droit_n"/> j · N-1 <t t-esc="'%g' % droit_n1"/> j</div>
