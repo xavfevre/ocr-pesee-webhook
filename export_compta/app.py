@@ -1146,6 +1146,7 @@ def _rappro_applique(comp, journal, props, avance=None):
         return jcache[jid]
 
     faits, erreurs = 0, []
+    connecte = {}
     for prop in props:
         if avance is not None:
             avance["n"] = avance.get("n", 0) + 1
@@ -1340,6 +1341,14 @@ def _rappro_applique(comp, journal, props, avance=None):
                              limit=1, order="id desc")
                 if not pay_ids:
                     erreurs.append("%s %.2f € : le paiement n'a pas pu être créé" % (l["lib"][:30], l["debit"]))
+                    continue
+                # banque connectée (relevés importés dans Odoo) : on s'arrête au paiement -> facture
+                # « En paiement » ; le rapprochement se fait dans le widget à l'arrivée de la ligne.
+                # Pas d'écriture 512 créée par l'outil (elle ferait doublon avec la ligne de relevé).
+                if jid not in connecte:
+                    connecte[jid] = bool(_q("account.bank.statement.line", "search_count", [("journal_id", "=", jid)]))
+                if connecte[jid]:
+                    faits += 1
                     continue
             # lignes d'attente des paiements
             moves = [p["move_id"][0] for p in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p["move_id"]]
@@ -1753,7 +1762,7 @@ def _gl_analyse(comp, clients):
                     props.append({"ligne": {"date": date_reg, "lib": lib, "piece": lettre,
                                             "debit": montant, "credit": 0.0},
                                   "type": "facture", "ids": [inv["id"]], "journal_id": jid,
-                                  "detail": ["aucun paiement saisi dans Odoo — cocher pour créer le paiement de %.2f € au %s et lettrer"
+                                  "detail": ["aucun paiement saisi dans Odoo — cocher pour créer le paiement de %.2f € au %s : la facture passe « En paiement », le rapprochement bancaire se fait ensuite dans le widget"
                                              % (montant, date_reg)]})
                 else:
                     deja += 1
@@ -2027,7 +2036,7 @@ def _rappro_recap(retenus, props, stats, faits, erreurs):
     if n_rem_att:
         lignes_recap.append("dont %d remise(s) en attente de relevé (dépôt par lot créé — à rapprocher dans le widget à l'arrivée de la ligne)" % n_rem_att)
     if n_crees:
-        lignes_recap.append("<span style='color:#b45309;'>⚠ dont %d paiement(s) créé(s) faute de saisie dans Odoo (oubli à vérifier)</span>" % n_crees)
+        lignes_recap.append("<span style='color:#b45309;'>⚠ dont %d paiement(s) créé(s) faute de saisie dans Odoo — factures « En paiement », à rapprocher dans le widget bancaire</span>" % n_crees)
     if stats.get("deja"):
         lignes_recap.append("%d facture(s) déjà à jour dans Odoo (rien à faire)" % stats["deja"])
     if ecartes:
