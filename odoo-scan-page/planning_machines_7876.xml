@@ -63,12 +63,15 @@
           <t t-set="type_dom" t-value="[('workcenter_id', 'in', machines.ids)]"/>
         </t>
         <t t-else="">
-          <t t-set="m_ordre" t-value="m_sb + [i for i in m_prim if i not in m_usi] + [i for i in m_ate if i not in m_fin] + m_usi + m_carr + m_fin"/>
+          <t t-set="m_ordre" t-value="m_sb + m_prim + [i for i in m_ate if i not in m_fin] + [i for i in m_usi if i not in m_prim] + m_carr + m_fin"/>
           <t t-set="m_autres" t-value="website.env['mrp.workcenter'].sudo().search([('company_id','=',1),('id','not in',m_ordre)], order='name').ids"/>
           <t t-set="machines" t-value="website.env['mrp.workcenter'].sudo().browse(m_ordre + m_autres)"/>
-          <t t-set="grp" t-value="dict([(i, 'sb') for i in m_sb] + [(i, 'prim') for i in m_prim if i not in m_usi] + [(i, 'ate') for i in m_ate if i not in m_fin] + [(i, 'usi') for i in m_usi] + [(i, 'carr') for i in m_carr] + [(i, 'fin') for i in m_fin])"/>
+          <t t-set="grp" t-value="dict([(i, 'sb') for i in m_sb] + [(i, 'prim') for i in m_prim] + [(i, 'ate') for i in m_ate if i not in m_fin] + [(i, 'usi') for i in m_usi if i not in m_prim] + [(i, 'carr') for i in m_carr] + [(i, 'fin') for i in m_fin])"/>
           <t t-set="type_kw" t-value="[]"/>
           <t t-set="type_dom" t-value="[]"/>
+        </t>
+        <t t-if="board != 'complet'">
+          <t t-set="grp" t-value="dict([(i, 'sb') for i in m_sb] + [(i, {'primaire': 'prim', 'atelier': 'ate', 'usine': 'usi', 'carriere': 'carr', 'finition': 'fin'}.get(board, 'autre')) for i in machines.ids if i not in m_sb])"/>
         </t>
         <t t-set="qdom" t-value="q and ['|','|','|','|',('name','ilike',q),('production_id.name','ilike',q),('production_id.origin','ilike',q),('production_id.x_studio_nom_du_client','ilike',q),('production_id.x_studio_ref_commande_client','ilike',q)] or []"/>
         <t t-set="ots" t-value="website.env['mrp.workorder'].sudo().search([('production_id.state','in',['confirmed','progress','to_close']),('production_id.company_id','=',1)] + qdom, order='date_start')"/>
