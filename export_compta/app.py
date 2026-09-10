@@ -17,6 +17,7 @@ option pour les marquer transmis.
 Jeton : ir.config_parameter `maquignon.compta_key` (?token=...).
 """
 import calendar
+import re
 import io
 import os
 import zipfile
@@ -32,10 +33,19 @@ ODOO_DB = os.environ.get("ODOO_DB", "")
 ODOO_USER = os.environ.get("ODOO_USER", "")
 ODOO_PASSWORD = os.environ.get("ODOO_PASSWORD", "")
 
-_conn = {}
+import threading as _threading
+_tls = _threading.local()
+
+
+def _cn():
+    """Connexion XML-RPC propre à chaque thread (un ServerProxy partagé n'est pas sûr en parallèle)."""
+    if not hasattr(_tls, "c"):
+        _tls.c = {}
+    return _tls.c
 
 
 def _q(model, method, *params, **kw):
+    _conn = _cn()
     if "uid" not in _conn:
         common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common", allow_none=True)
         _conn["uid"] = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
@@ -1124,7 +1134,7 @@ def _infos_journal(jid):
     return pml[0]["payment_account_id"][0], j["default_account_id"][0], j["name"]
 
 
-def _rappro_applique(comp, journal, props):
+def _rappro_applique(comp, journal, props, avance=None):
     """Crée l'écriture 512/511 et lettre — la primitive validée sur la base de test.
     Chaque proposition peut porter son propre journal (journal_id), sinon celui
     passé en paramètre (cas de l'état de rapprochement, un seul journal)."""
@@ -1137,6 +1147,8 @@ def _rappro_applique(comp, journal, props):
 
     faits, erreurs = 0, []
     for prop in props:
+        if avance is not None:
+            avance["n"] = avance.get("n", 0) + 1
         l = prop["ligne"]
         jid = prop.get("journal_id") or journal["id"]
         compte_attente, compte_banque, jnom = infos(jid)
@@ -1632,6 +1644,45 @@ def rappro_analyse():
                     mimetype="text/html")
 
 
+def _rappro_job_path(job):
+    import tempfile
+    return os.path.join(tempfile.gettempdir(), "rappro_%s.json" % re.sub(r"[^a-f0-9]", "", job)[:32])
+
+
+def _rappro_job_save(job, data):
+    with io.open(_rappro_job_path(job), "w", encoding="utf-8") as f:
+        f.write(_json.dumps(data))
+
+
+def _rappro_job_load(job):
+    try:
+        with io.open(_rappro_job_path(job), encoding="utf-8") as f:
+            return _json.loads(f.read())
+    except Exception:
+        return None
+
+
+def _rappro_run(job, comp, journal, retenus, props, stats):
+    """Tâche de fond : lettrage puis récapitulatif HTML, état écrit dans un fichier lu par /rappro/etat."""
+    avance = {"n": 0, "total": len(retenus)}
+    import threading as _th
+
+    def tick():
+        while not avance.get("fini"):
+            _rappro_job_save(job, {"etat": "en_cours", "n": avance.get("n", 0), "total": avance["total"]})
+            _th.Event().wait(2)
+    _th.Thread(target=tick, daemon=True).start()
+    try:
+        faits, erreurs = _rappro_applique(comp, journal, retenus, avance=avance)
+        corps = _rappro_recap(retenus, props, stats, faits, erreurs)
+        avance["fini"] = True
+        _rappro_job_save(job, {"etat": "fini", "corps": corps})
+    except Exception as e:  # noqa: BLE001
+        avance["fini"] = True
+        _rappro_job_save(job, {"etat": "erreur", "corps": "<p class='ko'>❌ Erreur pendant le lettrage : %s</p>"
+                               "<p>Les lignes déjà traitées sont conservées : relancez l'analyse, elles apparaîtront « déjà à jour ».</p>" % str(e)[:400]})
+
+
 @bp.route("/rappro/applique", methods=["POST"])
 def rappro_applique():
     _check_token()
@@ -1642,11 +1693,39 @@ def rappro_applique():
     retenus = [p for i, p in enumerate(props) if i in sel and p["type"] != "inconnu"]
     journal = _q("account.journal", "read", [int(request.form["journal"])],
                  fields=["name", "code", "default_account_id"])[0]
-    faits, erreurs = _rappro_applique(comp, journal, retenus)
     try:
         stats = _json.loads(request.form.get("stats") or "{}")
     except Exception:
         stats = {}
+    import uuid
+    job = uuid.uuid4().hex
+    _rappro_job_save(job, {"etat": "en_cours", "n": 0, "total": len(retenus)})
+    _threading.Thread(target=_rappro_run, args=(job, comp, journal, retenus, props, stats), daemon=True).start()
+    return Response('<meta http-equiv="refresh" content="0;url=etat?token=%s&job=%s">' % (token, job), mimetype="text/html")
+
+
+@bp.route("/rappro/etat", methods=["GET"])
+def rappro_etat():
+    _check_token()
+    token = request.args.get("token", "")
+    job = request.args.get("job", "")
+    d = _rappro_job_load(job)
+    if not d:
+        corps = "<p class='ko'>Tâche introuvable (serveur redémarré ?). Relancez l'analyse : ce qui a été lettré apparaîtra « déjà à jour ».</p>"
+        return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token), mimetype="text/html")
+    if d.get("etat") == "en_cours":
+        pct = int(100 * d.get("n", 0) / d["total"]) if d.get("total") else 0
+        corps = ("<meta http-equiv='refresh' content='4'>"
+                 "<p>⏳ <b>Lettrage en cours…</b> %d / %d groupe(s) traité(s)</p>"
+                 "<div style='background:#e5e7eb;border-radius:8px;height:16px;overflow:hidden;max-width:520px;'>"
+                 "<div style='background:#16a34a;height:16px;width:%d%%;'></div></div>"
+                 "<p class='note'>Cette page se rafraîchit toute seule. Vous pouvez la laisser ouverte ou revenir plus tard avec ce lien.</p>"
+                 % (d.get("n", 0), d.get("total", 0), pct))
+        return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token), mimetype="text/html")
+    return Response(RAPPRO_PAGE.replace("__CORPS__", d.get("corps", "")).replace("__TOKEN__", token), mimetype="text/html")
+
+
+def _rappro_recap(retenus, props, stats, faits, erreurs):
     n_lettres = sum(1 for p in retenus if p["type"] == "paiements")
     n_releves = sum(1 for p in retenus if p["type"] == "releve")
     n_crees = sum(1 for p in retenus if p["type"] == "facture")
@@ -1674,5 +1753,4 @@ def rappro_applique():
              + "<br/>• ".join(lignes_recap) + "</div>")
     if erreurs:
         corps += "<div class='note'>⚠ À traiter manuellement :<br/>%s</div>" % "<br/>".join(erreurs)
-    return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
-                    mimetype="text/html")
+    return corps
