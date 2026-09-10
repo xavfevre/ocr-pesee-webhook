@@ -163,15 +163,32 @@
               <input id="vo-colis-search" type="text" class="form-control" placeholder="Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
               <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
             </div>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, '')) for c in colis_ouverts]) + ']'"/>
+            <t t-set="op_int" t-value="int(op) if op and op.isdigit() else 0"/>
+            <t t-set="mes_colis" t-value="[cq for cq in colis_ouverts if op_int and op_int in cq.x_operateur_ids.ids]"/>
+            <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not (op_int and op_int in cq.x_operateur_ids.ids) and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and op_int in c.x_operateur_ids.ids) else 0)) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
-              <t t-foreach="colis_ouverts" t-as="cp">
+              <div style="font-weight:800;color:#0f766e;font-size:13.5px;margin:2px 0 6px;">🟢 Mes palettes (<t t-esc="len(mes_colis)"/>)</div>
+              <div t-if="not mes_colis" style="color:#64748b;font-size:13px;margin-bottom:10px;">Aucune palette à votre nom — scannez ou tapez le n° de la palette ci-dessus : elle devient la vôtre.</div>
+              <t t-foreach="mes_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
-                <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
+                <div class="d-flex gap-1 mb-2">
                   <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+                </div>
+              </t>
+              <t t-if="autres_colis">
+                <button type="button" class="vo-colis-others btn btn-sm btn-outline-secondary w-100" style="font-weight:700;" t-att-data-show="'Voir les palettes des autres opérateurs (%d)' % len(autres_colis)">Voir les palettes des autres opérateurs (<t t-esc="len(autres_colis)"/>)</button>
+                <div style="display:none;margin-top:8px;">
+                  <t t-foreach="autres_colis" t-as="cp">
+                <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
+                <div class="d-flex gap-1 mb-2">
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 <t t-esc="', '.join(cp.x_operateur_ids.mapped('name')) or 'poste de scan'"/></div></button>
+                  <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+                </div>
+                  </t>
                 </div>
               </t>
             </div>
@@ -310,15 +327,32 @@
               <input id="vo-colis-search" type="text" class="form-control" placeholder="Scanner ou taper le n° de colis…" autocomplete="off" style="font-weight:700;font-size:16px;"/>
               <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
             </div>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, '')) for c in colis_ouverts]) + ']'"/>
+            <t t-set="op_int" t-value="int(op) if op and op.isdigit() else 0"/>
+            <t t-set="mes_colis" t-value="[cq for cq in colis_ouverts if op_int and op_int in cq.x_operateur_ids.ids]"/>
+            <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not (op_int and op_int in cq.x_operateur_ids.ids) and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and op_int in c.x_operateur_ids.ids) else 0)) for c in colis_ouverts]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
-              <t t-foreach="colis_ouverts" t-as="cp">
+              <div style="font-weight:800;color:#0f766e;font-size:13.5px;margin:2px 0 6px;">🟢 Mes palettes (<t t-esc="len(mes_colis)"/>)</div>
+              <div t-if="not mes_colis" style="color:#64748b;font-size:13px;margin-bottom:10px;">Aucune palette à votre nom — scannez ou tapez le n° de la palette ci-dessus : elle devient la vôtre.</div>
+              <t t-foreach="mes_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
-                <div t-if="cpn + cprn &gt; 0" class="d-flex gap-1 mb-2">
+                <div class="d-flex gap-1 mb-2">
                   <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+                </div>
+              </t>
+              <t t-if="autres_colis">
+                <button type="button" class="vo-colis-others btn btn-sm btn-outline-secondary w-100" style="font-weight:700;" t-att-data-show="'Voir les palettes des autres opérateurs (%d)' % len(autres_colis)">Voir les palettes des autres opérateurs (<t t-esc="len(autres_colis)"/>)</button>
+                <div style="display:none;margin-top:8px;">
+                  <t t-foreach="autres_colis" t-as="cp">
+                <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
+                <div class="d-flex gap-1 mb-2">
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 <t t-esc="', '.join(cp.x_operateur_ids.mapped('name')) or 'poste de scan'"/></div></button>
+                  <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
+                </div>
+                  </t>
                 </div>
               </t>
             </div>
@@ -616,7 +650,7 @@
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
           function assign(ofid, cid, cname, btn, after){
             fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname}}}})
+              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid,op_id:(parseInt(op)||0)} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname,op_id:(parseInt(op)||0)}}}})
             }).then(function(r){return r.json();}).then(function(d){
               if(after){ after(); }
               if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
@@ -641,7 +675,7 @@ var dataC=document.getElementById('vo-colis-data');
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+(c.o?' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchH(){
@@ -667,7 +701,7 @@ var dataC=document.getElementById('vo-colis-data');
               assign(curOf, null, v, curBtn, function(){ srchC.disabled=false; });
             });
           }
-          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ pop.style.display='none'; }; }
+          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ pop.style.display='none'; }; } document.querySelectorAll('.vo-colis-others').forEach(function(b){ b.onclick=function(){ var l=b.nextElementSibling; if(!l){ return; } var open=(l.style.display==='none'); l.style.display=open?'':'none'; b.textContent=open?'Masquer les palettes des autres opérateurs':b.getAttribute('data-show'); }; });
           var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
           if(pop){
             pop.addEventListener('click', function(e){
@@ -764,7 +798,7 @@ var dataC=document.getElementById('vo-colis-data');
         // ── palettisation (partielle ou entière) via le relais Render 2101 ──
         var voQte=null;   // quantité choisie au pavé (null = tout ce qui est disponible)
         function assignC(ofid, cid, cname, card, after){
-          var ctx={of_id:ofid, qte:(voQte||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
+          var ctx={of_id:ofid, qte:(voQte||0), op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
           fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({action_id:2101, ctx:ctx})
           }).then(function(r){return r.json();}).then(function(d){
@@ -828,7 +862,7 @@ var dataC=document.getElementById('vo-colis-data');
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+(c.o?' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchP(){
@@ -854,7 +888,7 @@ var dataC=document.getElementById('vo-colis-data');
               assignC(curOfP, null, v, curCardP, function(){ srchC.disabled=false; });
             });
           }
-          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ popC.style.display='none'; }; }
+          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ popC.style.display='none'; }; } document.querySelectorAll('.vo-colis-others').forEach(function(b){ b.onclick=function(){ var l=b.nextElementSibling; if(!l){ return; } var open=(l.style.display==='none'); l.style.display=open?'':'none'; b.textContent=open?'Masquer les palettes des autres opérateurs':b.getAttribute('data-show'); }; });
           var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
           if(popC){
             popC.addEventListener('click', function(e){

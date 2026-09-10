@@ -61,13 +61,20 @@
       .qte-ok{flex:2;background:#16a34a;color:#fff;border:none;border-radius:12px;padding:16px;font-size:18px;font-weight:900;cursor:pointer;}
       .qte-all{flex:1.2;background:#7c3aed;color:#fff;border:none;border-radius:12px;padding:16px;font-size:15px;font-weight:800;cursor:pointer;}
       .qte-cancel{flex:0 0 auto;background:#7f1d1d;color:#fff;border:none;border-radius:12px;padding:16px 18px;font-size:16px;font-weight:800;cursor:pointer;}
+      .scan-ops{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 10px;}
+      .scan-op{border:1.5px solid #475569;background:#1e293b;color:#e2e8f0;border-radius:16px;padding:6px 13px;font-size:14px;font-weight:800;cursor:pointer;}
+      .scan-op.on{background:#0d9488;border-color:#5eead4;color:#fff;}
     </style>
 
     <div class="scan-wrap">
       <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:16px;white-space:nowrap;background:#fff;border-radius:8px 8px 0 0;padding:4px 6px 0;"><li class="nav-item"><a class="nav-link" id="nav-maprod" href="/vue-operateur">✅ Ma production</a></li><li class="nav-item"><a class="nav-link" id="nav-hist" href="/vue-operateur?hist=1">🕘 Historique</a></li><li class="nav-item"><a class="nav-link active fw-bold" href="#">📦 Poste de scan</a></li></ul><h3 class="scan-h">📦 Poste de scan — Colis / OF</h3>
+      <t t-set="employees" t-value="request.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
+      <div class="scan-ops"><span style="color:#94a3b8;font-weight:700;font-size:13px;">👤 Opérateur :</span>
+        <t t-foreach="employees" t-as="e"><button type="button" class="scan-op" t-att-data-op="e.id"><t t-esc="e.name"/></button></t>
+      </div>
 
       <div class="scan-colis">
-        <div class="scan-colis-lbl">Colis actif</div>
+        <div class="scan-colis-lbl">Colis actif de <span id="colis-op">—</span></div>
         <div id="colis-name" class="scan-colis-name">—</div>
         <div id="colis-mesure" class="scan-colis-mesure"/>
         <div id="colis-zone" class="scan-colis-zone"/>
@@ -77,7 +84,7 @@
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
       <button id="btn-cam" style="width:100%;margin-top:10px;border:none;border-radius:12px;padding:14px;font-size:17px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff;">📷 Scanner avec la caméra</button>
-      <div class="scan-hint">Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Pour finir, scannez le <b>code-barre de l'emplacement</b> (ou touchez le bouton) : la palette est <b>imprimée + verrouillée</b>.</div>
+      <div class="scan-hint"><b>Choisissez d'abord votre nom</b> : chaque opérateur a sa propre palette active. Scannez un <b>colis</b> (PACK…) puis les <b>OF</b>. Pour finir, scannez le <b>code-barre de l'emplacement</b> (ou touchez le bouton) : la palette est <b>imprimée + verrouillée</b>.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
@@ -176,6 +183,20 @@
   var mesureEl = document.getElementById('colis-mesure');
   var colisActif = false;
   var colisLocked = false;
+  // ── opérateur (mémorisé sur la tablette, même clé que la vue opérateur) : palette active PAR opérateur ──
+  var OP=null; try{ OP=parseInt(localStorage.getItem('vo_op'))||null; }catch(e){}
+  var OP_ACT=null, lastSync;
+  var opEl=document.getElementById('colis-op');
+  function opName(){ var b=document.querySelector('.scan-op[data-op="'+OP+'"]'); return b ? b.textContent : ''; }
+  function paintOps(){ document.querySelectorAll('.scan-op').forEach(function(b){ b.classList.toggle('on', parseInt(b.getAttribute('data-op'))===OP); }); if(opEl){ opEl.textContent = (OP &amp;&amp; opName()) ? opName() : '— (choisissez votre nom)'; } }
+  function opRun(mode){ if(!OP_ACT){ return Promise.resolve(); } return rpc('ir.actions.server','run',[[OP_ACT]],{context:{active_model:'x_poste_de_scan',active_ids:[POSTE],active_id:POSTE,op_id:(OP||0),mode:mode}}); }
+  function needOp(){ if(OP){ return false; } setRes("👤 Choisissez votre nom d'abord (boutons en haut)"); beep(false); return true; }
+  document.querySelectorAll('.scan-op').forEach(function(b){ b.addEventListener('click', function(){
+    OP=parseInt(b.getAttribute('data-op'))||null; try{ localStorage.setItem('vo_op', String(OP)); }catch(e){}
+    paintOps(); lastSync=undefined;
+    opRun('select').then(refresh).catch(function(e){ setRes('⚠️ '+e.message); }).then(function(){ input.focus(); });
+  }); });
+  paintOps();
   var RELOC = null;
   var pending = null;     // {id,name,total,remaining,hasLines}
   var qteStr  = '';
@@ -339,6 +360,7 @@
       var rec = rows[0];
       var colis = rec.x_studio_colis_actifs;
       colisActif = colis ? colis[0] : false;
+      if(OP &amp;&amp; OP_ACT &amp;&amp; colisActif !== lastSync){ lastSync = colisActif; opRun('sync').catch(function(){}); }
       colisEl.textContent = colis ? colis[1] : '—';
       colisEl.className = colis ? 'scan-colis-name' : 'scan-colis-none';
       resEl.textContent = rec.x_studio_rsultat || "En attente d'un scan…";
@@ -379,6 +401,7 @@
 
   // ----- raw scan : colis / inconnu / OF entier (logique serveur 1585) -----
   function doScanRaw(val){
+    if(needOp()){ return Promise.resolve(); }
     return rpc('x_poste_de_scan','write',[[POSTE],{x_studio_scanner: val}]).then(function(){
       return refresh();
     }).then(function(){
@@ -472,6 +495,7 @@
   // ----- entree principale (scan) -----
   function doScan(val){
     input.value='';
+    if(needOp()){ return; }
     if(pending){
       if(/^[0-9]+$/.test(val)){
         var p = pending; closePop();
@@ -583,12 +607,12 @@
   function navRender(){
     var f=(navSrch.value||'').trim().toLowerCase();
     var rows=navData.filter(function(c){ return !f || (c.name+' '+(c.m||'')).toLowerCase().indexOf(f)!==-1; });
-    if(!f){ rows=rows.filter(function(c){ return c.n&gt;0 || c.id===colisActif; }); }
-    rows=rows.slice(0,40);
+    if(!f){ rows=rows.filter(function(c){ return c.o || c.n&gt;0 || c.id===colisActif; }); }
+    rows=rows.slice().sort(function(a,b){ return (b.o||0)-(a.o||0); }).slice(0,40);
     navList.innerHTML=rows.map(function(c){
       var cur=(c.id===colisActif);
       return '&lt;button type="button" class="nav-row" data-name="'+c.name+'" style="display:block;width:100%;text-align:left;border:none;border-radius:10px;padding:12px;margin-bottom:6px;font-weight:800;font-size:15px;cursor:pointer;background:'+(cur?'#075985':'#1e293b')+';color:#e2e8f0;"&gt;'
-        +'&lt;span style="display:flex;justify-content:space-between;gap:8px;"&gt;&lt;span&gt;'+(cur?'▶ ':'')+c.name+'&lt;/span&gt;&lt;span style="color:#93c5fd;font-weight:700;white-space:nowrap;"&gt;'+c.n+' OF · '+c.cub+' m³ · '+c.ton+' kg&lt;/span&gt;&lt;/span&gt;'
+        +'&lt;span style="display:flex;justify-content:space-between;gap:8px;"&gt;&lt;span&gt;'+(cur?'▶ ':'')+c.name+(c.o?' &lt;span style="color:#5eead4;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+'&lt;/span&gt;&lt;span style="color:#93c5fd;font-weight:700;white-space:nowrap;"&gt;'+c.n+' OF · '+c.cub+' m³ · '+c.ton+' kg&lt;/span&gt;&lt;/span&gt;'
         +(c.m?'&lt;span style="display:block;color:#5eead4;font-weight:700;font-size:13px;margin-top:3px;"&gt;'+c.m+'&lt;/span&gt;':'')+'&lt;/button&gt;';
     }).join('') || '&lt;div style="color:#64748b;padding:8px;"&gt;Aucun colis ouvert ne correspond&lt;/div&gt;';
     navList.querySelectorAll('.nav-row').forEach(function(b){
@@ -599,7 +623,7 @@
     navPop.style.display='flex'; navSrch.value='';
     navList.innerHTML='&lt;div style="color:#94a3b8;padding:8px;"&gt;Chargement…&lt;/div&gt;';
     Promise.all([
-      rpc('stock.package','search_read',[[['x_studio_cloturee','=',false]],['name','x_studio_cubage','x_studio_tonnage']],{limit:300,order:'write_date desc'}),
+      rpc('stock.package','search_read',[[['x_studio_cloturee','=',false]],['name','x_studio_cubage','x_studio_tonnage','x_operateur_ids']],{limit:300,order:'write_date desc'}),
       rpc('mrp.production','search_read',[[['x_studio_colis','!=',false],['x_studio_colis.x_studio_cloturee','=',false]],['x_studio_colis','x_studio_nom_du_client','x_studio_ref_commande_client','x_studio_palette']],{limit:3000}),
       rpc('x_repartition_palette','search_read',[[['x_studio_colis_id','!=',false],['x_studio_colis_id.x_studio_cloturee','=',false]],['x_studio_of_id','x_studio_colis_id']],{limit:2000})
     ]).then(function(res){
@@ -627,7 +651,7 @@
             if(rf.length){ parts.push('📄 '+esc(rf.join(', '))); }
             if(pa.length){ parts.push('🔢 '+esc(pa.join(', '))); }
           }
-          return {id:pk.id,name:pk.name,n:cnt[pk.id]||0,
+          return {id:pk.id,name:pk.name,n:cnt[pk.id]||0, o:(OP &amp;&amp; (pk.x_operateur_ids||[]).indexOf(OP)!==-1) ? 1 : 0,
             cub:Math.round((pk.x_studio_cubage||0)*100)/100, ton:Math.round(pk.x_studio_tonnage||0), m:parts.join('  ·  ')};
         });
         navRender();
@@ -646,7 +670,8 @@
   navSrch.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var v=(navSrch.value||'').trim(); if(v){ navPop.style.display='none'; doScanRaw(v).then(function(){ input.focus(); }); } } });
 
   rpc('ir.actions.server','search',[[['name','=','Relocaliser palette (emplacement)']]]).then(function(r){ RELOC = (r &amp;&amp; r[0]) || null; }).catch(function(){});
-  rpc('x_poste_de_scan','write',[[POSTE],{x_studio_rsultat:false}]).then(refresh).catch(refresh);
+  rpc('ir.actions.server','search',[[['name','=','Poste de scan : opérateur']]]).then(function(r){ OP_ACT=(r &amp;&amp; r[0])||null; }).catch(function(){})
+    .then(function(){ return opRun('select'); }).catch(function(){}).then(refresh).catch(refresh);
   input.focus();
 })();
 
