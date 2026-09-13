@@ -1,0 +1,33 @@
+<t t-name="website_studio.default_record_page">
+        <t t-call="website.layout">
+            <div id="o_website_record_page wrap">
+                <t t-set="editor_message">Drag building blocks to customize the header of single record pages.</t>
+                <div class="oe_structure oe_empty oe_new" t-att-data-editor-message="editor_message"/>
+                <div class="container">
+                    <ol t-if="listing" class="breadcrumb p-0 my-2">
+                        <li class="breadcrumb-item o_not_editable">
+                            <a t-att-href="listing['href']">
+                                <span t-out="listing['name']"/>
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active">
+                            <studio_placeholder for="name"/>
+                        </li>
+                    </ol>
+                    <div class="d-flex flex-row my-4 flex-wrap align-items-center justify-content-between">
+                        <div class="col-lg-4 mt-lg-4 col-sm-12">
+                            <h1 class="h1">
+                                <studio_placeholder for="name"/>
+                            </h1>
+                            <studio_placeholder for="monetary"/>
+                            <studio_placeholder for="tags"/>
+                        </div>
+                        <studio_placeholder for="image" class="col-lg-6 mt-md-4 col-sm-12 me-2"/>
+                    </div>
+                    <studio_placeholder for="html"/>
+                </div>
+                <t t-set="editor_message">Drag building blocks to customize the footer of single record pages.</t>
+                <div class="oe_structure oe_empty oe_new" t-att-data-editor-message="editor_message"/>
+            </div>
+        </t>
+    </t>

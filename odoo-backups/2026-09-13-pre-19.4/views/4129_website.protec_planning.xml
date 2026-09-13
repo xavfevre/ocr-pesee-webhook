@@ -1,0 +1,183 @@
+<t t-name="website.protec_planning">
+  <t t-call="website.layout">
+    <t t-set="week_offset" t-value="request.params.get('week_offset') and int(request.params.get('week_offset')) or 0"/>
+    <t t-set="sel_tech" t-value="request.params.get('tech', '')"/>
+    <t t-set="sel_ville" t-value="request.params.get('ville', '')"/>
+    <t t-set="today" t-value="datetime.date.today()"/>
+    <t t-set="monday" t-value="today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(weeks=week_offset)"/>
+    <t t-set="saturday" t-value="monday + datetime.timedelta(days=5)"/>
+    <t t-set="df" t-value="monday.strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="dt" t-value="(monday + datetime.timedelta(days=6)).strftime('%Y-%m-%d') + ' 00:00:00'"/>
+    <t t-set="all_slots" t-value="request.env['planning.slot'].sudo().search([('start_datetime','&gt;=',df),('start_datetime','&lt;',dt)], order='start_datetime')"/>
+    <t t-if="sel_tech == 'none'"><t t-set="all_slots" t-value="all_slots.filtered(lambda s: not s.employee_ids)"/></t>
+    <t t-elif="sel_tech"><t t-set="all_slots" t-value="all_slots.filtered(lambda s: int(sel_tech) in s.employee_ids.ids)"/></t>
+    <t t-if="sel_ville"><t t-set="all_slots" t-value="all_slots.filtered(lambda s: (s.partner_city or '') == sel_ville)"/></t>
+    <t t-set="employees" t-value="request.env['hr.employee'].sudo().search([('active','=',True),('name','!=','Validation notes de frais')], order='name')"/>
+    <t t-set="villes_all" t-value="sorted(set(s.partner_city for s in all_slots if s.partner_city))"/>
+    <t t-set="palette" t-value="['#1f6f78','#b45309','#7c3aed','#be123c','#0f766e','#4d7c0f','#9d174d','#1d4ed8','#c2410c','#4338ca','#0e7490','#a16207','#7e22ce','#15803d','#9f1239','#0369a1']"/>
+    <t t-set="st_colors" t-value="{'draft':'#94a3b8','published':'#0d6efd','in_progress':'#fd7e14','completed':'#198754'}"/>
+    <t t-set="st_labels" t-value="{'draft':'Brouillon','published':'Planifié','in_progress':'En cours','completed':'Terminé'}"/>
+    <t t-set="st_icons" t-value="{'draft':'✏️','published':'📅','in_progress':'🔧','completed':'✅'}"/>
+    <t t-set="jours" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']"/>
+
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      .pp-table{table-layout:fixed;width:100%;border-collapse:collapse;}
+      .pp-table th{background:#0f2c3f;color:#fff;font-size:12px;padding:6px 4px;text-align:center;border:1px solid #1e3a4f;}
+      .pp-th-today{background:#15803d !important;}
+      .pp-cell{border:1px solid #e2e8f0;vertical-align:top;padding:4px;background:#fafcfd;min-height:120px;}
+      .pp-cell-today{background:#f0fdf4;}
+      .pp-card{background:#fff;border:1px solid #e2e8f0;border-left:5px solid #cbd5e1;border-radius:7px;padding:5px 7px;margin-bottom:6px;box-shadow:0 1px 2px rgba(0,0,0,.07);font-size:11.5px;}
+      .pp-time{font-weight:700;color:#0f172a;font-size:11px;}
+      .pp-client{font-weight:800;color:#15324f;line-height:1.2;margin:2px 0;}
+      .pp-client a{color:#15324f;text-decoration:none;}
+      .pp-client a:hover{color:#2563eb;}
+      .pp-ville{display:inline-block;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:800;color:#fff;margin-bottom:3px;}
+      .pp-badge{display:inline-block;border-radius:8px;padding:1px 7px;font-size:10px;font-weight:800;color:#fff;}
+      .pp-tech{width:100%;font-size:11px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:5px;margin-top:4px;}
+      .pp-tech.assigned{border-color:#16a34a;background:#f0fdf4;font-weight:700;}
+      .pp-st-lbl{display:inline-flex;align-items:center;gap:5px;border:2px solid #cbd5e1;border-radius:14px;padding:2px 11px;font-size:12.5px;font-weight:700;cursor:pointer;margin:2px;background:#fff;user-select:none;}
+      .pp-stsel{width:100%;font-size:10.5px;padding:1px 3px;border:1px solid #e2e8f0;border-radius:5px;margin-top:3px;color:#475569;}
+    </style>
+
+    <div class="container-fluid px-2 px-md-3 my-2">
+      <h3 class="text-center mb-2" style="font-family:'Segoe UI',sans-serif;font-weight:300;color:#0f2c3f;letter-spacing:1px;">🚜 Planning Interventions — PROTEC / S3T</h3>
+
+      <div class="text-center mb-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
+        <a t-attf-href="?week_offset={{week_offset - 1}}&amp;tech={{sel_tech}}&amp;ville={{sel_ville}}" class="btn btn-outline-primary btn-sm"><i class="fa fa-chevron-left"/> Préc.</a>
+        <span class="fw-bold" style="font-size:16px;color:#15324f;min-width:230px;">Semaine du <t t-esc="monday.strftime('%d/%m')"/> au <t t-esc="saturday.strftime('%d/%m/%Y')"/> · S<t t-esc="monday.isocalendar()[1]"/></span>
+        <a t-attf-href="?week_offset={{week_offset + 1}}&amp;tech={{sel_tech}}&amp;ville={{sel_ville}}" class="btn btn-outline-primary btn-sm">Suiv. <i class="fa fa-chevron-right"/></a>
+        <a t-attf-href="?tech={{sel_tech}}&amp;ville={{sel_ville}}" class="btn btn-success btn-sm">Semaine en cours</a>
+        <button onclick="window.location.reload()" class="btn btn-outline-dark btn-sm">↻</button>
+      </div>
+
+      <div class="text-center mb-2 d-flex flex-wrap justify-content-center align-items-center gap-2">
+        <select class="form-select form-select-sm w-auto" onchange="var u=new URL(window.location);if(this.value){u.searchParams.set('tech',this.value);}else{u.searchParams.delete('tech');}window.location.href=u.toString();">
+          <option value="">👷 Tous les techniciens</option>
+          <option value="none" t-att-selected="'selected' if sel_tech=='none' else None">⚠️ Non affectés</option>
+          <t t-foreach="employees" t-as="e">
+            <option t-att-value="str(e.id)" t-att-selected="'selected' if sel_tech==str(e.id) else None"><t t-esc="e.name"/></option>
+          </t>
+        </select>
+        <select class="form-select form-select-sm w-auto" onchange="var u=new URL(window.location);if(this.value){u.searchParams.set('ville',this.value);}else{u.searchParams.delete('ville');}window.location.href=u.toString();">
+          <option value="">📍 Toutes les villes</option>
+          <t t-foreach="villes_all" t-as="v">
+            <option t-att-value="v" t-att-selected="'selected' if sel_ville==v else None"><t t-esc="v"/></option>
+          </t>
+        </select>
+        <t t-if="sel_tech or sel_ville"><a t-attf-href="?week_offset={{week_offset}}" class="btn btn-outline-danger btn-sm">✕ Filtres</a></t>
+      </div>
+
+      <div class="text-center mb-2">
+        <span class="text-muted small me-2">Statuts :</span>
+        <label class="pp-st-lbl" style="border-color:#94a3b8;"><input type="checkbox" class="pp-st" value="draft" checked="checked"/> ✏️ Brouillon</label>
+        <label class="pp-st-lbl" style="border-color:#0d6efd;"><input type="checkbox" class="pp-st" value="published" checked="checked"/> 📅 Planifié</label>
+        <label class="pp-st-lbl" style="border-color:#fd7e14;"><input type="checkbox" class="pp-st" value="in_progress" checked="checked"/> 🔧 En cours</label>
+        <label class="pp-st-lbl" style="border-color:#198754;"><input type="checkbox" class="pp-st" value="completed" checked="checked"/> ✅ Terminé</label>
+        <span class="ms-3 fw-bold" style="color:#0f2c3f;"><t t-esc="len(all_slots)"/> intervention(s)</span>
+      </div>
+
+      <select id="pp-emp-tpl" style="display:none;">
+        <option value="">— Affecter —</option>
+        <t t-foreach="employees" t-as="e"><option t-att-value="str(e.id)"><t t-esc="e.name"/></option></t>
+      </select>
+
+      <table class="pp-table">
+        <thead>
+          <tr>
+            <t t-foreach="range(6)" t-as="d">
+              <t t-set="cd" t-value="monday + datetime.timedelta(days=d)"/>
+              <th t-attf-class="{{'pp-th-today' if cd == today else ''}}"><t t-esc="jours[d]"/> <t t-esc="cd.strftime('%d/%m')"/></th>
+            </t>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <t t-foreach="range(6)" t-as="d">
+              <t t-set="cd" t-value="monday + datetime.timedelta(days=d)"/>
+              <t t-set="day_slots" t-value="all_slots.filtered(lambda s: s.start_datetime and s.start_datetime.date() == cd)"/>
+              <td t-attf-class="pp-cell {{'pp-cell-today' if cd == today else ''}}">
+                <div class="text-muted small mb-1" t-if="day_slots"><t t-esc="len(day_slots)"/> interv.</div>
+                <t t-foreach="day_slots" t-as="slot">
+                  <t t-set="ville" t-value="slot.partner_city or 'Sans ville'"/>
+                  <t t-set="vcol" t-value="palette[sum([ord(ch) for ch in ville]) % len(palette)]"/>
+                  <div class="pp-card" t-att-data-status="slot.state" t-attf-style="border-left-color:{{vcol}};">
+                    <t t-set="t_beg" t-value="slot.start_datetime.strftime('%H:%M') if slot.start_datetime else ''"/>
+                    <t t-set="t_fin" t-value="slot.end_datetime.strftime('%H:%M') if slot.end_datetime else ''"/>
+                    <div class="pp-time">🕐 <t t-esc="t_beg"/><t t-if="t_fin"> → <t t-esc="t_fin"/></t></div>
+                    <div class="pp-ville" t-attf-style="background:{{vcol}};">📍 <t t-esc="ville"/></div>
+                    <div class="pp-client"><a t-attf-href="/odoo/action-planning.planning_action_schedule_by_resource/{{slot.id}}" target="_blank"><t t-esc="slot.partner_id.display_name or slot.name or 'Intervention'"/></a></div>
+                    <t t-if="slot.partner_phone"><div style="font-size:10.5px;">📞 <a t-attf-href="tel:{{slot.partner_phone}}" style="color:#0369a1;text-decoration:none;"><t t-esc="slot.partner_phone"/></a></div></t>
+                    <t t-set="scol" t-value="st_colors.get(slot.state) or '#94a3b8'"/>
+                    <span class="pp-badge" t-attf-style="background:{{scol}};"><t t-esc="st_icons.get(slot.state,'')"/> <t t-esc="st_labels.get(slot.state, slot.state)"/></span>
+                    <select t-attf-class="pp-tech {{'assigned' if slot.employee_ids else ''}}" t-att-data-id="slot.id">
+                      <option value="">⚠️ Affecter…</option>
+                      <t t-foreach="employees" t-as="e">
+                        <option t-att-value="str(e.id)" t-att-selected="'selected' if e.id in slot.employee_ids.ids else None"><t t-esc="e.name"/></option>
+                      </t>
+                    </select>
+                    <select class="pp-stsel" t-att-data-id="slot.id">
+                      <option value="draft" t-att-selected="'selected' if slot.state=='draft' else None">✏️ Brouillon</option>
+                      <option value="published" t-att-selected="'selected' if slot.state=='published' else None">📅 Planifié</option>
+                      <option value="in_progress" t-att-selected="'selected' if slot.state=='in_progress' else None">🔧 En cours</option>
+                      <option value="completed" t-att-selected="'selected' if slot.state=='completed' else None">✅ Terminé</option>
+                    </select>
+                  </div>
+                </t>
+                <div t-if="not day_slots" class="text-muted text-center small py-3">—</div>
+              </td>
+            </t>
+          </tr>
+        </tbody>
+      </table>
+      <p class="text-muted small mt-2 text-center">Affecte un technicien via le menu déroulant de chaque carte · La bordure et la pastille colorée = la ville (regroupe les interventions proches).</p>
+    </div>
+
+    <script>
+      (function(){
+        function applyStatusFilter(){
+          var active = {};
+          document.querySelectorAll('.pp-st').forEach(function(cb){ active[cb.value] = cb.checked; });
+          document.querySelectorAll('.pp-card').forEach(function(c){
+            c.style.display = active[c.getAttribute('data-status')] ? '' : 'none';
+          });
+        }
+        document.querySelectorAll('.pp-st').forEach(function(cb){ cb.addEventListener('change', applyStatusFilter); });
+
+        function rpc(model, method, args, cb){
+          fetch('/web/dataset/call_kw', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({jsonrpc:'2.0', method:'call', params:{model:model, method:method, args:args, kwargs:{}}})
+          }).then(function(r){return r.json();}).then(function(d){
+            if(d.error){ cb(false, (d.error.data &amp;&amp; d.error.data.message) || d.error.message); }
+            else { cb(true, d.result); }
+          }).catch(function(e){ cb(false, String(e)); });
+        }
+
+        document.querySelectorAll('.pp-tech').forEach(function(sel){
+          sel.addEventListener('change', function(){
+            var id = parseInt(sel.getAttribute('data-id'));
+            var v = sel.value;
+            var emp = v ? [[6,0,[parseInt(v)]]] : [[5]];
+            sel.disabled = true;
+            rpc('planning.slot','write',[[id],{employee_ids: emp}], function(ok, msg){
+              sel.disabled = false;
+              if(ok){ sel.classList.toggle('assigned', !!v); } else { alert('Échec affectation : ' + msg); }
+            });
+          });
+        });
+
+        document.querySelectorAll('.pp-stsel').forEach(function(sel){
+          sel.addEventListener('change', function(){
+            var id = parseInt(sel.getAttribute('data-id'));
+            sel.disabled = true;
+            rpc('planning.slot','write',[[id],{state: sel.value}], function(ok, msg){
+              sel.disabled = false;
+              if(ok){ window.location.reload(); } else { alert('Échec statut : ' + msg); }
+            });
+          });
+        });
+      })();
+    </script>
+  </t>
+</t>

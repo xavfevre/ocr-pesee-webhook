@@ -1,0 +1,58 @@
+<t t-name="website_studio.default_listing">
+        <t t-call="website.layout">
+            <div class="container o_website_listing_layout">
+                <div class="oe_structure oe_new"/>
+                <section class="s_searchbar o_colored_level o_cc pt48 pb48">
+                    <div class="row">
+                        <div class="col-lg-8 offset-lg-2">
+                            <div class="btn-toolbar">
+
+                                <form method="get" class="o_searchbar_form s_searchbar_input me-auto flex-grow-1">
+                                    <div role="search" class="input-group">
+                                        <input type="search" name="search" class="search-query form-control oe_search_box border-0 text-bg-light" placeholder="Search..." t-att-value="search" autocomplete="off"/>
+                                        <button type="submit" aria-label="Search" title="Search" class="btn oe_search_button btn-light">
+                                            <i class="oi oi-search"/>
+                                            <span t-if="search" class="oe_search_found">
+                                                <small>(<t t-out="search_count or 0"/> found)</small>
+                                            </span>
+                                        </button>
+                                    </div>
+                                    <input name="order" type="hidden" class="o_search_order_by" t-att-value="order_by if order_by else 'name asc'"/>
+                                </form>
+
+                                <t t-call="website_studio.listing_layout_switcher"/>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div t-attf-class="row mx-n2 mt8 #{'o_website_grid' if layout_mode == 'grid' else 'o_website_list'}">
+                    <t t-foreach="records" t-as="record">
+                        <div t-attf-class="#{'col-lg-3 col-md-4 col-sm-6 px-2 col-xs-12' if layout_mode == 'grid' else ''}">
+                            <a class="o_website_record text-decoration-none d-grid card w-100 mb-3" t-att-href="record_to_url(record)">
+                                <div class="d-flex">
+                                    <studio_placeholder for="image" class="h-100 w-100"/>
+                                </div>
+                                <studio_placeholder for="tags" class="text-end me-1"/>
+                                <div class="card-body py-2 px-3">
+                                    <h5 class="card-title">
+                                        <studio_placeholder for="name"/>
+                                    </h5>
+                                    <div class="card-text d-flex flex-column flex-grow-1 mt-1">
+                                        <span class="mb-0">
+                                            <studio_placeholder for="monetary"/>
+                                        </span>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+
+                <div class="oe_structure oe_new"/>
+                <div t-if="pager" class="o_portal_pager d-flex justify-content-center my-4">
+                    <t t-call="portal.pager"/>
+                </div>
+            </div>
+        </t>
+    </t>

@@ -1,0 +1,19 @@
+<data>
+  <xpath expr="/list//field[@name='activity_ids']" position="replace"/>
+  <xpath expr="/list//field[@name='date_order']" position="replace">
+    <field name="x_studio_date_previsionnelle_dintervention" optional="show" string="Date d'intervention" options="{}"/>
+  </xpath>
+  <xpath expr="/list//field[@name='user_id']" position="replace">
+    <field name="x_studio_lieu_dintervention_2" optional="show"/>
+    <field name="x_studio_lieu_dintervention" optional="hide"/>
+    <field name="x_objet_devis" optional="show"/>
+    <field name="x_studio_lieu_dintervention_1" optional="show"/>
+  </xpath>
+  <xpath expr="/list/field[@name='company_id'][2]" position="replace"/>
+  <xpath expr="/list" position="attributes">
+    <attribute name="default_order">x_studio_date_previsionnelle_dintervention desc</attribute>
+  </xpath>
+  <xpath expr="/list//field[@name='name']" position="attributes">
+    <attribute name="width">100</attribute>
+  </xpath>
+</data>

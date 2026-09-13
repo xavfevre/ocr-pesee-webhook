@@ -1,0 +1,87 @@
+<data>
+  <xpath expr="/form/header" position="before">
+    <header>
+      </header>
+  </xpath>
+  <xpath expr="/form//group[@name='sale_header']" position="after">
+    <group name="studio_group_qv_1jmvrmkes">
+      <group name="studio_group_qv_left" string="Chantier">
+        <field name="x_studio_date_previsionnelle_dintervention"/>
+        <field name="x_studio_lieu_dintervention_2"/>
+        <field name="x_bi_technicien_id" string="Opérateur (BI)" readonly="1"/>
+        <field name="x_bi_camion_id" string="Camion (BI)" readonly="1"/>
+        <field name="x_bi_conformite" string="AC / NC (BI)" readonly="1"/>
+      </group>
+      <group name="studio_group_qv_right" string="Info chantier">
+        <field name="x_studio_related_field_39k_1jmvv8e5i" string="Date d'intervention" force_save="0" readonly="False" invisible="state not in [&quot;sale&quot;]"/>
+        <field name="x_fin_intervention" string="Fin d'intervention" invisible="state not in [&quot;sale&quot;]"/>
+        <field name="x_studio_interlocuteur_1"/>
+        <field name="x_objet_devis" string="Objet devis"/>
+        <field name="x_studio_lieu_dintervention_1" string="Objet commande/BI"/>
+      </group>
+    </group>
+  </xpath>
+  <xpath expr="/form/sheet/div[3]/h1/field[@name='name']" position="attributes">
+    <attribute name="force_save">1</attribute>
+    <attribute name="readonly">True</attribute>
+  </xpath>
+  <xpath expr="/form//field[@name='partner_id']" position="after">
+    <field name="x_studio_related_field_4dj_1jmdpth2b"/>
+  </xpath>
+  <xpath expr="/form//field[@name='sale_order_template_id']" position="replace"/>
+  <xpath expr="/form//field[@name='validity_date']" position="replace"/>
+  <xpath expr="/form//field[@name='payment_term_id']" position="after">
+    <field name="x_studio_attestation_de_tva"/>
+  </xpath>
+  <xpath expr="/form//page[@name='customer_signature']" position="after">
+    <page string="Nota" name="studio_page_2jo_1jjroe95k">
+      <field name="x_studio_nota"/>
+    </page>
+    <page string="Photos" name="studio_page_12a_1jjrokldd">
+      <group name="studio_group_12a">
+        <group name="studio_group_12a_left">
+          <field widget="image" name="x_studio_binary_field_863_1jjrotuj2" string="Image 1"/>
+          <field name="x_studio_description_1_1"/>
+        </group>
+        <group name="studio_group_12a_right">
+          <field widget="image" name="x_studio_binary_field_1nq_1jjrou9n7" string="Image 2"/>
+          <field name="x_studio_description_2_1"/>
+        </group>
+      </group>
+      <group name="studio_group_k3_1jjrouseg">
+        <group name="studio_group_k3_left">
+          <field widget="image" name="x_studio_binary_field_4r5_1jjrov2mn" string="Image 3"/>
+          <field name="x_studio_description_3"/>
+        </group>
+        <group name="studio_group_k3_right">
+          <field widget="image" name="x_studio_binary_field_5bk_1jjrovg1v" string="Image 4"/>
+          <field name="x_studio_description_4"/>
+        </group>
+      </group>
+      <group name="studio_group_88n_1jjrovlvp">
+        <group name="studio_group_88n_left">
+          <field widget="image" name="x_studio_binary_field_70h_1jjrp00fe" string="Image 5"/>
+          <field name="x_studio_description_5"/>
+        </group>
+        <group name="studio_group_88n_right">
+          <field widget="image" name="x_studio_binary_field_4d7_1jjrp1itt" string="Image 6"/>
+          <field name="x_studio_description_6"/>
+        </group>
+      </group>
+    </page>
+  </xpath>
+  <xpath expr="/form/sheet/notebook/page[@name='order_lines']/field[@name='order_line']/list//field[@name='name']" position="after">
+    <field optional="show" name="x_studio_libelle_client"/>
+    <xpath expr="/form/sheet/notebook/page[@name='order_lines']/field[@name='order_line']/list//field[@name='product_uom_qty']" position="move"/>
+  </xpath>
+  <xpath expr="/form/sheet/notebook/page[@name='order_lines']/field[@name='order_line']/list/field[@name='price_total'][2]" position="after">
+    <xpath expr="/form/sheet/notebook/page[@name='order_lines']/field[@name='order_line']/list//field[@name='tax_ids']" position="move"/>
+  </xpath>
+  <xpath expr="/form/sheet/notebook/page[@name='order_lines']/field[@name='order_line']/list//field[@name='qty_delivered']" position="attributes">
+    <attribute name="optional">hide</attribute>
+  </xpath>
+  <xpath expr="/form/sheet/notebook/page[@name='order_lines']/field[@name='order_line']/list//field[@name='discount']" position="attributes">
+    <attribute name="optional">hide</attribute>
+  </xpath>
+  <xpath expr="/form//field[@name='client_order_ref']" position="replace"/>
+</data>

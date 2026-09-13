@@ -1,0 +1,23 @@
+<kanban quick_create_view="web_studio.studio_approval_rule_form_view_quick_create" highlight_color="kanban_color" class="o-studio-approval-rule-kanban">
+                <field name="can_validate"/>
+                <field name="kanban_color"/>
+                <field name="exclusive_user"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="row justify-content-between py-1">
+                            <div class="col fs-4 text-truncate" t-att-title="record.message.raw_value">
+                                <field t-if="record.message.raw_value" name="message"/>
+                                <span t-else="" class="text-muted">Step</span>
+                            </div>
+                            <div t-if="record.exclusive_user.raw_value" class="col-2"><i role="img" class="fa fa-user-times" title="Exclusive approval"/></div>
+                        </div>
+                        <div class="text-truncate" t-att-title="record.approval_group_id.value">
+                            <field name="approval_group_id"/>
+                        </div>
+                        <footer class="justify-content-between py-1">
+                            <a t-if="record.can_validate.raw_value" role="button" class="btn btn-link px-0 py-0" name="open_delegate_action" type="object" string="Delegate"/>
+                            <field t-if="record.approver_ids.raw_value.length" class="justify-content-end align-items-center ms-auto" readonly="1" name="approver_ids" widget="many2many_avatar_user"/>
+                        </footer>
+                    </t>
+                </templates>
+            </kanban>

@@ -1,0 +1,5 @@
+<data>
+        <xpath expr="//head" position="inside">
+            <t t-if="studio" t-call-assets="web_studio.report_assets" t-autoprefix="true"/>
+        </xpath>
+    </data>

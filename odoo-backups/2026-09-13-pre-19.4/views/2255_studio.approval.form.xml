@@ -1,0 +1,33 @@
+<form string="Studio Approval Rule">
+                <header>
+                    <field name="notification_order" widget="statusbar" options="{'clickable': '1'}"/>
+                    <button name="open_delegate_action" type="object" string="Delegate" class="btn btn-primary" invisible="not can_validate"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box" invisible="not id">
+                        <button class="oe_stat_button" type="action" name="749" icon="fa-thumbs-up" context="{'search_default_rule_id':id, 'default_chart_id': id}">
+                            <field string="Entries" name="entries_count" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <field name="active" invisible="1"/>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group>
+                            <field name="message"/>
+                            <field name="approver_ids" required="not approval_group_id" placeholder="Select users..." widget="many2many_tags"/>
+                            <field name="approval_group_id" required="not approver_ids" placeholder="Select group"/>
+                            <field name="exclusive_user" widget="boolean_toggle"/>
+                            <field name="model_id" required="1" readonly="context.get('studio')" groups="base.group_no_one"/>
+                            <field name="action_id" required="not method" readonly="method or context.get('studio')" groups="base.group_no_one"/>
+                            <field name="method" required="not action_id" readonly="action_id or context.get('studio')" groups="base.group_no_one"/>
+                        </group>
+                        <group>
+                            <field name="users_to_notify" placeholder="Select users..." widget="many2many_tags"/>
+                            <field name="model_id" invisible="1"/>
+                            <field name="model_name" invisible="1"/>
+                            <field name="domain" widget="domain" options="{'foldable': True,'model': 'model_name'}"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>

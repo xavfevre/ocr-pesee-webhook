@@ -1,0 +1,17 @@
+<form>
+                <group>
+                    <label for="approver_ids">Approvers</label>
+                    <div>
+                        <field name="approver_ids" widget="many2many_tags"/>
+                        <div class="d-flex mt-2">
+                            <label for="date_to"/>
+                            <field name="date_to" class="d-inline ms-2" placeholder="Forever"/>
+                        </div>
+                    </div>
+                    <field name="users_to_notify" widget="many2many_tags"/>
+                </group>
+                <footer>
+                    <button special="save" string="Apply" class="btn btn-primary"/>
+                    <button special="cancel" class="btn btn-secondary"/>
+                </footer>
+            </form>

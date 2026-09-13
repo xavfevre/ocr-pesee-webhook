@@ -1,0 +1,5 @@
+<data>
+  <xpath expr="//header" position="inside">
+    <button string="Envoyer rapport" type="action" name="1194"/>
+  </xpath>
+</data>

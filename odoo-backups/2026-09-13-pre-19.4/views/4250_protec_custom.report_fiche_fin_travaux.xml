@@ -1,0 +1,43 @@
+<t t-name="protec_custom.report_fiche_fin_travaux">
+  <t t-call="web.html_container">
+    <t t-foreach="docs" t-as="doc">
+      <t t-set="company" t-value="doc.company_id"/>
+      <t t-call="web.external_layout">
+        <div class="page">
+          <h2 style="color:#0b7285;margin:0 0 2px;letter-spacing:0.5px;">RAPPORT D'INTERVENTION</h2>
+          <div style="color:#6b7280;font-size:10.5px;margin-bottom:8px;">
+            Référence <t t-out="(doc.name or '').split(' ')[0]"/>
+            
+          </div>
+          <t t-out="doc.x_fdt_report_body"/>
+          <t t-set="photos" t-value="[p for p in [doc.x_fdt_photo_1, doc.x_fdt_photo_2, doc.x_fdt_photo_3, doc.x_fdt_photo_4] if p]"/>
+          <t t-if="photos">
+            <h3 style="background:#0b7285;color:#fff;font-size:12px;padding:6px 12px;border-radius:3px;margin:16px 0 6px;letter-spacing:0.4px;">PHOTOS DE L'INTERVENTION</h3>
+            <div>
+              <t t-foreach="photos" t-as="ph">
+                <img t-att-src="image_data_uri(ph)" style="max-height:185px;max-width:47%;margin:4px;border:1px solid #e5e7eb;vertical-align:top;"/>
+              </t>
+            </div>
+          </t>
+          <div style="page-break-inside:avoid;">
+            <h3 style="background:#0b7285;color:#fff;font-size:12px;padding:6px 12px;border-radius:3px;margin:16px 0 6px;letter-spacing:0.4px;">VALIDATION</h3>
+            <table style="width:100%;border-collapse:separate;border-spacing:10px 0;"><tr>
+              <td style="width:50%;border:1.5px dashed #cbd5e1;border-radius:5px;padding:8px 12px;font-size:11px;color:#6b7280;vertical-align:top;height:110px;">
+                Signature du client
+                <t t-if="doc.x_fdt_signataire"> — <t t-out="doc.x_fdt_signataire"/></t><br/>
+                <img t-if="doc.x_fdt_signature" t-att-src="image_data_uri(doc.x_fdt_signature)" style="max-height:85px;margin-top:4px;"/>
+              </td>
+              <td style="width:50%;border:1.5px dashed #cbd5e1;border-radius:5px;padding:8px 12px;font-size:11px;color:#6b7280;vertical-align:top;height:110px;">
+                Pour PROTEC « Pôle Assainissement »<br/>
+                <span style="color:#1f2937;font-weight:700;">
+                  <t t-out="', '.join([p.strip().split(' ')[0] for p in (doc.x_fdt_operateurs or '').split(',') if p.strip()])"/>
+                </span>
+                <t t-if="doc.x_fdt_operateurs"><br/><i>Chauffeur opérateur</i></t>
+              </td>
+            </tr></table>
+          </div>
+        </div>
+      </t>
+    </t>
+  </t>
+</t>

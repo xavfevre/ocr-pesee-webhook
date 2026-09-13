@@ -1,0 +1,8 @@
+<search string="Approval Rules">
+                <field name="name"/>
+                <field name="approval_group_id"/>
+                <field name="approver_ids"/>
+                <filter string="Archived" name="inactive" domain="[('active','=',False)]"/>
+                <filter string="Only subrules" name="only_subrules" domain="[('parent_id', '!=', False)]" context="{ 'studio_approval_display_subrules': True }"/>
+                <filter string="Step" name="notification_order" domain="[]" context="{'group_by':'notification_order'}"/>
+            </search>

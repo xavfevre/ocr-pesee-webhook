@@ -1,0 +1,11 @@
+<form>
+                <group>
+                    <field name="approver_ids" required="not approval_group_id" placeholder="Select users..." widget="many2many_tags"/>
+                    <field name="approval_group_id" required="not approver_ids" placeholder="Select a group..."/>
+                    <field name="users_to_notify" placeholder="Select users..." widget="many2many_tags"/>
+                    <field name="exclusive_user" widget="boolean_toggle"/>
+                </group>
+                <field name="model_id" invisible="1"/>
+                <field name="action_id" invisible="1"/>
+                <field name="method" invisible="1"/>
+            </form>

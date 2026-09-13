@@ -1,0 +1,9 @@
+<data>
+  <xpath expr="/form/sheet/div[2]/h1/field[@name='name']" position="attributes">
+    <attribute name="force_save">0</attribute>
+    <attribute name="readonly">False</attribute>
+  </xpath>
+  <xpath expr="/form//list[@name='journal_items']//field[@name='name']" position="after">
+    <field optional="show" name="x_studio_related_field_261_1jksssnhr"/>
+  </xpath>
+</data>

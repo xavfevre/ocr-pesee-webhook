@@ -1,0 +1,17 @@
+<form>
+                <sheet>
+                    <p class="alert alert-info" role="alert">
+                        Studio Customizations will be exported
+                    </p>
+                    <group invisible="not context.get('studio_export_all', False)">
+                        <field name="additional_models" invisible="1"/>
+                        <field name="include_additional_data"/>
+                        <field name="include_demo_data"/>
+                    </group>
+                    <button string="Configure data and demo data to export" type="action" name="web_studio.action_web_studio_leave_with" context="{'action_id': 'web_studio.action_models_to_export'}" class="btn-link" icon="oi-arrow-right" invisible="context.get('studio_export_all', False)"/>
+                </sheet>
+                <footer>
+                    <button string="Export" type="action" name="web_studio.studio_export_action" close="1" class="btn-primary" data-hotkey="q"/>
+                    <button special="cancel" data-hotkey="x" class="btn-secondary"/>
+                </footer>
+            </form>

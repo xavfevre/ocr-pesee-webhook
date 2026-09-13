@@ -1,0 +1,5 @@
+<data>
+  <xpath expr="/list//field[@name='invoice_date_due']" position="attributes">
+    <attribute name="widget">date</attribute>
+  </xpath>
+</data>

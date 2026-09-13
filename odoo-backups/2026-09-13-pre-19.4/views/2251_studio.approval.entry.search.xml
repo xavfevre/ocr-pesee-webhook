@@ -1,0 +1,16 @@
+<search string="Approval Entries">
+                <field name="name"/>
+                <field name="res_id"/>
+                <field name="user_id"/>
+                <field name="rule_id" invisible="1"/>
+                <separator/>
+                <filter string="My entries" name="my_entries" domain="[('user_id','=',uid)]"/>
+                <separator/>
+                <filter string="Approved" name="approved" domain="[('approved','=', True)]"/>
+                <filter string="Rejected" name="rejected" domain="[('user_id','=', False)]"/>
+                <group>
+                    <filter string="Model" name="model" domain="[]" context="{'group_by':'model'}"/>
+                    <filter string="Method" name="model" domain="[]" context="{'group_by':'method'}"/>
+                    <filter string="Action" name="model" domain="[]" context="{'group_by':'action_id'}"/>
+                </group>
+            </search>

@@ -1,0 +1,7 @@
+<data>
+  <xpath expr="/form[@name='Product Template']//field[@name='default_code']" position="attributes">
+    <attribute name="invisible">False</attribute>
+    <attribute name="required">False</attribute>
+    <attribute name="string">Code article</attribute>
+  </xpath>
+</data>

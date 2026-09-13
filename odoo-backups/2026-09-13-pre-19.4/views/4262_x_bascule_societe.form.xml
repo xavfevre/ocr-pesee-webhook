@@ -1,0 +1,10 @@
+<form string="Basculer la facture vers une autre société">
+  <group>
+    <field name="x_move_id" readonly="1" options="{'no_open': True}"/>
+    <field name="x_company_id" options="{'no_create': True, 'no_open': True}"/>
+  </group>
+  <footer>
+    <button string="Basculer" type="action" name="1206" class="btn-primary"/>
+    <button string="Annuler" special="cancel" class="btn-secondary"/>
+  </footer>
+</form>

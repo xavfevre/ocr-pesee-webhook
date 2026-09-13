@@ -1,0 +1,5 @@
+<data>
+  <xpath expr="/list//field[@name='activity_exception_decoration']" position="attributes">
+    <attribute name="column_invisible">True</attribute>
+  </xpath>
+</data>

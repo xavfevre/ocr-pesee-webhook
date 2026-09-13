@@ -1,0 +1,34 @@
+<data>
+    <xpath expr="//div[@t-if='doc.user_id.name']" position="attributes">
+        <attribute name="t-if">False</attribute>
+    </xpath>
+    <xpath expr="//div[@name='delivery_date']" position="attributes">
+        <attribute name="t-if">False</attribute>
+    </xpath>
+    <xpath expr="//div[@id='informations']" position="inside">
+        <div t-if="doc.x_studio_date_previsionnelle_dintervention and doc.state in ('draft', 'sent')" class="col">
+            <strong>Date previsionnelle</strong>
+            <p class="m-0" t-out="doc.x_studio_date_previsionnelle_dintervention" t-options="{'widget': 'date'}"/>
+        </div>
+        <div t-if="doc.x_studio_related_field_39k_1jmvv8e5i" class="col">
+            <strong>Date d'intervention</strong>
+            <p class="m-0" t-out="doc.x_studio_related_field_39k_1jmvv8e5i" t-options="{'widget': 'date'}"/>
+        </div>
+    </xpath>
+    <xpath expr="//div[@id='informations']" position="after">
+        <div t-if="doc.x_objet_devis or doc.x_studio_interlocuteur_1 or doc.x_studio_lieu_dintervention_2" class="row mb-3">
+            <div t-if="doc.x_objet_devis" class="col-4">
+                <strong>Objet</strong>
+                <p class="m-0" style="white-space: pre-wrap;" t-out="doc.x_objet_devis"/>
+            </div>
+            <div t-if="doc.x_studio_interlocuteur_1" class="col-4">
+                <strong>Interlocuteur</strong>
+                <p class="m-0" style="white-space: pre-wrap;" t-out="doc.x_studio_interlocuteur_1"/>
+            </div>
+            <div t-if="doc.x_studio_lieu_dintervention_2" class="col-4">
+                <strong>Lieu d'intervention</strong>
+                <p class="m-0" style="white-space: pre-wrap;" t-out="doc.x_studio_lieu_dintervention_2"/>
+            </div>
+        </div>
+    </xpath>
+</data>
