@@ -1,0 +1,160 @@
+<t t-name="studio_report_document">
+    <t t-call="web.external_layout">
+        <div class="page" style="font-family: Arial, sans-serif; font-size: 10pt; color: #000;">
+
+            <!-- Titre principal -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="font-size: 14pt; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 4px;">
+                    Attestation simplifiée
+                </h2>
+                <p style="font-size: 9pt; margin: 0; font-style: italic;">
+                    (Article 279-0 bis du Code Général des Impôts - Travaux dans les locaux d'habitation à taux réduit de TVA)
+                </p>
+            </div>
+
+            <!-- Bloc Donneur d'ordre (client) -->
+            <div style="border: 1px solid #ccc; padding: 12px; margin-bottom: 16px; background: #f9f9f9;">
+                <h3 style="font-size: 10pt; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; border-bottom: 1px solid #ccc; padding-bottom: 4px;">
+                    1. Donneur d'ordre (client)
+                </h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 40%; padding: 4px 0; font-weight: bold; vertical-align: top;">Nom / Raison sociale :</td>
+                        <td style="padding: 4px 0; vertical-align: top;">
+                            <span t-field="doc.partner_id.name"/>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 40%; padding: 4px 0; font-weight: bold; vertical-align: top;">Adresse :</td>
+                        <td style="padding: 4px 0; vertical-align: top;">
+                            <span t-field="doc.partner_id.street"/><br/>
+                            <t t-if="doc.partner_id.street2">
+                                <span t-field="doc.partner_id.street2"/><br/>
+                            </t>
+                            <span t-field="doc.partner_id.zip"/> <span t-field="doc.partner_id.city"/><br/>
+                            <t t-if="doc.partner_id.country_id">
+                                <span t-field="doc.partner_id.country_id"/>
+                            </t>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Bloc Lieu des travaux -->
+            <div style="border: 1px solid #ccc; padding: 12px; margin-bottom: 16px; background: #f9f9f9;">
+                <h3 style="font-size: 10pt; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; border-bottom: 1px solid #ccc; padding-bottom: 4px;">
+                    2. Lieu d'intervention / Adresse des travaux
+                </h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 40%; padding: 4px 0; font-weight: bold; vertical-align: top;">Adresse du chantier :</td>
+                        <td style="padding: 4px 0; vertical-align: top;">
+                            <t t-if="doc.x_studio_lieu_dintervention">
+                                <span t-field="doc.x_studio_lieu_dintervention"/>
+                            </t>
+                            <t t-else="">
+                                <span t-field="doc.partner_id.street"/>, 
+                                <span t-field="doc.partner_id.zip"/> <span t-field="doc.partner_id.city"/>
+                            </t>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 40%; padding: 4px 0; font-weight: bold; vertical-align: top;">Date prévisionnelle d'intervention :</td>
+                        <td style="padding: 4px 0; vertical-align: top;">
+                            <t t-if="doc.x_studio_date_previsionnelle_dintervention">
+                                <span t-field="doc.x_studio_date_previsionnelle_dintervention" t-options="{&quot;format&quot;: &quot;dd/MM/yyyy&quot;}"/>
+                            </t>
+                            <t t-else="">
+                                <span t-field="doc.date_order" t-options="{&quot;format&quot;: &quot;dd/MM/yyyy&quot;}"/>
+                            </t>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Bloc Nature des travaux -->
+            <div style="border: 1px solid #ccc; padding: 12px; margin-bottom: 16px; background: #f9f9f9;">
+                <h3 style="font-size: 10pt; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; border-bottom: 1px solid #ccc; padding-bottom: 4px;">
+                    3. Nature des travaux
+                </h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 4px 0; font-weight: bold; vertical-align: top; width: 40%;">Référence devis / commande :</td>
+                        <td style="padding: 4px 0; vertical-align: top;"><span t-field="doc.name"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 0; font-weight: bold; vertical-align: top;">Description :</td>
+                        <td style="padding: 4px 0; vertical-align: top;">
+                            <t t-foreach="doc.order_line" t-as="line">
+                                <t t-if="line.product_id">
+                                    - <span t-field="line.product_id.name"/><br/>
+                                </t>
+                            </t>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 0; font-weight: bold; vertical-align: top;">Montant HT :</td>
+                        <td style="padding: 4px 0; vertical-align: top;">
+                            <span t-field="doc.amount_untaxed" t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: doc.currency_id}"/>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Bloc Attestation légale -->
+            <div style="border: 1px solid #333; padding: 12px; margin-bottom: 16px;">
+                <h3 style="font-size: 10pt; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; border-bottom: 1px solid #ccc; padding-bottom: 4px;">
+                    4. Attestation du donneur d'ordre
+                </h3>
+                <p style="text-align: justify; line-height: 1.6; margin-bottom: 10px;">
+                    Je soussigné(e), <strong><span t-field="doc.partner_id.name"/></strong>, 
+                    certifie que les travaux mentionnés ci-dessus sont réalisés dans un local d'habitation 
+                    achevé depuis plus de 2 ans, à usage de résidence principale ou secondaire.
+                </p>
+                <p style="text-align: justify; line-height: 1.6; margin-bottom: 10px;">
+                    Je certifie que ce local n'est pas affecté à plus de 50 % à un usage professionnel, 
+                    commercial, agricole ou de toute autre activité économique.
+                </p>
+                <p style="text-align: justify; line-height: 1.6; margin-bottom: 10px;">
+                    J'atteste avoir pris connaissance que, si la présente attestation s'avère inexacte, 
+                    je serai tenu solidairement avec le prestataire au paiement du complément de taxe.
+                </p>
+            </div>
+
+            <!-- Signatures -->
+            <div style="margin-top: 30px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 50%; padding: 0 20px 0 0; vertical-align: top;">
+                            <div style="border: 1px solid #ccc; padding: 12px; min-height: 80px;">
+                                <p style="font-weight: bold; margin: 0 0 8px 0; text-align: center;">Fait à : ___________________________</p>
+                                <p style="font-weight: bold; margin: 0 0 8px 0; text-align: center;">Le : ___________________________</p>
+                                <p style="font-weight: bold; margin: 0 0 8px 0; text-align: center; font-size: 9pt;">Signature du donneur d'ordre :</p>
+                                <div style="height: 50px;"/>
+                            </div>
+                        </td>
+                        <td style="width: 50%; padding: 0 0 0 20px; vertical-align: top;">
+                            <div style="border: 1px solid #ccc; padding: 12px; min-height: 80px;">
+                                <p style="font-weight: bold; margin: 0 0 8px 0; text-align: center;">Fait à : ___________________________</p>
+                                <p style="font-weight: bold; margin: 0 0 8px 0; text-align: center;">Le : ___________________________</p>
+                                <p style="font-weight: bold; margin: 0 0 8px 0; text-align: center; font-size: 9pt;">Signature de l'entreprise :</p>
+                                <div style="height: 50px;"/>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Note légale -->
+            <div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                <p style="font-size: 8pt; color: #666; text-align: justify; line-height: 1.4;">
+                    <em>Conformément aux articles 278-0 bis et 279-0 bis du Code Général des Impôts, 
+                    les travaux de rénovation dans les logements achevés depuis plus de 2 ans bénéficient 
+                    d'un taux réduit de TVA (5,5 % ou 10 % selon la nature des travaux). 
+                    Cette attestation doit être conservée par l'entreprise prestataire pendant 6 ans.</em>
+                </p>
+            </div>
+
+        </div>
+    </t>
+</t>

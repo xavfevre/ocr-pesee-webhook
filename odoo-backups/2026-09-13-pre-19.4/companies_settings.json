@@ -1,0 +1,79 @@
+[
+ {
+  "id": 2,
+  "name": "PROTEC \"Pôle Assainissement\"",
+  "qr_code": true,
+  "link_qr_code": false,
+  "vat": "FR16393976139",
+  "company_registry": "39397613900013",
+  "peppol_eas": "0225",
+  "peppol_endpoint": "393976139",
+  "account_peppol_proxy_state": "receiver"
+ },
+ {
+  "id": 7,
+  "name": "PROTEC SAS - \"Pôle Déchets\"",
+  "qr_code": false,
+  "link_qr_code": false,
+  "vat": "FR16393976139",
+  "company_registry": "39397613900021",
+  "peppol_eas": "9957",
+  "peppol_endpoint": "FR16393976139",
+  "account_peppol_proxy_state": "not_registered"
+ },
+ {
+  "id": 3,
+  "name": "RENAISSANCE",
+  "qr_code": false,
+  "link_qr_code": false,
+  "vat": "FR38515110393",
+  "company_registry": "51511039300029",
+  "peppol_eas": "0225",
+  "peppol_endpoint": "515110393",
+  "account_peppol_proxy_state": "receiver"
+ },
+ {
+  "id": 6,
+  "name": "SCI L'EXCELLENCE",
+  "qr_code": false,
+  "link_qr_code": false,
+  "vat": "FR22822855821",
+  "company_registry": "82285582100028",
+  "peppol_eas": "0225",
+  "peppol_endpoint": "822855821",
+  "account_peppol_proxy_state": "not_registered"
+ },
+ {
+  "id": 4,
+  "name": "SCI LES PETITES BOIRES",
+  "qr_code": false,
+  "link_qr_code": false,
+  "vat": "FR20404830796",
+  "company_registry": "40483079600011",
+  "peppol_eas": "0225",
+  "peppol_endpoint": "404830796",
+  "account_peppol_proxy_state": "receiver"
+ },
+ {
+  "id": 5,
+  "name": "SCI VICTORIA",
+  "qr_code": false,
+  "link_qr_code": false,
+  "vat": "FR01835033291",
+  "company_registry": "83503329100021",
+  "peppol_eas": "0225",
+  "peppol_endpoint": "835033291",
+  "account_peppol_proxy_state": "receiver"
+ },
+ {
+  "id": 1,
+  "name": "S3T",
+  "qr_code": true,
+  "link_qr_code": false,
+  "vat": "FR96534785860",
+  "company_registry": "53478586000014",
+  "peppol_eas": "0225",
+  "peppol_endpoint": "534785860",
+  "account_peppol_proxy_state": "receiver"
+ }
+]

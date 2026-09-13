@@ -1,0 +1,9 @@
+<data><filter name="inactive" position="before">
+                <filter string="Active" name="active" domain="[('active','=',True)]"/>
+            </filter>
+            <filter name="notification_order" position="replace">
+                <filter string="Model" name="model" domain="[]" context="{'group_by':'model_id'}"/>
+                <filter string="Method" name="method" domain="[]" context="{'group_by':'method'}"/>
+                <filter string="Action" name="action" domain="[]" context="{'group_by':'action_id'}"/>
+            </filter>
+        </data>

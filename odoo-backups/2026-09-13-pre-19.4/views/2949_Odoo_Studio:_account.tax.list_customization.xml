@@ -1,0 +1,5 @@
+<data>
+  <xpath expr="/list//field[@name='active']" position="after">
+    <field optional="show" name="x_studio_date_field_4g3_1jotpg713"/>
+  </xpath>
+</data>

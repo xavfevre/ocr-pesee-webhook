@@ -1,0 +1,3125 @@
+[
+ {
+  "id": 672,
+  "name": "Send an email",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "\n            if records:\n                action = records.with_context(hide_default_template=True).action_quotation_send()\n        ",
+  "binding_model_id": [
+   775,
+   "Sales Order"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 232,
+  "name": "",
+  "model_id": [
+   451,
+   "Payment Provider"
+  ],
+  "code": "\naction = env.company._start_payment_onboarding()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 282,
+  "name": "(Un)Block Payment",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "\n                records.action_toggle_block_payment()\n            ",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1077,
+  "name": "(Un)Group lines by tax",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "\n                if records:\n                    records.action_group_ungroup_lines_by_tax()\n            ",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 180,
+  "name": "AI Agent Sources: Process Sources",
+  "model_id": [
+   394,
+   "AI Agent Source"
+  ],
+  "code": "model._cron_process_sources()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 714,
+  "name": "AI Documents: Sort documents with AI",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "model._cron_ai_sort()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 179,
+  "name": "AI Embedding: Generate Embeddings",
+  "model_id": [
+   395,
+   "Attachment Chunks Embedding"
+  ],
+  "code": "model._cron_generate_embedding()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 181,
+  "name": "AI Fields: Compute AI fields",
+  "model_id": [
+   4,
+   "Field"
+  ],
+  "code": "model._cron_fill_ai_fields()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 713,
+  "name": "AI: Add Tags",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "ai['result'] = record._ai_action_add_tags(tag_names)",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 175,
+  "name": "AI: Adjust Search",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_adjust_search(model_name, remove_facets, toggle_filters, toggle_groupbys, apply_searches, measures, mode, order, stacked, cumulated, custom_domain, switch_view_type)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 178,
+  "name": "AI: Compute Date",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_compute_date(model_name, field_name, operations, pin)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 174,
+  "name": "AI: Compute Report Measures",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_compute_report_measures(action_id, model_name)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 169,
+  "name": "AI: Get Fields",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_get_fields(model_name, include_description)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 168,
+  "name": "AI: Get Menu Details",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_get_menu_details(menu_ids)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1184,
+  "name": "AI: Link Document to Vehicle",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "record._ai_action_link_to_vehicle(license_plate)",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 712,
+  "name": "AI: Move To Folder",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "ai['result'] = record._ai_action_move_in_folder(folder_id)",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 173,
+  "name": "AI: Open Menu Graph",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_open_menu_graph(\n                menu_id, model_name, selected_filters, selected_groupbys, measure,\n                mode, order, search, stacked, cumulated, custom_domain)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 171,
+  "name": "AI: Open Menu Kanban",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_open_menu_kanban(menu_id, model_name, selected_filters, selected_groupbys, search, custom_domain)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 170,
+  "name": "AI: Open Menu List",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_open_menu_list(menu_id, model_name, selected_filters, selected_groupbys, search, custom_domain)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 172,
+  "name": "AI: Open Menu Pivot",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_open_menu_pivot(menu_id, model_name, selected_filters, row_groupbys, col_groupbys, measures, search, custom_domain)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 177,
+  "name": "AI: Read group",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_read_group(model_name, domain, groupby, aggregates, having, offset, limit, order)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 176,
+  "name": "AI: Search",
+  "model_id": [
+   393,
+   "AI Agent"
+  ],
+  "code": "\n            ai['result'] = record._ai_tool_search(model_name, domain, fields, offset, limit, order)\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 387,
+  "name": "Account Report Followup; Execute followup",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "model._cron_execute_followup()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 341,
+  "name": "Account: Journal online Waiting Synchronization",
+  "model_id": [
+   469,
+   "Journal"
+  ],
+  "code": "model._cron_fetch_waiting_online_transactions()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 340,
+  "name": "Account: Journal online sync",
+  "model_id": [
+   469,
+   "Journal"
+  ],
+  "code": "model._cron_fetch_online_transactions()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 343,
+  "name": "Account: Journal online sync cleanup unused connections",
+  "model_id": [
+   539,
+   "Bank Connection"
+  ],
+  "code": "model._cron_delete_unused_connection()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 342,
+  "name": "Account: Journal online sync reminder",
+  "model_id": [
+   469,
+   "Journal"
+  ],
+  "code": "model._cron_send_reminder_email()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 313,
+  "name": "Account: Post draft entries with auto_post enabled and accounting date up to today",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "model._autopost_draft_entries()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 865,
+  "name": "Account: Update payment status",
+  "model_id": [
+   799,
+   "Batch Payment"
+  ],
+  "code": "model._cron_check_payment_status()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1020,
+  "name": "Accrual Time Off: Updates the number of time off",
+  "model_id": [
+   986,
+   "Time Off Allocation"
+  ],
+  "code": "model._update_accrual()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 972,
+  "name": "Adjust Valuation",
+  "model_id": [
+   890,
+   "Stock Move"
+  ],
+  "code": "\naction = records.action_adjust_valuation()\n        ",
+  "binding_model_id": [
+   890,
+   "Stock Move"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 516,
+  "name": "Appointment Resource Leaves",
+  "model_id": [
+   406,
+   "Resource Time Off Detail"
+  ],
+  "code": "\naction = env['ir.actions.act_window']._for_xml_id('resource.action_resource_calendar_leave_tree')\nresource_ids = env['appointment.resource'].search([]).sudo().resource_id\ncalendar_ids = resource_ids.calendar_id\n# we do not care about company-wide as it cannot be set from the leaves wizard\naction['domain'] = ['|',\n                    '&', ('resource_id', '=', False),\n                        '|', ('calendar_id', 'in', calendar_ids.ids), ('calendar_id', '=', False),\n                    ('resource_id', 'in', resource_ids.ids)]\n    ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 155,
+  "name": "Archive Selection",
+  "model_id": [
+   373,
+   "Privacy Lookup Wizard Line"
+  ],
+  "code": "\nrecords.action_archive_all()\n        ",
+  "binding_model_id": [
+   373,
+   "Privacy Lookup Wizard Line"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 425,
+  "name": "Articles",
+  "model_id": [
+   624,
+   "Knowledge Article"
+  ],
+  "code": "action = model.action_home_page()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1048,
+  "name": "Attendance: Automatically check-out employees",
+  "model_id": [
+   1001,
+   "Attendance"
+  ],
+  "code": "model._cron_auto_check_out()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1049,
+  "name": "Attendance: Detect Absences for employees",
+  "model_id": [
+   1001,
+   "Attendance"
+  ],
+  "code": "model._cron_absence_detection()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1086,
+  "name": "Audit Custom Target",
+  "model_id": [
+   546,
+   "Accounting Return Check"
+  ],
+  "code": "\n                action = model.action_audit_custom_target(env.context.get('working_file_id'), env.context.get('target'))\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1087,
+  "name": "Audit Report",
+  "model_id": [
+   546,
+   "Accounting Return Check"
+  ],
+  "code": "\n                action = model.action_audit_report(env.context.get('working_file_id'), env.context.get('action_xml_id'))\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1083,
+  "name": "Auto Plan",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "action = records.auto_plan_id()",
+  "binding_model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 710,
+  "name": "Automation Rules: check and execute",
+  "model_id": [
+   809,
+   "Automation Rule"
+  ],
+  "code": "model._cron_process_time_based_actions()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1206,
+  "name": "Bascule société — exécution",
+  "model_id": [
+   1209,
+   "Basculer la facture vers…"
+  ],
+  "code": "w = record; mv = w.x_move_id; tgt = w.x_company_id.id\nif mv.state != 'draft' or mv.move_type not in ('in_invoice', 'in_refund'): raise UserError(\"Seules les factures fournisseurs en brouillon peuvent etre basculees.\")\nif tgt == mv.company_id.id: raise UserError(\"La facture est deja dans cette societe.\")\nif mv.partner_id.company_id and mv.partner_id.company_id.id != tgt: mv.partner_id.sudo().write({'company_id': False})\nAA = env['account.account'].with_context(allowed_company_ids=[tgt]); AT = env['account.tax'].with_context(allowed_company_ids=[tgt]); jr = env['account.journal'].with_context(allowed_company_ids=[tgt]).search([('type', '=', 'purchase'), ('company_id', '=', tgt)], limit=1); lines = []\nif not jr: raise UserError(\"Aucun journal d'achats dans la societe cible.\")\nfor l in mv.invoice_line_ids.filtered(lambda x: x.display_type in (False, 'product')):\n vals = {'name': l.name, 'quantity': l.quantity, 'price_unit': l.price_unit}; acc = AA.search([('code', '=', l.account_id.code), ('company_ids', 'in', [tgt])], limit=1) if l.account_id else AA.browse()\n if acc: vals['account_id'] = acc.id\n if l.product_id and (not l.product_id.company_id or l.product_id.company_id.id == tgt): vals['product_id'] = l.product_id.id\n vals['tax_ids'] = [(6, 0, [t.id for t in [AT.search([('company_id', '=', tgt), ('type_tax_use', '=', 'purchase'), ('amount', '=', tx.amount), ('price_include', '=', tx.price_include)], limit=1) for tx in l.tax_ids] if t])]; lines.append((0, 0, vals))\nnew = env['account.move'].with_context(allowed_company_ids=[tgt]).create({'move_type': mv.move_type, 'company_id': tgt, 'journal_id': jr.id, 'partner_id': mv.partner_id.id, 'invoice_date': mv.invoice_date, 'date': mv.date, 'ref': mv.ref, 'payment_reference': mv.payment_reference, 'invoice_date_due': mv.invoice_date_due, 'invoice_line_ids': lines})\nfor att in env['ir.attachment'].sudo().search([('res_model', '=', 'account.move'), ('res_id', '=', mv.id)]): att.copy({'res_id': new.id})\nnew.message_post(body='Facture basculee depuis %s (%s).' % (mv.company_id.name, mv.ref or mv.name)); mv.message_post(body='Basculee vers %s.' % new.company_id.name); mv.button_cancel()\naction = {'type': 'ir.actions.act_window', 'res_model': 'account.move', 'res_id': new.id, 'view_mode': 'form', 'views': [[False, 'form']]}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1205,
+  "name": "Basculer vers une autre société…",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "if record.state != 'draft' or record.move_type not in ('in_invoice', 'in_refund'): raise UserError(\"Seules les factures fournisseurs en brouillon peuvent etre basculees.\")\nw = env['x_bascule_societe'].create({'x_move_id': record.id, 'x_company_id': 7 if record.company_id.id == 2 else 2})\naction = {'type': 'ir.actions.act_window', 'name': 'Basculer la facture vers…', 'res_model': 'x_bascule_societe', 'res_id': w.id, 'view_mode': 'form', 'views': [[False, 'form']], 'target': 'new'}",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1080,
+  "name": "Base VAT: Sync updates from IAP VIES",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "model._cron_check_vies_iap()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 35,
+  "name": "Base: Auto-vacuum internal data",
+  "model_id": [
+   41,
+   "Automatic Vacuum"
+  ],
+  "code": "model._run_vacuum_cleaner()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 36,
+  "name": "Base: Portal Users Deletion",
+  "model_id": [
+   111,
+   "Users Deletion Request"
+  ],
+  "code": "model._gc_portal_users(batch_size=50)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1157,
+  "name": "Build Payload",
+  "model_id": [
+   1186,
+   "French PDP Flow"
+  ],
+  "code": "records.action_build_payload_manual(); action = {'type': 'ir.actions.act_window_close'}",
+  "binding_model_id": [
+   1186,
+   "French PDP Flow"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 825,
+  "name": "CRM: Lead Assignment",
+  "model_id": [
+   772,
+   "Sales Team"
+  ],
+  "code": "model._cron_assign_leads()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 859,
+  "name": "CRM: enrich leads (IAP)",
+  "model_id": [
+   864,
+   "Lead"
+  ],
+  "code": "model._iap_enrich_leads_cron()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 468,
+  "name": "Calendar: Event Reminder",
+  "model_id": [
+   644,
+   "Event Alarm Manager"
+  ],
+  "code": "model._send_reminder()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 78,
+  "name": "Change Password",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "\n            action = records.action_change_password_wizard()\n        ",
+  "binding_model_id": [
+   102,
+   "User"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 260,
+  "name": "Change Period",
+  "model_id": [
+   479,
+   "Journal Item"
+  ],
+  "code": "action = records.action_automatic_entry('change_period')",
+  "binding_model_id": [
+   479,
+   "Journal Item"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 866,
+  "name": "Check Status",
+  "model_id": [
+   799,
+   "Batch Payment"
+  ],
+  "code": "\n            if records:\n                action = records.check_online_payment_status()\n        ",
+  "binding_model_id": [
+   799,
+   "Batch Payment"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 673,
+  "name": "Close Invoicing",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "records.action_close_invoicing()",
+  "binding_model_id": [
+   775,
+   "Sales Order"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 395,
+  "name": "Compute Depreciation",
+  "model_id": [
+   596,
+   "Asset/Revenue Recognition"
+  ],
+  "code": "\nif records:\n    action = records.filtered(lambda asset: asset.state == 'draft').compute_depreciation_board()\n        ",
+  "binding_model_id": [
+   596,
+   "Asset/Revenue Recognition"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 13,
+  "name": "Config: Run Remaining Action Todo",
+  "model_id": [
+   94,
+   "Config"
+  ],
+  "code": "\nconfig = model.next() or {}\nif config.get('type') not in ('ir.actions.act_window_close',):\n    action = config\n",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 394,
+  "name": "Confirm",
+  "model_id": [
+   596,
+   "Asset/Revenue Recognition"
+  ],
+  "code": "\nif records:\n    action = records.filtered(lambda asset: asset.state == 'draft').validate()\n        ",
+  "binding_model_id": [
+   596,
+   "Asset/Revenue Recognition"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 298,
+  "name": "Confirm Entries",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "action = records.action_validate_moves_with_confirmation()",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1096,
+  "name": "Confirm Orders",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "records.action_confirm()",
+  "binding_model_id": [
+   775,
+   "Sales Order"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 569,
+  "name": "Convert to Task/Sub-Task",
+  "model_id": [
+   712,
+   "Task"
+  ],
+  "code": "\n                action = record.action_convert_to_subtask()\n            ",
+  "binding_model_id": [
+   712,
+   "Task"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 561,
+  "name": "Convert to Template",
+  "model_id": [
+   715,
+   "Project"
+  ],
+  "code": "\n                action = record.action_toggle_project_template_mode()\n            ",
+  "binding_model_id": [
+   715,
+   "Project"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 570,
+  "name": "Convert to Template",
+  "model_id": [
+   712,
+   "Task"
+  ],
+  "code": "\n            action = record.action_convert_to_template()\n        ",
+  "binding_model_id": [
+   712,
+   "Task"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 397,
+  "name": "Create Asset",
+  "model_id": [
+   479,
+   "Journal Item"
+  ],
+  "code": "\nif records:\n    action = records.turn_as_asset()\n        ",
+  "binding_model_id": [
+   479,
+   "Journal Item"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 345,
+  "name": "Create Composite Report",
+  "model_id": [
+   491,
+   "Accounting Report"
+  ],
+  "code": "\nif records:\n    action = records.action_create_composite_report()\n            ",
+  "binding_model_id": [
+   491,
+   "Accounting Report"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 363,
+  "name": "Create Menu Item",
+  "model_id": [
+   491,
+   "Accounting Report"
+  ],
+  "code": "\nif records:\n    action = records._create_menu_item_for_report()\n            ",
+  "binding_model_id": [
+   491,
+   "Accounting Report"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 692,
+  "name": "Create Project",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "action = records.action_create_project()",
+  "binding_model_id": [
+   775,
+   "Sales Order"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 864,
+  "name": "Create Project",
+  "model_id": [
+   864,
+   "Lead"
+  ],
+  "code": "action = records.action_create_project()",
+  "binding_model_id": [
+   864,
+   "Lead"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 535,
+  "name": "Create User",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "\n                if records:\n                    action = records.action_create_users_confirmation()\n            ",
+  "binding_model_id": [
+   696,
+   "Employee"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 536,
+  "name": "Create User",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "\nemployees = env['hr.employee'].browse(env.context.get('selected_ids', []))\nif employees:\n    action = employees.action_create_users()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 798,
+  "name": "Create an Expense",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "\naction = records.document_hr_expense_create_hr_expense()\n                    ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 705,
+  "name": "Create batch payment",
+  "model_id": [
+   483,
+   "Payment"
+  ],
+  "code": "\nif records:\n    action = records.create_batch_payment()\n            ",
+  "binding_model_id": [
+   483,
+   "Payment"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1016,
+  "name": "Créer comptes 411A et 401A",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "AA = env['account.account'].with_context(allowed_company_ids=[2]); cid = 2; existing = AA.search([('code','=like','411A%')]); ctxrec = record.with_context(allowed_company_ids=[cid]); pr = ctxrec.property_account_receivable_id; pp = ctxrec.property_account_payable_id\nif not (pr and any(a.id == pr.id for a in existing)):\n e411 = AA.with_context(active_test=False).search([('code','=like','411A%')], order='code desc', limit=1); n411 = (int(e411.code[4:]) + 1) if e411 else 1; r = AA.create({'name': record.name, 'code': '411A'+str(n411).zfill(6), 'account_type': 'asset_receivable', 'group_id': 241, 'company_ids': [(4, cid)], 'reconcile': True}); vals = {'property_account_receivable_id': r.id}\n if (record.is_company or record.supplier_rank) and not (pp and (pp.code or '').startswith('401A')): e401 = AA.with_context(active_test=False).search([('code','=like','401A%')], order='code desc', limit=1); n401 = (int(e401.code[4:]) + 1) if e401 else 1; p = AA.create({'name': record.name, 'code': '401A'+str(n401).zfill(6), 'account_type': 'liability_payable', 'group_id': 236, 'company_ids': [(4, cid)], 'reconcile': True}); vals['property_account_payable_id'] = p.id\n ctxrec.write(vals)",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1204,
+  "name": "Créer comptes 411D et 401D",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "AA = env['account.account'].with_context(allowed_company_ids=[7]); cid = 7; existing = AA.search([('code','=like','411D%')]); ctxrec = record.with_context(allowed_company_ids=[cid]); pr = ctxrec.property_account_receivable_id; pp = ctxrec.property_account_payable_id\nif not (pr and any(a.id == pr.id for a in existing)):\n e411 = AA.with_context(active_test=False).search([('code','=like','411D%')], order='code desc', limit=1); n411 = (int(e411.code[4:]) + 1) if e411 else 1; r = AA.create({'name': record.name, 'code': '411D'+str(n411).zfill(6), 'account_type': 'asset_receivable', 'group_id': 1151, 'company_ids': [(4, cid)], 'reconcile': True}); vals = {'property_account_receivable_id': r.id}\n if (record.is_company or record.supplier_rank) and not (pp and (pp.code or '').startswith('401D')): e401 = AA.with_context(active_test=False).search([('code','=like','401D%')], order='code desc', limit=1); n401 = (int(e401.code[4:]) + 1) if e401 else 1; p = AA.create({'name': record.name, 'code': '401D'+str(n401).zfill(6), 'account_type': 'liability_payable', 'group_id': 1146, 'company_ids': [(4, cid)], 'reconcile': True}); vals['property_account_payable_id'] = p.id\n ctxrec.write(vals)",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1113,
+  "name": "Créer tâche planning intervention",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "for record in records:\n d = record.x_studio_date_previsionnelle_dintervention\n if d and not env['planning.slot'].search([('name','=',record.name)], limit=1): start = record.commitment_date or datetime.datetime.combine(d, datetime.time(6,0)); end = record.x_fin_intervention or ((start + datetime.timedelta(hours=4)) if record.commitment_date else datetime.datetime.combine(d, datetime.time(15,0))); end = end if end > start else start + datetime.timedelta(hours=1); env['planning.slot'].create({'name': record.name, 'partner_id': record.partner_id.id, 'start_datetime': start, 'end_datetime': end, 'company_id': record.company_id.id})",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 338,
+  "name": "Currency: rate update",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "model.run_update_currency()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 998,
+  "name": "Data Cleaning: Clean Records",
+  "model_id": [
+   971,
+   "Cleaning Model"
+  ],
+  "code": "model._cron_clean_records()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 283,
+  "name": "Data Inalterability Check",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "\n                action = env.company._action_check_hash_integrity()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1000,
+  "name": "Data Merge: Cleanup Records",
+  "model_id": [
+   976,
+   "Deduplication Group"
+  ],
+  "code": "model._cron_cleanup()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 999,
+  "name": "Data Merge: Find Duplicate Records",
+  "model_id": [
+   974,
+   "Deduplication Model"
+  ],
+  "code": "model._cron_find_duplicates()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 986,
+  "name": "Data Recycle: Clean Records",
+  "model_id": [
+   969,
+   "Recycling Model"
+  ],
+  "code": "model._cron_recycle_records()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 550,
+  "name": "Delete",
+  "model_id": [
+   709,
+   "Project Stage"
+  ],
+  "code": "action = records.unlink_wizard(stage_view=True)",
+  "binding_model_id": [
+   709,
+   "Project Stage"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 554,
+  "name": "Delete",
+  "model_id": [
+   717,
+   "Task Stage"
+  ],
+  "code": "action = records.unlink_wizard(stage_view=True)",
+  "binding_model_id": [
+   717,
+   "Task Stage"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 156,
+  "name": "Delete Selection",
+  "model_id": [
+   373,
+   "Privacy Lookup Wizard Line"
+  ],
+  "code": "\nrecords.action_unlink_all()\n        ",
+  "binding_model_id": [
+   373,
+   "Privacy Lookup Wizard Line"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 229,
+  "name": "Digest Emails",
+  "model_id": [
+   447,
+   "Digest"
+  ],
+  "code": "model._cron_send_digest_email()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 764,
+  "name": "Digitize document",
+  "model_id": [
+   812,
+   "Expense"
+  ],
+  "code": "\n                if records:\n                    action = records.action_send_batch_for_digitization()\n            ",
+  "binding_model_id": [
+   812,
+   "Expense"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 84,
+  "name": "Disable two-factor authentication",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "\n            action = records.action_totp_disable()\n        ",
+  "binding_model_id": [
+   102,
+   "User"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1116,
+  "name": "Disable unused snippets assets",
+  "model_id": [
+   1157,
+   "Website"
+  ],
+  "code": "model._disable_unused_snippets_assets()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 128,
+  "name": "Discuss: channel member unmute",
+  "model_id": [
+   217,
+   "Channel Member"
+  ],
+  "code": "model._cleanup_expired_mutes()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 412,
+  "name": "Documents: Access Tracking",
+  "model_id": [
+   611,
+   "Document Access Tracking"
+  ],
+  "code": "model._cron_generate_tracking()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 83,
+  "name": "Download (vCard)",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "\n            action = {\n                'type': 'ir.actions.act_url',\n                'url': '/web/partner/vcard?partner_ids=' + ','.join(map(str, records.ids)),\n                'target': 'download',\n            }\n        ",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 396,
+  "name": "Download Asset Import Template",
+  "model_id": [
+   596,
+   "Asset/Revenue Recognition"
+  ],
+  "code": "\nactive_company = env.company\nurl = f'/web/binary/download_asset_template/{active_company.id}'\naction = {\n    'type': 'ir.actions.act_url',\n    'url': url,\n    'target': 'download',\n}\n    ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 339,
+  "name": "Edit in Spreadsheet",
+  "model_id": [
+   515,
+   "Spreadsheet Dashboard"
+  ],
+  "code": "action = records.action_edit_dashboard()",
+  "binding_model_id": [
+   515,
+   "Spreadsheet Dashboard"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1069,
+  "name": "End of Collaboration",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "\n                if records:\n                    action = records.action_new_departure()\n            ",
+  "binding_model_id": [
+   696,
+   "Employee"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 860,
+  "name": "Enrich",
+  "model_id": [
+   864,
+   "Lead"
+  ],
+  "code": "   \n    if records:\n        records.iap_enrich()\n            ",
+  "binding_model_id": [
+   864,
+   "Lead"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 765,
+  "name": "Expense OCR: Update All Status",
+  "model_id": [
+   812,
+   "Expense"
+  ],
+  "code": "model.check_all_status()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 766,
+  "name": "Expense OCR: Validate Expenses",
+  "model_id": [
+   812,
+   "Expense"
+  ],
+  "code": "model._cron_validate()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 88,
+  "name": "Export JS",
+  "model_id": [
+   139,
+   "Tour"
+  ],
+  "code": "\nif records:\n    action = records.export_js_file()\n        ",
+  "binding_model_id": [
+   139,
+   "Tour"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1192,
+  "name": "FDT - Envoyer la fiche (BI)",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "ref = (record.origin or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','stock.picking'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'stock.picking','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'stock.picking','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])})\naction = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1194,
+  "name": "FDT - Envoyer la fiche (commande)",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "ref = (record.name or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','sale.order'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'sale.order','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'sale.order','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])})\naction = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1195,
+  "name": "FDT - Envoyer la fiche (facture)",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "refs = [r for r in ([o.name for o in record.invoice_line_ids.mapped('sale_line_ids.order_id')] or ([record.invoice_origin.split(',')[0].strip().split(' ')[0]] if record.invoice_origin else [])) if r]; ref = refs[0] if refs else ''\nslots = env['planning.slot'].sudo().search(['|']*(len(refs)-1) + [('name','=like',r+'%') for r in refs] + [('x_fdt_fait','=',True)]) if refs else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if refs else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','account.move'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'account.move','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'account.move','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])})\naction = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1191,
+  "name": "FDT - Voir la fiche (BI)",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "ref = (record.origin or '').split(' ')[0]\nif not ref: raise UserError(\"Aucune reference de commande sur ce document.\")\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)])\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','stock.picking'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None\natt = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'stock.picking','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1189,
+  "name": "FDT - Voir la fiche (commande)",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "ref = (record.name or '').split(' ')[0]\nif not ref: raise UserError(\"Aucune reference de commande sur ce document.\")\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)])\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','sale.order'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None\natt = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'sale.order','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1190,
+  "name": "FDT - Voir la fiche (facture)",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "refs = [r for r in ([o.name for o in record.invoice_line_ids.mapped('sale_line_ids.order_id')] or ([record.invoice_origin.split(',')[0].strip().split(' ')[0]] if record.invoice_origin else [])) if r]; ref = refs[0] if refs else ''\nif not ref: raise UserError(\"Aucune reference de commande sur ce document.\")\nslots = env['planning.slot'].sudo().search(['|']*(len(refs)-1) + [('name','=like',r+'%') for r in refs] + [('x_fdt_fait','=',True)])\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','account.move'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None\natt = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'account.move','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1199,
+  "name": "FDT slot -> lien commande",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "for slot in records:\n ref = (slot.name or '').split(' ')[0]; so = env['sale.order'].sudo().search([('name','=',ref)], limit=1) if ref else False\n if so: has = bool(env['planning.slot'].sudo().search_count([('name','=like',ref+'%'),('x_fdt_fait','=',True)])); so.x_studio_fdt_disponible != has and so.sudo().write({'x_studio_fdt_disponible': has})",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 984,
+  "name": "FEC import",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "\n            action = env.company.fec_import_action()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 51,
+  "name": "Failed to install demo data for some modules, demo disabled",
+  "model_id": [
+   74,
+   "Demo Failure wizard"
+  ],
+  "code": "\nfailures = env['ir.demo_failure'].search([\n    ('wizard_id', '=', False),\n])\nrecord = model.create({\n    'failure_ids': [Command.set(failures.ids)],\n})\naction = {\n    'type': 'ir.actions.act_window',\n    'res_id': record.id,\n    'res_model': 'ir.demo_failure.wizard',\n    'target': 'new',\n    'views': [(env.ref('base.demo_failures_dialog').id, 'form')],\n}\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1181,
+  "name": "Fleet: Generate contracts costs based on costs frequency",
+  "model_id": [
+   1197,
+   "Vehicle Contract"
+  ],
+  "code": "model.run_scheduler()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 484,
+  "name": "Gamification: Goal Challenge Check",
+  "model_id": [
+   651,
+   "Gamification Challenge"
+  ],
+  "code": "model._cron_update()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 485,
+  "name": "Gamification: Karma tracking consolidation",
+  "model_id": [
+   656,
+   "Track Karma Changes"
+  ],
+  "code": "model._consolidate_cron()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 370,
+  "name": "Generate or refresh account return for every companies",
+  "model_id": [
+   544,
+   "Accounting Return Type"
+  ],
+  "code": "model._cron_generate_or_refresh_all_returns()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 487,
+  "name": "Google Calendar: synchronization",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "\n# LUL TODO check this comment\n# The context key 'last_sync_hours' allows specifying the minimum delay between consecutive syncs.\n# Indeed, in case there are many users / events to sync, the cron might time out. In this case, the\n# solution is to force the last_sync_hours to the expected synchronization interval expected. This\n# will avoid the synchronization of users that succeeded in the previous failing cron.\nmodel._sync_all_google_calendar()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 224,
+  "name": "Grant portal access",
+  "model_id": [
+   444,
+   "Grant Portal Access"
+  ],
+  "code": "action = model.action_open_wizard()",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 542,
+  "name": "HR Employee: Notify Expiring Contract or Work Permit",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "model.notify_expiring_contract_work_permit()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 543,
+  "name": "HR Employee: Update Current Version",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "model._cron_update_current_version_id()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1071,
+  "name": "HR: Apply employee departures",
+  "model_id": [
+   1079,
+   "Employee Departure"
+  ],
+  "code": "model._cron_apply_departure()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 939,
+  "name": "Install Barcode",
+  "model_id": [
+   895,
+   "Picking Type"
+  ],
+  "code": "\n                action = model.action_redirect_to_barcode_installation()\n            ",
+  "binding_model_id": [
+   895,
+   "Picking Type"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 908,
+  "name": "Inventory",
+  "model_id": [
+   897,
+   "Quant"
+  ],
+  "code": "\n            action = model.action_view_inventory()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 909,
+  "name": "Inventory",
+  "model_id": [
+   897,
+   "Quant"
+  ],
+  "code": "\n            action = model.with_context(\n                search_default_internal_loc=1,\n                always_show_loc=1,\n            ).action_view_quants()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 145,
+  "name": "Invite to use two-factor authentication",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "\n            action = records.action_totp_invite()\n        ",
+  "binding_model_id": [
+   102,
+   "User"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 399,
+  "name": "Invoice OCR: Update All Status",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "model.check_all_status()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 400,
+  "name": "Invoice OCR: Validate Invoices",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "model._cron_validate()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 926,
+  "name": "Labels",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "\n            if records:\n                action = records.action_open_label_type()\n            ",
+  "binding_model_id": [
+   896,
+   "Transfer"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1182,
+  "name": "Link to a vehicle",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "\n                action = records.action_link_to_record('fleet.vehicle')\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 531,
+  "name": "Load Sample Data",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "\n                action = model._load_demo_data()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1051,
+  "name": "Load demo data",
+  "model_id": [
+   1001,
+   "Attendance"
+  ],
+  "code": "action = model._load_demo_data()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1163,
+  "name": "MAJ planning - opérateur BI",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "for record in records:\n if record.x_technicien_id and record.origin and record.picking_type_id.sequence_code == 'ASS/BI/' and record.x_technicien_id.resource_id: env['planning.slot'].search([('name','=',record.origin)]).write({'resource_ids': [(6, 0, [record.x_technicien_id.resource_id.id])]})",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1114,
+  "name": "MAJ tâche planning - date intervention",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "for record in records:\n d = record.x_studio_date_previsionnelle_dintervention\n if d: start = record.commitment_date or datetime.datetime.combine(d, datetime.time(6,0)); end = record.x_fin_intervention or ((start + datetime.timedelta(hours=4)) if record.commitment_date else datetime.datetime.combine(d, datetime.time(15,0))); end = end if end > start else start + datetime.timedelta(hours=1); env['planning.slot'].search([('name','=',record.name)]).write({'start_datetime': start, 'end_datetime': end})",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1174,
+  "name": "Mail to Driver",
+  "model_id": [
+   1195,
+   "Vehicle"
+  ],
+  "code": "action = records.action_send_email()",
+  "binding_model_id": [
+   1195,
+   "Vehicle"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 120,
+  "name": "Mail: Email Queue Manager",
+  "model_id": [
+   181,
+   "Outgoing Mail"
+  ],
+  "code": "model.process_email_queue(batch_size=1000)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 127,
+  "name": "Mail: End polls",
+  "model_id": [
+   182,
+   "Poll"
+  ],
+  "code": "model._end_expired_polls()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 123,
+  "name": "Mail: Fetchmail Service",
+  "model_id": [
+   165,
+   "Incoming Mail Server"
+  ],
+  "code": "model._fetch_mails()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 124,
+  "name": "Mail: Post scheduled messages",
+  "model_id": [
+   188,
+   "Scheduled Message"
+  ],
+  "code": "model._post_messages_cron()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 126,
+  "name": "Mail: send web push notification",
+  "model_id": [
+   186,
+   "Push Notification"
+  ],
+  "code": "model._push_notification_to_endpoint()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 670,
+  "name": "Mark Quotation as Sent",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "action = records.action_quotation_sent()",
+  "binding_model_id": [
+   775,
+   "Sales Order"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1068,
+  "name": "Mark as Reconciled",
+  "model_id": [
+   483,
+   "Payment"
+  ],
+  "code": "\nif records:\n    action = records.action_validate()\n            ",
+  "binding_model_id": [
+   483,
+   "Payment"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1001,
+  "name": "Merge",
+  "model_id": [
+   83,
+   "Country"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   83,
+   "Country"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1002,
+  "name": "Merge",
+  "model_id": [
+   85,
+   "Country state"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   85,
+   "Country state"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1003,
+  "name": "Merge",
+  "model_id": [
+   89,
+   "Partner Tag"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   89,
+   "Partner Tag"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1004,
+  "name": "Merge",
+  "model_id": [
+   91,
+   "Industry"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   91,
+   "Industry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1005,
+  "name": "Merge",
+  "model_id": [
+   764,
+   "UTM Campaign"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   764,
+   "UTM Campaign"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1006,
+  "name": "Merge",
+  "model_id": [
+   765,
+   "UTM Medium"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   765,
+   "UTM Medium"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1007,
+  "name": "Merge",
+  "model_id": [
+   767,
+   "UTM Source"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   767,
+   "UTM Source"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1008,
+  "name": "Merge",
+  "model_id": [
+   865,
+   "Opp. Lost Reason"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   865,
+   "Opp. Lost Reason"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1009,
+  "name": "Merge",
+  "model_id": [
+   773,
+   "CRM Tag"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   773,
+   "CRM Tag"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1010,
+  "name": "Merge",
+  "model_id": [
+   718,
+   "Project Tag"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   718,
+   "Project Tag"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1011,
+  "name": "Merge",
+  "model_id": [
+   712,
+   "Task"
+  ],
+  "code": "action = env['data_merge.record'].action_deduplicates(records)",
+  "binding_model_id": [
+   712,
+   "Task"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 759,
+  "name": "Merge Timesheets",
+  "model_id": [
+   413,
+   "Analytic Line"
+  ],
+  "code": "action = records.action_merge_timesheets()",
+  "binding_model_id": [
+   413,
+   "Analytic Line"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1207,
+  "name": "Miroir BI → bon de commande",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "for rec in records:\n so = env['sale.order'].sudo().search([('name', '=', (rec.origin or '').split(' ')[0])], limit=1) if rec.origin else False\n if so: so.sudo().write({'x_bi_technicien_id': rec.x_technicien_id.id, 'x_bi_camion_id': rec.x_camion_id.id, 'x_bi_conformite': rec.x_conformite or False})",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 259,
+  "name": "Move to Account",
+  "model_id": [
+   479,
+   "Journal Item"
+  ],
+  "code": "action = records.action_automatic_entry('change_account')",
+  "binding_model_id": [
+   479,
+   "Journal Item"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 122,
+  "name": "Notification: Delete Notifications older than 6 Months",
+  "model_id": [
+   166,
+   "Message Notification"
+  ],
+  "code": "model._gc_notifications(max_age_days=180)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 125,
+  "name": "Notification: Notify scheduled messages",
+  "model_id": [
+   177,
+   "Scheduled Message"
+  ],
+  "code": "model._send_notifications_cron()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 374,
+  "name": "Open Customer Statements",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "\n            if records:\n                action = records.open_customer_statement()\n        ",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1056,
+  "name": "Open Kiosk Url",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "\n            action = model._action_open_kiosk_mode()\n        ",
+  "binding_model_id": [
+   98,
+   "Company"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 371,
+  "name": "Open Tax Return",
+  "model_id": [
+   545,
+   "Accounting Return"
+  ],
+  "code": "action = model.action_open_tax_return_view()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 383,
+  "name": "Open Tax Return",
+  "model_id": [
+   545,
+   "Accounting Return"
+  ],
+  "code": "action = model.action_open_tax_return_view(env.context.get('sub_action_domain'), env.context.get('sub_action_context'))",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 146,
+  "name": "Open two-factor authentication configuration",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "\nuser = env.user\naction = user.action_open_my_account_settings()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1155,
+  "name": "PDP Generate Flux 10 Flows",
+  "model_id": [
+   1186,
+   "French PDP Flow"
+  ],
+  "code": "model._cron_update_and_send_flows()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1153,
+  "name": "PDP: Retrieve new regulatory documents",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_pdp_get_regulatory_documents()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1154,
+  "name": "PDP: Send lifecycles",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_pdp_send_lifecycles()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1152,
+  "name": "PEPPOL: auto register services",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_peppol_auto_register_services()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 281,
+  "name": "Pay",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "\nif records:\n    action = records.action_force_register_payment()\n            ",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 233,
+  "name": "Payment: Post-process transactions",
+  "model_id": [
+   453,
+   "Payment Transaction"
+  ],
+  "code": "model._cron_post_process()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 694,
+  "name": "Peppol: retrieve new documents",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_peppol_get_new_documents()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 695,
+  "name": "Peppol: update message status",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_peppol_get_message_status()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 696,
+  "name": "Peppol: update participant status",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_peppol_get_participant_status()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 697,
+  "name": "Peppol: webhook keep alive",
+  "model_id": [
+   788,
+   "Account EDI proxy user"
+  ],
+  "code": "model._cron_peppol_webhook_keepalive()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 630,
+  "name": "Planning: generate next recurring shifts",
+  "model_id": [
+   751,
+   "Planning Recurrence"
+  ],
+  "code": "model._cron_schedule_next()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 251,
+  "name": "Post Payments",
+  "model_id": [
+   483,
+   "Payment"
+  ],
+  "code": "\n                records.action_post()\n            ",
+  "binding_model_id": [
+   483,
+   "Payment"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 824,
+  "name": "Predictive Lead Scoring: Recompute Automated Probabilities",
+  "model_id": [
+   864,
+   "Lead"
+  ],
+  "code": "model._cron_update_automated_probabilities()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 206,
+  "name": "Pricelist Report",
+  "model_id": [
+   417,
+   "Product Variant"
+  ],
+  "code": "\naction = {\n    'name': 'Pricelist Report',\n    'type': 'ir.actions.client',\n    'tag': 'generate_pricelist_report',\n    'context': env.context,\n}\n        ",
+  "binding_model_id": [
+   417,
+   "Product Variant"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 215,
+  "name": "Pricelist Report",
+  "model_id": [
+   416,
+   "Product"
+  ],
+  "code": "\naction = {\n    'name': 'Pricelist Report',\n    'type': 'ir.actions.client',\n    'tag': 'generate_pricelist_report',\n    'context': env.context,\n}\n        ",
+  "binding_model_id": [
+   416,
+   "Product"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 205,
+  "name": "Print Labels",
+  "model_id": [
+   417,
+   "Product Variant"
+  ],
+  "code": "\n            if records:\n                action = records.action_open_label_layout()\n        ",
+  "binding_model_id": [
+   417,
+   "Product Variant"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 214,
+  "name": "Print Labels",
+  "model_id": [
+   416,
+   "Product"
+  ],
+  "code": "\n            if records:\n                action = records.action_open_label_layout()\n        ",
+  "binding_model_id": [
+   416,
+   "Product"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 609,
+  "name": "Print Resume",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "\naction = env['ir.actions.act_window']._for_xml_id('hr_skills.action_hr_employee_cv_wizard')\n        ",
+  "binding_model_id": [
+   696,
+   "Employee"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 590,
+  "name": "Print Survey",
+  "model_id": [
+   732,
+   "Survey"
+  ],
+  "code": "\nif record:\n    action = record.action_print_survey()\n        ",
+  "binding_model_id": [
+   732,
+   "Survey"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 151,
+  "name": "Privacy Lookup",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "\naction = record.action_privacy_lookup()\n        ",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 152,
+  "name": "Privacy Lookup",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "\naction = record.partner_id.action_privacy_lookup()\n        ",
+  "binding_model_id": [
+   102,
+   "User"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 389,
+  "name": "Process Follow-ups",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "\n                if records:\n                    action = records.action_manually_process_automatic_followups()\n            ",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 702,
+  "name": "Process the pending async exports",
+  "model_id": [
+   794,
+   "Account Report Async Export"
+  ],
+  "code": "model._cron_process_all_reports_async_export()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 870,
+  "name": "Procurement: run scheduler",
+  "model_id": [
+   892,
+   "Stock Rule"
+  ],
+  "code": "\nmodel.run_scheduler(True)\n            ",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 226,
+  "name": "Product Images: Get product images from Barcode Lookup",
+  "model_id": [
+   446,
+   "Fetch product images from Barcode Lookup based on the product's barcode."
+  ],
+  "code": "model._cron_fetch_image()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 588,
+  "name": "Project Stage: Send rating",
+  "model_id": [
+   717,
+   "Task Stage"
+  ],
+  "code": "model._send_rating_all()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 626,
+  "name": "Publish & Send",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "action = records.action_planning_publish_and_send()",
+  "binding_model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1143,
+  "name": "Publish Articles",
+  "model_id": [
+   624,
+   "Knowledge Article"
+  ],
+  "code": "\n            records.write({'website_published': True})\n        ",
+  "binding_model_id": [
+   624,
+   "Knowledge Article"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 121,
+  "name": "Publisher: Update Notification",
+  "model_id": [
+   213,
+   "Publisher Warranty Contract"
+  ],
+  "code": "model.update_notification(None)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 913,
+  "name": "Relocate",
+  "model_id": [
+   897,
+   "Quant"
+  ],
+  "code": "\n            action = records.with_context(action_ref='stock.action_view_inventory_tree').action_stock_quant_relocate()\n        ",
+  "binding_model_id": [
+   897,
+   "Quant"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 946,
+  "name": "Replenish",
+  "model_id": [
+   417,
+   "Product Variant"
+  ],
+  "code": "\n                for record in records:\n                    if record.type == 'consu':\n                        action = {\n                            \"name\": \"Low on stock? Let's replenish.\",\n                            \"type\": \"ir.actions.act_window\",\n                            \"res_model\": \"product.replenish\",\n                            \"context\": {'default_product_id': records.id},\n                            \"views\": [[False, \"form\"]],\n                            \"target\": \"new\",\n                        }\n                    else:\n                        raise UserError(env._(\"Replenishment is only available for inventory-managed products.\"))\n            ",
+  "binding_model_id": [
+   417,
+   "Product Variant"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 947,
+  "name": "Replenish",
+  "model_id": [
+   416,
+   "Product"
+  ],
+  "code": "\n                for record in records:\n                    if record.type == 'consu':\n                        action = {\n                            \"name\": \"Low on stock? Let's replenish.\",\n                            \"type\": \"ir.actions.act_window\",\n                            \"res_model\": \"product.replenish\",\n                            \"context\": {'default_product_tmpl_id': records.id},\n                            \"views\": [[False, \"form\"]],\n                            \"target\": \"new\",\n                        }\n                    else:\n                        raise UserError(env._(\"Replenishment is only available for inventory-managed products.\"))\n            ",
+  "binding_model_id": [
+   416,
+   "Product"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 959,
+  "name": "Replenishment",
+  "model_id": [
+   893,
+   "Minimum Inventory Rule"
+  ],
+  "code": "\n            action = model.with_context(\n                search_default_filter_to_reorder=True,\n                search_default_filter_not_snoozed=True,\n                default_trigger='manual',\n                searchpanel_default_trigger='manual'\n            ).action_open_orderpoints()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 164,
+  "name": "Resend",
+  "model_id": [
+   382,
+   "Outgoing SMS"
+  ],
+  "code": "action = records.resend_failed()",
+  "binding_model_id": [
+   382,
+   "Outgoing SMS"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 627,
+  "name": "Reset to Draft",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "action = records.action_unpublish()",
+  "binding_model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 335,
+  "name": "Reset to draft",
+  "model_id": [
+   487,
+   "Bank Statement Line"
+  ],
+  "code": "\n                if records:\n                    action = records.action_button_draft()\n            ",
+  "binding_model_id": [
+   487,
+   "Bank Statement Line"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 758,
+  "name": "Reset to draft",
+  "model_id": [
+   413,
+   "Analytic Line"
+  ],
+  "code": "action = records.action_invalidate_timesheet()",
+  "binding_model_id": [
+   413,
+   "Analytic Line"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 505,
+  "name": "Resource Bookings",
+  "model_id": [
+   690,
+   "Appointment Type"
+  ],
+  "code": "action = model.action_calendar_meetings_resources_all()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1074,
+  "name": "Revert",
+  "model_id": [
+   891,
+   "Product Moves (Stock Move Line)"
+  ],
+  "code": "\n            action = records.action_revert()\n        ",
+  "binding_model_id": [
+   891,
+   "Product Moves (Stock Move Line)"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 284,
+  "name": "Review Entries",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "action = model.check_selected_moves()",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 945,
+  "name": "Routes",
+  "model_id": [
+   416,
+   "Product"
+  ],
+  "code": "\n                action = model.action_open_routes_diagram()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 157,
+  "name": "SMS: SMS Queue Manager",
+  "model_id": [
+   382,
+   "Outgoing SMS"
+  ],
+  "code": "model._process_queue()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 687,
+  "name": "Sale Pdf Quote Builder: assign form fields to documents post upgrade",
+  "model_id": [
+   786,
+   "Form fields of inside quotation documents."
+  ],
+  "code": "model._cron_post_upgrade_assign_missing_form_fields()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 658,
+  "name": "Sales: Send pending emails",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "model._cron_send_pending_emails()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1084,
+  "name": "Save Template",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "action = records.action_save_template()",
+  "binding_model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1073,
+  "name": "Scrap",
+  "model_id": [
+   894,
+   "Lot/Serial"
+  ],
+  "code": "\n            action = records.action_scrap()\n        ",
+  "binding_model_id": [
+   894,
+   "Lot/Serial"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1076,
+  "name": "Scrap",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "\n            if records:\n                action = records.action_scrap()",
+  "binding_model_id": [
+   896,
+   "Transfer"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 401,
+  "name": "Send Bills for digitization",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "\n            if records:\n                action = records.action_send_batch_for_digitization()\n        ",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1091,
+  "name": "Send Email",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "action = records.action_send_email()",
+  "binding_model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 144,
+  "name": "Send Password Reset Instructions",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "records.action_reset_password()",
+  "binding_model_id": [
+   102,
+   "User"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1092,
+  "name": "Send Report",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "code": "action = records.action_send_report()",
+  "binding_model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 368,
+  "name": "Send account reports automatically",
+  "model_id": [
+   491,
+   "Accounting Report"
+  ],
+  "code": "model._cron_account_report_send(job_count=20)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 314,
+  "name": "Send invoices automatically",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "model._cron_account_move_send()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 912,
+  "name": "Set to 0",
+  "model_id": [
+   897,
+   "Quant"
+  ],
+  "code": "\n            action = records.action_set_inventory_quantity_zero()\n        ",
+  "binding_model_id": [
+   897,
+   "Quant"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 911,
+  "name": "Set to quantity on hand",
+  "model_id": [
+   897,
+   "Quant"
+  ],
+  "code": "\n            action = records.action_set_inventory_quantity()\n        ",
+  "binding_model_id": [
+   897,
+   "Quant"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 240,
+  "name": "Share",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "action = records.action_share()",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 671,
+  "name": "Share",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "action = records.action_share()",
+  "binding_model_id": [
+   775,
+   "Sales Order"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1072,
+  "name": "Share Project",
+  "model_id": [
+   715,
+   "Project"
+  ],
+  "code": "\n                action = record.action_open_share_project_wizard()\n            ",
+  "binding_model_id": [
+   715,
+   "Project"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 599,
+  "name": "Sign",
+  "model_id": [
+   612,
+   "Document"
+  ],
+  "code": "\n                        action = records.document_sign_create_sign_template(env.ref('documents.document_internal_folder').id)\n                    ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 489,
+  "name": "Sign: Send mail reminder",
+  "model_id": [
+   664,
+   "Signature Request"
+  ],
+  "code": "model._cron_reminder()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 490,
+  "name": "Sign: Update requests state",
+  "model_id": [
+   664,
+   "Signature Request"
+  ],
+  "code": "model._cron_update_state()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 608,
+  "name": "Skill History Report",
+  "model_id": [
+   700,
+   "Department"
+  ],
+  "code": "\naction = env['ir.actions.act_window']._for_xml_id('hr_skills.action_hr_employee_skill_log_department')\naction['domain'] = [('department_id', '=', record.id)]\n        ",
+  "binding_model_id": [
+   700,
+   "Department"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 610,
+  "name": "Skills: Add an activity to employees with missing or expiring certifications",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "model._add_certification_activity_to_employees()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 166,
+  "name": "Snailmail: process letters queue",
+  "model_id": [
+   391,
+   "Snailmail Letter"
+  ],
+  "code": "model._snailmail_cron()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 942,
+  "name": "Split",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "action = records.action_split_transfer()",
+  "binding_model_id": [
+   896,
+   "Transfer"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 506,
+  "name": "Staff Bookings",
+  "model_id": [
+   690,
+   "Appointment Type"
+  ],
+  "code": "action = model.action_calendar_meetings_users_all()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 334,
+  "name": "Statement",
+  "model_id": [
+   486,
+   "Bank Statement"
+  ],
+  "code": "\nif records:\n    action = records.action_generate_attachment()\n            ",
+  "binding_model_id": [
+   486,
+   "Bank Statement"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 969,
+  "name": "Stock Account: Inventory Valuation Closing",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "\nmodel._cron_post_stock_valuation()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 280,
+  "name": "Switch into invoice/credit note",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "code": "\nif records:\n    action = records.action_switch_move_type()\n            ",
+  "binding_model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1201,
+  "name": "Tarifs client (contact)",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "action = {'type':'ir.actions.act_url','url':'https://ocr-pesee-webhook.onrender.com/protec/tarifs?token=x_project_task_worksheet_protec&c=%d' % record.id,'target':'new'}",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1202,
+  "name": "Tarifs client (devis)",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "code": "action = {'type':'ir.actions.act_url','url':'https://ocr-pesee-webhook.onrender.com/protec/tarifs?token=x_project_task_worksheet_protec&c=%d' % record.partner_id.id,'target':'new'} if record.partner_id else None",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 495,
+  "name": "Template Sample Contract.pdf trigger",
+  "model_id": [
+   667,
+   "Signature Template"
+  ],
+  "code": "action = model.trigger_template_tour()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1021,
+  "name": "Time Off: Cancel invalid leaves",
+  "model_id": [
+   985,
+   "Time Off"
+  ],
+  "code": "model._cancel_invalid_leaves()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1045,
+  "name": "Time off Analysis by Employee and Time Off Type",
+  "model_id": [
+   995,
+   "Time Off Summary / Report"
+  ],
+  "code": "\n            action = model.action_time_off_analysis()\n        ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 754,
+  "name": "Timesheet: Approvers Email Reminder",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "model._cron_timesheet_reminder()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 753,
+  "name": "Timesheet: Employees Email Reminder",
+  "model_id": [
+   98,
+   "Company"
+  ],
+  "code": "model._cron_timesheet_reminder_employee()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1050,
+  "name": "Try kiosk",
+  "model_id": [
+   1001,
+   "Attendance"
+  ],
+  "code": "action = model.action_try_kiosk()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 323,
+  "name": "Try to reconcile automatically your statement lines",
+  "model_id": [
+   487,
+   "Bank Statement Line"
+  ],
+  "code": "model._cron_try_auto_reconcile_statement_lines(batch_size=100)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 287,
+  "name": "Unmerge account",
+  "model_id": [
+   464,
+   "Account"
+  ],
+  "code": "\nif records:\n    action = records.action_unmerge()\n            ",
+  "binding_model_id": [
+   464,
+   "Account"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1144,
+  "name": "Unpublish Articles",
+  "model_id": [
+   624,
+   "Knowledge Article"
+  ],
+  "code": "\n            records.write({'website_published': False})\n        ",
+  "binding_model_id": [
+   624,
+   "Knowledge Article"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 255,
+  "name": "Unreconcile",
+  "model_id": [
+   479,
+   "Journal Item"
+  ],
+  "code": "model.action_unreconcile_match_entries()",
+  "binding_model_id": [
+   479,
+   "Journal Item"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 925,
+  "name": "Unreserve",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "\n            if records:\n                records.do_unreserve()\n            ",
+  "binding_model_id": [
+   896,
+   "Transfer"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 143,
+  "name": "Users: Notify About Unregistered Users",
+  "model_id": [
+   102,
+   "User"
+  ],
+  "code": "model.send_unregistered_user_reminder(batch_size=100)",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 755,
+  "name": "Validate",
+  "model_id": [
+   413,
+   "Analytic Line"
+  ],
+  "code": "action = records.action_validate_timesheet()",
+  "binding_model_id": [
+   413,
+   "Analytic Line"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 924,
+  "name": "Validate",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "\n            if records:\n                res = records.button_validate()\n                if isinstance(res, dict):\n                    action = res\n            ",
+  "binding_model_id": [
+   896,
+   "Transfer"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1200,
+  "name": "Vehicule -> nom = Surnom (plaque)",
+  "model_id": [
+   1195,
+   "Vehicle"
+  ],
+  "code": "for rec in records:\n rec.x_surnom and rec.license_plate and rec.name != '%s (%s)' % (rec.x_surnom, rec.license_plate) and rec.write({'name': '%s (%s)' % (rec.x_surnom, rec.license_plate)})",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 699,
+  "name": "Verify Peppol",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "code": "\n            for record in records:\n                record.button_account_peppol_check_partner_endpoint()\n        ",
+  "binding_model_id": [
+   90,
+   "Contact"
+  ],
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1150,
+  "name": "Website Generator After Install",
+  "model_id": [
+   1180,
+   "Website Generator Request"
+  ],
+  "code": "\naction = model.convert_scraping_request_ICP()\n            ",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1148,
+  "name": "Website Generator: Create the website",
+  "model_id": [
+   1180,
+   "Website Generator Request"
+  ],
+  "code": "model._get_ready_generate_site()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1147,
+  "name": "Website Generator: Get website scraper results",
+  "model_id": [
+   1180,
+   "Website Generator Request"
+  ],
+  "code": "model.get_result_waiting_requests()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1117,
+  "name": "Website Publish Mixin: Publish scheduled page",
+  "model_id": [
+   1175,
+   "Model Page"
+  ],
+  "code": "model._cron_publish_scheduled_pages()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1119,
+  "name": "Website Visitor : clean inactive visitors",
+  "model_id": [
+   1174,
+   "Website Visitor"
+  ],
+  "code": "model._cron_unlink_old_visitors()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 1129,
+  "name": "Website: Analytics",
+  "model_id": [
+   1157,
+   "Website"
+  ],
+  "code": "action = model.env.ref('website.backend_dashboard').sudo().read()[0]",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 1128,
+  "name": "Website: Dashboard",
+  "model_id": [
+   1157,
+   "Website"
+  ],
+  "code": "action = model.action_dashboard_redirect()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 657,
+  "name": "automatic invoicing: send ready invoice",
+  "model_id": [
+   453,
+   "Payment Transaction"
+  ],
+  "code": "model._cron_send_invoice()",
+  "binding_model_id": false,
+  "usage": "ir_cron"
+ },
+ {
+  "id": 929,
+  "name": "stock.click_dashboard_graph",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "action = model.get_action_click_graph()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 930,
+  "name": "stock.method_action_picking_tree_incoming",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "action = model.get_action_picking_tree_incoming()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 932,
+  "name": "stock.method_action_picking_tree_internal",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "action = model.get_action_picking_tree_internal()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 931,
+  "name": "stock.method_action_picking_tree_outgoing",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "code": "action = model.get_action_picking_tree_outgoing()",
+  "binding_model_id": false,
+  "usage": "ir_actions_server"
+ },
+ {
+  "id": 603,
+  "name": "Signature Request",
+  "model_id": [
+   696,
+   "Employee"
+  ],
+  "code": "\nif len(records) == 1:\n    action = records._open_sign_document_wizard()\nelse:\n    action = model._open_sign_document_wizard()\n        ",
+  "binding_model_id": [
+   696,
+   "Employee"
+  ],
+  "usage": "ir_actions_server"
+ }
+]

@@ -1,0 +1,47 @@
+<data>
+  <xpath expr="/form//div[@name='warning_tax']" position="before">
+    <header>
+    </header>
+  </xpath>
+  <xpath expr="/form/sheet/div[2]/div/field[@name='avatar_128']" position="replace"/>
+  <xpath expr="/form/sheet/div[2]/div/div/h1" position="after">
+    <div class="d-flex align-items-center gap-2 mt-1" name="studio_div_9dc564">
+      <field name="is_company" widget="boolean_toggle" nolabel="1"/>
+      <label for="is_company" string="Entreprise"/>
+    </div>
+  </xpath>
+  <xpath expr="/form/sheet/div[2]/div/div/div[2]/field[@name='parent_id']" position="attributes">
+    <attribute name="placeholder">Employé de la société</attribute>
+  </xpath>
+  <xpath expr="/form/sheet/div[2]/div/div/div[3]/field[@name='email']" position="attributes">
+    <attribute name="required">False</attribute>
+  </xpath>
+  <xpath expr="/form//field[@name='perform_vies_validation']" position="replace"/>
+  <xpath expr="/form//field[@name='partner_vat_placeholder']" position="replace"/>
+  <xpath expr="/form/sheet/group/group/field[@name='company_registry']" position="after">
+    <field name="x_studio_chorus_pro_1"/>
+  </xpath>
+  <xpath expr="/form/sheet/group/group/div/field[@name='state_id']" position="replace"/>
+  <xpath expr="/form/sheet/group/group/field[@name='company_registry']" position="attributes">
+    <attribute name="invisible">False</attribute>
+  </xpath>
+  <xpath expr="/form/sheet/group/group[2]/field[@name='lang']" position="replace"/>
+  <xpath expr="/form//field[@name='website']" position="replace"/>
+  <xpath expr="/form/sheet/group/group[2]/field[@name='function']" position="replace"/>
+  <xpath expr="/form//field[@name='category_id']" position="after">
+    <field name="x_studio_bon_de_commande"/>
+  </xpath>
+  <xpath expr="/form//field[@name='properties']" position="attributes">
+    <attribute name="invisible">True</attribute>
+  </xpath>
+  <xpath expr="/form//page[@name='contact_addresses']" position="replace"/>
+  <xpath expr="/form//group[@name='fiscal_information']" position="replace"/>
+  <xpath expr="/form//group[@name='purchase']" position="replace"/>
+  <xpath expr="/form//field[@name='incoterm_location']" position="replace"/>
+  <xpath expr="/form//field[@name='incoterm_id']" position="replace"/>
+  <xpath expr="/form//field[@name='user_id']" position="replace"/>
+  <xpath expr="/form//field[@name='property_inbound_payment_method_line_id']" position="replace">
+    <xpath expr="/form/sheet/notebook/page[@name='sales_purchases']/group[@name='container_row_2']/group[@name='misc']/field[@name='company_id']" position="move"/>
+  </xpath>
+  <xpath expr="/form//group[@name='misc']" position="replace"/>
+</data>

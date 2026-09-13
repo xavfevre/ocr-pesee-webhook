@@ -1,0 +1,12 @@
+<data>
+  <xpath expr="/list//field[@name='application_statistics']" position="after">
+    <field name="property_account_receivable_id" optional="show"/>
+    <field name="property_account_payable_id" optional="hide"/>
+  </xpath>
+  <xpath expr="/list//field[@name='city']" position="attributes">
+    <attribute name="optional">show</attribute>
+  </xpath>
+  <xpath expr="/list//field[@name='category_id']" position="attributes">
+    <attribute name="optional">show</attribute>
+  </xpath>
+</data>

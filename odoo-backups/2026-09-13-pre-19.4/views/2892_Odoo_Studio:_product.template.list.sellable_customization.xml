@@ -1,0 +1,6 @@
+<data>
+  <xpath expr="/list//field[@name='list_price']" position="after">
+    <field optional="hide" name="x_studio_related_field_4iv_1jmd8biq3"/>
+    <field optional="hide" name="x_studio_related_field_q9_1jmd8cbq5"/>
+  </xpath>
+</data>

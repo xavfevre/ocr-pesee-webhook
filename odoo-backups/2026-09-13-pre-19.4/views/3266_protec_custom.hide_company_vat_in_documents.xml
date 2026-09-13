@@ -1,0 +1,5 @@
+<data inherit_id="web.company_address_list">
+  <xpath expr="//ul[@name='company_address_list']/li[@t-if='not forced_vat']" position="replace">
+    <li t-if="not forced_vat"/>
+  </xpath>
+</data>

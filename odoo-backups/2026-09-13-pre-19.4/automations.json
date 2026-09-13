@@ -1,0 +1,158 @@
+[
+ {
+  "id": 1,
+  "name": "Demande de validation",
+  "model_id": [
+   812,
+   "Expense"
+  ],
+  "trigger": "on_state_set",
+  "trigger_field_ids": [
+   16516
+  ],
+  "filter_domain": "[('state', '=', 'submitted')]",
+  "action_server_ids": [
+   867
+  ],
+  "active": true
+ },
+ {
+  "id": 6,
+  "name": "Création automatique comptes 411A/401A pour nouveaux clients",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "trigger": "on_create",
+  "trigger_field_ids": [],
+  "filter_domain": "[\"|\", (\"company_id\", \"=\", False), (\"company_id\", \"in\", [2])]",
+  "action_server_ids": [
+   1016
+  ],
+  "active": true
+ },
+ {
+  "id": 8,
+  "name": "SO Confirmé → Créer tâche planning",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "trigger": "on_write",
+  "trigger_field_ids": [
+   15502
+  ],
+  "filter_domain": "[('state', '=', 'sale')]",
+  "action_server_ids": [
+   1113
+  ],
+  "active": true
+ },
+ {
+  "id": 9,
+  "name": "SO Date intervention → MAJ planning",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "trigger": "on_write",
+  "trigger_field_ids": [
+   15508,
+   23001,
+   17725,
+   19686
+  ],
+  "filter_domain": false,
+  "action_server_ids": [
+   1114
+  ],
+  "active": true
+ },
+ {
+  "id": 10,
+  "name": "BI Opérateur → MAJ planning",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "trigger": "on_write",
+  "trigger_field_ids": [
+   20452
+  ],
+  "filter_domain": false,
+  "action_server_ids": [
+   1163
+  ],
+  "active": true
+ },
+ {
+  "id": 11,
+  "name": "Fiche -> Lien commande (sale_order_id)",
+  "model_id": [
+   754,
+   "Planning Shift"
+  ],
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   15071,
+   22495
+  ],
+  "filter_domain": false,
+  "action_server_ids": [
+   1199
+  ],
+  "active": true
+ },
+ {
+  "id": 12,
+  "name": "Surnom véhicule -> nom affiché",
+  "model_id": [
+   1195,
+   "Vehicle"
+  ],
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   22662,
+   22976
+  ],
+  "filter_domain": false,
+  "action_server_ids": [
+   1200
+  ],
+  "active": true
+ },
+ {
+  "id": 15,
+  "name": "Création automatique comptes 411D/401D pour nouveaux clients",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "trigger": "on_create",
+  "trigger_field_ids": [],
+  "filter_domain": "[\"|\", (\"company_id\", \"=\", False), (\"company_id\", \"in\", [7])]",
+  "action_server_ids": [
+   1204
+  ],
+  "active": true
+ },
+ {
+  "id": 16,
+  "name": "Miroir BI → bon de commande",
+  "model_id": [
+   896,
+   "Transfer"
+  ],
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   22986,
+   20450,
+   20452
+  ],
+  "filter_domain": false,
+  "action_server_ids": [
+   1207
+  ],
+  "active": true
+ }
+]

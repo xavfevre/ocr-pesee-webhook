@@ -1,0 +1,27 @@
+[
+ {
+  "id": 1209,
+  "name": "Basculer la facture vers…",
+  "model": "x_bascule_societe"
+ },
+ {
+  "id": 983,
+  "name": "Fiche Déchets Ligne",
+  "model": "x_fiche_dechets_ligne"
+ },
+ {
+  "id": 981,
+  "name": "Fiche Travaux Ligne",
+  "model": "x_fiche_travaux_ligne"
+ },
+ {
+  "id": 1211,
+  "name": "Lieu d'intervention",
+  "model": "x_lieu_dintervention"
+ },
+ {
+  "id": 949,
+  "name": "sign_request_line",
+  "model": "x_sign_request_line_670b3"
+ }
+]

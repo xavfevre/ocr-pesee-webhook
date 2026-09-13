@@ -1,0 +1,14 @@
+<data>
+  <xpath expr="/form//button[@name='do_print_picking']" position="after">
+    <button string="Imp. BI Chiffré" type="action" name="1012"/>
+    <button string="Envoyer rapport" type="action" name="1192"/>
+  </xpath>
+  <xpath expr="/form//button[@name='do_print_picking']" position="attributes">
+    <attribute name="name">stock.action_report_delivery</attribute>
+    <attribute name="string">Imprimer BI</attribute>
+    <attribute name="type">action</attribute>
+  </xpath>
+  <xpath expr="/form//field[@name='x_conformite']" position="attributes">
+    <attribute name="string">(AC / NC)</attribute>
+  </xpath>
+</data>

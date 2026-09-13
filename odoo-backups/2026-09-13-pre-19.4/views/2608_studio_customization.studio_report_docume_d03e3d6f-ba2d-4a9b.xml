@@ -1,0 +1,7 @@
+<t t-name="studio_main_report">
+                    <t t-call="web.html_container">
+                        <t t-foreach="docs" t-as="doc">
+                            <t t-call="studio_customization.studio_report_docume_d03e3d6f-ba2d-4a9b-aed3-c0fb1d7d4192_document"/>
+                        </t>
+                    </t>
+                </t>

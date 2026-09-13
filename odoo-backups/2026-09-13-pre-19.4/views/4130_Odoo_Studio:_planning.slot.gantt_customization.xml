@@ -1,0 +1,10 @@
+<data>
+  <xpath expr="/gantt" position="attributes">
+    <attribute name="color">id</attribute>
+    <attribute name="display_mode">dense</attribute>
+    <attribute name="display_unavailability">true</attribute>
+    <attribute name="precision">{"day":"hour:quarter","week":"day:full","month":"day:full","year":"day:full"}</attribute>
+    <attribute name="schedule">true</attribute>
+    <attribute name="total_row">false</attribute>
+  </xpath>
+</data>

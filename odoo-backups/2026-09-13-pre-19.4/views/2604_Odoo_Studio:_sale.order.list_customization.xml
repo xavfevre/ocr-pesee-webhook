@@ -1,0 +1,25 @@
+<data>
+  <xpath expr="/list//field[@name='user_id']" position="after">
+    <xpath expr="/list//field[@name='client_order_ref']" position="move"/>
+    <field name="x_studio_lieu_dintervention_2" optional="show"/>
+    <field name="x_objet_devis" optional="show"/>
+    <field name="x_studio_lieu_dintervention_1" optional="show"/>
+    <field name="x_studio_date_previsionnelle_dintervention" optional="show"/>
+    <field name="x_studio_related_field_39k_1jmvv8e5i" optional="hide" string="Date de confirmation"/>
+  </xpath>
+  <xpath expr="/list//field[@name='name']" position="attributes">
+    <attribute name="width">150</attribute>
+  </xpath>
+  <xpath expr="/list//field[@name='user_id']" position="attributes">
+    <attribute name="optional">hide</attribute>
+  </xpath>
+  <xpath expr="/list//field[@name='client_order_ref']" position="attributes">
+    <attribute name="optional">show</attribute>
+  </xpath>
+  <xpath expr="/list//field[@name='amount_tax']" position="attributes">
+    <attribute name="optional">show</attribute>
+  </xpath>
+  <xpath expr="/list//field[@name='invoice_status']" position="attributes">
+    <attribute name="optional">show</attribute>
+  </xpath>
+</data>

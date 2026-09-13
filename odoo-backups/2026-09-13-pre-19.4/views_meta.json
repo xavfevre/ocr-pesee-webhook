@@ -1,0 +1,608 @@
+[
+ {
+  "id": 2246,
+  "name": "web_studio.report_layout",
+  "key": "web_studio.report_layout",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   200,
+   "Report layout"
+  ],
+  "active": true
+ },
+ {
+  "id": 2248,
+  "name": "web_studio.customizations_filter",
+  "key": false,
+  "model": "ir.model.data",
+  "type": "search",
+  "inherit_id": [
+   58,
+   "ir.model.data search"
+  ],
+  "active": true
+ },
+ {
+  "id": 2249,
+  "name": "studio.approval.entry.list",
+  "key": false,
+  "model": "studio.approval.entry",
+  "type": "list",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2250,
+  "name": "studio.approval.entry.form",
+  "key": false,
+  "model": "studio.approval.entry",
+  "type": "form",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2251,
+  "name": "studio.approval.entry.search",
+  "key": false,
+  "model": "studio.approval.entry",
+  "type": "search",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2252,
+  "name": "studio.approval.list",
+  "key": false,
+  "model": "studio.approval.rule",
+  "type": "list",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2253,
+  "name": "studio.approval.kanban",
+  "key": false,
+  "model": "studio.approval.rule",
+  "type": "kanban",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2254,
+  "name": "studio.approval.form.quick_create",
+  "key": false,
+  "model": "studio.approval.rule",
+  "type": "form",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2255,
+  "name": "studio.approval.form",
+  "key": false,
+  "model": "studio.approval.rule",
+  "type": "form",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2256,
+  "name": "studio.approval.search",
+  "key": false,
+  "model": "studio.approval.rule",
+  "type": "search",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2257,
+  "name": "studio.approval.search",
+  "key": false,
+  "model": "studio.approval.rule",
+  "type": "search",
+  "inherit_id": [
+   2256,
+   "studio.approval.search"
+  ],
+  "active": true
+ },
+ {
+  "id": 2258,
+  "name": "studio.approval.rule.delegate.form",
+  "key": false,
+  "model": "studio.approval.rule.delegate",
+  "type": "form",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2260,
+  "name": "studio.export.wizard.form",
+  "key": false,
+  "model": "studio.export.wizard",
+  "type": "form",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2263,
+  "name": "notify_approval",
+  "key": "web_studio.notify_approval",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2264,
+  "name": "base.module.uninstall.view.form.studio",
+  "key": false,
+  "model": "base.module.uninstall",
+  "type": "form",
+  "inherit_id": [
+   109,
+   "Uninstall module"
+  ],
+  "active": true
+ },
+ {
+  "id": 2496,
+  "name": "Odoo Studio: product.template.product.form customization",
+  "key": false,
+  "model": "product.template",
+  "type": "form",
+  "inherit_id": [
+   595,
+   "product.template.product.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 2588,
+  "name": "web_studio.report_editor_customization_diff.view._sale.report_saleorder_document",
+  "key": "web_studio.report_editor_customization_diff.view._sale.report_saleorder_document",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   1922,
+   "report_saleorder_document"
+  ],
+  "active": true
+ },
+ {
+  "id": 2589,
+  "name": "Odoo Studio: sale.order.form customization",
+  "key": false,
+  "model": "sale.order",
+  "type": "form",
+  "inherit_id": [
+   1953,
+   "sale.order.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 2603,
+  "name": "Odoo Studio: res.partner.list customization",
+  "key": false,
+  "model": "res.partner",
+  "type": "list",
+  "inherit_id": [
+   124,
+   "res.partner.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 2604,
+  "name": "Odoo Studio: sale.order.list customization",
+  "key": false,
+  "model": "sale.order",
+  "type": "list",
+  "inherit_id": [
+   1951,
+   "sale.order.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 2605,
+  "name": "Odoo Studio: res.partner.form customization",
+  "key": false,
+  "model": "res.partner",
+  "type": "form",
+  "inherit_id": [
+   127,
+   "res.partner.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 2607,
+  "name": "studio_customization.studio_report_docume_d03e3d6f-ba2d-4a9b-aed3-c0fb1d7d4192_document",
+  "key": "studio_customization.studio_report_docume_d03e3d6f-ba2d-4a9b-aed3-c0fb1d7d4192_document",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2608,
+  "name": "studio_customization.studio_report_docume_d03e3d6f-ba2d-4a9b-aed3-c0fb1d7d4192",
+  "key": "studio_customization.studio_report_docume_d03e3d6f-ba2d-4a9b-aed3-c0fb1d7d4192",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2638,
+  "name": "report_deliveryslip",
+  "key": "stock.report_deliveryslip",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2855,
+  "name": "Odoo Studio: sign.request.list customization",
+  "key": false,
+  "model": "sign.request",
+  "type": "list",
+  "inherit_id": [
+   1333,
+   "sign.request.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 2861,
+  "name": "Odoo Studio: account.move.form customization",
+  "key": false,
+  "model": "account.move",
+  "type": "form",
+  "inherit_id": [
+   752,
+   "account.move.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 2863,
+  "name": "Odoo Studio: account.journal.form customization",
+  "key": false,
+  "model": "account.journal",
+  "type": "form",
+  "inherit_id": [
+   771,
+   "account.journal.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 2864,
+  "name": "Odoo Studio: sale.order.tree.upload (orders) customization",
+  "key": false,
+  "model": "sale.order",
+  "type": "list",
+  "inherit_id": [
+   1949,
+   "sale.order.tree.upload (orders)"
+  ],
+  "active": true
+ },
+ {
+  "id": 2892,
+  "name": "Odoo Studio: product.template.list.sellable customization",
+  "key": false,
+  "model": "product.template",
+  "type": "list",
+  "inherit_id": [
+   593,
+   "product.template.list.sellable"
+  ],
+  "active": true
+ },
+ {
+  "id": 2924,
+  "name": "Odoo Studio: stock.picking.form customization",
+  "key": false,
+  "model": "stock.picking",
+  "type": "form",
+  "inherit_id": [
+   2731,
+   "stock.picking.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 2929,
+  "name": "report_delivery_document_bon_intervention_iban_signatures",
+  "key": "protec_custom.report_delivery_document_bon_intervention",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   2633,
+   "report_delivery_document"
+  ],
+  "active": true
+ },
+ {
+  "id": 2930,
+  "name": "report_saleorder_document_studio_fields",
+  "key": "protec_custom.report_saleorder_document_studio_fields",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   1922,
+   "report_saleorder_document"
+  ],
+  "active": true
+ },
+ {
+  "id": 2931,
+  "name": "report_deliveryslip_priced",
+  "key": "protec_custom.report_deliveryslip_priced",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 2948,
+  "name": "Odoo Studio: account.out.invoice.list customization",
+  "key": false,
+  "model": "account.move",
+  "type": "list",
+  "inherit_id": [
+   746,
+   "account.out.invoice.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 2949,
+  "name": "Odoo Studio: account.tax.list customization",
+  "key": false,
+  "model": "account.tax",
+  "type": "list",
+  "inherit_id": [
+   787,
+   "account.tax.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 3079,
+  "name": "Odoo Studio: account.out.invoice.list customization",
+  "key": false,
+  "model": "account.move",
+  "type": "list",
+  "inherit_id": [
+   749,
+   "account.out.invoice.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 3080,
+  "name": "Odoo Studio: account.payment.list customization",
+  "key": false,
+  "model": "account.payment",
+  "type": "list",
+  "inherit_id": [
+   714,
+   "account.payment.list"
+  ],
+  "active": true
+ },
+ {
+  "id": 3266,
+  "name": "hide_company_vat_in_documents",
+  "key": "protec_custom.hide_company_vat_in_documents",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   207,
+   "company_address_list"
+  ],
+  "active": true
+ },
+ {
+  "id": 4117,
+  "name": "default_record_page",
+  "key": "website_studio.default_record_page",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4118,
+  "name": "default_form_field_name",
+  "key": "website_studio.default_form_field_name",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4119,
+  "name": "default_listing",
+  "key": "website_studio.default_listing",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4120,
+  "name": "Grid or List button",
+  "key": "website_studio.listing_layout_switcher",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4129,
+  "name": "Planning Interventions",
+  "key": "website.protec_planning",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4130,
+  "name": "Odoo Studio: planning.slot.gantt customization",
+  "key": false,
+  "model": "planning.slot",
+  "type": "gantt",
+  "inherit_id": [
+   1797,
+   "planning.slot.gantt"
+  ],
+  "active": true
+ },
+ {
+  "id": 4162,
+  "name": "Planning semaine",
+  "key": "website.planning_protec_semaine",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4163,
+  "name": "Planning mois",
+  "key": "website.planning_protec_mois",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4166,
+  "name": "Planning Protec Jour",
+  "key": "website.planning_protec_jour",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4167,
+  "name": "Planning mobile",
+  "key": "website.planning_protec_mobile",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4250,
+  "name": "Fiche de fin de travaux",
+  "key": "protec_custom.report_fiche_fin_travaux",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": false,
+  "active": true
+ },
+ {
+  "id": 4251,
+  "name": "FDT smart button sale.order",
+  "key": "protec_custom.fdt_smart_sale_order",
+  "model": "sale.order",
+  "type": "form",
+  "inherit_id": [
+   1953,
+   "sale.order.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 4252,
+  "name": "FDT smart button account.move",
+  "key": "protec_custom.fdt_smart_account_move",
+  "model": "account.move",
+  "type": "form",
+  "inherit_id": [
+   752,
+   "account.move.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 4253,
+  "name": "FDT smart button stock.picking",
+  "key": "protec_custom.fdt_smart_stock_picking",
+  "model": "stock.picking",
+  "type": "form",
+  "inherit_id": [
+   2731,
+   "stock.picking.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 4254,
+  "name": "FDT Envoyer button sale.order",
+  "key": "protec_custom.fdt_send_sale_order_header",
+  "model": "sale.order",
+  "type": "form",
+  "inherit_id": [
+   1953,
+   "sale.order.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 4255,
+  "name": "FDT Envoyer button account.move",
+  "key": "protec_custom.fdt_send_account_move_header",
+  "model": "account.move",
+  "type": "form",
+  "inherit_id": [
+   752,
+   "account.move.form"
+  ],
+  "active": true
+ },
+ {
+  "id": 4260,
+  "name": "protec_custom.cgv_font_sale",
+  "key": "protec_custom.cgv_font_sale",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   1922,
+   "report_saleorder_document"
+  ],
+  "active": true
+ },
+ {
+  "id": 4261,
+  "name": "protec_custom.cgv_font_invoice",
+  "key": "protec_custom.cgv_font_invoice",
+  "model": false,
+  "type": "qweb",
+  "inherit_id": [
+   834,
+   "report_invoice_document"
+  ],
+  "active": true
+ },
+ {
+  "id": 4262,
+  "name": "x_bascule_societe.form",
+  "key": false,
+  "model": "x_bascule_societe",
+  "type": "form",
+  "inherit_id": false,
+  "active": true
+ }
+]

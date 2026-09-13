@@ -1,0 +1,31 @@
+<t t-name="protec_custom.report_deliveryslip_priced">
+    <t t-foreach="docs" t-as="o">
+        <t t-set="show_prices" t-value="True"/>
+        <t t-call="stock.report_delivery_document" t-lang="o._get_report_lang()"/>
+        <t t-set="so" t-value="o.env['sale.order'].sudo().search([('name','=',(o.origin or '').split(' ')[0])], limit=1) if o.origin else False"/>
+        <t t-set="imgs" t-value="[(img, desc) for img, desc in ([             (so.x_studio_binary_field_863_1jjrotuj2, so.x_studio_description_1_1),             (so.x_studio_binary_field_1nq_1jjrou9n7, so.x_studio_description_2_1),             (so.x_studio_binary_field_4r5_1jjrov2mn, so.x_studio_description_3),             (so.x_studio_binary_field_5bk_1jjrovg1v, so.x_studio_description_4),             (so.x_studio_binary_field_70h_1jjrp00fe, so.x_studio_description_5),             (so.x_studio_binary_field_4d7_1jjrp1itt, so.x_studio_description_6)] if so else []) if img]"/>
+        <t t-if="so and (so.x_studio_nota or imgs)" t-call="web.external_layout">
+            <div class="page">
+                <t t-if="so.x_studio_nota">
+                    <h4 style="background:#0b7285;color:#fff;font-size:13px;padding:6px 12px;border-radius:3px;margin:8px 0 6px;">NOTA — <t t-out="so.name"/></h4>
+                    <div style="border:1px solid #e5e7eb;border-left:4px solid #0b7285;background:#f8fafc;padding:9px 13px;font-size:12px;white-space:pre-wrap;margin-bottom:10px;"><t t-out="so.x_studio_nota"/></div>
+                </t>
+                <t t-if="imgs">
+                    <h4 style="background:#0b7285;color:#fff;font-size:13px;padding:6px 12px;border-radius:3px;margin:8px 0 6px;">PHOTOS DU DEVIS — <t t-out="so.name"/></h4>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <t t-foreach="range(0, len(imgs), 2)" t-as="ri">
+                            <tr>
+                                <t t-foreach="imgs[ri:ri+2]" t-as="im">
+                                    <td style="width:50%;padding:6px;text-align:center;vertical-align:top;">
+                                        <img t-att-src="image_data_uri(im[0])" style="max-width:100%;max-height:230px;border:1px solid #e5e7eb;border-radius:4px;"/>
+                                        <div t-if="im[1]" style="font-size:10px;color:#4b5563;font-style:italic;margin-top:3px;"><t t-out="im[1]"/></div>
+                                    </td>
+                                </t>
+                            </tr>
+                        </t>
+                    </table>
+                </t>
+            </div>
+        </t>
+    </t>
+</t>

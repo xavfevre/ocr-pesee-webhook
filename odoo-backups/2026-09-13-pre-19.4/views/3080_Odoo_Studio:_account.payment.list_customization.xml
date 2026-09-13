@@ -1,0 +1,3 @@
+<data>
+  <xpath expr="/list//field[@name='available_iso20022_priority']" position="replace"/>
+</data>

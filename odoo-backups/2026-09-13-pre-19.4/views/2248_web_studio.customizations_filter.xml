@@ -1,0 +1,3 @@
+<field name="module" position="after">
+                <filter string="Studio Customizations" name="studio_customiz" domain="[('studio', '=', True)]"/>
+            </field>

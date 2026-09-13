@@ -1,0 +1,15 @@
+<data>
+  <xpath expr="/form/field[@name='company_id']" position="before">
+    <header>
+      </header>
+  </xpath>
+  <xpath expr="/form//div[@name='button_box']" position="before">
+    <group name="studio_group_2at_1jlncat06" string="Date pour pour filtrer l'exportation compta">
+      <group name="studio_group_2at_left">
+        <field name="x_studio_date_de_debut" options="{&quot;numeric&quot;:true}"/>
+        <field name="x_studio_date_de_fin" options="{&quot;numeric&quot;:true}"/>
+      </group>
+      <group name="studio_group_2at_right"/>
+    </group>
+  </xpath>
+</data>
