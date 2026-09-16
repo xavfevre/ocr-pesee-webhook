@@ -272,9 +272,9 @@ steps([
 ])
 story.append(Paragraph("Point hebdomadaire automatique", st_h2))
 steps([
-    "Chaque lundi matin, le bureau reçoit le mail « Palettes : point hebdo » : par opérateur puis par commande, les pierres terminées depuis plus de 2 jours, non facturées, qui ne sont pas (ou pas entièrement) sur palette, avec le nombre d'OF restant à faire sur la commande ; et les palettes ouvertes sans mouvement depuis 7 jours.",
-    "Le même lundi, Céline reçoit « Commandes entièrement produites, non facturées » : les commandes dont tous les OF sont terminés et pas encore facturés (clé maquignon.commandes_produites_email). Une commande en sort dès qu'elle est facturée.",
-    "Destinataire : clé maquignon.palettes_alerte_email (isabelle@maquignon.com par défaut). Seuil de poids des palettes : clé maquignon.palette_max_kg (1 500 kg).",
+    "Chaque lundi matin, Céline et Loïc reçoivent le mail « Palettes : point hebdo » : par opérateur puis par commande, les pierres terminées depuis plus de 2 jours, non facturées, qui ne sont pas (ou pas entièrement) sur palette, avec le nombre d'OF restant à faire sur la commande ; et les palettes ouvertes sans mouvement depuis 7 jours.",
+    "Le même lundi, ils reçoivent « Commandes entièrement produites, non facturées » : les commandes dont tous les OF sont terminés et pas encore facturés (clé maquignon.commandes_produites_email). Une commande en sort dès qu'elle est facturée.",
+    "Destinataires : clés maquignon.palettes_alerte_email et maquignon.commandes_produites_email (celine@ et loic@). Seuil de poids des palettes : clé maquignon.palette_max_kg (1 500 kg).",
     "Rappel : tous les opérateurs n'ont pas de tablette ; ce point sert à repérer ce qui doit passer au poste de scan ou être régularisé.",
 ])
 captures2("bureau_colis_liste", "Odoo, Inventaire → Colis : colonnes Opérateur, Palette clôturée et Zone / Emplacement.",
