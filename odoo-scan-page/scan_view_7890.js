@@ -11,30 +11,11 @@
   var zoneEl = document.getElementById('colis-zone');
   var mesureEl = document.getElementById('colis-mesure');
   var opEl = document.getElementById('colis-op');
+  var KEY = 'scan_colis_' + SITE;
   var colisActif = false, colisNom = '';
+  try{ colisActif = parseInt(localStorage.getItem(KEY)) || false; }catch(e){}
   var pending = null, qteStr = '';
   var busy = false;
-
-  // ── opérateur : mémorisé sur la tablette (même clé que la vue opérateur) ──
-  var OP = null;
-  try{ OP = parseInt(localStorage.getItem('vo_op')) || null; }catch(e){}
-  function opBtn(){ return OP ? document.querySelector('.scan-op[data-op="' + OP + '"]') : null; }
-  if(OP && !opBtn()){ OP = null; }
-  function opName(){ var b = opBtn(); return b ? b.textContent : ''; }
-  function paintOps(){
-    document.querySelectorAll('.scan-op').forEach(function(b){ b.classList.toggle('on', parseInt(b.getAttribute('data-op')) === OP); });
-    if(opEl){ opEl.textContent = OP ? opName() : '— (choisissez votre nom)'; }
-  }
-  function needOp(){ if(OP){ return false; } setRes("👤 Choisissez d'abord votre nom (boutons en haut)"); beep(false); return true; }
-  document.querySelectorAll('.scan-op').forEach(function(b){
-    b.addEventListener('click', function(){
-      OP = parseInt(b.getAttribute('data-op')) || null;
-      try{ localStorage.setItem('vo_op', String(OP)); }catch(e){}
-      paintOps(); closePop();
-      act('etat').then(function(){ input.focus(); });
-    });
-  });
-  paintOps();
 
   // ── utilitaires ──
   function esc(s){ var d = document.createElement('div'); d.textContent = (s == null ? '' : String(s)); return d.innerHTML; }
@@ -58,16 +39,15 @@
   }
   function setRes(txt){ resEl.textContent = txt; resEl.className = 'scan-res ' + classFor(txt); }
 
-  // ── appel Render (action 2102 : état par opérateur) ──
+  // ── appel Render (action 2102 : palette active du poste, opérateur déduit de l'OF) ──
   function web(mode, extra){
-    var ctx = {op: OP || 0, mode: mode};
+    var ctx = {colis_id: colisActif || 0, mode: mode};
     if(extra){ for(var k in extra){ if(Object.prototype.hasOwnProperty.call(extra, k)){ ctx[k] = extra[k]; } } }
     return fetch(RENDER, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action_id: 2102, ctx: ctx})})
       .then(function(r){ return r.json(); })
       .then(function(d){ if(d.error){ throw new Error(d.error.message || 'Erreur'); } return d.result || {}; });
   }
   function act(mode, extra){
-    if(needOp()){ return Promise.resolve(); }
     if(busy){ setRes('⏳ Patientez, action en cours…'); return Promise.resolve(); }
     busy = true; setRes('⏳ …');
     return web(mode, extra).then(function(r){ busy = false; applyEtat(r); beep(!!r.ok); return r; })
@@ -99,14 +79,15 @@
       + '</div>';
   }
   function applyEtat(r){
-    if(!r || r.mes){ return; }
+    if(!r || r.palettes){ return; }
     var c = r.colis;
     colisActif = c ? c.id : false; colisNom = c ? c.name : '';
+    try{ if(colisActif){ localStorage.setItem(KEY, String(colisActif)); } else { localStorage.removeItem(KEY); } }catch(e){}
     colisEl.textContent = c ? c.name : '—';
     colisEl.className = c ? 'scan-colis-name' : 'scan-colis-none';
+    if(opEl){ opEl.textContent = c ? (c.op_nom ? ('👤 Palette de ' + c.op_nom) : '🟡 Palette vierge — au premier opérateur qui y pose') : ''; }
     if(mesureEl){ mesureEl.textContent = c ? ('📦 ' + fmtN(c.cub || 0) + ' m³  ·  ' + fmtN(Math.round((c.ton || 0) / 100) / 10) + ' t  (' + Math.round(c.ton || 0) + ' kg)') : ''; }
     if(zoneEl){ zoneEl.textContent = (c && c.zone) ? ('📍 Emplacement : ' + c.zone) : ''; }
-    if(opEl && r.op_nom){ opEl.textContent = r.op_nom; }
     var box = document.getElementById('of-list'), itemsBox = document.getElementById('of-items');
     if(c){
       document.getElementById('of-count').textContent = (r.items || []).length;
@@ -177,7 +158,6 @@
   // ── entrée principale : douchette, caméra, clavier ──
   function doScan(val){
     input.value = '';
-    if(needOp()){ return; }
     val = (val || '').trim(); if(!val){ return; }
     if(pending){
       var p = pending; closePop();
@@ -206,7 +186,7 @@
   document.getElementById('btn-refresh').addEventListener('click', function(){ act('etat').then(function(){ input.focus(); }); });
   document.querySelectorAll('.zone-btn').forEach(function(zb){
     zb.addEventListener('click', function(){
-      if(!colisActif){ setRes("⚠️ Scannez d'abord votre palette"); beep(false); return; }
+      if(!colisActif){ setRes("⚠️ Scannez d'abord une palette"); beep(false); return; }
       var z = zb.getAttribute('data-zone');
       if(!confirm('Clôturer la palette ' + colisNom + ' → ' + z + ' ?\nElle sera verrouillée et le bon de colisage imprimé.')){ return; }
       act('cloturer', {zone: z}).then(function(){ input.focus(); });
@@ -254,35 +234,34 @@
   document.getElementById('cam-close').addEventListener('click', function(){ camStop(); input.focus(); });
   document.getElementById('btn-cam').addEventListener('click', function(){ camOpen(function(v){ doScan(v); }); });
 
-  // ── mes palettes ──
+  // ── palettes ouvertes ──
   var navPop = document.getElementById('nav-pop'), navList = document.getElementById('nav-list'), navSrch = document.getElementById('nav-srch');
-  var navData = {mes: [], libres: []};
+  var navData = {palettes: [], libres: []};
   function navRow(c, libre){
     var cur = (c.id === colisActif);
     return '<button type="button" class="nav-row" data-id="' + c.id + '" style="display:block;width:100%;text-align:left;border:none;border-radius:10px;padding:12px;margin-bottom:6px;font-weight:800;font-size:15px;cursor:pointer;background:' + (cur ? '#075985' : '#1e293b') + ';color:#e2e8f0;">'
-      + '<span style="display:flex;justify-content:space-between;gap:8px;"><span>' + (cur ? '▶ ' : '') + esc(c.name) + (libre ? ' <span style="color:#fbbf24;font-size:12px;">sans opérateur</span>' : '') + '</span><span style="color:#93c5fd;font-weight:700;white-space:nowrap;">' + c.n + ' OF · ' + c.cub + ' m³ · ' + c.ton + ' kg</span></span>'
-      + (c.m ? '<span style="display:block;color:#5eead4;font-weight:700;font-size:13px;margin-top:3px;">' + esc(c.m) + '</span>' : '') + '</button>';
+      + '<span style="display:flex;justify-content:space-between;gap:8px;"><span>' + (cur ? '▶ ' : '') + esc(c.name) + (libre ? ' <span style="color:#fbbf24;font-size:12px;">sans opérateur</span>' : ' <span style="color:#5eead4;font-size:12px;">👤 ' + esc(c.op) + '</span>') + '</span><span style="color:#93c5fd;font-weight:700;white-space:nowrap;">' + c.n + ' OF · ' + c.cub + ' m³ · ' + c.ton + ' kg</span></span>'
+      + (c.m ? '<span style="display:block;color:#94a3b8;font-weight:700;font-size:13px;margin-top:3px;">' + esc(c.m) + '</span>' : '') + '</button>';
   }
   function navRender(){
     var f = (navSrch.value || '').trim().toLowerCase();
-    function ok(c){ return !f || (c.name + ' ' + (c.m || '')).toLowerCase().indexOf(f) !== -1; }
-    var mes = navData.mes.filter(ok), libres = navData.libres.filter(ok);
-    var html = '<div style="color:#5eead4;font-weight:800;font-size:13px;margin:2px 0 6px;">🟢 Mes palettes (' + mes.length + ')</div>';
-    html += mes.map(function(c){ return navRow(c, false); }).join('') || '<div style="color:#64748b;padding:4px 0 10px;font-size:14px;">Aucune palette ouverte à votre nom — scannez une palette vierge (ou tapez son n°) : elle devient la vôtre.</div>';
+    function ok(c){ return !f || (c.name + ' ' + (c.op || '') + ' ' + (c.m || '')).toLowerCase().indexOf(f) !== -1; }
+    var pal = navData.palettes.filter(ok), libres = navData.libres.filter(ok);
+    var html = '<div style="color:#5eead4;font-weight:800;font-size:13px;margin:2px 0 6px;">🟢 Palettes ouvertes des opérateurs (' + pal.length + ')</div>';
+    html += pal.slice(0, 60).map(function(c){ return navRow(c, false); }).join('') || '<div style="color:#64748b;padding:4px 0 10px;font-size:14px;">Aucune palette ouverte — scannez une palette vierge (ou tapez son n°).</div>';
     if(libres.length){
-      html += '<div style="color:#fbbf24;font-weight:800;font-size:13px;margin:10px 0 6px;">🟡 Palettes sans opérateur (' + libres.length + ') — le premier qui pose dessus en devient responsable</div>';
-      html += libres.map(function(c){ return navRow(c, true); }).join('');
+      html += '<div style="color:#fbbf24;font-weight:800;font-size:13px;margin:10px 0 6px;">🟡 Palettes sans opérateur (' + libres.length + ') — au premier opérateur qui y pose</div>';
+      html += libres.slice(0, 40).map(function(c){ return navRow(c, true); }).join('');
     }
     navList.innerHTML = html;
     navList.querySelectorAll('.nav-row').forEach(function(b){
-      b.addEventListener('click', function(){ navPop.style.display = 'none'; act('choisir', {colis_id: parseInt(b.getAttribute('data-id'))}).then(function(){ input.focus(); }); });
+      b.addEventListener('click', function(){ navPop.style.display = 'none'; act('choisir', {colis_id_choix: parseInt(b.getAttribute('data-id'))}).then(function(){ input.focus(); }); });
     });
   }
   function openNav(){
-    if(needOp()){ return; }
     navPop.style.display = 'flex'; navSrch.value = '';
     navList.innerHTML = '<div style="color:#94a3b8;padding:8px;">Chargement…</div>';
-    web('liste').then(function(r){ navData = {mes: r.mes || [], libres: r.libres || []}; navRender(); setTimeout(function(){ navSrch.focus(); }, 60); })
+    web('liste').then(function(r){ navData = {palettes: r.palettes || [], libres: r.libres || []}; navRender(); setTimeout(function(){ navSrch.focus(); }, 60); })
       .catch(function(e){ navList.innerHTML = '<div style="color:#f87171;padding:8px;">Erreur : ' + esc(e.message) + '</div>'; });
   }
   document.getElementById('btn-colis-nav').addEventListener('click', openNav);
@@ -292,7 +271,7 @@
     if(e.key === 'Enter'){ e.preventDefault(); var v = (navSrch.value || '').trim(); if(v){ navPop.style.display = 'none'; act('choisir', {colis_name: v}).then(function(){ input.focus(); }); } }
   });
 
-  // ── démarrage ──
-  if(OP){ act('etat'); } else { setRes("👤 Choisissez d'abord votre nom (boutons en haut)"); }
+  // ── démarrage : palette active du poste (mémorisée), contrôlée côté serveur ──
+  act('etat');
   input.focus();
 })();

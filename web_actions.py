@@ -11,7 +11,7 @@ Actions portées (originaux archivés dans odoo-scan-page/action_*.py) :
   2078  SEDE : générer les BC VEOLIA (planning transport mois)
   2081  Boutons transport : BC automatiques par recette (planning mois)
   2101  Tablette : palettiser N pièces d'un OF (même OF pas terminé)
-  2102  Poste de scan : palette active par opérateur (scan, quantité, retrait, clôture)
+  2102  Poste de scan : palette active du poste, opérateur déduit de l'OF (scan, quantité, retrait, clôture)
 """
 import datetime
 
@@ -888,10 +888,37 @@ def _palettiser(call, ctx):
     return res
 
 
-# ─── 2102 · Poste de scan (palette active par opérateur) ─────────────────────
+# ─── 2102 · Poste de scan : palette active par poste, opérateur déduit de l'OF ─
+# Au poste de scan on ne choisit pas de nom (Xavier, 16/09/2026) : la palette
+# active est celle du poste (mémorisée par la page, contrôlée à chaque appel),
+# et c'est l'OF scanné qui dit à qui est la pierre (opérateurs de sa dernière
+# opération renseignée). Une palette libre devient celle de cet opérateur, la
+# palette d'un autre opérateur est refusée. La tablette (2101) garde le nom.
 
 def _meta(o):
     return {k: (o.get(k) or '') for k in META_CHAMPS}
+
+
+def _of_operateurs(call, of):
+    """Opérateurs (ids) de la dernière opération renseignée de l'OF, [] si aucun."""
+    if not of.get('workorder_ids'):
+        return []
+    wos = call('mrp.workorder', 'read', of['workorder_ids'], fields=['sequence', 'employee_assigned_ids'])
+    wos.sort(key=lambda w: (w.get('sequence') or 0, w['id']))
+    for w in reversed(wos):
+        if w['employee_assigned_ids']:
+            return list(w['employee_assigned_ids'])
+    return []
+
+
+def _colis_poste(call, colis_id):
+    """Palette active du poste : None si absente ou clôturée."""
+    if not colis_id:
+        return None
+    colis = _colis_lire(call, colis_id)
+    if not colis or colis['x_studio_cloturee']:
+        return None
+    return colis
 
 
 def _scan_items(call, colis):
@@ -922,28 +949,31 @@ def _scan_items(call, colis):
     return items
 
 
-def _scan_etat(call, emp, msg='', ok=True, extra=None):
-    colis = _colis_active(call, emp)
-    etat = {'op': emp['id'], 'op_nom': emp['name'], 'msg': msg, 'ok': 1 if ok else 0,
-            'colis': None, 'items': []}
+def _scan_etat(call, colis_id, msg='', ok=True, extra=None):
+    colis = _colis_poste(call, colis_id)
+    etat = {'msg': msg, 'ok': 1 if ok else 0, 'colis': None, 'items': []}
     if colis:
         items = _scan_items(call, colis)
         etat['colis'] = {'id': colis['id'], 'name': colis['name'], 'zone': colis['x_studio_zone'] or '',
                          'cub': round(colis['x_studio_cubage'] or 0, 3),
-                         'ton': round(colis['x_studio_tonnage'] or 0), 'n': len(items)}
+                         'ton': round(colis['x_studio_tonnage'] or 0), 'n': len(items),
+                         'op_nom': colis['x_operateur_id'][1] if colis['x_operateur_id'] else ''}
         etat['items'] = items
     if extra:
         etat.update(extra)
     if not msg:
-        etat['msg'] = ('📦 %s — palette active %s (%d OF)' % (emp['name'], colis['name'], len(etat['items']))
-                       if colis else '👤 %s — aucune palette active : scannez votre palette' % emp['name'])
+        if colis:
+            etat['msg'] = '📦 %s active — %s (%d OF)' % (
+                colis['name'], ('palette de ' + colis['x_operateur_id'][1]) if colis['x_operateur_id']
+                else 'palette vierge, elle sera au premier opérateur qui y pose', len(etat['items']))
+        else:
+            etat['msg'] = '👉 Scannez une palette (PACK…) pour commencer'
     return etat
 
 
-def _scan_liste(call, emp):
-    """Mes palettes ouvertes, et palettes libres avec contenu (sans opérateur : transition)."""
-    ouv = call('stock.package', 'search_read',
-               [['x_studio_cloturee', '!=', True], '|', ['x_operateur_id', '=', emp['id']], ['x_operateur_id', '=', False]],
+def _scan_liste(call, colis_id):
+    """Palettes ouvertes : avec opérateur, puis libres avec contenu."""
+    ouv = call('stock.package', 'search_read', [['x_studio_cloturee', '!=', True]],
                fields=['name', 'x_operateur_id', 'x_studio_cubage', 'x_studio_tonnage', 'write_date'],
                order='write_date desc', limit=800)
     ids = [c['id'] for c in ouv]
@@ -968,7 +998,6 @@ def _scan_liste(call, emp):
             for o in call('mrp.production', 'search_read', [['id', 'in', list(rof)]], fields=champs):
                 for cid in rof[o['id']]:
                     add(cid, o)
-    act = emp['x_palette_scan_id'][0] if emp['x_palette_scan_id'] else 0
 
     def row(c):
         mm = meta.get(c['id'])
@@ -981,75 +1010,85 @@ def _scan_liste(call, emp):
         return {'id': c['id'], 'name': c['name'], 'n': n,
                 'cub': round((c['x_studio_cubage'] or 0) if n else 0, 2),
                 'ton': round((c['x_studio_tonnage'] or 0) if n else 0),
-                'm': '  ·  '.join(parts), 'active': 1 if c['id'] == act else 0}
-    mes = [row(c) for c in ouv if c['x_operateur_id'] and c['x_operateur_id'][0] == emp['id']]
+                'm': '  ·  '.join(parts), 'op': c['x_operateur_id'][1] if c['x_operateur_id'] else '',
+                'active': 1 if c['id'] == colis_id else 0}
+    palettes = [row(c) for c in ouv if c['x_operateur_id']]
     libres = [row(c) for c in ouv if not c['x_operateur_id'] and cnt.get(c['id'], 0) > 0]
-    return {'op': emp['id'], 'op_nom': emp['name'], 'mes': mes, 'libres': libres, 'active': act}
+    return {'palettes': palettes, 'libres': libres, 'active': colis_id or 0}
 
 
-def _scan_palette(call, emp, colis):
-    try:
-        neuve = _colis_prendre(call, colis, emp)
-    except WebErreur as e:
-        return _scan_etat(call, emp, str(e), False)
-    etat = _scan_etat(call, emp)
-    n = len(etat['items'])
-    if neuve:
-        etat['msg'] = ('📦 %s : palette vierge — elle est maintenant à vous' % colis['name'] if n == 0
-                       else '📦 %s active (%d OF) — palette libre, elle est maintenant à vous' % (colis['name'], n))
-    else:
-        etat['msg'] = '📦 %s active (%d OF)' % (colis['name'], n)
-    return etat
+def _scan_palette(call, colis):
+    if colis['x_studio_cloturee']:
+        return _scan_etat(call, 0, '🔒 %s est clôturée : scannez une autre palette' % colis['name'], False)
+    return _scan_etat(call, colis['id'])
 
 
-def _scan_of(call, emp, of, qte, force):
-    colis = _colis_active(call, emp)
+def _scan_of(call, colis_id, of, qte, force):
+    colis = _colis_poste(call, colis_id)
     if not colis:
-        return _scan_etat(call, emp, "⚠️ Scannez d'abord votre palette (PACK…)", False)
+        return _scan_etat(call, 0, "⚠️ Scannez d'abord une palette (PACK…)", False)
+    ops = _of_operateurs(call, of)
+    prop = colis['x_operateur_id']
+    if prop and ops and prop[0] not in ops:
+        noms = ', '.join(e['name'] for e in call('hr.employee', 'read', ops, fields=['name']))
+        return _scan_etat(call, colis['id'], '⛔ %s est la palette de %s — cette pierre est de %s : scannez sa palette ou une palette vierge'
+                          % (colis['name'], prop[1], noms), False)
     total = int(of['x_studio_nbr'] or 1)
     if not force and not qte and total > 1:
         try:
             _verif_of(of, colis)
             total, lignes, place, dispo = _disponible(call, of)
         except WebErreur as e:
-            return _scan_etat(call, emp, str(e), False)
-        return _scan_etat(call, emp, '✂️ %s : combien de pièces sur %s ?' % (of['name'], colis['name']), True,
+            return _scan_etat(call, colis['id'], str(e), False)
+        return _scan_etat(call, colis['id'], '✂️ %s : combien de pièces sur %s ?' % (of['name'], colis['name']), True,
                           {'demande_qte': {'of_id': of['id'], 'name': of['name'], 'total': total,
                                            'remaining': dispo, 'placed': place, 'note': of['x_note_atelier'] or ''}})
     try:
         msg, res = _poser(call, of, colis, qte)
     except WebErreur as e:
-        return _scan_etat(call, emp, str(e), False)
-    return _scan_etat(call, emp, msg, True)
+        return _scan_etat(call, colis['id'], str(e), False)
+    if ops:
+        emp_id = prop[0] if prop else ops[0]
+        vals = {}
+        if not prop:
+            vals['x_operateur_id'] = emp_id
+        if emp_id not in (colis['x_operateur_ids'] or []):
+            vals['x_operateur_ids'] = [[4, emp_id]]
+        if vals:
+            call('stock.package', 'write', [colis['id']], vals)
+        call('hr.employee', 'write', [emp_id], {'x_palette_scan_id': colis['id']})
+        if not prop:
+            msg += ' — palette attribuée à %s' % call('hr.employee', 'read', [emp_id], fields=['name'])[0]['name']
+    return _scan_etat(call, colis['id'], msg, True)
 
 
-def _scan_code(call, emp, code, qte):
+def _scan_code(call, colis_id, code, qte):
     up = code.upper()
     if not code:
-        return _scan_etat(call, emp, '⚠️ Rien à scanner', False)
+        return _scan_etat(call, colis_id, '⚠️ Rien à scanner', False)
     if up.startswith('ZONE'):
         import re
-        return _scan_cloturer(call, emp, re.sub(r'^ZONE[-_ ]?', '', code, flags=re.I).strip())
+        return _scan_cloturer(call, colis_id, re.sub(r'^ZONE[-_ ]?', '', code, flags=re.I).strip())
     if up.startswith('CLOTURE') or up.startswith('CLÔTURE') or up in ('FIN', 'FIN-PALETTE'):
-        return _scan_etat(call, emp, "👉 Pour clôturer : scannez ou touchez l'emplacement (Stock Atelier / Stock Usine)", False)
+        return _scan_etat(call, colis_id, "👉 Pour clôturer : scannez ou touchez l'emplacement (Stock Atelier / Stock Usine)", False)
     if up.startswith('PACK') or code.isdigit():
         colis = _colis_lire(call, 0, code)
         if not colis:
-            return _scan_etat(call, emp, '❌ Palette inconnue : %s' % code, False)
-        return _scan_palette(call, emp, colis)
+            return _scan_etat(call, colis_id, '❌ Palette inconnue : %s' % code, False)
+        return _scan_palette(call, colis)
     of = _of_lire(call, 0, code)
     if of:
-        return _scan_of(call, emp, of, qte, False)
+        return _scan_of(call, colis_id, of, qte, False)
     colis = _colis_lire(call, 0, code)
     if colis:
-        return _scan_palette(call, emp, colis)
-    return _scan_etat(call, emp, '❌ Inconnu : %s' % code, False)
+        return _scan_palette(call, colis)
+    return _scan_etat(call, colis_id, '❌ Inconnu : %s' % code, False)
 
 
-def _scan_retirer(call, emp, of_id, line_id):
-    colis = _colis_active(call, emp)
+def _scan_retirer(call, colis_id, of_id, line_id):
+    colis = _colis_poste(call, colis_id)
     if not colis:
-        return _scan_etat(call, emp, '⚠️ Aucune palette active', False)
+        return _scan_etat(call, 0, '⚠️ Aucune palette active', False)
     items = _scan_items(call, colis)
     if of_id:
         cible = [i for i in items if i['kind'] == 'whole' and i['of_id'] == of_id]
@@ -1058,7 +1097,7 @@ def _scan_retirer(call, emp, of_id, line_id):
     else:
         cible = sorted(items, key=lambda i: i['date'] or '', reverse=True)[:1]
     if not cible:
-        return _scan_etat(call, emp, 'ℹ️ Rien à retirer sur %s' % colis['name'] if not (of_id or line_id)
+        return _scan_etat(call, colis['id'], 'ℹ️ Rien à retirer sur %s' % colis['name'] if not (of_id or line_id)
                           else '⚠️ OF absent de cette palette', False)
     it = cible[0]
     if it['kind'] == 'whole':
@@ -1067,56 +1106,57 @@ def _scan_retirer(call, emp, of_id, line_id):
     else:
         call('x_repartition_palette', 'unlink', [it['id']])
         msg = '↩️ %d pcs de %s retirées de %s' % (it['qte'], it['name'], colis['name'])
-    etat = _scan_etat(call, emp, msg, True)
+    etat = _scan_etat(call, colis['id'], msg, True)
     etat['msg'] += ' (%d OF restants)' % len(etat['items'])
     return etat
 
 
-def _scan_cloturer(call, emp, zone):
-    colis = _colis_active(call, emp)
+def _scan_cloturer(call, colis_id, zone):
+    colis = _colis_poste(call, colis_id)
     if not colis:
-        return _scan_etat(call, emp, '⚠️ Aucune palette active à clôturer', False)
+        return _scan_etat(call, 0, '⚠️ Aucune palette active à clôturer', False)
     if not zone:
-        return _scan_etat(call, emp, "⚠️ Indiquez l'emplacement (Stock Atelier / Stock Usine)", False)
+        return _scan_etat(call, colis['id'], "⚠️ Indiquez l'emplacement (Stock Atelier / Stock Usine)", False)
     if not _scan_items(call, colis):
-        return _scan_etat(call, emp, '⚠️ %s est vide — posez au moins un OF avant de clôturer' % colis['name'], False)
+        return _scan_etat(call, colis['id'], '⚠️ %s est vide — posez au moins un OF avant de clôturer' % colis['name'], False)
     try:
         _sur(lambda: call('ir.actions.server', 'run', [1972],
                           context={'active_model': 'stock.package', 'active_ids': [colis['id']],
                                    'active_id': colis['id'], 'zone': zone}))
     except Exception as e:  # noqa: BLE001
         raise WebErreur('Clôture refusée : %s' % str(e).strip()[-300:])
-    call('hr.employee', 'write', [emp['id']], {'x_palette_scan_id': False})
-    emp['x_palette_scan_id'] = False
-    return _scan_etat(call, emp, '✅ %s clôturée → %s · verrouillée · bon de colisage à imprimer' % (colis['name'], zone),
+    emps = call('hr.employee', 'search', [['x_palette_scan_id', '=', colis['id']]])
+    if emps:
+        call('hr.employee', 'write', emps, {'x_palette_scan_id': False})
+    return _scan_etat(call, 0, '✅ %s clôturée → %s · verrouillée · bon de colisage à imprimer' % (colis['name'], zone),
                       True, {'print_id': colis['id'], 'print_name': colis['name']})
 
 
 def _scan(call, ctx):
-    emp = _operateur(call, ctx)
+    colis_id = int(ctx.get('colis_id') or 0)
     mode = (ctx.get('mode') or 'etat').strip()
     if mode == 'liste':
-        return _scan_liste(call, emp)
+        return _scan_liste(call, colis_id)
     if mode == 'etat':
-        return _scan_etat(call, emp)
+        return _scan_etat(call, colis_id)
     if mode == 'choisir':
-        colis = _colis_lire(call, int(ctx.get('colis_id') or 0), ctx.get('colis_name') or '')
+        colis = _colis_lire(call, int(ctx.get('colis_id_choix') or 0), ctx.get('colis_name') or '')
         if not colis:
-            return _scan_etat(call, emp, '❌ Palette introuvable : %s' % (ctx.get('colis_name') or ctx.get('colis_id') or '?'), False)
-        return _scan_palette(call, emp, colis)
+            return _scan_etat(call, colis_id, '❌ Palette introuvable : %s' % (ctx.get('colis_name') or ctx.get('colis_id_choix') or '?'), False)
+        return _scan_palette(call, colis)
     if mode == 'scan':
-        return _scan_code(call, emp, (ctx.get('code') or '').strip(), int(ctx.get('qte') or 0))
+        return _scan_code(call, colis_id, (ctx.get('code') or '').strip(), int(ctx.get('qte') or 0))
     if mode == 'placer':
         of = _of_lire(call, int(ctx.get('of_id') or 0))
         if not of:
-            return _scan_etat(call, emp, '❌ OF introuvable', False)
-        return _scan_of(call, emp, of, int(ctx.get('qte') or 0), True)
+            return _scan_etat(call, colis_id, '❌ OF introuvable', False)
+        return _scan_of(call, colis_id, of, int(ctx.get('qte') or 0), True)
     if mode == 'retirer_dernier':
-        return _scan_retirer(call, emp, 0, 0)
+        return _scan_retirer(call, colis_id, 0, 0)
     if mode == 'retirer_of':
-        return _scan_retirer(call, emp, int(ctx.get('of_id') or 0), 0)
+        return _scan_retirer(call, colis_id, int(ctx.get('of_id') or 0), 0)
     if mode == 'retirer_ligne':
-        return _scan_retirer(call, emp, 0, int(ctx.get('line_id') or 0))
+        return _scan_retirer(call, colis_id, 0, int(ctx.get('line_id') or 0))
     if mode == 'cloturer':
-        return _scan_cloturer(call, emp, (ctx.get('zone') or '').strip())
+        return _scan_cloturer(call, colis_id, (ctx.get('zone') or '').strip())
     raise WebErreur('Mode inconnu : %s' % mode)

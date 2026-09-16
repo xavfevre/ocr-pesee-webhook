@@ -103,9 +103,10 @@ Déployé sur `maquignon` et la base de test `testmaq2406261629`.
   l'historique de ceux qui ont posé. `hr.employee.x_palette_scan_id` = palette active de
   l'opérateur, commune à la tablette (bouton ⚡) et au poste de scan.
 - Toute la logique est sur Render (`web_actions.py`) : **2101** `_palettiser` (tablette, contrôle
-  de propriété, pose entière = stock fini dans le colis) et **2102** `_scan` (poste de scan :
-  modes `etat / liste / choisir / scan / placer / retirer_dernier / retirer_of / retirer_ligne /
-  cloturer`, état renvoyé à chaque appel). Le poste de scan n'écrit plus dans `x_poste_de_scan`
+  de propriété, pose entière = stock fini dans le colis) et **2102** `_scan` (poste de scan, **sans choix de nom** :
+  la palette active est celle du poste (mémorisée par la page, contrôlée à chaque appel) et
+  l'opérateur est déduit de l'OF scanné (dernière opération renseignée) ; modes `etat / liste /
+  choisir / scan / placer / retirer_dernier / retirer_of / retirer_ligne / cloturer`). Le poste de scan n'écrit plus dans `x_poste_de_scan`
   (automatisation 29 / action 1585, actions 1587-1915, 1971, 2091 : inutilisées, à archiver).
 - Pages : `scan_view_7890.AFTER.xml` (+ `scan_view_7890.js`, source lisible du script) et
   `vue_operateur.xml`. Bureau : formulaire colis 7896 (Opérateur, historique, clôturée, zone),

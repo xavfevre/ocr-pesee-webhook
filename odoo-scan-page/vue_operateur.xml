@@ -221,7 +221,7 @@
                     <div class="mt-1">
                       <span t-if="of.x_studio_colis" class="vo-pal">📦 <t t-esc="of.x_studio_colis.name"/></span>
                       <button t-elif="of.state == 'done'" type="button" class="vo-addcolis btn btn-sm btn-outline-primary" t-att-data-ofid="of.id" style="font-weight:800;">📦 Mettre au colis</button>
-                      <span t-else="" style="font-size:11.5px;color:#94a3b8;">OF non clôturé — colisage impossible</span>
+                      <t t-else=""><t t-set="nxt" t-value="of.workorder_ids.filtered(lambda o: o.state not in ('done', 'cancel')).sorted(key=lambda o: (o.sequence or 0, o.id))[:1]"/><span style="font-size:11.5px;color:#94a3b8;"><t t-if="nxt">⏭ Reste à faire : <b t-esc="nxt.name"/><t t-if="nxt.workcenter_id"> · <t t-esc="nxt.workcenter_id.name"/></t> — mise en palette après la dernière opération</t><t t-else="">OF non clôturé — colisage impossible</t></span></t>
                       <button type="button" class="vo-rebut btn btn-sm btn-outline-danger" t-att-data-ofid="of.id" t-att-data-of="of.name or ''" t-att-data-nbr="of.x_studio_nbr or 1" style="font-weight:800;margin-left:6px;">💥 Rebut</button>
                     </div>
                     <div t-if="of.x_studio_nom_du_client" class="vo-cli">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>

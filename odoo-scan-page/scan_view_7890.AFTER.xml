@@ -68,23 +68,20 @@
 
     <div class="scan-wrap">
       <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:16px;white-space:nowrap;background:#fff;border-radius:8px 8px 0 0;padding:4px 6px 0;"><li class="nav-item"><a class="nav-link" id="nav-maprod" href="/vue-operateur">✅ Ma production</a></li><li class="nav-item"><a class="nav-link" id="nav-hist" href="/vue-operateur?hist=1">🕘 Historique</a></li><li class="nav-item"><a class="nav-link active fw-bold" href="#">📦 Poste de scan</a></li></ul><h3 class="scan-h">📦 Poste de scan — Palettes / OF</h3>
-      <t t-set="employees" t-value="request.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
-      <div class="scan-ops"><span style="color:#94a3b8;font-weight:700;font-size:13px;">👤 Opérateur :</span>
-        <t t-foreach="employees" t-as="e"><button type="button" class="scan-op" t-att-data-op="e.id"><t t-esc="e.name"/></button></t>
-      </div>
 
       <div class="scan-colis">
-        <div class="scan-colis-lbl">Palette active de <span id="colis-op">—</span></div>
+        <div class="scan-colis-lbl">Palette active du poste</div>
         <div id="colis-name" class="scan-colis-name">—</div>
+        <div id="colis-op" style="color:#5eead4;font-size:15px;font-weight:800;margin-top:2px;min-height:18px;"/>
         <div id="colis-mesure" class="scan-colis-mesure"/>
         <div id="colis-zone" class="scan-colis-zone"/>
-        <button id="btn-colis-nav" style="margin-top:10px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#334155;color:#e2e8f0;">📦 Mes palettes…</button>
+        <button id="btn-colis-nav" style="margin-top:10px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#334155;color:#e2e8f0;">📦 Palettes ouvertes…</button>
         <button id="btn-colis-print" style="margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;">🖨 Bon de colisage</button>
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
       <button id="btn-cam" style="width:100%;margin-top:10px;border:none;border-radius:12px;padding:14px;font-size:17px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff;">📷 Scanner avec la caméra</button>
-      <div class="scan-hint"><b>1. Choisissez votre nom.</b> <b>2. Scannez votre palette</b> (PACK…) — une palette vierge devient la vôtre, la palette d'un autre opérateur est refusée. <b>3. Scannez les OF</b> à y poser. <b>4. Pour finir</b>, scannez ou touchez l'<b>emplacement</b> : la palette est <b>verrouillée</b> et le bon de colisage s'imprime.</div>
+      <div class="scan-hint"><b>1. Scannez la palette</b> (PACK…) : une palette vierge, ou la palette de l'opérateur concerné. <b>2. Scannez les OF</b> : c'est l'OF qui dit à qui est la pierre — une palette vierge devient celle de cet opérateur, la palette d'un autre opérateur est refusée. <b>3. Pour finir</b>, scannez ou touchez l'<b>emplacement</b> : la palette est <b>verrouillée</b> et le bon de colisage s'imprime.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
@@ -144,7 +141,7 @@
 
     <div id="nav-pop" class="qte-pop">
       <div class="qte-card" style="width:540px;max-width:96vw;border-color:#38bdf8;">
-        <h4>📦 Mes palettes</h4>
+        <h4>📦 Palettes ouvertes</h4>
         <div class="qte-sub">Touchez une palette pour la rendre active · palette vierge : scannez son code-barres ou tapez son n° puis Entrée</div>
         <input id="nav-srch" type="text" autocomplete="off" placeholder="Filtrer, ou n° d'une palette vierge…" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #38bdf8;font-size:16px;font-weight:700;margin-bottom:8px;"/>
         <div id="nav-list" style="max-height:58vh;overflow:auto;"/>
@@ -171,30 +168,11 @@
   var zoneEl = document.getElementById('colis-zone');
   var mesureEl = document.getElementById('colis-mesure');
   var opEl = document.getElementById('colis-op');
+  var KEY = 'scan_colis_' + SITE;
   var colisActif = false, colisNom = '';
+  try{ colisActif = parseInt(localStorage.getItem(KEY)) || false; }catch(e){}
   var pending = null, qteStr = '';
   var busy = false;
-
-  // ── opérateur : mémorisé sur la tablette (même clé que la vue opérateur) ──
-  var OP = null;
-  try{ OP = parseInt(localStorage.getItem('vo_op')) || null; }catch(e){}
-  function opBtn(){ return OP ? document.querySelector('.scan-op[data-op="' + OP + '"]') : null; }
-  if(OP &amp;&amp; !opBtn()){ OP = null; }
-  function opName(){ var b = opBtn(); return b ? b.textContent : ''; }
-  function paintOps(){
-    document.querySelectorAll('.scan-op').forEach(function(b){ b.classList.toggle('on', parseInt(b.getAttribute('data-op')) === OP); });
-    if(opEl){ opEl.textContent = OP ? opName() : '— (choisissez votre nom)'; }
-  }
-  function needOp(){ if(OP){ return false; } setRes("👤 Choisissez d'abord votre nom (boutons en haut)"); beep(false); return true; }
-  document.querySelectorAll('.scan-op').forEach(function(b){
-    b.addEventListener('click', function(){
-      OP = parseInt(b.getAttribute('data-op')) || null;
-      try{ localStorage.setItem('vo_op', String(OP)); }catch(e){}
-      paintOps(); closePop();
-      act('etat').then(function(){ input.focus(); });
-    });
-  });
-  paintOps();
 
   // ── utilitaires ──
   function esc(s){ var d = document.createElement('div'); d.textContent = (s == null ? '' : String(s)); return d.innerHTML; }
@@ -218,16 +196,15 @@
   }
   function setRes(txt){ resEl.textContent = txt; resEl.className = 'scan-res ' + classFor(txt); }
 
-  // ── appel Render (action 2102 : état par opérateur) ──
+  // ── appel Render (action 2102 : palette active du poste, opérateur déduit de l'OF) ──
   function web(mode, extra){
-    var ctx = {op: OP || 0, mode: mode};
+    var ctx = {colis_id: colisActif || 0, mode: mode};
     if(extra){ for(var k in extra){ if(Object.prototype.hasOwnProperty.call(extra, k)){ ctx[k] = extra[k]; } } }
     return fetch(RENDER, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action_id: 2102, ctx: ctx})})
       .then(function(r){ return r.json(); })
       .then(function(d){ if(d.error){ throw new Error(d.error.message || 'Erreur'); } return d.result || {}; });
   }
   function act(mode, extra){
-    if(needOp()){ return Promise.resolve(); }
     if(busy){ setRes('⏳ Patientez, action en cours…'); return Promise.resolve(); }
     busy = true; setRes('⏳ …');
     return web(mode, extra).then(function(r){ busy = false; applyEtat(r); beep(!!r.ok); return r; })
@@ -259,14 +236,15 @@
       + '&lt;/div&gt;';
   }
   function applyEtat(r){
-    if(!r || r.mes){ return; }
+    if(!r || r.palettes){ return; }
     var c = r.colis;
     colisActif = c ? c.id : false; colisNom = c ? c.name : '';
+    try{ if(colisActif){ localStorage.setItem(KEY, String(colisActif)); } else { localStorage.removeItem(KEY); } }catch(e){}
     colisEl.textContent = c ? c.name : '—';
     colisEl.className = c ? 'scan-colis-name' : 'scan-colis-none';
+    if(opEl){ opEl.textContent = c ? (c.op_nom ? ('👤 Palette de ' + c.op_nom) : '🟡 Palette vierge — au premier opérateur qui y pose') : ''; }
     if(mesureEl){ mesureEl.textContent = c ? ('📦 ' + fmtN(c.cub || 0) + ' m³  ·  ' + fmtN(Math.round((c.ton || 0) / 100) / 10) + ' t  (' + Math.round(c.ton || 0) + ' kg)') : ''; }
     if(zoneEl){ zoneEl.textContent = (c &amp;&amp; c.zone) ? ('📍 Emplacement : ' + c.zone) : ''; }
-    if(opEl &amp;&amp; r.op_nom){ opEl.textContent = r.op_nom; }
     var box = document.getElementById('of-list'), itemsBox = document.getElementById('of-items');
     if(c){
       document.getElementById('of-count').textContent = (r.items || []).length;
@@ -337,7 +315,6 @@
   // ── entrée principale : douchette, caméra, clavier ──
   function doScan(val){
     input.value = '';
-    if(needOp()){ return; }
     val = (val || '').trim(); if(!val){ return; }
     if(pending){
       var p = pending; closePop();
@@ -366,7 +343,7 @@
   document.getElementById('btn-refresh').addEventListener('click', function(){ act('etat').then(function(){ input.focus(); }); });
   document.querySelectorAll('.zone-btn').forEach(function(zb){
     zb.addEventListener('click', function(){
-      if(!colisActif){ setRes("⚠️ Scannez d'abord votre palette"); beep(false); return; }
+      if(!colisActif){ setRes("⚠️ Scannez d'abord une palette"); beep(false); return; }
       var z = zb.getAttribute('data-zone');
       if(!confirm('Clôturer la palette ' + colisNom + ' → ' + z + ' ?\nElle sera verrouillée et le bon de colisage imprimé.')){ return; }
       act('cloturer', {zone: z}).then(function(){ input.focus(); });
@@ -414,35 +391,34 @@
   document.getElementById('cam-close').addEventListener('click', function(){ camStop(); input.focus(); });
   document.getElementById('btn-cam').addEventListener('click', function(){ camOpen(function(v){ doScan(v); }); });
 
-  // ── mes palettes ──
+  // ── palettes ouvertes ──
   var navPop = document.getElementById('nav-pop'), navList = document.getElementById('nav-list'), navSrch = document.getElementById('nav-srch');
-  var navData = {mes: [], libres: []};
+  var navData = {palettes: [], libres: []};
   function navRow(c, libre){
     var cur = (c.id === colisActif);
     return '&lt;button type="button" class="nav-row" data-id="' + c.id + '" style="display:block;width:100%;text-align:left;border:none;border-radius:10px;padding:12px;margin-bottom:6px;font-weight:800;font-size:15px;cursor:pointer;background:' + (cur ? '#075985' : '#1e293b') + ';color:#e2e8f0;"&gt;'
-      + '&lt;span style="display:flex;justify-content:space-between;gap:8px;"&gt;&lt;span&gt;' + (cur ? '▶ ' : '') + esc(c.name) + (libre ? ' &lt;span style="color:#fbbf24;font-size:12px;"&gt;sans opérateur&lt;/span&gt;' : '') + '&lt;/span&gt;&lt;span style="color:#93c5fd;font-weight:700;white-space:nowrap;"&gt;' + c.n + ' OF · ' + c.cub + ' m³ · ' + c.ton + ' kg&lt;/span&gt;&lt;/span&gt;'
-      + (c.m ? '&lt;span style="display:block;color:#5eead4;font-weight:700;font-size:13px;margin-top:3px;"&gt;' + esc(c.m) + '&lt;/span&gt;' : '') + '&lt;/button&gt;';
+      + '&lt;span style="display:flex;justify-content:space-between;gap:8px;"&gt;&lt;span&gt;' + (cur ? '▶ ' : '') + esc(c.name) + (libre ? ' &lt;span style="color:#fbbf24;font-size:12px;"&gt;sans opérateur&lt;/span&gt;' : ' &lt;span style="color:#5eead4;font-size:12px;"&gt;👤 ' + esc(c.op) + '&lt;/span&gt;') + '&lt;/span&gt;&lt;span style="color:#93c5fd;font-weight:700;white-space:nowrap;"&gt;' + c.n + ' OF · ' + c.cub + ' m³ · ' + c.ton + ' kg&lt;/span&gt;&lt;/span&gt;'
+      + (c.m ? '&lt;span style="display:block;color:#94a3b8;font-weight:700;font-size:13px;margin-top:3px;"&gt;' + esc(c.m) + '&lt;/span&gt;' : '') + '&lt;/button&gt;';
   }
   function navRender(){
     var f = (navSrch.value || '').trim().toLowerCase();
-    function ok(c){ return !f || (c.name + ' ' + (c.m || '')).toLowerCase().indexOf(f) !== -1; }
-    var mes = navData.mes.filter(ok), libres = navData.libres.filter(ok);
-    var html = '&lt;div style="color:#5eead4;font-weight:800;font-size:13px;margin:2px 0 6px;"&gt;🟢 Mes palettes (' + mes.length + ')&lt;/div&gt;';
-    html += mes.map(function(c){ return navRow(c, false); }).join('') || '&lt;div style="color:#64748b;padding:4px 0 10px;font-size:14px;"&gt;Aucune palette ouverte à votre nom — scannez une palette vierge (ou tapez son n°) : elle devient la vôtre.&lt;/div&gt;';
+    function ok(c){ return !f || (c.name + ' ' + (c.op || '') + ' ' + (c.m || '')).toLowerCase().indexOf(f) !== -1; }
+    var pal = navData.palettes.filter(ok), libres = navData.libres.filter(ok);
+    var html = '&lt;div style="color:#5eead4;font-weight:800;font-size:13px;margin:2px 0 6px;"&gt;🟢 Palettes ouvertes des opérateurs (' + pal.length + ')&lt;/div&gt;';
+    html += pal.slice(0, 60).map(function(c){ return navRow(c, false); }).join('') || '&lt;div style="color:#64748b;padding:4px 0 10px;font-size:14px;"&gt;Aucune palette ouverte — scannez une palette vierge (ou tapez son n°).&lt;/div&gt;';
     if(libres.length){
-      html += '&lt;div style="color:#fbbf24;font-weight:800;font-size:13px;margin:10px 0 6px;"&gt;🟡 Palettes sans opérateur (' + libres.length + ') — le premier qui pose dessus en devient responsable&lt;/div&gt;';
-      html += libres.map(function(c){ return navRow(c, true); }).join('');
+      html += '&lt;div style="color:#fbbf24;font-weight:800;font-size:13px;margin:10px 0 6px;"&gt;🟡 Palettes sans opérateur (' + libres.length + ') — au premier opérateur qui y pose&lt;/div&gt;';
+      html += libres.slice(0, 40).map(function(c){ return navRow(c, true); }).join('');
     }
     navList.innerHTML = html;
     navList.querySelectorAll('.nav-row').forEach(function(b){
-      b.addEventListener('click', function(){ navPop.style.display = 'none'; act('choisir', {colis_id: parseInt(b.getAttribute('data-id'))}).then(function(){ input.focus(); }); });
+      b.addEventListener('click', function(){ navPop.style.display = 'none'; act('choisir', {colis_id_choix: parseInt(b.getAttribute('data-id'))}).then(function(){ input.focus(); }); });
     });
   }
   function openNav(){
-    if(needOp()){ return; }
     navPop.style.display = 'flex'; navSrch.value = '';
     navList.innerHTML = '&lt;div style="color:#94a3b8;padding:8px;"&gt;Chargement…&lt;/div&gt;';
-    web('liste').then(function(r){ navData = {mes: r.mes || [], libres: r.libres || []}; navRender(); setTimeout(function(){ navSrch.focus(); }, 60); })
+    web('liste').then(function(r){ navData = {palettes: r.palettes || [], libres: r.libres || []}; navRender(); setTimeout(function(){ navSrch.focus(); }, 60); })
       .catch(function(e){ navList.innerHTML = '&lt;div style="color:#f87171;padding:8px;"&gt;Erreur : ' + esc(e.message) + '&lt;/div&gt;'; });
   }
   document.getElementById('btn-colis-nav').addEventListener('click', openNav);
@@ -452,8 +428,8 @@
     if(e.key === 'Enter'){ e.preventDefault(); var v = (navSrch.value || '').trim(); if(v){ navPop.style.display = 'none'; act('choisir', {colis_name: v}).then(function(){ input.focus(); }); } }
   });
 
-  // ── démarrage ──
-  if(OP){ act('etat'); } else { setRes("👤 Choisissez d'abord votre nom (boutons en haut)"); }
+  // ── démarrage : palette active du poste (mémorisée), contrôlée côté serveur ──
+  act('etat');
   input.focus();
 })();
 

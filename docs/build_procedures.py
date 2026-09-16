@@ -95,15 +95,15 @@ story.append(Spacer(1, 4))
 regles = [
     ("1", "<b>Une palette = un opérateur.</b> La première pierre que vous posez (ou le premier scan d'une palette vierge) fait de vous le <b>responsable</b> de la palette. Elle apparaît ensuite dans « Mes palettes »."),
     ("2", "<b>On ne pose jamais sur la palette d'un collègue.</b> L'écran la refuse : « ⛔ PACK… est la palette de … ». Besoin d'y ajouter une pierre ? Le collègue la pose lui-même, ou le bureau change le responsable."),
-    ("3", "<b>Choisissez TOUJOURS votre nom en haut de l'écran</b> avant d'agir. Si le nom affiché n'est pas le vôtre, touchez le vôtre : la tablette et le poste de scan mémorisent le dernier nom choisi."),
-    ("4", "<b>Votre palette active vous suit.</b> Le bouton ⚡ de la tablette et le poste de scan montrent la même palette (la dernière sur laquelle vous avez posé), quel que soit l'appareil."),
+    ("3", "<b>Sur la tablette, choisissez toujours votre nom</b> avant d'agir (le dernier nom choisi reste affiché : vérifiez-le). <b>Au poste de scan, pas de nom</b> : c'est l'OF scanné qui dit à qui est la pierre."),
+    ("4", "<b>Votre palette active vous suit.</b> Le bouton ⚡ de la tablette montre la dernière palette sur laquelle vos pierres ont été posées, depuis la tablette ou depuis le poste de scan."),
     ("5", "<b>Palette neuve = étiquette PACK pré-imprimée.</b> Scannez-la (ou tapez son numéro, ex. 440) : elle devient la vôtre. Ne réutilisez jamais une étiquette d'une palette déjà partie."),
     ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime, plus rien ne peut y être ajouté."),
 ]
 for num, txt in regles:
     story.append(Paragraph('<font color="#15803D"><b>%s</b></font>   %s' % (num, txt), st_rule))
 note("Message « ⛔ palette de … » ou « 🔒 clôturée » = l'écran a raison. Prenez une de vos palettes ou une palette vierge. Ne cherchez pas à contourner.", bg=GREENL, fg=GREEN)
-story.append(Paragraph("Ce qui a changé le 16/09/2026 : chacun ne voit plus que ses palettes (plus de liste « palettes des autres »), la dernière palette n'est plus mémorisée sur la tablette mais sur votre nom, et le poste de scan a une palette active <b>par opérateur</b> — deux personnes peuvent scanner en même temps sans se mélanger.", st_small))
+story.append(Paragraph("Ce qui a changé le 16/09/2026 : sur la tablette chacun ne voit plus que ses palettes (plus de liste « palettes des autres ») et la dernière palette n'est plus mémorisée sur la tablette mais sur votre nom. Au poste de scan, plus de nom à choisir : la palette affichée est celle du poste, et l'OF scanné dit à qui est la pierre.", st_small))
 
 # ───────────────────────── PAGE 1 — MA PRODUCTION ─────────────────────────
 story.append(PageBreak())
@@ -128,6 +128,7 @@ note("IMPORTANT : toujours Démarrer / Terminer au moment réel — c'est ce qui
 story.append(PageBreak())
 sect("FICHE 2 — METTRE LES PIERRES EN PALETTE (depuis la tablette)")
 story.append(Paragraph("Dès qu'une pierre est faite, la carte propose la mise en palette, sans passer par le poste de scan. Seules <b>vos</b> palettes sont proposées.", st_step))
+story.append(Paragraph("Une pierre est finie quand sa <b>dernière opération</b> est terminée. S'il reste une opération (ex. taille après sciage), la carte de l'Historique affiche « ⏭ Reste à faire : … » : la mise en palette se fait après cette opération (ou, pour des pièces comptées avec « +1 pièce », par « Palettiser (N faites) » depuis Ma production).", st_step))
 story.append(Paragraph("Cas 1 — même palette que la pierre précédente", st_h2))
 steps([
     "Appuyer sur le bouton vert <b>⚡ PACK…</b> (votre palette active) : la pierre part directement dessus. Une seule pression, terminé.",
@@ -150,11 +151,11 @@ note("« ⛔ PACK… est la palette de … » : vous avez scanné ou tapé la pa
 # ───────────────────────── PAGE 3 — POSTE DE SCAN ─────────────────────────
 story.append(PageBreak())
 sect("FICHE 3 — POSTE DE SCAN : remplir une palette à la douchette")
-story.append(Paragraph("Le poste de scan sert à composer les palettes en scannant. L'ordre est toujours : <b>nom → palette → pierres → emplacement</b>.", st_step))
+story.append(Paragraph("Le poste de scan sert à composer les palettes en scannant. Pas de nom à choisir : l'ordre est toujours <b>palette → pierres → emplacement</b>.", st_step))
 steps([
-    "<b>Toucher votre nom</b> dans la ligne « Opérateur ». L'écran affiche « Palette active de … » et votre dernière palette, s'il y en a une.",
-    "<b>Scanner votre palette</b> (étiquette PACK…) ou appuyer sur <b>« Mes palettes… »</b> et la toucher dans la liste. Palette vierge : la scanner, ou taper son numéro dans la case de la liste puis Entrée — elle devient la vôtre.",
-    "<b>Scanner les OF</b> un par un (code-barre de la fiche OF ou de la tablette) : chaque pierre s'ajoute à la palette active. L'OF doit être terminé (ou ses pièces comptées sur la tablette).",
+    "<b>Scanner la palette</b> (étiquette PACK…) ou appuyer sur <b>« Palettes ouvertes… »</b> et la toucher dans la liste. L'écran affiche à qui elle est (« Palette de … ») ou « Palette vierge ». Vérifiez toujours la palette affichée avant de scanner des pierres.",
+    "<b>Scanner les OF</b> un par un (code-barre de la fiche OF ou de la tablette). C'est l'OF qui dit à qui est la pierre : sur une palette vierge, la première pierre attribue la palette à son opérateur ; sur la palette d'un autre opérateur, l'écran refuse (⛔) — scannez la palette de cet opérateur ou une palette vierge.",
+    "L'OF doit être terminé (dernière opération faite) ou ses pièces comptées sur la tablette.",
     "OF à plusieurs pièces : le pavé « Combien sur cette palette ? » s'affiche — taper le nombre puis Valider, « Tout », ou scanner directement la suite pour tout mettre.",
     "Erreur de scan ? <b>« Retirer dernier OF »</b>, ou la corbeille 🗑️ en face de la ligne concernée. Pierre cassée ? le bouton 💥 (Fiche 4).",
 ])
@@ -169,7 +170,7 @@ steps([
     "Palette encore ouverte : la rendre active puis appuyer sur <b>« Bon de colisage »</b> (bouton bleu sous la palette active).",
     "Palette déjà clôturée : demander au bureau (Inventaire → Colis → Imprimer → Bon de colisage).",
 ])
-note("Deux personnes peuvent utiliser le poste de scan l'une après l'autre sans rien perdre : chacune retrouve sa propre palette active en touchant son nom.")
+note("Plusieurs personnes peuvent se succéder au poste de scan : la palette active est celle affichée à l'écran. Avant de scanner des pierres, regardez de qui est la palette affichée, ou scannez la bonne.")
 
 # ───────────────────────── PAGE 4 — REBUTS ─────────────────────────
 story.append(PageBreak())
