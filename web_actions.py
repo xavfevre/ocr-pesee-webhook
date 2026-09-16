@@ -1218,10 +1218,18 @@ def _alerte_palettes(call, ctx):
     now = _dt.datetime.utcnow()
     d30 = (now - _dt.timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
     d2 = (now - _dt.timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
+    # OF facturés exclus (facture liée, ou ligne de vente entièrement facturée) — Xavier, 16/09
     ofs = call('mrp.production', 'search_read',
                [['state', '=', 'done'], ['company_id', '=', 1], ['x_studio_colis', '=', False],
-                ['date_finished', '>=', d30], ['date_finished', '<=', d2]],
-               fields=['name', 'x_studio_nbr', 'date_finished', 'x_studio_nom_du_client', 'workorder_ids', 'origin'], limit=4000)
+                ['x_studio_no_facture', '=', False], ['date_finished', '>=', d30], ['date_finished', '<=', d2]],
+               fields=['name', 'x_studio_nbr', 'date_finished', 'x_studio_nom_du_client', 'workorder_ids', 'origin', 'sale_line_id'], limit=4000)
+    sl_ids = list({o['sale_line_id'][0] for o in ofs if o['sale_line_id']})
+    factures = set()
+    if sl_ids:
+        for l in call('sale.order.line', 'read', sl_ids, fields=['qty_invoiced', 'product_uom_qty', 'invoice_status']):
+            if l['invoice_status'] == 'invoiced' or l['qty_invoiced'] >= (l['product_uom_qty'] or 0) - 1e-6:
+                factures.add(l['id'])
+    ofs = [o for o in ofs if not (o['sale_line_id'] and o['sale_line_id'][0] in factures)]
     reps = {}
     for r in call('x_repartition_palette', 'search_read', [['x_studio_of_id', 'in', [o['id'] for o in ofs]]],
                   fields=['x_studio_of_id', 'x_studio_qte'], limit=5000):
@@ -1262,7 +1270,7 @@ def _alerte_palettes(call, ctx):
     dorm = sorted([q for q in pk if cnt.get(q['id']) and last.get(q['id'], '') < d7], key=lambda q: last[q['id']])
     # HTML
     h = ['<p>Bonjour,</p><p>Point hebdomadaire palettes (généré automatiquement le %s).</p>' % now.strftime('%d/%m/%Y')]
-    h.append('<h3>Pierres terminées depuis plus de 2 jours, pas (ou pas entièrement) sur palette — 30 derniers jours</h3>')
+    h.append('<h3>Pierres terminées depuis plus de 2 jours, pas (ou pas entièrement) sur palette, non facturées — 30 derniers jours</h3>')
     if not par_op:
         h.append('<p>Aucune.</p>')
     for cle, lst in sorted(par_op.items(), key=lambda kv: -len(kv[1])):
