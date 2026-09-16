@@ -11,6 +11,7 @@ Actions portées (originaux archivés dans odoo-scan-page/action_*.py) :
   2078  SEDE : générer les BC VEOLIA (planning transport mois)
   2081  Boutons transport : BC automatiques par recette (planning mois)
   2101  Tablette : palettiser N pièces d'un OF (même OF pas terminé)
+  2102  Poste de scan : palette active par opérateur (scan, quantité, retrait, clôture)
 """
 import datetime
 
@@ -22,7 +23,7 @@ class WebErreur(Exception):
 def executer(call, action_id, ctx):
     return {1987: _rebut, 2055: _parc_intervention,
             2078: _sede_veolia, 2081: _boutons_transport,
-            2101: _palettiser}[action_id](call, ctx)
+            2101: _palettiser, 2102: _scan}[action_id](call, ctx)
 
 
 def _creer(call, model, vals):
@@ -627,67 +628,220 @@ def _boutons_transport(call, ctx):
             'a_verifier': a_verifier[:40], 'futurs': futurs, 'non_faits': non_faits}
 
 
-# ─── 2101 · Tablette : palettiser N pièces d'un OF ───────────────────────────
-# Les opérateurs mettent les pièces déjà faites sur une palette sans attendre
-# la fin de l'OF (ex. OF de 12 : 4 sur PACK A, puis 3 sur PACK B…). Même
-# stockage que le poste de scan : lignes x_repartition_palette (OF / colis /
-# qté). Un OF terminé posé en entier d'un coup garde le comportement historique
-# (x_studio_colis sur l'OF, comme l'action 1971).
+# ─── Palettes par opérateur : 2101 (tablette) et 2102 (poste de scan) ────────
+# Règle « une palette = un opérateur » (16/09/2026) :
+#  · stock.package.x_operateur_id = opérateur responsable de la palette (celui
+#    qui y a posé la première pierre ou l'a scannée vierge) ; personne d'autre
+#    ne peut y poser, en retirer ou la clôturer depuis les pages atelier ;
+#  · hr.employee.x_palette_scan_id = palette active de l'opérateur, commune à
+#    la tablette (bouton ⚡ « ma palette ») et au poste de scan ;
+#  · une palette sans opérateur (vierge, ou ancienne) est libre : le premier
+#    qui pose dessus en devient responsable ;
+#  · le bureau change le responsable dans Inventaire > Colis (champ Opérateur).
+# Le poste de scan n'utilise plus l'enregistrement partagé x_poste_de_scan ni
+# l'automatisation 1585 : tout passe par _scan (état par opérateur).
 
-def _palettiser(call, ctx):
-    of_id = int(ctx.get('of_id') or 0)
-    qte = int(ctx.get('qte') or 0)
-    colis_id = int(ctx.get('colis_id') or 0)
-    colis_name = (ctx.get('colis_name') or '').strip()
-    if not of_id:
-        raise WebErreur('OF manquant.')
-    of = call('mrp.production', 'read', [of_id],
-              fields=['name', 'state', 'x_studio_nbr', 'x_studio_colis', 'workorder_ids'])
-    if not of:
-        raise WebErreur('OF introuvable.')
-    of = of[0]
-    if of['state'] == 'cancel':
-        raise WebErreur('%s est annulé.' % of['name'])
-    if of['x_studio_colis']:
-        raise WebErreur('%s est déjà en entier dans %s.' % (of['name'], of['x_studio_colis'][1]))
-    # colis
+OF_CHAMPS = ['name', 'state', 'origin', 'product_id', 'move_finished_ids', 'workorder_ids',
+             'write_date', 'x_studio_nbr', 'x_studio_colis', 'x_studio_nom_du_client',
+             'x_studio_ref_commande_client', 'x_studio_palette', 'x_studio_ref_pierre',
+             'x_note_atelier', 'x_studio_long_m_1', 'x_studio_larg_m_1', 'x_studio_haut_m_1',
+             'x_studio_surf_total', 'x_studio_vol_total']
+COLIS_CHAMPS = ['name', 'x_studio_cloturee', 'x_operateur_id', 'x_operateur_ids',
+                'x_studio_zone', 'x_studio_cubage', 'x_studio_tonnage']
+META_CHAMPS = ('x_studio_nom_du_client', 'x_studio_ref_pierre', 'x_note_atelier',
+               'x_studio_long_m_1', 'x_studio_larg_m_1', 'x_studio_haut_m_1',
+               'x_studio_ref_commande_client', 'x_studio_palette', 'origin')
+
+
+def _fmt3(v):
+    return ('%.3f' % v).rstrip('0').rstrip('.')
+
+
+def _operateur(call, ctx):
+    op = int(ctx.get('op') or 0)
+    if not op:
+        raise WebErreur("👤 Choisissez d'abord votre nom (boutons en haut de l'écran).")
+    emp = call('hr.employee', 'search_read', [['id', '=', op]],
+               fields=['name', 'x_palette_scan_id'], limit=1)
+    if not emp:
+        raise WebErreur('Opérateur inconnu (%s).' % op)
+    return emp[0]
+
+
+def _of_lire(call, of_id=0, code=''):
+    if of_id:
+        rows = call('mrp.production', 'search_read', [['id', '=', int(of_id)]], fields=OF_CHAMPS, limit=1)
+    else:
+        code = (code or '').strip()
+        rows = call('mrp.production', 'search_read', [['name', 'in', [code, code.upper()]]],
+                    fields=OF_CHAMPS, limit=1) if code else []
+    return rows[0] if rows else None
+
+
+def _colis_lire(call, colis_id=0, nom=''):
+    """Palette par id ou par nom (« PACK0000123 », ou simplement « 123 »)."""
     if colis_id:
-        colis = call('stock.package', 'read', [colis_id], fields=['name', 'x_studio_cloturee'])
-    elif colis_name:
-        colis = call('stock.package', 'search_read', [['name', '=ilike', colis_name]],
-                     fields=['name', 'x_studio_cloturee'], limit=1)
+        rows = call('stock.package', 'search_read', [['id', '=', int(colis_id)]], fields=COLIS_CHAMPS, limit=1)
     else:
-        raise WebErreur('Aucun colis indiqué.')
-    if not colis:
-        raise WebErreur('Colis introuvable : %s' % (colis_name or colis_id))
-    colis = colis[0]
+        nom = (nom or '').strip()
+        if nom.isdigit():
+            nom = 'PACK%07d' % int(nom)
+        rows = call('stock.package', 'search_read', [['name', '=ilike', nom]],
+                    fields=COLIS_CHAMPS, limit=1) if nom else []
+    return rows[0] if rows else None
+
+
+def _colis_prendre(call, colis, emp):
+    """Contrôle « une palette = un opérateur », puis palette active de l'opérateur.
+    Renvoie True si la palette vient d'être attribuée (elle était libre)."""
     if colis['x_studio_cloturee']:
-        raise WebErreur('%s est clôturé.' % colis['name'])
-    total = int(of['x_studio_nbr'] or 1)
+        raise WebErreur('🔒 %s est clôturée : prenez une autre palette.' % colis['name'])
+    prop = colis['x_operateur_id']
+    if prop and prop[0] != emp['id']:
+        raise WebErreur('⛔ %s est la palette de %s — prenez une de vos palettes ou une palette vierge.'
+                        % (colis['name'], prop[1]))
+    vals = {}
+    if not prop:
+        vals['x_operateur_id'] = emp['id']
+    if emp['id'] not in (colis['x_operateur_ids'] or []):
+        vals['x_operateur_ids'] = [[4, emp['id']]]
+    if vals:
+        call('stock.package', 'write', [colis['id']], vals)
+        colis['x_operateur_id'] = [emp['id'], emp['name']]
+    if not (emp['x_palette_scan_id'] and emp['x_palette_scan_id'][0] == colis['id']):
+        call('hr.employee', 'write', [emp['id']], {'x_palette_scan_id': colis['id']})
+        emp['x_palette_scan_id'] = [colis['id'], colis['name']]
+    return not prop
+
+
+def _colis_active(call, emp):
+    """Palette active de l'opérateur, ou None si absente, clôturée ou reprise par un autre."""
+    if not emp['x_palette_scan_id']:
+        return None
+    colis = _colis_lire(call, emp['x_palette_scan_id'][0])
+    if (not colis or colis['x_studio_cloturee']
+            or (colis['x_operateur_id'] and colis['x_operateur_id'][0] != emp['id'])):
+        call('hr.employee', 'write', [emp['id']], {'x_palette_scan_id': False})
+        emp['x_palette_scan_id'] = False
+        return None
+    return colis
+
+
+def _infos_pierre(of):
+    infos = []
+    if of['x_studio_ref_pierre']:
+        infos.append(str(of['x_studio_ref_pierre']))
+    if of['x_studio_nbr']:
+        infos.append('%d pcs' % int(of['x_studio_nbr']))
+    dims = [_fmt3(of[k]) for k in ('x_studio_long_m_1', 'x_studio_larg_m_1', 'x_studio_haut_m_1') if of[k]]
+    if dims:
+        infos.append(' x '.join(dims) + ' m')
+    if of['x_studio_surf_total']:
+        infos.append(_fmt3(of['x_studio_surf_total']) + ' m²')
+    if of['x_studio_vol_total']:
+        infos.append(_fmt3(of['x_studio_vol_total']) + ' m³')
+    return ' — '.join(infos)
+
+
+def _lignes_finies(call, of):
+    """Lignes de mouvement des produits finis (mouvements terminés) de l'OF."""
+    if not of.get('move_finished_ids'):
+        return []
+    moves = call('stock.move', 'search_read',
+                 [['id', 'in', of['move_finished_ids']], ['state', '=', 'done']], fields=['move_line_ids'])
+    return [ml for mv in moves for ml in mv['move_line_ids']]
+
+
+def _placer_entier(call, of, colis_id):
+    """OF terminé posé en entier : lien OF -> colis, puis entrée du stock fini dans le colis
+    (comme l'ancienne action 1585). Le stock est secondaire : une erreur n'annule pas la pose."""
+    call('mrp.production', 'write', [of['id']], {'x_studio_colis': colis_id})
+    try:
+        mls = _lignes_finies(call, of)
+        if mls:
+            libres = call('stock.move.line', 'search', [['id', 'in', mls], ['result_package_id', '=', False]])
+            if libres:
+                call('stock.move.line', 'write', libres, {'result_package_id': colis_id})
+        infos = _infos_pierre(of)
+        quants = call('stock.quant', 'search',
+                      [['product_id', '=', of['product_id'][0]], ['package_id', '=', colis_id]])
+        if quants and infos:
+            call('stock.quant', 'write', quants, {'x_studio_infos_pierre': infos})
+    except Exception as e:  # noqa: BLE001 — le lien OF/colis est fait, le stock se régularise au bureau
+        print('placer_entier %s : stock non mis à jour : %s' % (of['name'], e))
+
+
+def _retirer_entier(call, of, colis_id):
+    """Inverse de _placer_entier (anciennes actions 1587 / 1913)."""
+    try:
+        mls = _lignes_finies(call, of)
+        if mls:
+            dedans = call('stock.move.line', 'search', [['id', 'in', mls], ['result_package_id', '=', colis_id]])
+            if dedans:
+                call('stock.move.line', 'write', dedans, {'result_package_id': False})
+        autres = call('mrp.production', 'search_count',
+                      [['x_studio_colis', '=', colis_id], ['product_id', '=', of['product_id'][0]],
+                       ['id', '!=', of['id']]])
+        if not autres:
+            quants = call('stock.quant', 'search',
+                          [['product_id', '=', of['product_id'][0]], ['package_id', '=', colis_id]])
+            if quants:
+                call('stock.quant', 'write', quants, {'package_id': False, 'x_studio_infos_pierre': ''})
+    except Exception as e:  # noqa: BLE001
+        print('retirer_entier %s : stock non mis à jour : %s' % (of['name'], e))
+    call('mrp.production', 'write', [of['id']], {'x_studio_colis': False})
+
+
+def _repartition(call, of_id):
     lignes = call('x_repartition_palette', 'search_read', [['x_studio_of_id', '=', of_id]],
-                  fields=['x_studio_colis_id', 'x_studio_qte'])
-    place = sum(int(l['x_studio_qte'] or 0) for l in lignes)
-    # pièces disponibles : OF terminé -> tout ce qui reste ; sinon -> pièces faites
-    # sur la dernière opération (compteur « +1 pièce » de la tablette)
+                  fields=['x_studio_colis_id', 'x_studio_qte', 'write_date'])
+    return lignes, sum(int(l['x_studio_qte'] or 0) for l in lignes)
+
+
+def _pieces_faites(call, of, total):
+    """Pièces disponibles : tout si l'OF est terminé, sinon le compteur « +1 pièce » de la
+    dernière opération (tablette)."""
     if of['state'] == 'done':
-        faites = total
-    else:
-        wos = call('mrp.workorder', 'read', of['workorder_ids'],
-                   fields=['sequence', 'x_studio_nbr_fait', 'state']) if of['workorder_ids'] else []
-        wos.sort(key=lambda w: (w.get('sequence') or 0, w['id']))
-        faites = int(wos[-1]['x_studio_nbr_fait'] or 0) if wos else 0
-        if wos and wos[-1]['state'] == 'done':
-            faites = total
+        return total
+    wos = call('mrp.workorder', 'read', of['workorder_ids'],
+               fields=['sequence', 'x_studio_nbr_fait', 'state']) if of['workorder_ids'] else []
+    if not wos:
+        return 0
+    wos.sort(key=lambda w: (w.get('sequence') or 0, w['id']))
+    return total if wos[-1]['state'] == 'done' else int(wos[-1]['x_studio_nbr_fait'] or 0)
+
+
+def _verif_of(of, colis):
+    if of['state'] == 'cancel':
+        raise WebErreur('⚠️ %s est annulé.' % of['name'])
+    if of['x_studio_colis']:
+        if of['x_studio_colis'][0] == colis['id']:
+            raise WebErreur('ℹ️ %s est déjà en entier sur cette palette.' % of['name'])
+        raise WebErreur('⚠️ %s est déjà en entier sur %s.' % (of['name'], of['x_studio_colis'][1]))
+
+
+def _disponible(call, of):
+    total = int(of['x_studio_nbr'] or 1)
+    lignes, place = _repartition(call, of['id'])
+    faites = _pieces_faites(call, of, total)
     dispo = max(0, min(total, faites) - place)
     if dispo <= 0:
         if place >= total:
-            raise WebErreur('%s est déjà entièrement réparti (%d pcs).' % (of['name'], total))
-        raise WebErreur("%s : aucune pièce disponible (faites %d, déjà sur palette %d). "
-                        "Comptez d'abord les pièces avec « +1 pièce »." % (of['name'], faites, place))
-    q = max(1, min(qte or dispo, dispo))
+            raise WebErreur('ℹ️ %s est déjà entièrement réparti (%d pcs).' % (of['name'], total))
+        raise WebErreur("⚠️ %s : aucune pièce disponible (faites %d, déjà sur palette %d) — terminez l'OF "
+                        "ou comptez les pièces (+1 pièce) sur la tablette." % (of['name'], faites, place))
+    return total, lignes, place, dispo
+
+
+def _poser(call, of, colis, qte):
+    """Pose qte pièces de l'OF sur la palette : en entier (lien OF -> colis + stock) si tout l'OF
+    terminé part d'un coup, sinon ligne de répartition. Renvoie (message, détail)."""
+    _verif_of(of, colis)
+    total, lignes, place, dispo = _disponible(call, of)
+    q = max(1, min(int(qte or 0) or dispo, dispo))
     entier = (of['state'] == 'done' and not lignes and q >= total)
     if entier:
-        call('mrp.production', 'write', [of_id], {'x_studio_colis': colis['id']})
+        _placer_entier(call, of, colis['id'])
     else:
         meme = [l for l in lignes if l['x_studio_colis_id'] and l['x_studio_colis_id'][0] == colis['id']]
         if meme:
@@ -695,25 +849,274 @@ def _palettiser(call, ctx):
                  {'x_studio_qte': int(meme[0]['x_studio_qte'] or 0) + q})
         else:
             _creer(call, 'x_repartition_palette',
-                   {'x_name': '%s / %s' % (of['name'], colis['name']), 'x_studio_of_id': of_id,
+                   {'x_name': '%s / %s' % (of['name'], colis['name']), 'x_studio_of_id': of['id'],
                     'x_studio_colis_id': colis['id'], 'x_studio_qte': q})
-    # opérateur (tablette) : marque la palette comme « posée par » lui (liste « Mes palettes »)
-    op = int(ctx.get('op') or 0)
-    if op:
+    lignes, place = _repartition(call, of['id'])
+    fermes = set()
+    if lignes:
+        fermes = {c['id'] for c in call('stock.package', 'search_read',
+                  [['id', 'in', [l['x_studio_colis_id'][0] for l in lignes if l['x_studio_colis_id']]],
+                   ['x_studio_cloturee', '=', True]], fields=['id'])}
+    reste = 0 if entier else total - place
+    if entier:
+        msg = '✅ %s posé en entier sur %s (%d pcs)' % (of['name'], colis['name'], total)
+    elif reste > 0:
+        msg = '✂️ %d pcs de %s sur %s — reste %d / %d à placer' % (q, of['name'], colis['name'], reste, total)
+    else:
+        msg = '✅ %s entièrement réparti (%d pcs) — dernières %d sur %s' % (of['name'], total, q, colis['name'])
+    return msg, {'ok': 1, 'of': of['name'], 'colis_id': colis['id'], 'colis': colis['name'], 'qte': q,
+                 'entier': 1 if entier else 0, 'total': total, 'place': total if entier else place,
+                 'reste': reste,
+                 'reps': [{'colis': l['x_studio_colis_id'][1], 'qte': int(l['x_studio_qte'] or 0),
+                           'cloturee': 1 if l['x_studio_colis_id'][0] in fermes else 0} for l in lignes]}
+
+
+# ─── 2101 · Tablette : palettiser N pièces d'un OF (même OF pas terminé) ──────
+
+def _palettiser(call, ctx):
+    emp = _operateur(call, ctx)
+    of = _of_lire(call, int(ctx.get('of_id') or 0))
+    if not of:
+        raise WebErreur('OF introuvable.')
+    colis = _colis_lire(call, int(ctx.get('colis_id') or 0), ctx.get('colis_name') or '')
+    if not colis:
+        raise WebErreur('Palette introuvable : %s' % (ctx.get('colis_name') or ctx.get('colis_id') or '?'))
+    _verif_of(of, colis)
+    _colis_prendre(call, colis, emp)
+    msg, res = _poser(call, of, colis, int(ctx.get('qte') or 0))
+    res['msg'] = msg
+    return res
+
+
+# ─── 2102 · Poste de scan (palette active par opérateur) ─────────────────────
+
+def _meta(o):
+    return {k: (o.get(k) or '') for k in META_CHAMPS}
+
+
+def _scan_items(call, colis):
+    """Contenu de la palette : OF entiers puis répartitions, plus récent d'abord."""
+    entiers = call('mrp.production', 'search_read', [['x_studio_colis', '=', colis['id']]],
+                   fields=OF_CHAMPS, order='write_date desc')
+    lignes = call('x_repartition_palette', 'search_read', [['x_studio_colis_id', '=', colis['id']]],
+                  fields=['x_studio_of_id', 'x_studio_qte', 'write_date'], order='write_date desc')
+    ofs = {}
+    ids = [l['x_studio_of_id'][0] for l in lignes if l['x_studio_of_id']]
+    if ids:
+        for o in call('mrp.production', 'search_read', [['id', 'in', ids]], fields=OF_CHAMPS):
+            ofs[o['id']] = o
+    items = []
+    for o in entiers:
+        tot = int(o['x_studio_nbr'] or 1)
+        items.append({'kind': 'whole', 'id': o['id'], 'of_id': o['id'], 'name': o['name'], 'qte': tot,
+                      'total': tot, 'label': '%d pcs' % tot, 'date': o['write_date'], 'o': _meta(o)})
+    for l in lignes:
+        if not l['x_studio_of_id']:
+            continue
+        o = ofs.get(l['x_studio_of_id'][0]) or {'name': l['x_studio_of_id'][1]}
+        tot = int(o.get('x_studio_nbr') or 0)
+        q = int(l['x_studio_qte'] or 0)
+        items.append({'kind': 'line', 'id': l['id'], 'of_id': l['x_studio_of_id'][0], 'name': o['name'],
+                      'qte': q, 'total': tot, 'label': '✂️ %d/%s pcs' % (q, tot or '?'),
+                      'date': l['write_date'], 'o': _meta(o)})
+    return items
+
+
+def _scan_etat(call, emp, msg='', ok=True, extra=None):
+    colis = _colis_active(call, emp)
+    etat = {'op': emp['id'], 'op_nom': emp['name'], 'msg': msg, 'ok': 1 if ok else 0,
+            'colis': None, 'items': []}
+    if colis:
+        items = _scan_items(call, colis)
+        etat['colis'] = {'id': colis['id'], 'name': colis['name'], 'zone': colis['x_studio_zone'] or '',
+                         'cub': round(colis['x_studio_cubage'] or 0, 3),
+                         'ton': round(colis['x_studio_tonnage'] or 0), 'n': len(items)}
+        etat['items'] = items
+    if extra:
+        etat.update(extra)
+    if not msg:
+        etat['msg'] = ('📦 %s — palette active %s (%d OF)' % (emp['name'], colis['name'], len(etat['items']))
+                       if colis else '👤 %s — aucune palette active : scannez votre palette' % emp['name'])
+    return etat
+
+
+def _scan_liste(call, emp):
+    """Mes palettes ouvertes, et palettes libres avec contenu (sans opérateur : transition)."""
+    ouv = call('stock.package', 'search_read',
+               [['x_studio_cloturee', '!=', True], '|', ['x_operateur_id', '=', emp['id']], ['x_operateur_id', '=', False]],
+               fields=['name', 'x_operateur_id', 'x_studio_cubage', 'x_studio_tonnage', 'write_date'],
+               order='write_date desc', limit=800)
+    ids = [c['id'] for c in ouv]
+    cnt, meta = {}, {}
+
+    def add(cid, o):
+        cnt[cid] = cnt.get(cid, 0) + 1
+        mm = meta.setdefault(cid, {'cl': set(), 'rf': set(), 'pa': set()})
+        for key, f in (('cl', 'x_studio_nom_du_client'), ('rf', 'x_studio_ref_commande_client'), ('pa', 'x_studio_palette')):
+            if o.get(f):
+                mm[key].add(o[f])
+    champs = ['x_studio_colis', 'x_studio_nom_du_client', 'x_studio_ref_commande_client', 'x_studio_palette']
+    if ids:
+        for o in call('mrp.production', 'search_read', [['x_studio_colis', 'in', ids]], fields=champs, limit=4000):
+            add(o['x_studio_colis'][0], o)
+        rof = {}
+        for r in call('x_repartition_palette', 'search_read',
+                      [['x_studio_colis_id', 'in', ids], ['x_studio_of_id', '!=', False]],
+                      fields=['x_studio_colis_id', 'x_studio_of_id'], limit=3000):
+            rof.setdefault(r['x_studio_of_id'][0], []).append(r['x_studio_colis_id'][0])
+        if rof:
+            for o in call('mrp.production', 'search_read', [['id', 'in', list(rof)]], fields=champs):
+                for cid in rof[o['id']]:
+                    add(cid, o)
+    act = emp['x_palette_scan_id'][0] if emp['x_palette_scan_id'] else 0
+
+    def row(c):
+        mm = meta.get(c['id'])
+        parts = []
+        if mm:
+            for key, ico in (('cl', '🏢'), ('rf', '📄'), ('pa', '🟪')):
+                if mm[key]:
+                    parts.append(ico + ' ' + ', '.join(sorted(mm[key])))
+        n = cnt.get(c['id'], 0)
+        return {'id': c['id'], 'name': c['name'], 'n': n,
+                'cub': round((c['x_studio_cubage'] or 0) if n else 0, 2),
+                'ton': round((c['x_studio_tonnage'] or 0) if n else 0),
+                'm': '  ·  '.join(parts), 'active': 1 if c['id'] == act else 0}
+    mes = [row(c) for c in ouv if c['x_operateur_id'] and c['x_operateur_id'][0] == emp['id']]
+    libres = [row(c) for c in ouv if not c['x_operateur_id'] and cnt.get(c['id'], 0) > 0]
+    return {'op': emp['id'], 'op_nom': emp['name'], 'mes': mes, 'libres': libres, 'active': act}
+
+
+def _scan_palette(call, emp, colis):
+    try:
+        neuve = _colis_prendre(call, colis, emp)
+    except WebErreur as e:
+        return _scan_etat(call, emp, str(e), False)
+    etat = _scan_etat(call, emp)
+    n = len(etat['items'])
+    if neuve:
+        etat['msg'] = ('📦 %s : palette vierge — elle est maintenant à vous' % colis['name'] if n == 0
+                       else '📦 %s active (%d OF) — palette libre, elle est maintenant à vous' % (colis['name'], n))
+    else:
+        etat['msg'] = '📦 %s active (%d OF)' % (colis['name'], n)
+    return etat
+
+
+def _scan_of(call, emp, of, qte, force):
+    colis = _colis_active(call, emp)
+    if not colis:
+        return _scan_etat(call, emp, "⚠️ Scannez d'abord votre palette (PACK…)", False)
+    total = int(of['x_studio_nbr'] or 1)
+    if not force and not qte and total > 1:
         try:
-            deja = call('stock.package', 'read', [colis['id']], fields=['x_operateur_ids'])[0]['x_operateur_ids']
-            if op not in deja:
-                call('stock.package', 'write', [colis['id']], {'x_operateur_ids': [[4, op]]})
-        except Exception as e:  # secondaire : ne doit pas faire échouer la pose
-            print('palettiser: marquage opérateur %s impossible : %s' % (op, e))
-    lignes = call('x_repartition_palette', 'search_read', [['x_studio_of_id', '=', of_id]],
-                  fields=['x_studio_colis_id', 'x_studio_qte'])
-    place = sum(int(l['x_studio_qte'] or 0) for l in lignes)
-    fermes = {c['id'] for c in call('stock.package', 'search_read',
-              [['id', 'in', [l['x_studio_colis_id'][0] for l in lignes if l['x_studio_colis_id']]],
-               ['x_studio_cloturee', '=', True]], fields=['id'])} if lignes else set()
-    return {'ok': 1, 'of': of['name'], 'colis_id': colis['id'], 'colis': colis['name'], 'qte': q,
-            'entier': 1 if entier else 0, 'total': total, 'place': total if entier else place,
-            'reste': 0 if entier else total - place,
-            'reps': [{'colis': l['x_studio_colis_id'][1], 'qte': int(l['x_studio_qte'] or 0),
-                      'cloturee': 1 if l['x_studio_colis_id'][0] in fermes else 0} for l in lignes]}
+            _verif_of(of, colis)
+            total, lignes, place, dispo = _disponible(call, of)
+        except WebErreur as e:
+            return _scan_etat(call, emp, str(e), False)
+        return _scan_etat(call, emp, '✂️ %s : combien de pièces sur %s ?' % (of['name'], colis['name']), True,
+                          {'demande_qte': {'of_id': of['id'], 'name': of['name'], 'total': total,
+                                           'remaining': dispo, 'placed': place, 'note': of['x_note_atelier'] or ''}})
+    try:
+        msg, res = _poser(call, of, colis, qte)
+    except WebErreur as e:
+        return _scan_etat(call, emp, str(e), False)
+    return _scan_etat(call, emp, msg, True)
+
+
+def _scan_code(call, emp, code, qte):
+    up = code.upper()
+    if not code:
+        return _scan_etat(call, emp, '⚠️ Rien à scanner', False)
+    if up.startswith('ZONE'):
+        import re
+        return _scan_cloturer(call, emp, re.sub(r'^ZONE[-_ ]?', '', code, flags=re.I).strip())
+    if up.startswith('CLOTURE') or up.startswith('CLÔTURE') or up in ('FIN', 'FIN-PALETTE'):
+        return _scan_etat(call, emp, "👉 Pour clôturer : scannez ou touchez l'emplacement (Stock Atelier / Stock Usine)", False)
+    if up.startswith('PACK') or code.isdigit():
+        colis = _colis_lire(call, 0, code)
+        if not colis:
+            return _scan_etat(call, emp, '❌ Palette inconnue : %s' % code, False)
+        return _scan_palette(call, emp, colis)
+    of = _of_lire(call, 0, code)
+    if of:
+        return _scan_of(call, emp, of, qte, False)
+    colis = _colis_lire(call, 0, code)
+    if colis:
+        return _scan_palette(call, emp, colis)
+    return _scan_etat(call, emp, '❌ Inconnu : %s' % code, False)
+
+
+def _scan_retirer(call, emp, of_id, line_id):
+    colis = _colis_active(call, emp)
+    if not colis:
+        return _scan_etat(call, emp, '⚠️ Aucune palette active', False)
+    items = _scan_items(call, colis)
+    if of_id:
+        cible = [i for i in items if i['kind'] == 'whole' and i['of_id'] == of_id]
+    elif line_id:
+        cible = [i for i in items if i['kind'] == 'line' and i['id'] == line_id]
+    else:
+        cible = sorted(items, key=lambda i: i['date'] or '', reverse=True)[:1]
+    if not cible:
+        return _scan_etat(call, emp, 'ℹ️ Rien à retirer sur %s' % colis['name'] if not (of_id or line_id)
+                          else '⚠️ OF absent de cette palette', False)
+    it = cible[0]
+    if it['kind'] == 'whole':
+        _retirer_entier(call, _of_lire(call, it['of_id']), colis['id'])
+        msg = '↩️ %s retiré de %s' % (it['name'], colis['name'])
+    else:
+        call('x_repartition_palette', 'unlink', [it['id']])
+        msg = '↩️ %d pcs de %s retirées de %s' % (it['qte'], it['name'], colis['name'])
+    etat = _scan_etat(call, emp, msg, True)
+    etat['msg'] += ' (%d OF restants)' % len(etat['items'])
+    return etat
+
+
+def _scan_cloturer(call, emp, zone):
+    colis = _colis_active(call, emp)
+    if not colis:
+        return _scan_etat(call, emp, '⚠️ Aucune palette active à clôturer', False)
+    if not zone:
+        return _scan_etat(call, emp, "⚠️ Indiquez l'emplacement (Stock Atelier / Stock Usine)", False)
+    if not _scan_items(call, colis):
+        return _scan_etat(call, emp, '⚠️ %s est vide — posez au moins un OF avant de clôturer' % colis['name'], False)
+    try:
+        _sur(lambda: call('ir.actions.server', 'run', [1972],
+                          context={'active_model': 'stock.package', 'active_ids': [colis['id']],
+                                   'active_id': colis['id'], 'zone': zone}))
+    except Exception as e:  # noqa: BLE001
+        raise WebErreur('Clôture refusée : %s' % str(e).strip()[-300:])
+    call('hr.employee', 'write', [emp['id']], {'x_palette_scan_id': False})
+    emp['x_palette_scan_id'] = False
+    return _scan_etat(call, emp, '✅ %s clôturée → %s · verrouillée · bon de colisage à imprimer' % (colis['name'], zone),
+                      True, {'print_id': colis['id'], 'print_name': colis['name']})
+
+
+def _scan(call, ctx):
+    emp = _operateur(call, ctx)
+    mode = (ctx.get('mode') or 'etat').strip()
+    if mode == 'liste':
+        return _scan_liste(call, emp)
+    if mode == 'etat':
+        return _scan_etat(call, emp)
+    if mode == 'choisir':
+        colis = _colis_lire(call, int(ctx.get('colis_id') or 0), ctx.get('colis_name') or '')
+        if not colis:
+            return _scan_etat(call, emp, '❌ Palette introuvable : %s' % (ctx.get('colis_name') or ctx.get('colis_id') or '?'), False)
+        return _scan_palette(call, emp, colis)
+    if mode == 'scan':
+        return _scan_code(call, emp, (ctx.get('code') or '').strip(), int(ctx.get('qte') or 0))
+    if mode == 'placer':
+        of = _of_lire(call, int(ctx.get('of_id') or 0))
+        if not of:
+            return _scan_etat(call, emp, '❌ OF introuvable', False)
+        return _scan_of(call, emp, of, int(ctx.get('qte') or 0), True)
+    if mode == 'retirer_dernier':
+        return _scan_retirer(call, emp, 0, 0)
+    if mode == 'retirer_of':
+        return _scan_retirer(call, emp, int(ctx.get('of_id') or 0), 0)
+    if mode == 'retirer_ligne':
+        return _scan_retirer(call, emp, 0, int(ctx.get('line_id') or 0))
+    if mode == 'cloturer':
+        return _scan_cloturer(call, emp, (ctx.get('zone') or '').strip())
+    raise WebErreur('Mode inconnu : %s' % mode)

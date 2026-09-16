@@ -1136,6 +1136,7 @@ WEB_ACTIONS_AUTORISEES = {
     2078,  # SEDE : générer les BC VEOLIA (planning transport mois)
     2081,  # boutons transport : BC automatiques par recette (planning mois)
     2101,  # tablette opérateur : palettiser N pièces d'un OF (même non terminé)
+    2102,  # poste de scan : palette active par opérateur (scan / quantité / retrait / clôture)
 }
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
 _HEURES_CONN = {}
