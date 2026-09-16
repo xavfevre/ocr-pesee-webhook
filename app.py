@@ -1136,7 +1136,8 @@ WEB_ACTIONS_AUTORISEES = {
     2078,  # SEDE : générer les BC VEOLIA (planning transport mois)
     2081,  # boutons transport : BC automatiques par recette (planning mois)
     2101,  # tablette opérateur : palettiser N pièces d'un OF (même non terminé)
-    2102,  # poste de scan : palette active par opérateur (scan / quantité / retrait / clôture)
+    2102,  # poste de scan : palette active du poste (scan / quantité / retrait / clôture / transfert)
+    2103,  # alerte hebdo palettes (bureau) — envoi manuel possible
 }
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
 _HEURES_CONN = {}
@@ -1231,8 +1232,30 @@ def _fab_dash_nightly():
             app.logger.warning(f"fortage-dashboard recalage nocturne échoué: {e}")
 
 
+def _palettes_hebdo():
+    """Lundi 06:30 UTC : mail « Palettes : point hebdo » (web_actions 2103) au bureau."""
+    from datetime import timedelta
+    while True:
+        now = datetime.utcnow()
+        nxt = now.replace(hour=6, minute=30, second=0, microsecond=0)
+        while nxt <= now or nxt.weekday() != 0:
+            nxt = nxt + timedelta(days=1)
+        _time.sleep(max((nxt - now).total_seconds(), 60))
+        try:
+            import web_actions
+            uid, models = odoo_connect()
+
+            def call(model, method, *params, **kw):
+                return x(models, uid, model, method, *params, **kw)
+            res = web_actions.executer(call, 2103, {'envoyer': 1})
+            app.logger.info(f"palettes hebdo: {res.get('n_of')} OF, {res.get('n_dormantes')} palettes dormantes -> {res.get('envoye_a')}")
+        except Exception as e:
+            app.logger.warning(f"palettes hebdo échoué: {e}")
+
+
 if ODOO_URL and ODOO_PASSWORD:
     threading.Thread(target=_fab_dash_nightly, daemon=True).start()
+    threading.Thread(target=_palettes_hebdo, daemon=True).start()
 
 
 # ─── PROTEC : planning chauffeur + Ma tournée + fiche de fin de travaux ──────
