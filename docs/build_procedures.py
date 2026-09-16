@@ -76,6 +76,53 @@ def steps(items):
         story.append(Paragraph("<b>%d.</b>  %s" % (i, it), st_step))
 
 
+import os
+from reportlab.platypus import Image
+from reportlab.lib.utils import ImageReader
+CAPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
+st_cap = ParagraphStyle("cap", fontName="Helvetica-Oblique", fontSize=9, textColor=GREY, leading=11.5, spaceAfter=6)
+
+
+def _img(name, width, max_h=118 * mm):
+    path = os.path.join(CAPT, name + ".png")
+    if not os.path.exists(path):
+        return None
+    iw, ih = ImageReader(path).getSize()
+    h = width * ih / iw
+    if h > max_h:
+        width, h = max_h * iw / ih, max_h
+    im = Image(path, width=width, height=h)
+    im.hAlign = "CENTER"
+    return im
+
+
+def capture(name, caption):
+    """Une capture pleine largeur, encadrée, avec sa légende."""
+    im = _img(name, W - 2 * MARG - 8)
+    if im is None:
+        return
+    t = Table([[im], [Paragraph(caption, st_cap)]], colWidths=[W - 2 * MARG])
+    t.setStyle(TableStyle([("BOX", (0, 0), (0, 0), 0.6, GREY), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                           ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3)]))
+    story.append(Spacer(1, 3)); story.append(t); story.append(Spacer(1, 4))
+
+
+def captures2(a, cap_a, b, cap_b):
+    """Deux captures côte à côte."""
+    wcol = (W - 2 * MARG - 8) / 2
+    ia, ib = _img(a, wcol - 6, max_h=95 * mm), _img(b, wcol - 6, max_h=95 * mm)
+    if ia is None and ib is None:
+        return
+    if ia is None or ib is None:
+        capture(a if ia else b, cap_a if ia else cap_b)
+        return
+    t = Table([[ia, ib], [Paragraph(cap_a, st_cap), Paragraph(cap_b, st_cap)]], colWidths=[wcol, wcol])
+    t.setStyle(TableStyle([("BOX", (0, 0), (0, 0), 0.6, GREY), ("BOX", (1, 0), (1, 0), 0.6, GREY),
+                           ("VALIGN", (0, 0), (-1, 0), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                           ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3)]))
+    story.append(Spacer(1, 3)); story.append(t); story.append(Spacer(1, 4))
+
+
 def note(txt, bg=AMBERL, fg=ORANGE):
     t = Table([[Paragraph(txt, ParagraphStyle("nn", fontName="Helvetica-Bold", fontSize=10.5,
                                               textColor=fg, leading=14))]],
@@ -123,6 +170,7 @@ steps([
     "En cas d'erreur, <b>« Annuler Terminé »</b> remet l'OF en cours.",
 ])
 note("IMPORTANT : toujours Démarrer / Terminer au moment réel — c'est ce qui calcule les temps par pierre et le planning de l'atelier.")
+capture("tablette_ma_production", "Tablette, onglet Ma production : nom de l'opérateur en haut, filtres, puis une carte par opération avec les boutons Démarrer / Terminer, le compteur « +1 pièce » et « Palettiser (N faites) ».")
 
 # ───────────────────────── PAGE 2 — MISE EN PALETTE ─────────────────────────
 story.append(PageBreak())
@@ -147,12 +195,17 @@ steps([
     "Le bon de colisage s'imprime et la palette est verrouillée (plus rien ne peut y être ajouté). Votre bouton ⚡ l'oublie automatiquement.",
     "<b>Au même moment, Céline reçoit le mail « Palette clôturée : PACK… »</b> avec le bon de colisage en pièce jointe (client, emplacement, cubage, tonnage) : inutile de la prévenir.",
 ])
+captures2("tablette_pave_quantite", "Pavé « Combien sur la palette ? » : nombre de pièces à poser (ou « Tout »), puis « Choisir la palette ».",
+          "tablette_choisir_palette", "Choix de la palette : « Mes palettes » seulement, case pour scanner ou taper le n° d'une palette vierge, cadenas 🔒 pour clôturer.")
 note("« ⛔ PACK… est la palette de … » : vous avez scanné ou tapé la palette d'un collègue. Prenez une de vos palettes ou une palette vierge.")
+capture("tablette_historique", "Onglet Historique : les opérations terminées par jour ; quand il reste une opération, la carte indique « ⏭ Reste à faire : … » à la place du bouton « Mettre au colis ».")
 
 # ───────────────────────── PAGE 3 — POSTE DE SCAN ─────────────────────────
 story.append(PageBreak())
 sect("FICHE 3 — POSTE DE SCAN : remplir une palette à la douchette")
 story.append(Paragraph("Le poste de scan sert à composer les palettes en scannant. Pas de nom à choisir : l'ordre est toujours <b>palette → pierres → emplacement</b>.", st_step))
+captures2("scan_accueil", "Poste de scan au démarrage : aucune palette active, on scanne une palette (ou « Palettes ouvertes… »).",
+          "scan_palette_active", "Palette scannée : son numéro, à qui elle est, cubage / tonnage, et son contenu OF par OF (🗑️ retirer, 💥 rebut).")
 steps([
     "<b>Scanner la palette</b> (étiquette PACK…) ou appuyer sur <b>« Palettes ouvertes… »</b> et la toucher dans la liste. L'écran affiche à qui elle est (« Palette de … ») ou « Palette vierge ». Vérifiez toujours la palette affichée avant de scanner des pierres.",
     "<b>Scanner les OF</b> un par un (code-barre de la fiche OF ou de la tablette). C'est l'OF qui dit à qui est la pierre : sur une palette vierge, la première pierre attribue la palette à son opérateur ; sur la palette d'un autre opérateur, l'écran refuse (⛔) — scannez la palette de cet opérateur ou une palette vierge.",
@@ -160,6 +213,9 @@ steps([
     "OF à plusieurs pièces : le pavé « Combien sur cette palette ? » s'affiche — taper le nombre puis Valider, « Tout », ou scanner directement la suite pour tout mettre.",
     "Erreur de scan ? <b>« Retirer dernier OF »</b>, ou la corbeille 🗑️ en face de la ligne concernée. Pierre cassée ? le bouton 💥 (Fiche 4).",
 ])
+captures2("scan_quantite", "OF à plusieurs pièces : le pavé demande combien de pièces vont sur cette palette.",
+          "scan_refus", "Refus ⛔ : la pierre scannée est d'un autre opérateur que celui de la palette active.")
+capture("scan_palettes_ouvertes", "« Palettes ouvertes… » : les palettes en cours avec leur opérateur, puis celles sans opérateur ; on touche une palette pour la rendre active.")
 story.append(Paragraph("Clôturer la palette", st_h2))
 steps([
     "Scanner le <b>code-barre d'emplacement</b> (Stock Atelier / Stock Usine) affiché à l'écran, ou toucher le bouton bleu correspondant, puis confirmer.",
@@ -209,6 +265,8 @@ steps([
     "Le champ « Opérateurs ayant posé » garde l'historique de tous ceux qui ont posé dessus (lecture seule).",
     "La palette active d'un opérateur se règle sur sa fiche employé, champ <b>Palette active (poste de scan)</b> ; elle se remet à jour toute seule à la prochaine pose.",
 ])
+captures2("bureau_colis_liste", "Odoo, Inventaire → Colis : colonnes Opérateur, Palette clôturée et Zone / Emplacement.",
+          "bureau_colis_fiche", "Fiche d'une palette : le champ « Opérateur (responsable de la palette) » se modifie ici ; « Opérateurs (ont posé) » garde l'historique.")
 story.append(Paragraph("Étiquettes de palettes vierges", st_h2))
 steps([
     "Inventaire → Colis → <b>Générer des colis</b> (quantité) crée des numéros PACK vierges ; imprimer leurs étiquettes et les agrafer sur les palettes vides.",
@@ -219,6 +277,7 @@ steps([
     "Le bon de colisage (imprimé à la clôture, ou Imprimer → Bon de colisage) mentionne désormais l'<b>opérateur</b> responsable, en plus de la commande, du client, de la prépalettisation et de l'emplacement.",
     "<b>À chaque clôture</b> (tablette ou poste de scan), Céline reçoit aussitôt le mail « Palette clôturée : PACK… » à celine@maquignon.com : client, emplacement, cubage, tonnage, et le bon de colisage PDF en pièce jointe. Une palette réouverte au bureau puis reclôturée renvoie un mail.",
 ])
+capture("bureau_bon_colisage", "Bon de colisage imprimé à la clôture et envoyé par mail à Céline : commande, client, livraison, opérateur, emplacement, et le détail des OF.")
 story.append(Spacer(1, 8))
 story.append(Paragraph("Rappels généraux", st_h2))
 steps([
