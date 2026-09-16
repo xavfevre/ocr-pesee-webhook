@@ -1259,6 +1259,28 @@ def _commandes_produites(call, jours=45):
     return rows, ''.join(h)
 
 
+def _mail_bureau(call, sujet, dest, corps):
+    """Mail sortant comme le modèle « Bon de colisage » : expéditeur = e-mail de la société (contact@),
+    auteur = partenaire du compte API. Renvoie l'id du mail.mail."""
+    soc = call('res.company', 'read', [1], fields=['email'])[0]
+    exp = soc.get('email') or 'contact@maquignon.com'
+    try:
+        auteur = call('res.users', 'read', [call('res.users', 'search', [['login', '=', os_env_user()]], limit=1)[0]], fields=['partner_id'])[0]['partner_id'][0]
+    except Exception:  # noqa: BLE001
+        auteur = False
+    vals = {'subject': sujet, 'email_to': dest, 'email_from': exp, 'reply_to': exp, 'body_html': corps, 'auto_delete': False}
+    if auteur:
+        vals['author_id'] = auteur
+    mid = _creer(call, 'mail.mail', vals)
+    _sur(lambda: call('mail.mail', 'send', [mid]))
+    return mid
+
+
+def os_env_user():
+    import os
+    return os.environ.get('ODOO_USER') or ''
+
+
 def _alerte_palettes(call, ctx):
     """Pierres terminées non palettisées (par opérateur, > 2 jours, 30 derniers jours) et palettes
     ouvertes sans mouvement depuis 7 jours. ctx.envoyer=1 : mail à maquignon.palettes_alerte_email."""
@@ -1351,20 +1373,16 @@ def _alerte_palettes(call, ctx):
     corps = ''.join(h)
     res = {'ok': 1, 'n_ops': len(par_op), 'n_of': sum(len(v) for v in par_op.values()), 'n_dormantes': len(dorm), 'html': corps}
     if ctx.get('envoyer'):
-        dest = str(_param(call, 'maquignon.palettes_alerte_email', 'isabelle@maquignon.com') or '').strip()
-        mid = _creer(call, 'mail.mail', {'subject': 'Palettes : point hebdo du %s' % now.strftime('%d/%m/%Y'),
-                                        'email_to': dest, 'body_html': corps, 'auto_delete': False})
-        _sur(lambda: call('mail.mail', 'send', [mid]))
+        dest = str(_param(call, 'maquignon.palettes_alerte_email', 'celine@maquignon.com,loic@maquignon.com') or '').strip()
+        _mail_bureau(call, 'Palettes : point hebdo du %s' % now.strftime('%d/%m/%Y'), dest, corps)
         res['envoye_a'] = dest
     # commandes entièrement produites, non facturées -> Céline (facturation)
     rows_c, html_c = _commandes_produites(call)
     res['n_commandes_produites'] = len(rows_c)
     res['html_celine'] = html_c
     if (ctx.get('envoyer') or ctx.get('envoyer_celine')) and rows_c:
-        dest_c = str(_param(call, 'maquignon.commandes_produites_email', 'celine@maquignon.com') or '').strip()
-        mid_c = _creer(call, 'mail.mail', {'subject': 'Commandes entièrement produites, non facturées — %s (%d)' % (now.strftime('%d/%m/%Y'), len(rows_c)),
-                                          'email_to': dest_c, 'body_html': html_c, 'auto_delete': False})
-        _sur(lambda: call('mail.mail', 'send', [mid_c]))
+        dest_c = str(_param(call, 'maquignon.commandes_produites_email', 'celine@maquignon.com,loic@maquignon.com') or '').strip()
+        _mail_bureau(call, 'Commandes entièrement produites, non facturées — %s (%d)' % (now.strftime('%d/%m/%Y'), len(rows_c)), dest_c, html_c)
         res['envoye_celine_a'] = dest_c
     return res
 
