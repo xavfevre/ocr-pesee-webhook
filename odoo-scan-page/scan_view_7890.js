@@ -69,13 +69,13 @@
     if(o.x_note_atelier){ out += '<div style="background:#854d0e;color:#fef9c3;border-radius:6px;padding:1px 7px;margin-top:2px;display:inline-block;font-weight:800;">💬 ' + esc(o.x_note_atelier) + '</div>'; }
     return out;
   }
-  function renderItem(it){
+  function renderItem(it, ro){
     var cls = it.kind === 'line' ? 'part' : 'whole';
     return '<div class="scan-of-item">'
       + '<div class="of-main"><div class="of-name">🪨 ' + esc(it.name) + '<span class="of-qty ' + cls + '">' + esc(it.label) + '</span></div>'
       + '<div class="of-meta">' + metaOf(it.o || {}) + '</div></div>'
-      + '<button class="of-reb" data-ofid="' + it.of_id + '" data-max="' + (it.qte || 1) + '" data-name="' + esc(it.name) + '" title="Déclarer un rebut">💥</button>'
-      + '<button class="of-del" data-kind="' + it.kind + '" data-id="' + it.id + '" data-name="' + esc(it.name) + '">🗑️</button>'
+      + (ro ? '' : '<button class="of-reb" data-ofid="' + it.of_id + '" data-max="' + (it.qte || 1) + '" data-name="' + esc(it.name) + '" title="Déclarer un rebut">💥</button>'
+      + '<button class="of-del" data-kind="' + it.kind + '" data-id="' + it.id + '" data-name="' + esc(it.name) + '">🗑️</button>')
       + '</div>';
   }
   function applyEtat(r){
@@ -85,13 +85,27 @@
     try{ if(colisActif){ localStorage.setItem(KEY, String(colisActif)); } else { localStorage.removeItem(KEY); } }catch(e){}
     colisEl.textContent = c ? c.name : '—';
     colisEl.className = c ? 'scan-colis-name' : 'scan-colis-none';
-    if(opEl){ opEl.textContent = c ? (c.op_nom ? ('👤 Palette de ' + c.op_nom) : '🟡 Palette vierge — au premier opérateur qui y pose') : ''; }
+    var ferme = !!(c && c.cloturee);
+    if(opEl){ opEl.textContent = c ? (ferme ? ('🔒 Clôturée' + (c.zone ? ' → ' + c.zone : '') + ' · lecture seule' + (c.op_nom ? ' · palette de ' + c.op_nom : '')) : (c.op_nom ? ('👤 Palette de ' + c.op_nom) : '🟡 Palette vierge — au premier opérateur qui y pose')) : ''; }
     if(mesureEl){ mesureEl.textContent = c ? ('📦 ' + fmtN(c.cub || 0) + ' m³  ·  ' + fmtN(Math.round((c.ton || 0) / 100) / 10) + ' t  (' + Math.round(c.ton || 0) + ' kg)') : ''; }
-    if(zoneEl){ zoneEl.textContent = (c && c.zone) ? ('📍 Emplacement : ' + c.zone) : ''; }
+    if(zoneEl){ zoneEl.textContent = (c && c.zone && !ferme) ? ('📍 Emplacement : ' + c.zone) : ''; }
+    // jauge de remplissage (seuil : paramètre maquignon.palette_max_kg)
+    var jg = document.getElementById('colis-jauge'), jb = document.getElementById('colis-jauge-bar'), jt = document.getElementById('colis-jauge-txt');
+    if(jg && jb && jt){
+      if(c){
+        var mx = r.max_kg || 1500, ton = c.ton || 0, pct = Math.round(100 * ton / mx);
+        jg.style.display = ''; jb.style.width = Math.min(100, pct) + '%';
+        jb.style.background = pct >= 100 ? '#dc2626' : (pct >= 80 ? '#f59e0b' : '#16a34a');
+        jt.textContent = Math.round(ton) + ' / ' + Math.round(mx) + ' kg (' + pct + ' %)' + (pct >= 100 ? '  ⚠ palette lourde' : (pct >= 80 ? '  — presque pleine' : ''));
+      } else { jg.style.display = 'none'; }
+    }
+    document.querySelectorAll('.zone-btn').forEach(function(b){ b.disabled = ferme; b.style.opacity = ferme ? '.45' : ''; });
+    var bu = document.getElementById('btn-undo'); if(bu){ bu.disabled = ferme; bu.style.opacity = ferme ? '.45' : ''; }
+    var bp = document.getElementById('btn-colis-print'); if(bp){ bp.textContent = ferme ? '🖨 Réimprimer le bon de colisage' : '🖨 Bon de colisage'; }
     var box = document.getElementById('of-list'), itemsBox = document.getElementById('of-items');
     if(c){
       document.getElementById('of-count').textContent = (r.items || []).length;
-      itemsBox.innerHTML = (r.items || []).map(renderItem).join('') || '<div style="color:#64748b;font-size:14px;">Palette vide — scannez les OF à y poser</div>';
+      itemsBox.innerHTML = (r.items || []).map(function(it){ return renderItem(it, ferme); }).join('') || '<div style="color:#64748b;font-size:14px;">Palette vide — scannez les OF à y poser</div>';
       bindItems(itemsBox);
       box.style.display = '';
     } else { box.style.display = 'none'; itemsBox.innerHTML = ''; }
@@ -118,7 +132,7 @@
           .then(function(r){ return r.json(); })
           .then(function(d){ if(d.error){ throw new Error(d.error.message); } return d.result; })
           .then(function(res){ return act('etat').then(function(){ setRes('💥 Rebut enregistré — OF relancé : ' + ((res && res.new_of) || '')); beep(true); input.focus(); }); })
-          .catch(function(e){ alert('Erreur : ' + e.message); });
+          .catch(function(e){ setRes('⚠️ Rebut impossible : ' + e.message); beep(false); });
       });
     });
   }

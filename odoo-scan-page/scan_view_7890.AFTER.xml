@@ -75,13 +75,14 @@
         <div id="colis-op" style="color:#5eead4;font-size:15px;font-weight:800;margin-top:2px;min-height:18px;"/>
         <div id="colis-mesure" class="scan-colis-mesure"/>
         <div id="colis-zone" class="scan-colis-zone"/>
+        <div id="colis-jauge" style="display:none;margin:8px auto 0;max-width:430px;"><div style="background:#334155;border-radius:8px;height:12px;overflow:hidden;"><div id="colis-jauge-bar" style="height:12px;width:0%;background:#16a34a;transition:width .3s;"/></div><div id="colis-jauge-txt" style="color:#94a3b8;font-size:13px;font-weight:700;margin-top:3px;"/></div>
         <button id="btn-colis-nav" style="margin-top:10px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#334155;color:#e2e8f0;">📦 Palettes ouvertes…</button>
         <button id="btn-colis-print" style="margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;">🖨 Bon de colisage</button>
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
       <button id="btn-cam" style="width:100%;margin-top:10px;border:none;border-radius:12px;padding:14px;font-size:17px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff;">📷 Scanner avec la caméra</button>
-      <div class="scan-hint"><b>1. Scannez la palette</b> (PACK…) : une palette vierge, ou la palette de l'opérateur concerné. <b>2. Scannez les OF</b> : c'est l'OF qui dit à qui est la pierre — une palette vierge devient celle de cet opérateur, la palette d'un autre opérateur est refusée. <b>3. Pour finir</b>, scannez ou touchez l'<b>emplacement</b> : la palette est <b>verrouillée</b> et le bon de colisage s'imprime.</div>
+      <div class="scan-hint"><b>1. Scannez la palette</b> (PACK…) : une palette vierge, ou la palette de l'opérateur concerné. <b>2. Scannez les OF</b> : c'est l'OF qui dit à qui est la pierre — une palette vierge devient celle de cet opérateur, la palette d'un autre opérateur est refusée. <b>3. Pour finir</b>, scannez ou touchez l'<b>emplacement</b> : la palette est <b>verrouillée</b> et le bon de colisage s'imprime. Une palette <b>clôturée</b> peut être scannée : son contenu s'affiche et son bon de colisage se réimprime.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
@@ -226,13 +227,13 @@
     if(o.x_note_atelier){ out += '&lt;div style="background:#854d0e;color:#fef9c3;border-radius:6px;padding:1px 7px;margin-top:2px;display:inline-block;font-weight:800;"&gt;💬 ' + esc(o.x_note_atelier) + '&lt;/div&gt;'; }
     return out;
   }
-  function renderItem(it){
+  function renderItem(it, ro){
     var cls = it.kind === 'line' ? 'part' : 'whole';
     return '&lt;div class="scan-of-item"&gt;'
       + '&lt;div class="of-main"&gt;&lt;div class="of-name"&gt;🪨 ' + esc(it.name) + '&lt;span class="of-qty ' + cls + '"&gt;' + esc(it.label) + '&lt;/span&gt;&lt;/div&gt;'
       + '&lt;div class="of-meta"&gt;' + metaOf(it.o || {}) + '&lt;/div&gt;&lt;/div&gt;'
-      + '&lt;button class="of-reb" data-ofid="' + it.of_id + '" data-max="' + (it.qte || 1) + '" data-name="' + esc(it.name) + '" title="Déclarer un rebut"&gt;💥&lt;/button&gt;'
-      + '&lt;button class="of-del" data-kind="' + it.kind + '" data-id="' + it.id + '" data-name="' + esc(it.name) + '"&gt;🗑️&lt;/button&gt;'
+      + (ro ? '' : '&lt;button class="of-reb" data-ofid="' + it.of_id + '" data-max="' + (it.qte || 1) + '" data-name="' + esc(it.name) + '" title="Déclarer un rebut"&gt;💥&lt;/button&gt;'
+      + '&lt;button class="of-del" data-kind="' + it.kind + '" data-id="' + it.id + '" data-name="' + esc(it.name) + '"&gt;🗑️&lt;/button&gt;')
       + '&lt;/div&gt;';
   }
   function applyEtat(r){
@@ -242,13 +243,27 @@
     try{ if(colisActif){ localStorage.setItem(KEY, String(colisActif)); } else { localStorage.removeItem(KEY); } }catch(e){}
     colisEl.textContent = c ? c.name : '—';
     colisEl.className = c ? 'scan-colis-name' : 'scan-colis-none';
-    if(opEl){ opEl.textContent = c ? (c.op_nom ? ('👤 Palette de ' + c.op_nom) : '🟡 Palette vierge — au premier opérateur qui y pose') : ''; }
+    var ferme = !!(c &amp;&amp; c.cloturee);
+    if(opEl){ opEl.textContent = c ? (ferme ? ('🔒 Clôturée' + (c.zone ? ' → ' + c.zone : '') + ' · lecture seule' + (c.op_nom ? ' · palette de ' + c.op_nom : '')) : (c.op_nom ? ('👤 Palette de ' + c.op_nom) : '🟡 Palette vierge — au premier opérateur qui y pose')) : ''; }
     if(mesureEl){ mesureEl.textContent = c ? ('📦 ' + fmtN(c.cub || 0) + ' m³  ·  ' + fmtN(Math.round((c.ton || 0) / 100) / 10) + ' t  (' + Math.round(c.ton || 0) + ' kg)') : ''; }
-    if(zoneEl){ zoneEl.textContent = (c &amp;&amp; c.zone) ? ('📍 Emplacement : ' + c.zone) : ''; }
+    if(zoneEl){ zoneEl.textContent = (c &amp;&amp; c.zone &amp;&amp; !ferme) ? ('📍 Emplacement : ' + c.zone) : ''; }
+    // jauge de remplissage (seuil : paramètre maquignon.palette_max_kg)
+    var jg = document.getElementById('colis-jauge'), jb = document.getElementById('colis-jauge-bar'), jt = document.getElementById('colis-jauge-txt');
+    if(jg &amp;&amp; jb &amp;&amp; jt){
+      if(c){
+        var mx = r.max_kg || 1500, ton = c.ton || 0, pct = Math.round(100 * ton / mx);
+        jg.style.display = ''; jb.style.width = Math.min(100, pct) + '%';
+        jb.style.background = pct &gt;= 100 ? '#dc2626' : (pct &gt;= 80 ? '#f59e0b' : '#16a34a');
+        jt.textContent = Math.round(ton) + ' / ' + Math.round(mx) + ' kg (' + pct + ' %)' + (pct &gt;= 100 ? '  ⚠ palette lourde' : (pct &gt;= 80 ? '  — presque pleine' : ''));
+      } else { jg.style.display = 'none'; }
+    }
+    document.querySelectorAll('.zone-btn').forEach(function(b){ b.disabled = ferme; b.style.opacity = ferme ? '.45' : ''; });
+    var bu = document.getElementById('btn-undo'); if(bu){ bu.disabled = ferme; bu.style.opacity = ferme ? '.45' : ''; }
+    var bp = document.getElementById('btn-colis-print'); if(bp){ bp.textContent = ferme ? '🖨 Réimprimer le bon de colisage' : '🖨 Bon de colisage'; }
     var box = document.getElementById('of-list'), itemsBox = document.getElementById('of-items');
     if(c){
       document.getElementById('of-count').textContent = (r.items || []).length;
-      itemsBox.innerHTML = (r.items || []).map(renderItem).join('') || '&lt;div style="color:#64748b;font-size:14px;"&gt;Palette vide — scannez les OF à y poser&lt;/div&gt;';
+      itemsBox.innerHTML = (r.items || []).map(function(it){ return renderItem(it, ferme); }).join('') || '&lt;div style="color:#64748b;font-size:14px;"&gt;Palette vide — scannez les OF à y poser&lt;/div&gt;';
       bindItems(itemsBox);
       box.style.display = '';
     } else { box.style.display = 'none'; itemsBox.innerHTML = ''; }
@@ -275,7 +290,7 @@
           .then(function(r){ return r.json(); })
           .then(function(d){ if(d.error){ throw new Error(d.error.message); } return d.result; })
           .then(function(res){ return act('etat').then(function(){ setRes('💥 Rebut enregistré — OF relancé : ' + ((res &amp;&amp; res.new_of) || '')); beep(true); input.focus(); }); })
-          .catch(function(e){ alert('Erreur : ' + e.message); });
+          .catch(function(e){ setRes('⚠️ Rebut impossible : ' + e.message); beep(false); });
       });
     });
   }

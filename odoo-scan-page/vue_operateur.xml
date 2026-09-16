@@ -42,12 +42,16 @@
         .vo-daynav button:disabled{background:#cbd5e1;}
         .vo-daylbl{font-weight:800;font-size:16px;color:#0f172a;text-align:center;flex:1;line-height:1.2;}
         .vo-hist-time{font-size:14px;font-weight:800;color:#166534;background:#dcfce7;border-radius:7px;padding:2px 10px;display:inline-block;margin:3px 0;}
+        .vo-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:20000;background:#0f172a;color:#fff;font-weight:800;font-size:16px;border-radius:12px;padding:12px 18px;box-shadow:0 8px 30px rgba(0,0,0,.35);max-width:92vw;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center;}
+        .vo-toast.on{opacity:1;} .vo-toast.ok{background:#15803d;} .vo-toast.err{background:#b91c1c;} .vo-toast.warn{background:#b45309;}
+        .vo-jauge{height:8px;border-radius:6px;background:#e2e8f0;overflow:hidden;margin-top:4px;} .vo-jauge > div{height:8px;}
       </style>
 
       <t t-set="op" t-value="(request.params.get('op') or '').strip()"/>
       <t t-set="hist" t-value="request.params.get('hist') == '1'"/>
       <t t-set="colors" t-value="{'TUFFEAU': '#5B8DEF', 'HAIMS': '#4CAF50', 'MIGNE': '#E0973F', 'RICHEMONT': '#3BC9B5', 'TERVOUX': '#D946C8', 'SIREUIL': '#F2D63B'}"/>
       <t t-set="jours" t-value="['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']"/>
+      <t t-set="max_kg" t-value="float(request.env['ir.config_parameter'].sudo().get_param('maquignon.palette_max_kg', '1500') or 1500)"/>
       <t t-set="employees" t-value="request.env['hr.employee'].sudo().search([('category_ids.name','ilike','atelier'),('company_id','in',[1, False])], order='name')"/>
 
       <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:16px;white-space:nowrap;">
@@ -88,6 +92,9 @@
         <t t-set="_m2" t-value="[cm_rf.setdefault(ci, set()).add(o.x_studio_ref_commande_client) for o, ci in colis_pairs if o.x_studio_ref_commande_client]"/>
         <t t-set="_m3" t-value="[cm_pa.setdefault(ci, set()).add(o.x_studio_palette) for o, ci in colis_pairs if o.x_studio_palette]"/>
         <t t-set="colis_meta" t-value="dict((c.id, ' · '.join([x for x in [', '.join(sorted(cm_cl.get(c.id, []))), ', '.join(sorted(cm_rf.get(c.id, []))), ', '.join(sorted(cm_pa.get(c.id, [])))] if x]).replace('&quot;',' ')) for c in colis_ouverts)"/>
+        <!-- pièces déjà réparties sur palette pour les OF de l'historique (Palettiser N faites) -->
+        <t t-set="reps_h" t-value="{}"/>
+        <t t-set="_rh" t-value="[reps_h.update({r.x_studio_of_id.id: reps_h.get(r.x_studio_of_id.id, 0) + int(r.x_studio_qte or 0)}) for r in request.env['x_repartition_palette'].sudo().search([('x_studio_of_id','in',dones.mapped('production_id').ids)]) if r.x_studio_of_id]"/>
         <t t-set="hmach" t-value="sorted(set(w.workcenter_id.name for w in dones if w.workcenter_id))"/>
         <t t-set="hsit" t-value="sorted(set(w.workcenter_id.x_studio_site for w in dones if w.workcenter_id and w.workcenter_id.x_studio_site))"/>
         <t t-set="hcli" t-value="sorted(set(w.production_id.x_studio_nom_du_client for w in dones if w.production_id.x_studio_nom_du_client))"/>
@@ -153,6 +160,34 @@
           <div id="vo-cam-msg" style="position:absolute;left:0;right:0;top:7%;text-align:center;color:#fff;font-weight:800;font-size:17px;text-shadow:0 1px 4px #000;">Visez le code-barre de la palette…</div>
           <button type="button" id="vo-cam-close" style="position:absolute;left:50%;bottom:6%;transform:translateX(-50%);border:none;border-radius:12px;padding:14px 34px;font-size:17px;font-weight:800;background:#7f1d1d;color:#fff;cursor:pointer;">✖ Annuler</button>
         </div>
+        <div id="vo-qte-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:1002;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;padding:18px;width:min(360px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.4);">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <strong style="font-size:17px;">📦 Combien sur la palette ?</strong>
+              <button type="button" id="vo-qte-close" class="btn btn-sm btn-outline-secondary">✕</button>
+            </div>
+            <div style="font-size:12.5px;color:#64748b;margin-bottom:6px;"><span id="vo-qte-of"/> · disponibles : <b id="vo-qte-max"/></div>
+            <div id="vo-qte-disp" style="font-size:44px;font-weight:900;text-align:center;color:#0f172a;line-height:1.1;margin:4px 0 10px;"/>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              <button type="button" class="vo-qk btn btn-light" data-k="1" style="font-size:24px;font-weight:800;padding:12px 0;">1</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="2" style="font-size:24px;font-weight:800;padding:12px 0;">2</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="3" style="font-size:24px;font-weight:800;padding:12px 0;">3</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="4" style="font-size:24px;font-weight:800;padding:12px 0;">4</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="5" style="font-size:24px;font-weight:800;padding:12px 0;">5</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="6" style="font-size:24px;font-weight:800;padding:12px 0;">6</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="7" style="font-size:24px;font-weight:800;padding:12px 0;">7</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="8" style="font-size:24px;font-weight:800;padding:12px 0;">8</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="9" style="font-size:24px;font-weight:800;padding:12px 0;">9</button>
+              <button type="button" class="vo-qk btn btn-outline-secondary" data-k="C" style="font-size:18px;font-weight:800;padding:12px 0;">C</button>
+              <button type="button" class="vo-qk btn btn-light" data-k="0" style="font-size:24px;font-weight:800;padding:12px 0;">0</button>
+              <button type="button" class="vo-qk btn btn-outline-secondary" data-k="back" style="font-size:18px;font-weight:800;padding:12px 0;">⌫</button>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+              <button type="button" id="vo-qte-all" class="btn btn-outline-primary flex-grow-1" style="font-weight:800;padding:12px 0;">Tout (<span id="vo-qte-max2"/>)</button>
+              <button type="button" id="vo-qte-ok" class="btn btn-success flex-grow-1" style="font-weight:800;padding:12px 0;font-size:17px;">✓ Choisir la palette</button>
+            </div>
+          </div>
+        </div>
         <div id="vo-colis-pop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:999;align-items:center;justify-content:center;">
           <div style="background:#fff;border-radius:16px;padding:20px;width:min(430px,92vw);max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -168,8 +203,8 @@
             <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not cq.x_operateur_id and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
             <t t-set="emp_op" t-value="request.env['hr.employee'].sudo().search([('id','=',op_int)], limit=1)"/>
             <t t-set="pal_act" t-value="emp_op.x_palette_scan_id if (emp_op and emp_op.x_palette_scan_id and not emp_op.x_palette_scan_id.x_studio_cloturee and (not emp_op.x_palette_scan_id.x_operateur_id or emp_op.x_palette_scan_id.x_operateur_id.id == op_int)) else None"/>
-            <div id="vo-pal-act" style="display:none;" t-att-data-id="pal_act.id if pal_act else ''" t-att-data-name="pal_act.name if pal_act else ''"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and c.x_operateur_id.id == op_int) else 0)) for c in (mes_colis + autres_colis)]) + ']'"/>
+            <div id="vo-pal-act" style="display:none;" t-att-data-id="pal_act.id if pal_act else ''" t-att-data-name="pal_act.name if pal_act else ''" t-att-data-ton="('%.0f' % (pal_act.x_studio_tonnage or 0)) if pal_act else ''"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-maxkg="max_kg" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and c.x_operateur_id.id == op_int) else 0)) for c in (mes_colis + autres_colis)]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
@@ -178,7 +213,7 @@
               <t t-foreach="mes_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div class="vo-jauge"><div t-attf-style="width:{{min(100, int(100 * (cp.x_studio_tonnage or 0) / max_kg))}}%;background:{{'#dc2626' if (cp.x_studio_tonnage or 0) >= max_kg else ('#f59e0b' if (cp.x_studio_tonnage or 0) >= 0.8 * max_kg else '#16a34a')}};"/></div><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
               </t>
@@ -188,12 +223,14 @@
                   <t t-foreach="autres_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 sans opérateur — deviendra la vôtre</div></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div class="vo-jauge"><div t-attf-style="width:{{min(100, int(100 * (cp.x_studio_tonnage or 0) / max_kg))}}%;background:{{'#dc2626' if (cp.x_studio_tonnage or 0) >= max_kg else ('#f59e0b' if (cp.x_studio_tonnage or 0) >= 0.8 * max_kg else '#16a34a')}};"/></div><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 sans opérateur — deviendra la vôtre</div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
                   </t>
                 </div>
               </t>
+              <button type="button" class="vo-chef btn btn-sm btn-outline-secondary w-100" style="margin-top:10px;font-weight:700;">🔑 Responsable : prendre la palette d'un autre opérateur</button>
+              <div class="vo-chef-list" style="display:none;margin-top:8px;"/>
             </div>
           </div>
         </div>
@@ -221,7 +258,7 @@
                     <div class="mt-1">
                       <span t-if="of.x_studio_colis" class="vo-pal">📦 <t t-esc="of.x_studio_colis.name"/></span>
                       <button t-elif="of.state == 'done'" type="button" class="vo-addcolis btn btn-sm btn-outline-primary" t-att-data-ofid="of.id" style="font-weight:800;">📦 Mettre au colis</button>
-                      <t t-else=""><t t-set="nxt" t-value="of.workorder_ids.filtered(lambda o: o.state not in ('done', 'cancel')).sorted(key=lambda o: (o.sequence or 0, o.id))[:1]"/><span style="font-size:11.5px;color:#94a3b8;"><t t-if="nxt">⏭ Reste à faire : <b t-esc="nxt.name"/><t t-if="nxt.workcenter_id"> · <t t-esc="nxt.workcenter_id.name"/></t> — mise en palette après la dernière opération</t><t t-else="">OF non clôturé — colisage impossible</t></span></t>
+                      <t t-else=""><t t-set="nxt" t-value="of.workorder_ids.filtered(lambda o: o.state not in ('done', 'cancel')).sorted(key=lambda o: (o.sequence or 0, o.id))[:1]"/><t t-set="wo_last" t-value="of.workorder_ids.sorted(key=lambda o: (o.sequence or 0, o.id))[-1:]"/><t t-set="tot_h" t-value="int(of.x_studio_nbr or 1)"/><t t-set="faites_h" t-value="tot_h if (wo_last and wo_last.state == 'done') else int((wo_last.x_studio_nbr_fait if wo_last else 0) or 0)"/><t t-set="dispo_h" t-value="max(0, min(tot_h, faites_h) - reps_h.get(of.id, 0))"/><button t-if="dispo_h" type="button" class="vo-addcolis btn btn-sm btn-warning" t-att-data-ofid="of.id" t-att-data-dispo="dispo_h" t-att-data-of="of.name" style="font-weight:800;">📦 Palettiser (<t t-esc="dispo_h"/> faite<t t-if="dispo_h &gt; 1">s</t>)</button><span style="font-size:11.5px;color:#94a3b8;"><t t-if="nxt"> ⏭ Reste à faire : <b t-esc="nxt.name"/><t t-if="nxt.workcenter_id"> · <t t-esc="nxt.workcenter_id.name"/></t><t t-if="not dispo_h"> — mise en palette après la dernière opération, ou après « +1 pièce » sur Ma production</t></t><t t-else="">OF non clôturé</t></span></t>
                       <button type="button" class="vo-rebut btn btn-sm btn-outline-danger" t-att-data-ofid="of.id" t-att-data-of="of.name or ''" t-att-data-nbr="of.x_studio_nbr or 1" style="font-weight:800;margin-left:6px;">💥 Rebut</button>
                     </div>
                     <div t-if="of.x_studio_nom_du_client" class="vo-cli">🏢 <t t-esc="of.x_studio_nom_du_client"/></div>
@@ -335,8 +372,8 @@
             <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not cq.x_operateur_id and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
             <t t-set="emp_op" t-value="request.env['hr.employee'].sudo().search([('id','=',op_int)], limit=1)"/>
             <t t-set="pal_act" t-value="emp_op.x_palette_scan_id if (emp_op and emp_op.x_palette_scan_id and not emp_op.x_palette_scan_id.x_studio_cloturee and (not emp_op.x_palette_scan_id.x_operateur_id or emp_op.x_palette_scan_id.x_operateur_id.id == op_int)) else None"/>
-            <div id="vo-pal-act" style="display:none;" t-att-data-id="pal_act.id if pal_act else ''" t-att-data-name="pal_act.name if pal_act else ''"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and c.x_operateur_id.id == op_int) else 0)) for c in (mes_colis + autres_colis)]) + ']'"/>
+            <div id="vo-pal-act" style="display:none;" t-att-data-id="pal_act.id if pal_act else ''" t-att-data-name="pal_act.name if pal_act else ''" t-att-data-ton="('%.0f' % (pal_act.x_studio_tonnage or 0)) if pal_act else ''"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-maxkg="max_kg" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and c.x_operateur_id.id == op_int) else 0)) for c in (mes_colis + autres_colis)]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
@@ -345,7 +382,7 @@
               <t t-foreach="mes_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div class="vo-jauge"><div t-attf-style="width:{{min(100, int(100 * (cp.x_studio_tonnage or 0) / max_kg))}}%;background:{{'#dc2626' if (cp.x_studio_tonnage or 0) >= max_kg else ('#f59e0b' if (cp.x_studio_tonnage or 0) >= 0.8 * max_kg else '#16a34a')}};"/></div><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
               </t>
@@ -355,12 +392,14 @@
                   <t t-foreach="autres_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 sans opérateur — deviendra la vôtre</div></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div class="vo-jauge"><div t-attf-style="width:{{min(100, int(100 * (cp.x_studio_tonnage or 0) / max_kg))}}%;background:{{'#dc2626' if (cp.x_studio_tonnage or 0) >= max_kg else ('#f59e0b' if (cp.x_studio_tonnage or 0) >= 0.8 * max_kg else '#16a34a')}};"/></div><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 sans opérateur — deviendra la vôtre</div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
                   </t>
                 </div>
               </t>
+              <button type="button" class="vo-chef btn btn-sm btn-outline-secondary w-100" style="margin-top:10px;font-weight:700;">🔑 Responsable : prendre la palette d'un autre opérateur</button>
+              <div class="vo-chef-list" style="display:none;margin-top:8px;"/>
             </div>
           </div>
         </div>
@@ -472,6 +511,16 @@
       </t>
 
       <script>
+      var _vtEl=null,_vtTimer=null;
+      window.voToast=function(msg,kind){
+        msg=String(msg==null?'':msg);
+        if(!kind){ kind=/^(Échec|Echec|Erreur|⚠|❌|⛔|Caméra|Scanner)/.test(msg)?'err':(/^🔒/.test(msg)?'warn':'ok'); }
+        if(!_vtEl){ _vtEl=document.createElement('div'); _vtEl.className='vo-toast'; document.body.appendChild(_vtEl); }
+        _vtEl.textContent=msg; _vtEl.className='vo-toast '+kind;
+        void _vtEl.offsetWidth; _vtEl.classList.add('on');
+        if(_vtTimer){ clearTimeout(_vtTimer); }
+        _vtTimer=setTimeout(function(){ _vtEl.classList.remove('on'); }, kind==='ok'?3200:6000);
+      };
       function voPickOp(v){
         try{ if(v){ localStorage.setItem('vo_op', v); } else { localStorage.removeItem('vo_op'); } }catch(e){}
         var h = window.location.search.indexOf('hist=1') !== -1 ? '&amp;hist=1' : '';
@@ -489,7 +538,7 @@
           fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1996]],kwargs:{context:{active_model:'mrp.production',active_ids:[blocOf],active_id:blocOf,bloc_id:bid,bloc_name:bname||''}}}})
           }).then(function(r){return r.json();}).then(function(d){
-            if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            if(d.error){ voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
             var bn=(d.result &amp;&amp; d.result.bloc)||'';
             if(blocPop){ blocPop.style.display='none'; }
             if(blocCard){
@@ -497,7 +546,7 @@
                 if(c.getAttribute('data-ofid')===blocCard.getAttribute('data-ofid')){ c.setAttribute('data-bloc', bn); if(typeof render==='function'){ render(c); } }
               });
             }
-          }).catch(function(e){ alert('Échec : '+e); });
+          }).catch(function(e){ voToast('Échec : '+e); });
         }
         function blocRender(){
           var inp=document.getElementById('vo-bloc-search'); var lst=document.getElementById('vo-bloc-list');
@@ -550,20 +599,20 @@
           var bgo=document.getElementById('vo-reb-go');
           if(bgo){ bgo.onclick=function(){
             var q=parseInt((document.getElementById('vo-reb-qty')||{}).value)||0;
-            if(q&lt;1 || q&gt;rebMax){ alert('Nombre de pierres invalide (1 à '+rebMax+')'); return; }
+            if(q&lt;1 || q&gt;rebMax){ voToast('Nombre de pierres invalide (1 à '+rebMax+')'); return; }
             var m=''; var sel=document.querySelector('.vo-reb-motif.on'); if(sel){ m=sel.textContent; }
             var au=(document.getElementById('vo-reb-autre')||{}).value||''; if(au.replace(/\s/g,'')!==''){ m=(m?m+' — ':'')+au; }
-            if(!m){ alert('Choisissez un motif'); return; }
+            if(!m){ voToast('Choisissez un motif'); return; }
             bgo.disabled=true;
             fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({action_id:1987, ctx:{active_id:rebOfId, rebut_n:q, rebut_motif:m}})
             }).then(function(r){return r.json();}).then(function(d){
               bgo.disabled=false;
-              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+              if(d.error){ voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
               var nn=(d.result &amp;&amp; d.result.new_of)||'';
-              alert('💥 Rebut enregistré — OF relancé : '+nn);
-              location.reload();
-            }).catch(function(e){ bgo.disabled=false; alert('Échec : '+e); });
+              voToast('💥 Rebut enregistré — OF relancé : '+nn, 'ok');
+              setTimeout(function(){ location.reload(); }, 1500);
+            }).catch(function(e){ bgo.disabled=false; voToast('Échec : '+e); });
           }; }
           document.querySelectorAll('.vo-rebut').forEach(function(b){
             b.onclick=function(){ openReb(parseInt(b.getAttribute('data-ofid')), b.getAttribute('data-of')||'OF', b.getAttribute('data-nbr')||1); };
@@ -578,7 +627,7 @@
           fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[2011]],kwargs:{context:{active_model:'mrp.production',active_ids:[ofid],active_id:ofid,note_atelier:val}}}})
           }).then(function(r){return r.json();}).then(function(d){
-            if(d.error){ inp.style.borderColor='#dc2626'; alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+            if(d.error){ inp.style.borderColor='#dc2626'; voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
             document.querySelectorAll('.vo-card').forEach(function(c){
               if(parseInt(c.getAttribute('data-ofid'))!==ofid){ return; }
               c.setAttribute('data-note', val);
@@ -604,8 +653,8 @@
         }
         function camOpen(onCode){
           if(!camPop){ return; }
-          if(!window.BarcodeDetector){ alert('Scanner caméra non supporté par ce navigateur — utilisez la douchette ou tapez le numéro.'); return; }
-          if(!(navigator.mediaDevices &amp;&amp; navigator.mediaDevices.getUserMedia)){ alert('Caméra indisponible sur cet appareil.'); return; }
+          if(!window.BarcodeDetector){ voToast('Scanner caméra non supporté par ce navigateur — utilisez la douchette ou tapez le numéro.'); return; }
+          if(!(navigator.mediaDevices &amp;&amp; navigator.mediaDevices.getUserMedia)){ voToast('Caméra indisponible sur cet appareil.'); return; }
           camPop.style.display='block';
           if(camMsg){ camMsg.textContent='Visez le code-barre de la palette…'; }
           navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}}).then(function(st){
@@ -631,7 +680,7 @@
             }, 220);
           }).catch(function(err){
             camStop();
-            alert('Caméra inaccessible : ' + ((err &amp;&amp; err.message) || err) + '\nAutorisez l’accès caméra pour ce site dans les réglages du navigateur.');
+            voToast('Caméra inaccessible : ' + ((err &amp;&amp; err.message) || err) + '\nAutorisez l’accès caméra pour ce site dans les réglages du navigateur.');
           });
         }
         var camCloseB=document.getElementById('vo-cam-close');
@@ -648,6 +697,28 @@
         }; }
         var params = new URLSearchParams(window.location.search);
         var op = params.get('op');
+        // mode responsable : transférer une palette d'un autre opérateur à l'opérateur de la tablette (code bureau)
+        document.querySelectorAll('.vo-chef').forEach(function(b){
+          b.onclick=function(){
+            var code=prompt('Code responsable :'); if(!code){ return; }
+            var box=b.nextElementSibling; if(!box){ return; }
+            box.style.display=''; box.innerHTML='&lt;div style="color:#64748b;font-size:13px;"&gt;Chargement…&lt;/div&gt;';
+            var sel=document.getElementById('vo-op'); var opNom=sel &amp;&amp; sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'moi';
+            fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_id:2102, ctx:{mode:'liste', colis_id:0}})})
+            .then(function(r){return r.json();}).then(function(d){
+              if(d.error){ throw new Error(d.error.message); }
+              var rows=(d.result&amp;&amp;d.result.palettes||[]).filter(function(c){ return c.n&gt;0; });
+              box.innerHTML = rows.length ? rows.map(function(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;&lt;div class="flex-grow-1" style="font-weight:800;font-size:14px;"&gt;'+c.name+' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 '+c.op+'&lt;/span&gt;&lt;div style="font-weight:600;color:#64748b;font-size:12px;"&gt;'+c.n+' OF · '+c.ton+' kg'+'&lt;/div&gt;&lt;/div&gt;&lt;button type="button" class="vo-chef-take btn btn-sm btn-warning" data-cid="'+c.id+'" data-cname="'+c.name+'" style="font-weight:800;white-space:nowrap;"&gt;Prendre pour '+opNom.split(' ')[0]+'&lt;/button&gt;&lt;/div&gt;'; }).join('') : '&lt;div style="color:#64748b;font-size:13px;"&gt;Aucune palette ouverte chez les autres opérateurs.&lt;/div&gt;';
+              box.querySelectorAll('.vo-chef-take').forEach(function(t){ t.onclick=function(){
+                if(!confirm('Transférer '+t.getAttribute('data-cname')+' à '+opNom+' ?')){ return; }
+                t.disabled=true;
+                fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_id:2102, ctx:{mode:'transferer', code:code, op:(parseInt(op)||0), colis_id:parseInt(t.getAttribute('data-cid'))}})})
+                .then(function(r){return r.json();}).then(function(d2){ if(d2.error){ throw new Error(d2.error.message); } voToast(d2.result.msg||'Transféré', 'ok'); setTimeout(function(){ location.reload(); }, 1200); })
+                .catch(function(e){ t.disabled=false; voToast('Échec : '+e.message, 'err'); });
+              }; });
+            }).catch(function(e){ box.innerHTML='&lt;div style="color:#b91c1c;font-size:13px;"&gt;'+e.message+'&lt;/div&gt;'; });
+          };
+        });
         if(op){ try{ localStorage.setItem('vo_op', op); }catch(e){} }
         else {
           var s=null; try{ s=localStorage.getItem('vo_op'); }catch(e){}
@@ -656,39 +727,57 @@
         if(params.get('hist')==='1'){
           var blocks = Array.prototype.slice.call(document.querySelectorAll('.vo-dayblock'));
           var pop=document.getElementById('vo-colis-pop'); var curOf=0; var curBtn=null;
-          var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name')}; } }catch(e){}
-          function saveLast(cid,cname){ lastColis={id:cid,name:cname}; }
+          var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name'), ton:parseFloat(_pa.getAttribute('data-ton'))||0}; } }catch(e){}
+          function saveLast(cid,cname,ton){ lastColis={id:cid,name:cname,ton:ton||0}; }
+          function voLastLbl(){ return '⚡ '+lastColis.name+(lastColis.ton?' · '+Math.round(lastColis.ton)+' kg':''); }
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
+          var voQteH=null; var qPopH=document.getElementById('vo-qte-pop'), qPendH=null, qStrH='';
+          function qDispH(){ var d=document.getElementById('vo-qte-disp'); if(d &amp;&amp; qPendH){ d.textContent=(qStrH===''?qPendH.max:qStrH); d.style.color=(qStrH===''?'#94a3b8':'#0f172a'); } }
+          function qOpenH(p, ok){ qPendH={max:p.max, ok:ok}; qStrH=''; document.getElementById('vo-qte-of').textContent=(p.of||'')+(p.info?' — '+p.info:''); document.getElementById('vo-qte-max').textContent=p.max; document.getElementById('vo-qte-max2').textContent=p.max; qDispH(); if(qPopH){ qPopH.style.display='flex'; } }
+          function qCloseH(){ if(qPopH){ qPopH.style.display='none'; } qPendH=null; qStrH=''; }
+          if(qPopH){ qPopH.addEventListener('click', function(e){
+            var k=e.target.closest('.vo-qk'); if(k &amp;&amp; qPendH){ var d=k.getAttribute('data-k'); if(d==='C'){ qStrH=''; } else if(d==='back'){ qStrH=qStrH.slice(0,-1); } else { var nv=(qStrH+d).replace(/^0+/,''); if(parseInt(nv||'0')&gt;qPendH.max){ nv=String(qPendH.max); } qStrH=nv; } qDispH(); return; }
+            if(e.target.closest('#vo-qte-close')){ qCloseH(); return; }
+            if(e.target.closest('#vo-qte-all')){ var f=qPendH.ok; var mx=qPendH.max; qCloseH(); f(mx); return; }
+            if(e.target.closest('#vo-qte-ok')){ var q=(qStrH===''?qPendH.max:parseInt(qStrH)); if(!(q&gt;0)){ return; } var f2=qPendH.ok; qCloseH(); f2(q); return; }
+          }); }
           function assign(ofid, cid, cname, btn, after){
-            var ctx={of_id:ofid, qte:0, op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
+            var ctx={of_id:ofid, qte:(voQteH||0), op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
             fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({action_id:2101, ctx:ctx})
             }).then(function(r){return r.json();}).then(function(d){
               if(after){ after(); }
               if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
               if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; (_m.indexOf('cl\u00f4tur')!==-1 || _m.indexOf('\u26d4')!==-1)){ lastColis=null; document.querySelectorAll('.vo-lastq,.vo-lastcolis2,.vo-palpartq').forEach(function(x){ x.remove(); }); }
-              alert('\u00c9chec : '+_m); return; }
+              voToast('\u00c9chec : '+_m); return; }
               var r=d.result||{};
-              saveLast(r.colis_id||cid, r.colis||cname);
-              markDone(btn,(r.colis||cname)+(r.entier?'':' (réparti)'));
+              voQteH=null;
+              voToast((r.msg||('✅ Posé sur '+(r.colis||cname)))+(r.colis_ton?' · '+r.colis_ton+' / '+Math.round(r.max_kg||1500)+' kg':''), 'ok');
+              saveLast(r.colis_id||cid, r.colis||cname, r.colis_ton);
+              if(r.entier || !(r.reste&gt;0)){ markDone(btn,(r.colis||cname)+(r.entier?'':' (réparti)')); }
+              else if(btn){ var nd=Math.max(0,(parseInt(btn.getAttribute('data-dispo'))||0)-(r.qte||0)); btn.setAttribute('data-dispo', String(nd)); btn.textContent='📦 Palettiser ('+nd+' faite'+(nd&gt;1?'s':'')+')'; if(!nd){ btn.disabled=true; } }
               if(pop){ pop.style.display='none'; }
-            }).catch(function(e){ if(after){ after(); } alert('Échec : '+e); });
+            }).catch(function(e){ if(after){ after(); } voToast('Échec : '+e); });
           }
           document.querySelectorAll('.vo-addcolis').forEach(function(b){
-            b.onclick=function(){ curOf=parseInt(b.getAttribute('data-ofid')); curBtn=b; if(pop){ pop.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchH(); setTimeout(function(){ s.focus(); },80); } } };
+            var dspB=parseInt(b.getAttribute('data-dispo'))||0;
+            var ouvrir=function(qq){ voQteH=qq; curOf=parseInt(b.getAttribute('data-ofid')); curBtn=b; if(pop){ pop.style.display='flex'; var s=document.getElementById('vo-colis-search'); if(s){ s.value=''; applySrchH(); setTimeout(function(){ s.focus(); },80); } } };
+            b.onclick=function(){ var dsp=parseInt(b.getAttribute('data-dispo'))||0; if(dsp&gt;1){ qOpenH({max:dsp, of:b.getAttribute('data-of')||'OF', info:dsp+' pièce(s) faite(s) pas encore sur palette'}, ouvrir); } else { ouvrir(dsp||0); } };
             if(lastColis &amp;&amp; lastColis.id){
               var q=document.createElement('button'); q.type='button'; q.className='vo-lastq btn btn-sm btn-primary'; q.style.cssText='font-weight:800;margin-left:6px;';
-              q.textContent='⚡ '+lastColis.name;
-              q.onclick=function(){ q.disabled=true; assign(parseInt(b.getAttribute('data-ofid')), lastColis.id, lastColis.name, b, function(){ q.disabled=false; }); };
+              q.textContent=''+voLastLbl();
+              q.onclick=function(){ var dsp=parseInt(b.getAttribute('data-dispo'))||0; var go=function(qq){ voQteH=qq; q.disabled=true; assign(parseInt(b.getAttribute('data-ofid')), lastColis.id, lastColis.name, b, function(){ q.disabled=false; }); }; if(dsp&gt;1){ qOpenH({max:dsp, of:b.getAttribute('data-of')||'OF', info:dsp+' pièce(s) faite(s) pas encore sur palette'}, go); } else { go(0); } };
               b.after(q);
             }
           });
 var dataC=document.getElementById('vo-colis-data');
           var COLIS=[]; try{ COLIS=JSON.parse((dataC &amp;&amp; dataC.getAttribute('data-colis'))||'[]'); }catch(e){}
+          var MAXKG=parseFloat(dataC &amp;&amp; dataC.getAttribute('data-maxkg'))||1500;
+          function jaugeC(t){ return '&lt;div class="vo-jauge"&gt;&lt;div style="width:'+Math.min(100,Math.round(100*(t||0)/MAXKG))+'%;background:'+((t||0)&gt;=MAXKG?'#dc2626':((t||0)&gt;=0.8*MAXKG?'#f59e0b':'#16a34a'))+';"&gt;&lt;/div&gt;&lt;/div&gt;'; }
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+(c.o?' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+(c.o?' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+jaugeC(c.t)+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchH(){
@@ -732,11 +821,11 @@ var dataC=document.getElementById('vo-colis-data');
                 body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1972]],kwargs:{context:{active_model:'stock.package',active_ids:[lockCid],zone:zb.getAttribute('data-zone')}}}})
               }).then(function(r){return r.json();}).then(function(d){
                 zb.disabled=false;
-                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+                if(d.error){ voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
                 zonePop.style.display='none';
                 window.open('/report/pdf/maquignon.report_bon_colisage/'+lockCid, '_blank');
                 if(lockRow){ lockRow.remove(); }
-              }).catch(function(e){ zb.disabled=false; alert('Échec : '+e); });
+              }).catch(function(e){ zb.disabled=false; voToast('Échec : '+e); });
             };
           });
           if(!blocks.length){ return; }
@@ -804,8 +893,9 @@ var dataC=document.getElementById('vo-colis-data');
 
         function bd(id,m,cls,txt){ return '&lt;button type="button" class="vo-act btn '+cls+'" data-id="'+id+'" data-m="'+m+'"&gt;'+txt+'&lt;/button&gt;'; }
         var popC=document.getElementById('vo-colis-pop'); var curOfP=0; var curCardP=null;
-        var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name')}; } }catch(e){}
-        function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; }
+        var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name'), ton:parseFloat(_pa.getAttribute('data-ton'))||0}; } }catch(e){}
+        function saveLastC(cid,cname,ton){ lastColis={id:cid,name:cname,ton:ton||0}; }
+        function voLastLbl(){ return '⚡ '+lastColis.name+(lastColis.ton?' · '+Math.round(lastColis.ton)+' kg':''); }
         // ── palettisation (partielle ou entière) via le relais Render 2101 ──
         var voQte=null;   // quantité choisie au pavé (null = tout ce qui est disponible)
         function assignC(ofid, cid, cname, card, after){
@@ -816,9 +906,10 @@ var dataC=document.getElementById('vo-colis-data');
             if(after){ after(); }
             if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
               if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; (_m.indexOf('cl\u00f4tur')!==-1 || _m.indexOf('\u26d4')!==-1)){ lastColis=null; document.querySelectorAll('.vo-lastq,.vo-lastcolis2,.vo-palpartq').forEach(function(x){ x.remove(); }); }
-              alert('\u00c9chec : '+_m); return; }
+              voToast('\u00c9chec : '+_m); return; }
             var r=d.result||{};
-            if(r.colis_id){ saveLastC(r.colis_id, r.colis||cname); }
+            voToast((r.msg||('✅ Posé sur '+(r.colis||cname)))+(r.colis_ton?' · '+r.colis_ton+' / '+Math.round(r.max_kg||1500)+' kg':''), 'ok');
+            if(r.colis_id){ saveLastC(r.colis_id, r.colis||cname, r.colis_ton); }
             if(popC){ popC.style.display='none'; }
             voQte=null;
             if(card){
@@ -828,7 +919,7 @@ var dataC=document.getElementById('vo-colis-data');
                 c.setAttribute('data-placed', String(r.place||0)); c.setAttribute('data-reps', reps);
                 render(c); renderP(c); } });
             }
-          }).catch(function(e){ if(after){ after(); } alert('Échec réseau : '+e); });
+          }).catch(function(e){ if(after){ after(); } voToast('Échec réseau : '+e); });
         }
         // pavé « Combien sur la palette ? »
         var qPop=document.getElementById('vo-qte-pop'), qPend=null, qStr='';
@@ -870,10 +961,12 @@ var dataC=document.getElementById('vo-colis-data');
         }
 var dataC=document.getElementById('vo-colis-data');
           var COLIS=[]; try{ COLIS=JSON.parse((dataC &amp;&amp; dataC.getAttribute('data-colis'))||'[]'); }catch(e){}
+          var MAXKG=parseFloat(dataC &amp;&amp; dataC.getAttribute('data-maxkg'))||1500;
+          function jaugeC(t){ return '&lt;div class="vo-jauge"&gt;&lt;div style="width:'+Math.min(100,Math.round(100*(t||0)/MAXKG))+'%;background:'+((t||0)&gt;=MAXKG?'#dc2626':((t||0)&gt;=0.8*MAXKG?'#f59e0b':'#16a34a'))+';"&gt;&lt;/div&gt;&lt;/div&gt;'; }
           var dynC=document.getElementById('vo-colis-dyn');
           var listC=document.getElementById('vo-colis-list');
           function rowC(c){ return '&lt;div class="d-flex gap-1 mb-2"&gt;'
-            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+(c.o?' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
+            + '&lt;button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" data-cid="'+c.id+'" data-cname="'+c.name+'"&gt;'+c.name+(c.o?' &lt;span style="color:#0f766e;font-size:12px;"&gt;👤 moi&lt;/span&gt;':'')+' &lt;span style="font-weight:600;color:#64748b;"&gt;— '+c.n+' OF · '+c.c+' m³ · '+c.t+' kg&lt;/span&gt;'+jaugeC(c.t)+(c.m?'&lt;div style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"&gt;'+c.m+'&lt;/div&gt;':'')+'&lt;/button&gt;'
             + '&lt;button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" data-cid="'+c.id+'" data-cname="'+c.name+'" title="Clôturer"&gt;🔒&lt;/button&gt;&lt;/div&gt;'; }
           var srchC=document.getElementById('vo-colis-search');
           function applySrchP(){
@@ -917,11 +1010,11 @@ var dataC=document.getElementById('vo-colis-data');
                 body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1972]],kwargs:{context:{active_model:'stock.package',active_ids:[lockCid],zone:zb.getAttribute('data-zone')}}}})
               }).then(function(r){return r.json();}).then(function(d){
                 zb.disabled=false;
-                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
+                if(d.error){ voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); return; }
                 zonePop.style.display='none';
                 window.open('/report/pdf/maquignon.report_bon_colisage/'+lockCid, '_blank');
                 if(lockRow){ lockRow.remove(); }
-              }).catch(function(e){ zb.disabled=false; alert('Échec : '+e); });
+              }).catch(function(e){ zb.disabled=false; voToast('Échec : '+e); });
             };
           });
         function render(card){
@@ -939,7 +1032,7 @@ var dataC=document.getElementById('vo-colis-data');
             else {
               if(repsD){ ch=' &lt;span class="vo-pal" style="background:#fef3c7;color:#92400e;"&gt;📦 '+repsD+'&lt;/span&gt;'; }
               ch+=' &lt;button type="button" class="vo-addcolis2 btn btn-primary"&gt;📦 Mettre au colis'+(repsD?' ('+(nbrD-placedD)+')':'')+'&lt;/button&gt;';
-              if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;'; }
+              if(lastColis &amp;&amp; lastColis.id){ ch+=' &lt;button type="button" class="vo-lastcolis2 btn btn-success" style="font-weight:800;"&gt;'+voLastLbl()+'&lt;/button&gt;'; }
             }
             acts.innerHTML=bd(id,'undo_finish','btn-outline-danger','↩ Annuler Terminé')+ch+' &lt;button type="button" class="vo-rebut2 btn btn-outline-danger" style="font-weight:800;"&gt;💥 Rebut&lt;/button&gt;';
             bindColis(acts, card);
@@ -982,10 +1075,10 @@ var dataC=document.getElementById('vo-colis-data');
               fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
                 body:JSON.stringify(body)
               }).then(function(r){return r.json();}).then(function(d){
-                if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); render(card); renderP(card); return; }
+                if(d.error){ voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); render(card); renderP(card); return; }
                 var ns = m==='button_start' ? 'progress' : (m==='button_pending' || m==='undo_finish' ? 'ready' : 'done');
                 card.setAttribute('data-state', ns); render(card); renderP(card); updateCount();
-              }).catch(function(e){ alert('Échec : '+e); render(card); renderP(card); });
+              }).catch(function(e){ voToast('Échec : '+e); render(card); renderP(card); });
             };
           });
         }
@@ -1003,15 +1096,15 @@ var dataC=document.getElementById('vo-colis-data');
             + '&lt;button type="button" class="vo-p1 btn btn-primary"'+(reste===0?' disabled="disabled"':'')+'&gt;+1 pièce&lt;/button&gt;'
             + (fait&gt;0 ? '&lt;button type="button" class="vo-m1 btn btn-outline-secondary btn-sm"&gt;−1&lt;/button&gt;' : '')
             + (repsP ? '&lt;div style="width:100%;font-size:12px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:6px;padding:2px 6px;margin-top:4px;"&gt;📦 '+repsP+'&lt;/div&gt;' : '')
-            + (lastop &amp;&amp; dispoP&gt;0 ? '&lt;div style="width:100%;margin-top:4px;"&gt;&lt;button type="button" class="vo-palpart btn btn-warning" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;📦 Palettiser ('+dispoP+' faite'+(dispoP&gt;1?'s':'')+')&lt;/button&gt;'+(lastColis &amp;&amp; lastColis.id?' &lt;button type="button" class="vo-palpartq btn btn-success btn-sm" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;⚡ '+lastColis.name+'&lt;/button&gt;':'')+'&lt;/div&gt;' : '');
+            + (lastop &amp;&amp; dispoP&gt;0 ? '&lt;div style="width:100%;margin-top:4px;"&gt;&lt;button type="button" class="vo-palpart btn btn-warning" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;📦 Palettiser ('+dispoP+' faite'+(dispoP&gt;1?'s':'')+')&lt;/button&gt;'+(lastColis &amp;&amp; lastColis.id?' &lt;button type="button" class="vo-palpartq btn btn-success btn-sm" data-dispo="'+dispoP+'" style="font-weight:800;"&gt;'+voLastLbl()+'&lt;/button&gt;':'')+'&lt;/div&gt;' : '');
           bindColis(box, card);
           function saveF(nf){
             fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'mrp.workorder',method:'write',args:[[parseInt(card.getAttribute('data-id'))],{x_studio_nbr_fait:nf}],kwargs:{}}})
             }).then(function(r){return r.json();}).then(function(d){
-              if(d.error){ alert('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); renderP(card); return; }
+              if(d.error){ voToast('Échec : '+(d.error.data &amp;&amp; d.error.data.message || d.error.message)); renderP(card); return; }
               card.setAttribute('data-fait', nf); renderP(card);
-            }).catch(function(e){ alert('Échec : '+e); renderP(card); });
+            }).catch(function(e){ voToast('Échec : '+e); renderP(card); });
           }
           var p1=box.querySelector('.vo-p1'), m1=box.querySelector('.vo-m1');
           if(p1){ p1.onclick=function(){ p1.disabled=true; saveF(fait+1); }; }
@@ -1062,9 +1155,27 @@ var dataC=document.getElementById('vo-colis-data');
               }
               if(!pd.length){ okD = false; }
             }
+            c.setAttribute('data-dimok', okD ? '1' : '0');
             c.style.display = (okC &amp;&amp; okR &amp;&amp; okM &amp;&amp; okP &amp;&amp; okD &amp;&amp; okS) ? '' : 'none';
           });
           updateCount();
+          updateChips();
+        }
+        // filtres en cascade : chaque rangée ne propose que les valeurs présentes dans les cartes qui passent les autres filtres
+        function updateChips(){
+          var groups=[['.chip-site',selS,'data-site'],['.chip-mac',selM,'data-machine'],['.chip-cli',selC,'data-client'],['.chip-ref',selR,'data-ref'],['.chip-pal',selP,'data-palette']];
+          var cards=Array.prototype.slice.call(document.querySelectorAll('.vo-card'));
+          groups.forEach(function(g){
+            var present={};
+            cards.forEach(function(c){
+              var ok=c.getAttribute('data-dimok')!=='0';
+              groups.forEach(function(h){ if(h===g || !ok){ return; } var ks=Object.keys(h[1]); if(ks.length &amp;&amp; !h[1][c.getAttribute(h[2])||'']){ ok=false; } });
+              if(ok){ present[c.getAttribute(g[2])||'']=1; }
+            });
+            var any=false, row=null;
+            document.querySelectorAll(g[0]).forEach(function(ch){ var v=ch.getAttribute('data-val'); var show=!!(present[v]||g[1][v]); ch.style.display=show?'':'none'; if(show){ any=true; } row=row||ch.closest('.vo-chips'); });
+            if(row){ row.style.display=any?'':'none'; }
+          });
         }
         var dimIns=[document.getElementById('vo-dim-l'),document.getElementById('vo-dim-la'),document.getElementById('vo-dim-h')];
         var dimX=document.getElementById('vo-dim-x');

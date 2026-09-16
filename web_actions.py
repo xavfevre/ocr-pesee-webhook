@@ -1221,7 +1221,7 @@ def _alerte_palettes(call, ctx):
     ofs = call('mrp.production', 'search_read',
                [['state', '=', 'done'], ['company_id', '=', 1], ['x_studio_colis', '=', False],
                 ['date_finished', '>=', d30], ['date_finished', '<=', d2]],
-               fields=['name', 'x_studio_nbr', 'date_finished', 'x_studio_nom_du_client', 'workorder_ids'], limit=4000)
+               fields=['name', 'x_studio_nbr', 'date_finished', 'x_studio_nom_du_client', 'workorder_ids', 'origin'], limit=4000)
     reps = {}
     for r in call('x_repartition_palette', 'search_read', [['x_studio_of_id', 'in', [o['id'] for o in ofs]]],
                   fields=['x_studio_of_id', 'x_studio_qte'], limit=5000):
@@ -1258,12 +1258,20 @@ def _alerte_palettes(call, ctx):
     if not par_op:
         h.append('<p>Aucune.</p>')
     for cle, lst in sorted(par_op.items(), key=lambda kv: -len(kv[1])):
-        lst.sort(key=lambda o: o['date_finished'], reverse=True)
         pcs = sum(int(o['x_studio_nbr'] or 1) - reps.get(o['id'], 0) for o in lst)
-        h.append('<p><b>%s</b> : %d OF (%d pierres)<br/><span style="color:#555">%s%s</span></p>' % (
-            _html.escape(noms.get(cle, '?')), len(lst), pcs,
-            ', '.join('%s (%s, %s)' % (o['name'], _html.escape(o['x_studio_nom_du_client'] or '-'), o['date_finished'][:10]) for o in lst[:8]),
-            ' …' if len(lst) > 8 else ''))
+        par_cmd = {}
+        for o in lst:
+            par_cmd.setdefault((o['origin'] or 'sans commande', o['x_studio_nom_du_client'] or '-'), []).append(o)
+        h.append('<p style="margin:10px 0 2px"><b>%s</b> : %d OF (%d pierres) sur %d commande(s)</p><ul style="margin:0 0 6px">' % (
+            _html.escape(noms.get(cle, '?')), len(lst), pcs, len(par_cmd)))
+        for (cmd, cli), ofs_c in sorted(par_cmd.items(), key=lambda kv: -len(kv[1])):
+            ofs_c.sort(key=lambda o: o['name'])
+            p_c = sum(int(o['x_studio_nbr'] or 1) - reps.get(o['id'], 0) for o in ofs_c)
+            nums = ', '.join(o['name'].replace('WH/OF/', '') for o in ofs_c[:15]) + (' … (+%d)' % (len(ofs_c) - 15) if len(ofs_c) > 15 else '')
+            h.append('<li><b>%s</b> · %s — %d OF, %d pierre(s), terminés du %s au %s : OF %s</li>' % (
+                _html.escape(cmd), _html.escape(cli), len(ofs_c), p_c,
+                min(o['date_finished'] for o in ofs_c)[:10], max(o['date_finished'] for o in ofs_c)[:10], _html.escape(nums)))
+        h.append('</ul>')
     h.append('<h3>Palettes ouvertes sans mouvement depuis 7 jours</h3>')
     if not dorm:
         h.append('<p>Aucune.</p>')
