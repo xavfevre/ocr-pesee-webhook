@@ -164,14 +164,17 @@
               <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
             </div>
             <t t-set="op_int" t-value="int(op) if op and op.isdigit() else 0"/>
-            <t t-set="mes_colis" t-value="[cq for cq in colis_ouverts if op_int and op_int in cq.x_operateur_ids.ids]"/>
-            <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not (op_int and op_int in cq.x_operateur_ids.ids) and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and op_int in c.x_operateur_ids.ids) else 0)) for c in colis_ouverts]) + ']'"/>
+            <t t-set="mes_colis" t-value="[cq for cq in colis_ouverts if op_int and cq.x_operateur_id.id == op_int]"/>
+            <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not cq.x_operateur_id and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
+            <t t-set="emp_op" t-value="request.env['hr.employee'].sudo().search([('id','=',op_int)], limit=1)"/>
+            <t t-set="pal_act" t-value="emp_op.x_palette_scan_id if (emp_op and emp_op.x_palette_scan_id and not emp_op.x_palette_scan_id.x_studio_cloturee and (not emp_op.x_palette_scan_id.x_operateur_id or emp_op.x_palette_scan_id.x_operateur_id.id == op_int)) else None"/>
+            <div id="vo-pal-act" style="display:none;" t-att-data-id="pal_act.id if pal_act else ''" t-att-data-name="pal_act.name if pal_act else ''"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and c.x_operateur_id.id == op_int) else 0)) for c in (mes_colis + autres_colis)]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
               <div style="font-weight:800;color:#0f766e;font-size:13.5px;margin:2px 0 6px;">🟢 Mes palettes (<t t-esc="len(mes_colis)"/>)</div>
-              <div t-if="not mes_colis" style="color:#64748b;font-size:13px;margin-bottom:10px;">Aucune palette à votre nom — scannez ou tapez le n° de la palette ci-dessus : elle devient la vôtre.</div>
+              <div t-if="not mes_colis" style="color:#64748b;font-size:13px;margin-bottom:10px;">Aucune palette ouverte à votre nom — scannez ou tapez le n° d'une palette vierge ci-dessus : elle devient la vôtre.</div>
               <t t-foreach="mes_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
@@ -180,12 +183,12 @@
                 </div>
               </t>
               <t t-if="autres_colis">
-                <button type="button" class="vo-colis-others btn btn-sm btn-outline-secondary w-100" style="font-weight:700;" t-att-data-show="'Voir les palettes des autres opérateurs (%d)' % len(autres_colis)">Voir les palettes des autres opérateurs (<t t-esc="len(autres_colis)"/>)</button>
+                <button type="button" class="vo-colis-others btn btn-sm btn-outline-secondary w-100" style="font-weight:700;" t-att-data-show="'Palettes sans opérateur (%d)' % len(autres_colis)">Palettes sans opérateur (<t t-esc="len(autres_colis)"/>) — le premier qui pose dessus en devient responsable</button>
                 <div style="display:none;margin-top:8px;">
                   <t t-foreach="autres_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 <t t-esc="', '.join(cp.x_operateur_ids.mapped('name')) or 'poste de scan'"/></div></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 sans opérateur — deviendra la vôtre</div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
                   </t>
@@ -328,14 +331,17 @@
               <button type="button" id="vo-cam-btn" class="btn btn-primary" style="font-weight:800;font-size:18px;padding:4px 14px;white-space:nowrap;" title="Scanner la palette avec la caméra">📷</button>
             </div>
             <t t-set="op_int" t-value="int(op) if op and op.isdigit() else 0"/>
-            <t t-set="mes_colis" t-value="[cq for cq in colis_ouverts if op_int and op_int in cq.x_operateur_ids.ids]"/>
-            <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not (op_int and op_int in cq.x_operateur_ids.ids) and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
-            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and op_int in c.x_operateur_ids.ids) else 0)) for c in colis_ouverts]) + ']'"/>
+            <t t-set="mes_colis" t-value="[cq for cq in colis_ouverts if op_int and cq.x_operateur_id.id == op_int]"/>
+            <t t-set="autres_colis" t-value="[cq for cq in colis_ouverts if not cq.x_operateur_id and (colis_cnt.get(cq.id, 0) + rep_cnt.get(cq.id, 0)) &gt; 0]"/>
+            <t t-set="emp_op" t-value="request.env['hr.employee'].sudo().search([('id','=',op_int)], limit=1)"/>
+            <t t-set="pal_act" t-value="emp_op.x_palette_scan_id if (emp_op and emp_op.x_palette_scan_id and not emp_op.x_palette_scan_id.x_studio_cloturee and (not emp_op.x_palette_scan_id.x_operateur_id or emp_op.x_palette_scan_id.x_operateur_id.id == op_int)) else None"/>
+            <div id="vo-pal-act" style="display:none;" t-att-data-id="pal_act.id if pal_act else ''" t-att-data-name="pal_act.name if pal_act else ''"/>
+            <div id="vo-colis-data" style="display:none;" t-att-data-colis="'[' + ','.join(['{&quot;id&quot;:%s,&quot;name&quot;:&quot;%s&quot;,&quot;n&quot;:%s,&quot;c&quot;:%.3f,&quot;t&quot;:%.0f,&quot;m&quot;:&quot;%s&quot;,&quot;o&quot;:%d}' % (c.id, c.name, colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0), (c.x_studio_cubage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), (c.x_studio_tonnage if (colis_cnt.get(c.id, 0) + rep_cnt.get(c.id, 0)) else 0.0), colis_meta.get(c.id, ''), (1 if (op_int and c.x_operateur_id.id == op_int) else 0)) for c in (mes_colis + autres_colis)]) + ']'"/>
             <t t-if="not colis_ouverts"><div class="alert alert-warning">Aucun colis ouvert — créez d'abord un colis au poste de scan.</div></t>
             <div id="vo-colis-dyn" style="display:none;"/>
             <div id="vo-colis-list">
               <div style="font-weight:800;color:#0f766e;font-size:13.5px;margin:2px 0 6px;">🟢 Mes palettes (<t t-esc="len(mes_colis)"/>)</div>
-              <div t-if="not mes_colis" style="color:#64748b;font-size:13px;margin-bottom:10px;">Aucune palette à votre nom — scannez ou tapez le n° de la palette ci-dessus : elle devient la vôtre.</div>
+              <div t-if="not mes_colis" style="color:#64748b;font-size:13px;margin-bottom:10px;">Aucune palette ouverte à votre nom — scannez ou tapez le n° d'une palette vierge ci-dessus : elle devient la vôtre.</div>
               <t t-foreach="mes_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
@@ -344,12 +350,12 @@
                 </div>
               </t>
               <t t-if="autres_colis">
-                <button type="button" class="vo-colis-others btn btn-sm btn-outline-secondary w-100" style="font-weight:700;" t-att-data-show="'Voir les palettes des autres opérateurs (%d)' % len(autres_colis)">Voir les palettes des autres opérateurs (<t t-esc="len(autres_colis)"/>)</button>
+                <button type="button" class="vo-colis-others btn btn-sm btn-outline-secondary w-100" style="font-weight:700;" t-att-data-show="'Palettes sans opérateur (%d)' % len(autres_colis)">Palettes sans opérateur (<t t-esc="len(autres_colis)"/>) — le premier qui pose dessus en devient responsable</button>
                 <div style="display:none;margin-top:8px;">
                   <t t-foreach="autres_colis" t-as="cp">
                 <t t-set="cpn" t-value="colis_cnt.get(cp.id, 0)"/><t t-set="cprn" t-value="rep_cnt.get(cp.id, 0)"/>
                 <div class="d-flex gap-1 mb-2">
-                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 <t t-esc="', '.join(cp.x_operateur_ids.mapped('name')) or 'poste de scan'"/></div></button>
+                  <button type="button" class="vo-colis-choice btn btn-outline-primary flex-grow-1" style="font-weight:800;text-align:left;" t-att-data-cid="cp.id" t-att-data-cname="cp.name"><t t-esc="cp.name"/> <span style="font-weight:600;color:#64748b;">— <t t-esc="cpn"/> OF<t t-if="cprn"> +<t t-esc="cprn"/> rép.</t> · <t t-esc="'%.2f' % cp.x_studio_cubage"/> m³ · <t t-esc="'%.0f' % cp.x_studio_tonnage"/> kg</span><div t-if="colis_meta.get(cp.id)" style="font-weight:700;color:#0f766e;font-size:12.5px;white-space:normal;"><t t-esc="colis_meta.get(cp.id)"/></div><div style="font-weight:600;color:#94a3b8;font-size:11.5px;">👤 sans opérateur — deviendra la vôtre</div></button>
                   <button type="button" class="vo-colis-lock btn btn-outline-success" style="font-weight:800;" t-att-data-cid="cp.id" t-att-data-cname="cp.name" title="Clôturer ce colis">🔒</button>
                 </div>
                   </t>
@@ -650,21 +656,21 @@
         if(params.get('hist')==='1'){
           var blocks = Array.prototype.slice.call(document.querySelectorAll('.vo-dayblock'));
           var pop=document.getElementById('vo-colis-pop'); var curOf=0; var curBtn=null;
-          var lastColis=null; try{ lastColis=JSON.parse(localStorage.getItem('vo_last_colis')||'null'); }catch(e){}
-          try{ var _dcH=document.getElementById('vo-colis-data'); var _opH=JSON.parse((_dcH&amp;&amp;_dcH.getAttribute('data-colis'))||'[]');
-            if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opH.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
-          function saveLast(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
+          var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name')}; } }catch(e){}
+          function saveLast(cid,cname){ lastColis={id:cid,name:cname}; }
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
           function assign(ofid, cid, cname, btn, after){
-            fetch('/web/dataset/call_kw',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({jsonrpc:'2.0',method:'call',params:{model:'ir.actions.server',method:'run',args:[[1971]],kwargs:{context: cid ? {active_model:'mrp.production',active_ids:[ofid],colis_id:cid,op_id:(parseInt(op)||0)} : {active_model:'mrp.production',active_ids:[ofid],colis_name:cname,op_id:(parseInt(op)||0)}}}})
+            var ctx={of_id:ofid, qte:0, op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
+            fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({action_id:2101, ctx:ctx})
             }).then(function(r){return r.json();}).then(function(d){
               if(after){ after(); }
               if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
-              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
+              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; (_m.indexOf('cl\u00f4tur')!==-1 || _m.indexOf('\u26d4')!==-1)){ lastColis=null; document.querySelectorAll('.vo-lastq,.vo-lastcolis2,.vo-palpartq').forEach(function(x){ x.remove(); }); }
               alert('\u00c9chec : '+_m); return; }
-              if(cid){ saveLast(cid,cname); }
-              markDone(btn,cname);
+              var r=d.result||{};
+              saveLast(r.colis_id||cid, r.colis||cname);
+              markDone(btn,(r.colis||cname)+(r.entier?'':' (réparti)'));
               if(pop){ pop.style.display='none'; }
             }).catch(function(e){ if(after){ after(); } alert('Échec : '+e); });
           }
@@ -708,7 +714,7 @@ var dataC=document.getElementById('vo-colis-data');
               assign(curOf, null, v, curBtn, function(){ srchC.disabled=false; });
             });
           }
-          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ pop.style.display='none'; }; } document.querySelectorAll('.vo-colis-others').forEach(function(b){ b.onclick=function(){ var l=b.nextElementSibling; if(!l){ return; } var open=(l.style.display==='none'); l.style.display=open?'':'none'; b.textContent=open?'Masquer les palettes des autres opérateurs':b.getAttribute('data-show'); }; });
+          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ pop.style.display='none'; }; } document.querySelectorAll('.vo-colis-others').forEach(function(b){ b.onclick=function(){ var l=b.nextElementSibling; if(!l){ return; } var open=(l.style.display==='none'); l.style.display=open?'':'none'; b.textContent=open?'Masquer les palettes sans opérateur':b.getAttribute('data-show'); }; });
           var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
           if(pop){
             pop.addEventListener('click', function(e){
@@ -798,10 +804,8 @@ var dataC=document.getElementById('vo-colis-data');
 
         function bd(id,m,cls,txt){ return '&lt;button type="button" class="vo-act btn '+cls+'" data-id="'+id+'" data-m="'+m+'"&gt;'+txt+'&lt;/button&gt;'; }
         var popC=document.getElementById('vo-colis-pop'); var curOfP=0; var curCardP=null;
-        var lastColis=null; try{ lastColis=JSON.parse(localStorage.getItem('vo_last_colis')||'null'); }catch(e){}
-        try{ var _dcP=document.getElementById('vo-colis-data'); var _opP=JSON.parse((_dcP&amp;&amp;_dcP.getAttribute('data-colis'))||'[]');
-            if(lastColis &amp;&amp; lastColis.id &amp;&amp; !_opP.some(function(c){ return c.id===lastColis.id; })){ lastColis=null; localStorage.removeItem('vo_last_colis'); } }catch(e){}
-        function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; try{ localStorage.setItem('vo_last_colis', JSON.stringify(lastColis)); }catch(e){} }
+        var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name')}; } }catch(e){}
+        function saveLastC(cid,cname){ lastColis={id:cid,name:cname}; }
         // ── palettisation (partielle ou entière) via le relais Render 2101 ──
         var voQte=null;   // quantité choisie au pavé (null = tout ce qui est disponible)
         function assignC(ofid, cid, cname, card, after){
@@ -811,7 +815,7 @@ var dataC=document.getElementById('vo-colis-data');
           }).then(function(r){return r.json();}).then(function(d){
             if(after){ after(); }
             if(d.error){ var _m=(d.error.data &amp;&amp; d.error.data.message || d.error.message)||'';
-              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; _m.indexOf('cl\u00f4tur')!==-1){ lastColis=null; try{ localStorage.removeItem('vo_last_colis'); }catch(e){} document.querySelectorAll('.vo-lastq,.vo-lastcolis2').forEach(function(x){ x.remove(); }); }
+              if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; (_m.indexOf('cl\u00f4tur')!==-1 || _m.indexOf('\u26d4')!==-1)){ lastColis=null; document.querySelectorAll('.vo-lastq,.vo-lastcolis2,.vo-palpartq').forEach(function(x){ x.remove(); }); }
               alert('\u00c9chec : '+_m); return; }
             var r=d.result||{};
             if(r.colis_id){ saveLastC(r.colis_id, r.colis||cname); }
@@ -895,7 +899,7 @@ var dataC=document.getElementById('vo-colis-data');
               assignC(curOfP, null, v, curCardP, function(){ srchC.disabled=false; });
             });
           }
-          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ popC.style.display='none'; }; } document.querySelectorAll('.vo-colis-others').forEach(function(b){ b.onclick=function(){ var l=b.nextElementSibling; if(!l){ return; } var open=(l.style.display==='none'); l.style.display=open?'':'none'; b.textContent=open?'Masquer les palettes des autres opérateurs':b.getAttribute('data-show'); }; });
+          var closeC=document.getElementById('vo-colis-close'); if(closeC){ closeC.onclick=function(){ popC.style.display='none'; }; } document.querySelectorAll('.vo-colis-others').forEach(function(b){ b.onclick=function(){ var l=b.nextElementSibling; if(!l){ return; } var open=(l.style.display==='none'); l.style.display=open?'':'none'; b.textContent=open?'Masquer les palettes sans opérateur':b.getAttribute('data-show'); }; });
           var zonePop=document.getElementById('vo-zone-pop'); var lockCid=0, lockName='', lockRow=null;
           if(popC){
             popC.addEventListener('click', function(e){

@@ -95,3 +95,20 @@ imprimée **et verrouillée** : les actions serveur **1585** (scan) et **1914**
 
 `deploy_scan.py` lit `ODOO_URL` / `ODOO_DB` / `ODOO_USER` / `ODOO_PWD` (défaut maquignon).
 Déployé sur `maquignon` et la base de test `testmaq2406261629`.
+
+## Une palette = un opérateur (16/09/2026)
+
+- `stock.package.x_operateur_id` (many2one hr.employee, id 54417) = **responsable** de la palette :
+  celui qui y pose la première pierre ou scanne la palette vierge. `x_operateur_ids` garde
+  l'historique de ceux qui ont posé. `hr.employee.x_palette_scan_id` = palette active de
+  l'opérateur, commune à la tablette (bouton ⚡) et au poste de scan.
+- Toute la logique est sur Render (`web_actions.py`) : **2101** `_palettiser` (tablette, contrôle
+  de propriété, pose entière = stock fini dans le colis) et **2102** `_scan` (poste de scan :
+  modes `etat / liste / choisir / scan / placer / retirer_dernier / retirer_of / retirer_ligne /
+  cloturer`, état renvoyé à chaque appel). Le poste de scan n'écrit plus dans `x_poste_de_scan`
+  (automatisation 29 / action 1585, actions 1587-1915, 1971, 2091 : inutilisées, à archiver).
+- Pages : `scan_view_7890.AFTER.xml` (+ `scan_view_7890.js`, source lisible du script) et
+  `vue_operateur.xml`. Bureau : formulaire colis 7896 (Opérateur, historique, clôturée, zone),
+  liste colis = vue 7997 `maquignon.package_list_operateur`, bon de colisage 7898 (ligne Opérateur).
+- Mise en place / reprise : `palettes_operateur_setup.py` (champ, reprise des 10 palettes qui
+  avaient déjà des opérateurs, vues, rapport). Procédure opérateurs : `docs/build_procedures.py`.
