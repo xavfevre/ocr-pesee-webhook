@@ -98,7 +98,7 @@ regles = [
     ("3", "<b>Sur la tablette, choisissez toujours votre nom</b> avant d'agir (le dernier nom choisi reste affiché : vérifiez-le). <b>Au poste de scan, pas de nom</b> : c'est l'OF scanné qui dit à qui est la pierre."),
     ("4", "<b>Votre palette active vous suit.</b> Le bouton ⚡ de la tablette montre la dernière palette sur laquelle vos pierres ont été posées, depuis la tablette ou depuis le poste de scan."),
     ("5", "<b>Palette neuve = étiquette PACK pré-imprimée.</b> Scannez-la (ou tapez son numéro, ex. 440) : elle devient la vôtre. Ne réutilisez jamais une étiquette d'une palette déjà partie."),
-    ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime, plus rien ne peut y être ajouté."),
+    ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime et <b>Céline le reçoit aussitôt par mail</b> ; plus rien ne peut y être ajouté."),
 ]
 for num, txt in regles:
     story.append(Paragraph('<font color="#15803D"><b>%s</b></font>   %s' % (num, txt), st_rule))
@@ -145,6 +145,7 @@ steps([
     "Dans la liste « Mes palettes », appuyer sur le <b>cadenas 🔒</b> à droite de la palette.",
     "Choisir l'emplacement : <b>Stock Atelier</b> ou <b>Stock Usine</b>.",
     "Le bon de colisage s'imprime et la palette est verrouillée (plus rien ne peut y être ajouté). Votre bouton ⚡ l'oublie automatiquement.",
+    "<b>Au même moment, Céline reçoit le mail « Palette clôturée : PACK… »</b> avec le bon de colisage en pièce jointe (client, emplacement, cubage, tonnage) : inutile de la prévenir.",
 ])
 note("« ⛔ PACK… est la palette de … » : vous avez scanné ou tapé la palette d'un collègue. Prenez une de vos palettes ou une palette vierge.")
 
@@ -163,6 +164,7 @@ story.append(Paragraph("Clôturer la palette", st_h2))
 steps([
     "Scanner le <b>code-barre d'emplacement</b> (Stock Atelier / Stock Usine) affiché à l'écran, ou toucher le bouton bleu correspondant, puis confirmer.",
     "La palette est verrouillée, l'emplacement enregistré, le stock déplacé, et le <b>bon de colisage s'ouvre</b> pour impression (commande, objet, prépalettisation, adresse de livraison, opérateur).",
+    "<b>Céline reçoit aussitôt le mail « Palette clôturée : PACK… »</b> avec le bon de colisage en pièce jointe, que la clôture vienne du poste de scan ou de la tablette.",
     "Après la clôture, l'écran n'a plus de palette active : scannez la suivante.",
 ])
 story.append(Paragraph("Réimprimer un bon de colisage", st_h2))
@@ -215,7 +217,7 @@ steps([
 story.append(Paragraph("Bon de colisage", st_h2))
 steps([
     "Le bon de colisage (imprimé à la clôture, ou Imprimer → Bon de colisage) mentionne désormais l'<b>opérateur</b> responsable, en plus de la commande, du client, de la prépalettisation et de l'emplacement.",
-    "À la clôture, un mail « Bon de colisage » part automatiquement au bureau.",
+    "<b>À chaque clôture</b> (tablette ou poste de scan), Céline reçoit aussitôt le mail « Palette clôturée : PACK… » à celine@maquignon.com : client, emplacement, cubage, tonnage, et le bon de colisage PDF en pièce jointe. Une palette réouverte au bureau puis reclôturée renvoie un mail.",
 ])
 story.append(Spacer(1, 8))
 story.append(Paragraph("Rappels généraux", st_h2))
