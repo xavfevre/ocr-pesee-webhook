@@ -1,0 +1,34 @@
+<!-- Étiquettes commandes clients (Maquignon) — vues héritées créées le 16/09/2026 par XML-RPC (ir.ui.view) -->
+
+<!-- sale.order.form.etiquettes (Maquignon) : type form, inherit_id 2614, priority 210 -->
+<data>
+  <xpath expr="//group[@name='order_details']/*[1]" position="before">
+    <xpath expr="//field[@name='tag_ids']" position="move"/>
+  </xpath>
+  <xpath expr="//field[@name='tag_ids']" position="attributes">
+    <attribute name="string">Étiquettes</attribute>
+    <attribute name="options">{'color_field': 'color'}</attribute>
+    <attribute name="placeholder">Ex. : En attente accord architecte</attribute>
+  </xpath>
+</data>
+
+<!-- sale.order.list.etiquettes (Maquignon) : type list, inherit_id 2608, priority 99 -->
+<data>
+  <xpath expr="//field[@name='partner_id']" position="after">
+    <xpath expr="//field[@name='tag_ids']" position="move"/>
+  </xpath>
+  <xpath expr="//field[@name='tag_ids']" position="attributes">
+    <attribute name="optional">show</attribute>
+    <attribute name="string">Étiquettes</attribute>
+  </xpath>
+</data>
+
+<!-- sale.order.search.etiquettes (Maquignon) : type search, inherit_id 2615, priority 99 -->
+<data>
+  <xpath expr="//field[@name='partner_id']" position="after">
+    <field name="tag_ids" string="Étiquettes"/>
+  </xpath>
+  <xpath expr="//filter[@name='customer']" position="after">
+    <filter name="groupby_tag_ids" string="Étiquettes" context="{'group_by': 'tag_ids'}"/>
+  </xpath>
+</data>
