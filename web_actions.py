@@ -1241,6 +1241,14 @@ def _alerte_palettes(call, ctx):
         par_op.setdefault(cle, []).append(o)
     noms = {e['id']: e['name'] for e in call('hr.employee', 'read', [k for k in par_op if k], fields=['name'])} if any(par_op) else {}
     noms[0] = 'Sans opérateur'
+    # OF encore à faire (brouillon, confirmé, en cours) sur les commandes concernées
+    origines = sorted({o['origin'] for lst in par_op.values() for o in lst if o['origin']})
+    restants = {}
+    if origines:
+        for o in call('mrp.production', 'search_read',
+                      [['origin', 'in', origines], ['state', 'in', ['draft', 'confirmed', 'progress', 'to_close']], ['company_id', '=', 1]],
+                      fields=['origin'], limit=5000):
+            restants[o['origin']] = restants.get(o['origin'], 0) + 1
     # palettes dormantes
     pk = call('stock.package', 'search_read', [['x_studio_cloturee', '!=', True]],
               fields=['name', 'x_operateur_id', 'x_studio_tonnage'], limit=1000)
@@ -1268,9 +1276,12 @@ def _alerte_palettes(call, ctx):
             ofs_c.sort(key=lambda o: o['name'])
             p_c = sum(int(o['x_studio_nbr'] or 1) - reps.get(o['id'], 0) for o in ofs_c)
             nums = ', '.join(o['name'].replace('WH/OF/', '') for o in ofs_c[:15]) + (' … (+%d)' % (len(ofs_c) - 15) if len(ofs_c) > 15 else '')
-            h.append('<li><b>%s</b> · %s — %d OF, %d pierre(s), terminés du %s au %s : OF %s</li>' % (
+            rst = restants.get(cmd, 0)
+            h.append('<li><b>%s</b> · %s — %d OF, %d pierre(s), terminés du %s au %s : OF %s<br/><span style="color:%s">%s</span></li>' % (
                 _html.escape(cmd), _html.escape(cli), len(ofs_c), p_c,
-                min(o['date_finished'] for o in ofs_c)[:10], max(o['date_finished'] for o in ofs_c)[:10], _html.escape(nums)))
+                min(o['date_finished'] for o in ofs_c)[:10], max(o['date_finished'] for o in ofs_c)[:10], _html.escape(nums),
+                '#b45309' if rst else '#15803d',
+                ('reste %d OF à faire sur la commande' % rst) if rst else 'commande entièrement produite'))
         h.append('</ul>')
     h.append('<h3>Palettes ouvertes sans mouvement depuis 7 jours</h3>')
     if not dorm:
