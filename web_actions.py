@@ -779,14 +779,18 @@ def _retirer_entier(call, of, colis_id):
             dedans = call('stock.move.line', 'search', [['id', 'in', mls], ['result_package_id', '=', colis_id]])
             if dedans:
                 call('stock.move.line', 'write', dedans, {'result_package_id': False})
+        # le stock ressort du colis par la ligne de mouvement ci-dessus ; on ne touche pas au
+        # package_id des quants (l'ancienne action 1587 le faisait : ça déplace aussi des quants
+        # négatifs ou situés ailleurs). On efface seulement l'info pierre si plus aucun OF du produit.
         autres = call('mrp.production', 'search_count',
                       [['x_studio_colis', '=', colis_id], ['product_id', '=', of['product_id'][0]],
                        ['id', '!=', of['id']]])
         if not autres:
             quants = call('stock.quant', 'search',
-                          [['product_id', '=', of['product_id'][0]], ['package_id', '=', colis_id]])
+                          [['product_id', '=', of['product_id'][0]], ['package_id', '=', colis_id],
+                           ['x_studio_infos_pierre', '!=', False]])
             if quants:
-                call('stock.quant', 'write', quants, {'package_id': False, 'x_studio_infos_pierre': ''})
+                call('stock.quant', 'write', quants, {'x_studio_infos_pierre': ''})
     except Exception as e:  # noqa: BLE001
         print('retirer_entier %s : stock non mis à jour : %s' % (of['name'], e))
     call('mrp.production', 'write', [of['id']], {'x_studio_colis': False})
