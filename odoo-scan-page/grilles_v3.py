@@ -11,7 +11,8 @@ from openpyxl.utils import get_column_letter
 sys.stdout.reconfigure(encoding='utf-8')
 args = [float(a.replace(',', '.')) for a in sys.argv[1:]]
 HAUSSE = args[0] if args else 10.0
-PART_MODE = os.environ.get('PART_MODE', 'remise')   # 'fiche' : particulier = prix fiche +hausse, avec un écart minimum avec le pro
+PART_MODE = os.environ.get('PART_MODE', 'remise')
+PART_FIXE = dict(kv.split('=') for kv in os.environ.get('PART_FIXE', '').split(',') if '=' in kv)   # ex. TUF0000-PS=1500   # 'fiche' : particulier = prix fiche +hausse, avec un écart minimum avec le pro
 FAMS = ['Pierres', 'Granulats / terre', 'Transport / location', 'Prestations / divers']
 REMISE = dict(zip(FAMS, [8.0, 5.0, 0.0, 5.0]))
 for i, f in enumerate(FAMS):
@@ -54,6 +55,7 @@ def arrondi(v, fam):
 prods = x('product.product', 'search_read', [['sale_ok', '=', True], ['company_id', 'in', [1, False]]],
           fields=['default_code', 'display_name', 'lst_price', 'standard_price', 'categ_id', 'uom_id', 'product_tmpl_id', 'active'], limit=5000, context=ctx)
 prod = {pr['id']: pr for pr in prods}
+prod_by_code = {pr['default_code']: pr for pr in prods if pr['default_code']}
 items = x('product.pricelist.item', 'search_read', [['pricelist_id', 'in', [PUBLIC, PRO]]],
           fields=['pricelist_id', 'applied_on', 'product_tmpl_id', 'product_id', 'categ_id', 'compute_price', 'fixed_price', 'percent_price', 'base',
                   'base_pricelist_id', 'price_discount', 'price_surcharge', 'price_round', 'min_quantity', 'date_start', 'date_end'], limit=20000, context=ctx)
@@ -167,8 +169,19 @@ for pid_, o in obs.items():
     pro27 = arrondi(base_pro * (1 + HAUSSE / 100), fam) if base_pro else None
     part_min = arrondi(pro27 / (1 - rem), fam) if (pro27 and rem < 1) else None
     if PART_MODE == 'fiche' and fiche > 1 and pro27:
-        part27 = max(arrondi(fiche * (1 + HAUSSE / 100), fam), part_min or 0)
-        base_part = 'prix fiche +%g %% (mini %g %% au-dessus du pro)' % (HAUSSE, REMISE[fam]) if arrondi(fiche * (1 + HAUSSE / 100), fam) >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
+        code = pr['default_code'] or ''
+        coef_fixe = None
+        for k, v in PART_FIXE.items():
+            ref = prod_by_code.get(k)
+            if ref and code[:3] == k[:3] and code.endswith('-PS') and k.endswith('-PS') and ref['lst_price']:
+                coef_fixe = float(v) / ref['lst_price']            # même coefficient que le massif imposé, appliqué à la fiche
+        if coef_fixe:
+            cible = float(PART_FIXE[code]) if code in PART_FIXE else arrondi(fiche * coef_fixe, fam)
+            part27 = max(cible, part_min or 0)
+            base_part = ('prix imposé' if code in PART_FIXE else 'même coefficient que le tuffeau massif imposé (fiche × %.3f)' % coef_fixe) if cible >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
+        else:
+            part27 = max(arrondi(fiche * (1 + HAUSSE / 100), fam), part_min or 0)
+            base_part = 'prix fiche +%g %% (mini %g %% au-dessus du pro)' % (HAUSSE, REMISE[fam]) if arrondi(fiche * (1 + HAUSSE / 100), fam) >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
     else:
         part27 = part_min; base_part = 'pro ÷ (1 − remise)'
     grille[pid_] = {'nom': pr['display_name'] + ('' if pr['active'] else ' (archivé)'), 'unite': unite, 'fam': fam, 'ca': sum(v[4] for v in o), 'nc': n_tous,
@@ -252,7 +265,7 @@ for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avo
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], today.strftime('%Y-%m-%d'))
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], '_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '', today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
