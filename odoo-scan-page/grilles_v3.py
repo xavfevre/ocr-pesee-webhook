@@ -42,14 +42,13 @@ def famille(n):
     return 'Prestations / divers'
 
 
-def arrondi(v, fam):
+def arrondi(v, fam, unite=''):
+    """Prix sans virgule, sauf les granulats et tout ce qui se vend à la tonne (au 0,05 €)."""
     if v is None:
         return None
-    if fam == 'Pierres':
-        return float(round(v)) if v >= 300 else round(v * 10) / 10
-    if fam in ('Granulats / terre', 'Transport / location'):
-        return round(v * 20) / 20 if v < 50 else float(round(v))
-    return round(v * 2) / 2 if v < 20 else float(round(v))
+    if fam == 'Granulats / terre' or str(unite).lower().startswith('tonne') or str(unite).lower() == 't':
+        return round(v * 20) / 20
+    return float(round(v))
 
 
 # ---------- articles + Tarif Pro 2026 (repli)
@@ -167,8 +166,8 @@ for pid_, o in obs.items():
     # base pro : observé pros, sinon observé tous clients, sinon Tarif Pro 2026 (si différent de la fiche), sinon fiche
     base_pro = pro_obs if pro_obs else (tous_obs if tous_obs else (pro_liste if abs(pro_liste - fiche) > 0.005 else fiche))
     origine = 'pros facturés' if pro_obs else ('tous clients facturés' if tous_obs else ('Tarif Pro 2026' if abs(pro_liste - fiche) > 0.005 else 'prix fiche'))
-    pro27 = arrondi(base_pro * (1 + HAUSSE / 100), fam) if base_pro else None
-    part_min = arrondi(pro27 / (1 - rem), fam) if (pro27 and rem < 1) else None
+    pro27 = arrondi(base_pro * (1 + HAUSSE / 100), fam, unite) if base_pro else None
+    part_min = arrondi(pro27 / (1 - rem), fam, unite) if (pro27 and rem < 1) else None
     if PART_MODE == 'fiche' and fiche > 1 and pro27:
         code = pr['default_code'] or ''
         coef_fixe = None
@@ -177,22 +176,22 @@ for pid_, o in obs.items():
             if ref and code[:3] == k[:3] and code.endswith('-PS') and k.endswith('-PS') and ref['lst_price']:
                 coef_fixe = float(v) / ref['lst_price']            # même coefficient que le massif imposé, appliqué à la fiche
         if coef_fixe:
-            cible = float(PART_FIXE[code]) if code in PART_FIXE else arrondi(fiche * coef_fixe, fam)
+            cible = float(PART_FIXE[code]) if code in PART_FIXE else arrondi(fiche * coef_fixe, fam, unite)
             part27 = max(cible, part_min or 0)
             base_part = ('prix imposé' if code in PART_FIXE else 'même coefficient que le tuffeau massif imposé (fiche × %.3f)' % coef_fixe) if cible >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
         else:
-            part27 = max(arrondi(fiche * (1 + HAUSSE / 100), fam), part_min or 0)
-            base_part = 'prix fiche +%g %% (mini %g %% au-dessus du pro)' % (HAUSSE, REMISE[fam]) if arrondi(fiche * (1 + HAUSSE / 100), fam) >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
+            part27 = max(arrondi(fiche * (1 + HAUSSE / 100), fam, unite), part_min or 0)
+            base_part = 'prix fiche +%g %% (mini %g %% au-dessus du pro)' % (HAUSSE, REMISE[fam]) if arrondi(fiche * (1 + HAUSSE / 100), fam, unite) >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
         if PRO_MODE == 'ecart' and rem > 0:
             # écart fixe : le pro = particulier cible × (1 − remise), sans descendre sous le pratiqué +hausse ; le particulier suit
             cible_part = part27
-            pro_ecart = arrondi(cible_part * (1 - rem), fam)
+            pro_ecart = arrondi(cible_part * (1 - rem), fam, unite)
             if pro_ecart > pro27:
                 pro27 = pro_ecart
                 base_part = base_part.replace(' (mini %g %% au-dessus du pro)' % REMISE[fam], '') + ' ; pro = particulier − %g %%' % REMISE[fam]
             else:
                 base_part = 'pro pratiqué +%g %% ÷ (1 − %g %%)' % (HAUSSE, REMISE[fam])
-            part27 = arrondi(pro27 / (1 - rem), fam)
+            part27 = arrondi(pro27 / (1 - rem), fam, unite)
     else:
         part27 = part_min; base_part = 'pro ÷ (1 − remise)'
     grille[pid_] = {'nom': pr['display_name'] + ('' if pr['active'] else ' (archivé)'), 'unite': unite, 'fam': fam, 'ca': sum(v[4] for v in o), 'nc': n_tous,
@@ -262,7 +261,7 @@ for cid in spec:
     entete(wc, ['Article', 'Unité', 'Pro observé 2026', 'Prix client 2026', 'Écart %', 'Lignes 2026', 'PRO 2027', 'CLIENT 2027 (+%g %%)' % HAUSSE, 'Écart 2027 %'], (50, 7, 12, 12, 9, 9, 11, 14, 10), 'B2')
     for pid_, pu, n in sorted(ecarts[cid], key=lambda t: -grille[t[0]]['ca']):
         g = grille[pid_]; ref = g['pro'] or g['tous']; fam = g['fam']
-        c27 = arrondi(pu * (1 + HAUSSE / 100), fam)
+        c27 = arrondi(pu * (1 + HAUSSE / 100), fam, g['unite'])
         wc.append([g['nom'], g['unite'], ref, pu, round((pu / ref - 1) * 100, 1), n, g['pro27'], c27, round((c27 / g['pro27'] - 1) * 100, 1) if g['pro27'] else None])
         r = wc.max_row; wc.cell(r, 8).fill = JAUNE
         if pu > ref:
@@ -276,7 +275,7 @@ for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avo
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else ''), today.strftime('%Y-%m-%d'))
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else '') + '_entier', today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
