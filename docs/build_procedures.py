@@ -79,6 +79,29 @@ def steps(items):
 import os
 from reportlab.platypus import Image
 from reportlab.lib.utils import ImageReader
+
+# ── pictogrammes : Helvetica ne les a pas, on les rend avec la police Segoe UI Emoji (Windows) ──
+from reportlab.pdfbase import pdfmetrics as _pm
+from reportlab.pdfbase.ttfonts import TTFont as _TTF
+import re as _re
+try:
+    _pm.registerFont(_TTF("SegoeEmoji", "C:/Windows/Fonts/seguiemj.ttf")); _EMOJI = True
+    _pm.registerFontFamily("SegoeEmoji", normal="SegoeEmoji", bold="SegoeEmoji", italic="SegoeEmoji", boldItalic="SegoeEmoji")
+except Exception:  # noqa: BLE001
+    _EMOJI = False
+_RX_EMOJI = _re.compile("([🌀-🫿☀-➿⬀-⯿]️?)")
+
+
+def emo(t):
+    return _RX_EMOJI.sub(r'<font name="SegoeEmoji">\1</font>', t) if (_EMOJI and isinstance(t, str)) else t
+
+
+_Paragraph = Paragraph
+
+
+def Paragraph(t, st, *a, **k):  # noqa: N802 - même nom, texte passé par emo()
+    return _Paragraph(emo(t), st, *a, **k)
+
 CAPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
 st_cap = ParagraphStyle("cap", fontName="Helvetica-Oblique", fontSize=9, textColor=GREY, leading=11.5, spaceAfter=6)
 
@@ -145,12 +168,12 @@ regles = [
     ("3", "<b>Sur la tablette, choisissez toujours votre nom</b> avant d'agir (le dernier nom choisi reste affiché : vérifiez-le). <b>Au poste de scan, pas de nom</b> : c'est l'OF scanné qui dit à qui est la pierre."),
     ("4", "<b>Votre palette active vous suit.</b> Le bouton ⚡ de la tablette montre la dernière palette sur laquelle vos pierres ont été posées, depuis la tablette ou depuis le poste de scan."),
     ("5", "<b>Palette neuve = étiquette PACK pré-imprimée.</b> Scannez-la (ou tapez son numéro, ex. 440) : elle devient la vôtre. Ne réutilisez jamais une étiquette d'une palette déjà partie."),
-    ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime et <b>Céline le reçoit aussitôt par mail</b> ; plus rien ne peut y être ajouté."),
+    ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime et <b>Céline le reçoit aussitôt par mail</b> ; plus rien ne peut y être ajouté. Erreur après la clôture ? Le bouton <b>« 🔓 Déclôturer »</b> du poste de scan la rouvre (le bureau est prévenu) : on corrige, puis on clôture à nouveau."),
 ]
 for num, txt in regles:
     story.append(Paragraph('<font color="#15803D"><b>%s</b></font>   %s' % (num, txt), st_rule))
 note("Message « ⛔ palette de … » ou « 🔒 clôturée » = l'écran a raison. Prenez une de vos palettes ou une palette vierge. Ne cherchez pas à contourner.", bg=GREENL, fg=GREEN)
-story.append(Paragraph("Ce qui a changé le 16/09/2026 : sur la tablette chacun ne voit plus que ses palettes (plus de liste « palettes des autres ») et la dernière palette n'est plus mémorisée sur la tablette mais sur votre nom. Au poste de scan, plus de nom à choisir : la palette affichée est celle du poste, et l'OF scanné dit à qui est la pierre.", st_small))
+story.append(Paragraph("Ce qui a changé les 16 et 17/09/2026 : bouton « Déclôturer » au poste de scan (17/09) ; sur la tablette chacun ne voit plus que ses palettes (plus de liste « palettes des autres ») et la dernière palette n'est plus mémorisée sur la tablette mais sur votre nom. Au poste de scan, plus de nom à choisir : la palette affichée est celle du poste, et l'OF scanné dit à qui est la pierre.", st_small))
 
 # ───────────────────────── PAGE 1 — MA PRODUCTION ─────────────────────────
 story.append(PageBreak())
@@ -214,18 +237,25 @@ steps([
     "OF à plusieurs pièces : le pavé « Combien sur cette palette ? » s'affiche — taper le nombre puis Valider, « Tout », ou scanner directement la suite pour tout mettre.",
     "Erreur de scan ? <b>« Retirer dernier OF »</b>, ou la corbeille 🗑️ en face de la ligne concernée. Pierre cassée ? le bouton 💥 (Fiche 4).",
     "La jauge sous le numéro de palette montre le poids posé par rapport au seuil (1 500 kg) : orange à 80 %, rouge au-delà.",
-    "<b>Palette déjà clôturée ?</b> On peut la scanner quand même : l'écran affiche « 🔒 Clôturée · lecture seule » et son contenu ; rien ne peut y être ajouté ni retiré, mais le bouton <b>« Réimprimer le bon de colisage »</b> fonctionne.",
+    "<b>Palette déjà clôturée ?</b> On peut la scanner quand même : l'écran affiche « 🔒 Clôturée · lecture seule » et son contenu ; rien ne peut y être ajouté ni retiré, mais le bouton <b>« Réimprimer le bon de colisage »</b> fonctionne. Pour la modifier, appuyer sur le bouton orange <b>« 🔓 Déclôturer »</b> (voir plus bas).",
 ])
 captures2("scan_quantite", "OF à plusieurs pièces : le pavé demande combien de pièces vont sur cette palette.",
           "scan_refus", "Refus ⛔ : la pierre scannée est d'un autre opérateur que celui de la palette active.")
 captures2("scan_palettes_ouvertes", "« Palettes ouvertes… » : les palettes en cours avec leur opérateur, puis celles sans opérateur ; on touche une palette pour la rendre active.",
-          "scan_cloturee", "Palette déjà clôturée scannée : « 🔒 Clôturée · lecture seule », contenu affiché sans corbeille, boutons de clôture grisés, « Réimprimer le bon de colisage » disponible.")
+          "scan_cloturee", "Palette déjà clôturée scannée : « 🔒 Clôturée · lecture seule », contenu affiché sans corbeille, boutons de clôture grisés, « Réimprimer le bon de colisage » et « 🔓 Déclôturer » disponibles.")
 story.append(Paragraph("Clôturer la palette", st_h2))
 steps([
     "Scanner le <b>code-barre d'emplacement</b> (Stock Atelier / Stock Usine) affiché à l'écran, ou toucher le bouton bleu correspondant, puis confirmer.",
     "La palette est verrouillée, l'emplacement enregistré, le stock déplacé, et le <b>bon de colisage s'ouvre</b> pour impression (commande, objet, prépalettisation, adresse de livraison, opérateur).",
     "<b>Céline reçoit aussitôt le mail « Palette clôturée : PACK… »</b> avec le bon de colisage en pièce jointe, que la clôture vienne du poste de scan ou de la tablette.",
     "Après la clôture, l'écran n'a plus de palette active : scannez la suivante.",
+])
+story.append(Paragraph("Déclôturer une palette (erreur après la clôture)", st_h2))
+steps([
+    "Scanner la palette clôturée (ou taper son numéro) : elle s'affiche en lecture seule avec le bouton orange <b>« 🔓 Déclôturer »</b>. Appuyer dessus et confirmer. Pas de code : tout opérateur peut le faire.",
+    "La palette redevient <b>modifiable</b> et redevient la palette active de son opérateur (bouton ⚡ de la tablette) : retirer ou ajouter les OF, déclarer un rebut si besoin.",
+    "<b>Le bureau reçoit aussitôt le mail « Palette PACK… déclôturée »</b> : l'ancien bon de colisage ne vaut plus rien, jetez-le.",
+    "<b>Clôturer à nouveau</b> avec l'emplacement : nouveau bon de colisage à imprimer, nouveau mail à Céline.",
 ])
 story.append(Paragraph("Réimprimer un bon de colisage", st_h2))
 steps([
@@ -287,6 +317,7 @@ steps([
 story.append(Paragraph("Bon de colisage", st_h2))
 steps([
     "Le bon de colisage (imprimé à la clôture, ou Imprimer → Bon de colisage) mentionne désormais l'<b>opérateur</b> responsable, en plus de la commande, du client, de la prépalettisation et de l'emplacement.",
+    "Si un opérateur <b>déclôture</b> une palette au poste de scan, le bureau reçoit le mail « Palette PACK… déclôturée » : son bon de colisage n'est plus valable, un nouveau arrive à la prochaine clôture.",
     "<b>À chaque clôture</b> (tablette ou poste de scan), Céline reçoit aussitôt le mail « Palette clôturée : PACK… » à celine@maquignon.com : client, emplacement, cubage, tonnage, et le bon de colisage PDF en pièce jointe. Une palette réouverte au bureau puis reclôturée renvoie un mail.",
 ])
 capture("bureau_bon_colisage", "Bon de colisage imprimé à la clôture et envoyé par mail à Céline : commande, client, livraison, opérateur, emplacement, et le détail des OF.")
