@@ -31,12 +31,21 @@ PUBLIC, PRO = 302, 299
 LISTES_CLIENT = [1678, 1680, 1681, 1691, 1692, 306, 1676, 74, 158, 159, 160, 286, 287, 288, 289, 290, 295, 296]
 
 
-def famille(n):
-    n = n.lower()
-    if any(t in n for t in ('pré-sciée', 'pre-sciee', 'tranche', 'bloc', 'tuffeau', 'haims', 'migné', 'richemont', 'tervoux', 'sireuil')):
+def famille(n, categ=''):
+    """Famille tarifaire : d'abord la catégorie Odoo, sinon des mots-clés du nom."""
+    c = (categ or '').lower(); n = n.lower()
+    if c.startswith('pierres'):
         return 'Pierres'
+    if c.split(' / ')[0] in ('transport', 'location'):
+        return 'Transport / location'
+    if c.split(' / ')[0] in ('négoce', 'negoce', 'terre de gobetage', 'granulats'):
+        return 'Granulats / terre'
+    if c.split(' / ')[0] in ('taille', 'tp', 'emballage et autres produits additionnels', 'carburant'):
+        return 'Prestations / divers'
     if any(t in n for t in ('transport', 'location', 'transfert')):
         return 'Transport / location'
+    if any(t in n for t in ('pré-sciée', 'pre-sciee', 'tranche', 'bloc', 'tuffeau', 'haims', 'migné', 'richemont', 'tervoux', 'sireuil')):
+        return 'Pierres'
     if any(t in n for t in ('gobetage', 'gravier', 'concass', 'sable', 'terre', 'décharge', 'béton', 'remblai')):
         return 'Granulats / terre'
     return 'Prestations / divers'
@@ -153,7 +162,7 @@ def observe(o):
 grille = {}
 ratios = collections.defaultdict(list)
 for pid_, o in obs.items():
-    pr = prod[pid_]; fam = famille(pr['display_name'])
+    pr = prod[pid_]; fam = famille(pr['display_name'], (pr['categ_id'] and pr['categ_id'][1]) or '')
     ep = re.search(r'\((\d+) cm\)', pr['display_name'])
     coef = int(ep.group(1)) / 100 if (ep and pr['uom_id'][1] == 'm³') else 1
     unite = 'm²' if coef != 1 else pr['uom_id'][1]
@@ -194,7 +203,7 @@ for pid_, o in obs.items():
             part27 = arrondi(pro27 / (1 - rem), fam, unite)
     else:
         part27 = part_min; base_part = 'pro ÷ (1 − remise)'
-    grille[pid_] = {'nom': pr['display_name'] + ('' if pr['active'] else ' (archivé)'), 'unite': unite, 'fam': fam, 'ca': sum(v[4] for v in o), 'nc': n_tous,
+    grille[pid_] = {'nom': pr['display_name'] + ('' if pr['active'] else ' (archivé)'), 'unite': unite, 'fam': fam, 'categ': (pr['categ_id'] and pr['categ_id'][1]) or 'Sans catégorie', 'ca': sum(v[4] for v in o), 'nc': n_tous,
                     'tous': tous_obs, 'part': part_obs, 'npart': n_part, 'pro': pro_obs, 'npro': n_pro, 'fiche': fiche, 'pro_liste': pro_liste,
                     'base': base_pro, 'origine': origine, 'pro27': pro27, 'part27': part27, 'base_part': base_part, 'cli': par_client(o)}
 # ---------- clients à prix spécifiques
@@ -237,11 +246,20 @@ def entete(ws, cols, widths, freeze='B2'):
 
 
 ws = wb.active; ws.title = 'Grille 2027'
-entete(ws, ['Article', 'Unité', 'Famille', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Particuliers observé', 'Pros observé', 'Prix fiche actuel', 'Base pro retenue', 'Origine de la base',
+entete(ws, ['Article', 'Unité', 'Catégorie', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Particuliers observé', 'Pros observé', 'Prix fiche actuel', 'Base pro retenue', 'Origine de la base',
             'Écart mini pro %', 'PRO 2027', 'PARTICULIER 2027', 'Origine du prix particulier', 'Écart réel %', 'Hausse pro réelle % (vs pratiqué 2026)'], (50, 7, 20, 10, 8, 11, 11, 11, 11, 11, 20, 9, 13, 14, 34, 9, 12), 'B2')
-for pid_ in sorted(grille, key=lambda k: -grille[k]['ca']):
+ORDRE_FAM = {f: i for i, f in enumerate(FAMS)}
+TITRE = PatternFill('solid', fgColor='CCE5E4')
+cat_prec = None
+for pid_ in sorted(grille, key=lambda k: (ORDRE_FAM[grille[k]['fam']], grille[k]['categ'], grille[k]['nom'])):
     g = grille[pid_]
-    ws.append([g['nom'], g['unite'], g['fam'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27'], g['base_part'], round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None, round((g['pro27'] / g['base'] - 1) * 100, 1) if (g['pro27'] and g['base']) else None])
+    if g['categ'] != cat_prec:
+        ws.append(['%s  ›  %s' % (g['fam'].upper(), g['categ'])])
+        ws.cell(ws.max_row, 1).font = Font(bold=True); 
+        for j in range(1, 18):
+            ws.cell(ws.max_row, j).fill = TITRE
+        cat_prec = g['categ']
+    ws.append([g['nom'], g['unite'], g['categ'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27'], g['base_part'], round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None, round((g['pro27'] / g['base'] - 1) * 100, 1) if (g['pro27'] and g['base']) else None])
     r = ws.max_row; ws.cell(r, 13).fill = VERT; ws.cell(r, 14).fill = VERT
 ws.auto_filter.ref = ws.dimensions
 wr = wb.create_sheet('Remises')
@@ -259,7 +277,7 @@ for cid in spec:
     nom = re.sub(r'[\[\]:*?/\\]', ' ', cp_name[cid])[:31].strip()
     wc = wb.create_sheet(nom)
     entete(wc, ['Article', 'Unité', 'Pro observé 2026', 'Prix client 2026', 'Écart %', 'Lignes 2026', 'PRO 2027', 'CLIENT 2027 (+%g %%)' % HAUSSE, 'Écart 2027 %'], (50, 7, 12, 12, 9, 9, 11, 14, 10), 'B2')
-    for pid_, pu, n in sorted(ecarts[cid], key=lambda t: -grille[t[0]]['ca']):
+    for pid_, pu, n in sorted(ecarts[cid], key=lambda t: (grille[t[0]]['categ'], grille[t[0]]['nom'])):
         g = grille[pid_]; ref = g['pro'] or g['tous']; fam = g['fam']
         c27 = arrondi(pu * (1 + HAUSSE / 100), fam, g['unite'])
         wc.append([g['nom'], g['unite'], ref, pu, round((pu / ref - 1) * 100, 1), n, g['pro27'], c27, round((c27 / g['pro27'] - 1) * 100, 1) if g['pro27'] else None])
@@ -269,13 +287,13 @@ for cid in spec:
     wc.append([]); wc.append(['CA 2026 du client : %d €' % round(ca_client[cid]), '', '', '', '', '', '', 'Ligne à effacer = le client repasse au tarif pro.'])
 wl = wb.create_sheet('Lisez-moi'); wl.column_dimensions['A'].width = 125
 for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avoirs), prix unitaires nets HT dans l\'unité facturée (pré-sciées et tranches fines au m²).' % (DEPUIS, today_s),
-             'Onglet Grille 2027 : prix observés (chaque client compte pour un), base retenue pour le pro, remise de la famille, PRO 2027 et PARTICULIER 2027 (colonnes vertes) = la grille à charger.',
+             'Onglet Grille 2027 : articles classés par famille puis catégorie Odoo (ligne de titre colorée) ; prix observés (chaque client compte pour un), base retenue pour le pro, remise de la famille, PRO 2027 et PARTICULIER 2027 (colonnes vertes) = la grille à charger.',
              'Onglet Remises : la remise pro par famille (jaune, modifiable) et ce qui était réellement pratiqué en 2026.',
              'Un onglet par client à prix spécifiques : seulement les articles où son prix 2026 s\'écarte de plus de 2 %% du prix pro observé ; CLIENT 2027 (jaune) = son prix +%g %%. Écart 2027 = position par rapport au nouveau prix pro. Orange = le client paie plus cher que le pro.' % HAUSSE,
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else '') + '_entier', today.strftime('%Y-%m-%d'))
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else '') + '_entier_categories', today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
