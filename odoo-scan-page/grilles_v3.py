@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 sys.stdout.reconfigure(encoding='utf-8')
 args = [float(a.replace(',', '.')) for a in sys.argv[1:]]
 HAUSSE = args[0] if args else 10.0
+PART_MODE = os.environ.get('PART_MODE', 'remise')   # 'fiche' : particulier = prix fiche +hausse, avec un écart minimum avec le pro
 FAMS = ['Pierres', 'Granulats / terre', 'Transport / location', 'Prestations / divers']
 REMISE = dict(zip(FAMS, [8.0, 5.0, 0.0, 5.0]))
 for i, f in enumerate(FAMS):
@@ -164,10 +165,15 @@ for pid_, o in obs.items():
     base_pro = pro_obs if pro_obs else (tous_obs if tous_obs else (pro_liste if abs(pro_liste - fiche) > 0.005 else fiche))
     origine = 'pros facturés' if pro_obs else ('tous clients facturés' if tous_obs else ('Tarif Pro 2026' if abs(pro_liste - fiche) > 0.005 else 'prix fiche'))
     pro27 = arrondi(base_pro * (1 + HAUSSE / 100), fam) if base_pro else None
-    part27 = arrondi(pro27 / (1 - rem), fam) if (pro27 and rem < 1) else None
+    part_min = arrondi(pro27 / (1 - rem), fam) if (pro27 and rem < 1) else None
+    if PART_MODE == 'fiche' and fiche > 1 and pro27:
+        part27 = max(arrondi(fiche * (1 + HAUSSE / 100), fam), part_min or 0)
+        base_part = 'prix fiche +%g %% (mini %g %% au-dessus du pro)' % (HAUSSE, REMISE[fam]) if arrondi(fiche * (1 + HAUSSE / 100), fam) >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
+    else:
+        part27 = part_min; base_part = 'pro ÷ (1 − remise)'
     grille[pid_] = {'nom': pr['display_name'] + ('' if pr['active'] else ' (archivé)'), 'unite': unite, 'fam': fam, 'ca': sum(v[4] for v in o), 'nc': n_tous,
                     'tous': tous_obs, 'part': part_obs, 'npart': n_part, 'pro': pro_obs, 'npro': n_pro, 'fiche': fiche, 'pro_liste': pro_liste,
-                    'base': base_pro, 'origine': origine, 'pro27': pro27, 'part27': part27, 'cli': par_client(o)}
+                    'base': base_pro, 'origine': origine, 'pro27': pro27, 'part27': part27, 'base_part': base_part, 'cli': par_client(o)}
 # ---------- clients à prix spécifiques
 spec = set()
 for cid, pt in parts.items():
@@ -208,12 +214,12 @@ def entete(ws, cols, widths, freeze='B2'):
 
 
 ws = wb.active; ws.title = 'Grille 2027'
-entete(ws, ['Article', 'Unité', 'Famille', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Particuliers observé', 'Pros observé', 'Base retenue', 'Origine de la base',
-            'Remise pro %', 'PRO 2027 (+%g %%)' % HAUSSE, 'PARTICULIER 2027'], (50, 7, 20, 10, 8, 11, 11, 11, 11, 20, 9, 13, 14), 'B2')
+entete(ws, ['Article', 'Unité', 'Famille', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Particuliers observé', 'Pros observé', 'Prix fiche actuel', 'Base pro retenue', 'Origine de la base',
+            'Écart mini pro %', 'PRO 2027 (+%g %%)' % HAUSSE, 'PARTICULIER 2027', 'Origine du prix particulier', 'Écart réel %'], (50, 7, 20, 10, 8, 11, 11, 11, 11, 11, 20, 9, 13, 14, 30, 9), 'B2')
 for pid_ in sorted(grille, key=lambda k: -grille[k]['ca']):
     g = grille[pid_]
-    ws.append([g['nom'], g['unite'], g['fam'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27']])
-    r = ws.max_row; ws.cell(r, 12).fill = VERT; ws.cell(r, 13).fill = VERT
+    ws.append([g['nom'], g['unite'], g['fam'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27'], g['base_part'], round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None])
+    r = ws.max_row; ws.cell(r, 13).fill = VERT; ws.cell(r, 14).fill = VERT
 ws.auto_filter.ref = ws.dimensions
 wr = wb.create_sheet('Remises')
 entete(wr, ['Famille', 'Remise pro retenue %', 'Rapport pro / particulier observé (médiane)', 'Articles comparables', 'Lecture'], (24, 14, 22, 12, 70), 'A2')
@@ -246,9 +252,9 @@ for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avo
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_remise%g_%s.xlsx' % (REMISE['Pierres'], today.strftime('%Y-%m-%d'))
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
-for r in list(ws.iter_rows(min_row=2, max_row=10, values_only=True)):
-    print('   %-46s %-5s %-20s obs %8s part %8s pro %8s | base %8s (%s) rem %s -> PRO27 %8s PART27 %8s' % (r[0][:46], r[1], r[2], r[5], r[6], r[7], r[8], r[9][:12], r[10], r[11], r[12]))
+for r in list(ws.iter_rows(min_row=2, max_row=12, values_only=True)):
+    print('   %-44s %-4s fiche %8s part.obs %8s pro.obs %8s -> PRO27 %8s PART27 %8s écart %5s %% (%s)' % (r[0][:44], r[1], r[8], r[6], r[7], r[12], r[13], r[15], r[14]))
