@@ -12,6 +12,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 args = [float(a.replace(',', '.')) for a in sys.argv[1:]]
 HAUSSE = args[0] if args else 10.0
 PART_MODE = os.environ.get('PART_MODE', 'remise')
+PRO_MODE = os.environ.get('PRO_MODE', 'pratique')   # 'ecart' : pro = particulier cible × (1 − remise), plancher pratiqué + hausse
 PART_FIXE = dict(kv.split('=') for kv in os.environ.get('PART_FIXE', '').split(',') if '=' in kv)   # ex. TUF0000-PS=1500   # 'fiche' : particulier = prix fiche +hausse, avec un écart minimum avec le pro
 FAMS = ['Pierres', 'Granulats / terre', 'Transport / location', 'Prestations / divers']
 REMISE = dict(zip(FAMS, [8.0, 5.0, 0.0, 5.0]))
@@ -182,6 +183,16 @@ for pid_, o in obs.items():
         else:
             part27 = max(arrondi(fiche * (1 + HAUSSE / 100), fam), part_min or 0)
             base_part = 'prix fiche +%g %% (mini %g %% au-dessus du pro)' % (HAUSSE, REMISE[fam]) if arrondi(fiche * (1 + HAUSSE / 100), fam) >= (part_min or 0) else 'mini %g %% au-dessus du pro' % REMISE[fam]
+        if PRO_MODE == 'ecart' and rem > 0:
+            # écart fixe : le pro = particulier cible × (1 − remise), sans descendre sous le pratiqué +hausse ; le particulier suit
+            cible_part = part27
+            pro_ecart = arrondi(cible_part * (1 - rem), fam)
+            if pro_ecart > pro27:
+                pro27 = pro_ecart
+                base_part = base_part.replace(' (mini %g %% au-dessus du pro)' % REMISE[fam], '') + ' ; pro = particulier − %g %%' % REMISE[fam]
+            else:
+                base_part = 'pro pratiqué +%g %% ÷ (1 − %g %%)' % (HAUSSE, REMISE[fam])
+            part27 = arrondi(pro27 / (1 - rem), fam)
     else:
         part27 = part_min; base_part = 'pro ÷ (1 − remise)'
     grille[pid_] = {'nom': pr['display_name'] + ('' if pr['active'] else ' (archivé)'), 'unite': unite, 'fam': fam, 'ca': sum(v[4] for v in o), 'nc': n_tous,
@@ -228,10 +239,10 @@ def entete(ws, cols, widths, freeze='B2'):
 
 ws = wb.active; ws.title = 'Grille 2027'
 entete(ws, ['Article', 'Unité', 'Famille', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Particuliers observé', 'Pros observé', 'Prix fiche actuel', 'Base pro retenue', 'Origine de la base',
-            'Écart mini pro %', 'PRO 2027 (+%g %%)' % HAUSSE, 'PARTICULIER 2027', 'Origine du prix particulier', 'Écart réel %'], (50, 7, 20, 10, 8, 11, 11, 11, 11, 11, 20, 9, 13, 14, 30, 9), 'B2')
+            'Écart mini pro %', 'PRO 2027', 'PARTICULIER 2027', 'Origine du prix particulier', 'Écart réel %', 'Hausse pro réelle % (vs pratiqué 2026)'], (50, 7, 20, 10, 8, 11, 11, 11, 11, 11, 20, 9, 13, 14, 34, 9, 12), 'B2')
 for pid_ in sorted(grille, key=lambda k: -grille[k]['ca']):
     g = grille[pid_]
-    ws.append([g['nom'], g['unite'], g['fam'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27'], g['base_part'], round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None])
+    ws.append([g['nom'], g['unite'], g['fam'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27'], g['base_part'], round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None, round((g['pro27'] / g['base'] - 1) * 100, 1) if (g['pro27'] and g['base']) else None])
     r = ws.max_row; ws.cell(r, 13).fill = VERT; ws.cell(r, 14).fill = VERT
 ws.auto_filter.ref = ws.dimensions
 wr = wb.create_sheet('Remises')
@@ -265,7 +276,7 @@ for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avo
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], '_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '', today.strftime('%Y-%m-%d'))
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else ''), today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
