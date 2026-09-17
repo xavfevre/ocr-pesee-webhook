@@ -23,7 +23,7 @@
   function classFor(txt){
     if(!txt) return 'idle';
     if(txt.indexOf('✅') === 0 || txt.indexOf('📦') === 0 || txt.indexOf('✂') === 0) return 'ok';
-    if(txt.indexOf('ℹ') === 0 || txt.indexOf('↩') === 0 || txt.indexOf('🗑') === 0 || txt.indexOf('📍') === 0 || txt.indexOf('👤') === 0 || txt.indexOf('👉') === 0 || txt.indexOf('⏳') === 0) return 'info';
+    if(txt.indexOf('ℹ') === 0 || txt.indexOf('🔓') === 0 || txt.indexOf('↩') === 0 || txt.indexOf('🗑') === 0 || txt.indexOf('📍') === 0 || txt.indexOf('👤') === 0 || txt.indexOf('👉') === 0 || txt.indexOf('⏳') === 0) return 'info';
     if(txt.indexOf('⚠') === 0 || txt.indexOf('🔒') === 0) return 'warn';
     if(txt.indexOf('❌') === 0 || txt.indexOf('⛔') === 0) return 'err';
     return 'idle';
@@ -102,6 +102,7 @@
     document.querySelectorAll('.zone-btn').forEach(function(b){ b.disabled = ferme; b.style.opacity = ferme ? '.45' : ''; });
     var bu = document.getElementById('btn-undo'); if(bu){ bu.disabled = ferme; bu.style.opacity = ferme ? '.45' : ''; }
     var bp = document.getElementById('btn-colis-print'); if(bp){ bp.textContent = ferme ? '🖨 Réimprimer le bon de colisage' : '🖨 Bon de colisage'; }
+    var bo = document.getElementById('btn-colis-open'); if(bo){ bo.style.display = ferme ? '' : 'none'; }
     var box = document.getElementById('of-list'), itemsBox = document.getElementById('of-items');
     if(c){
       document.getElementById('of-count').textContent = (r.items || []).length;
@@ -278,6 +279,11 @@
     web('liste').then(function(r){ navData = {palettes: r.palettes || [], libres: r.libres || []}; navRender(); setTimeout(function(){ navSrch.focus(); }, 60); })
       .catch(function(e){ navList.innerHTML = '<div style="color:#f87171;padding:8px;">Erreur : ' + esc(e.message) + '</div>'; });
   }
+  document.getElementById('btn-colis-open').addEventListener('click', function(){
+    if(!colisActif){ setRes('⚠️ Aucune palette active'); beep(false); return; }
+    if(!confirm('Déclôturer la palette ' + colisNom + ' ?\nElle redevient modifiable : il faudra la clôturer à nouveau (nouveau bon de colisage, le bureau est prévenu).')){ return; }
+    act('decloturer').then(function(){ input.focus(); });
+  });
   document.getElementById('btn-colis-nav').addEventListener('click', openNav);
   document.getElementById('nav-cancel').addEventListener('click', function(){ navPop.style.display = 'none'; input.focus(); });
   navSrch.addEventListener('input', navRender);

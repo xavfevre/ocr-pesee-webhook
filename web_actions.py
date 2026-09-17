@@ -1208,6 +1208,32 @@ def _scan_cloturer(call, colis_id, zone):
                       True, {'print_id': colis['id'], 'print_name': colis['name']})
 
 
+def _scan_decloturer(call, colis_id):
+    """Rouvre une palette clôturée depuis le poste de scan : contenu modifiable, à clôturer de nouveau ensuite
+    (nouveau bon de colisage) ; l'opérateur la retrouve en palette active, le bureau est prévenu."""
+    colis = _colis_poste(call, colis_id)
+    if not colis:
+        return _scan_etat(call, 0, '⚠️ Aucune palette active à déclôturer', False)
+    if not colis['x_studio_cloturee']:
+        return _scan_etat(call, colis['id'], 'ℹ️ %s n’est pas clôturée' % colis['name'], False)
+    call('stock.package', 'write', [colis['id']], {'x_studio_cloturee': False})
+    if colis['x_operateur_id']:
+        _sur(lambda: call('hr.employee', 'write', [colis['x_operateur_id'][0]], {'x_palette_scan_id': colis['id']}))
+    _sur(lambda: call('stock.package', 'message_post', [colis['id']],
+                      body='🔓 Palette déclôturée depuis le poste de scan (elle était clôturée → %s)' % (colis['x_studio_zone'] or '?')))
+    dest = _param(call, 'maquignon.palettes_alerte_email', '')
+    if dest:
+        try:
+            _mail_bureau(call, 'Palette %s déclôturée' % colis['name'], dest,
+                         '<p>La palette <b>%s</b>%s a été <b>déclôturée</b> depuis le poste de scan%s.</p>'
+                         '<p>Son bon de colisage n’est plus valable : un nouveau sera émis à la prochaine clôture.</p>'
+                         % (colis['name'], (' de ' + colis['x_operateur_id'][1]) if colis['x_operateur_id'] else '',
+                            (' (elle était → ' + colis['x_studio_zone'] + ')') if colis['x_studio_zone'] else ''))
+        except Exception:  # noqa: BLE001
+            pass
+    return _scan_etat(call, colis['id'], '🔓 %s déclôturée — modifiez son contenu, puis clôturez-la à nouveau (nouveau bon de colisage)' % colis['name'], True)
+
+
 # ─── 2103 · Alerte hebdo palettes (bureau) ───────────────────────────────────
 
 def _commandes_produites(call, jours=45):
@@ -1414,6 +1440,8 @@ def _scan(call, ctx):
         return _scan_retirer(call, colis_id, 0, int(ctx.get('line_id') or 0))
     if mode == 'cloturer':
         return _scan_cloturer(call, colis_id, (ctx.get('zone') or '').strip())
+    if mode == 'decloturer':
+        return _scan_decloturer(call, colis_id)
     if mode == 'transferer':
         return _transferer(call, ctx)
     raise WebErreur('Mode inconnu : %s' % mode)
