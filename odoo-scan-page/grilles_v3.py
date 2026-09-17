@@ -13,6 +13,7 @@ args = [float(a.replace(',', '.')) for a in sys.argv[1:]]
 HAUSSE = args[0] if args else 10.0
 PART_MODE = os.environ.get('PART_MODE', 'remise')
 PRO_MODE = os.environ.get('PRO_MODE', 'pratique')   # 'ecart' : pro = particulier cible × (1 − remise), plancher pratiqué + hausse
+CLIENTS_FORCES = [n.strip().lower() for n in os.environ.get('CLIENTS_FORCES', '').split(',') if n.strip()]   # onglet complet imposé
 PART_FIXE = dict(kv.split('=') for kv in os.environ.get('PART_FIXE', '').split(',') if '=' in kv)   # ex. TUF0000-PS=1500   # 'fiche' : particulier = prix fiche +hausse, avec un écart minimum avec le pro
 FAMS = ['Pierres', 'Granulats / terre', 'Transport / location', 'Prestations / divers']
 REMISE = dict(zip(FAMS, [8.0, 5.0, 0.0, 5.0]))
@@ -227,9 +228,17 @@ for pid_, g in grille.items():
     for cid, (pu, n) in g['cli'].items():
         if ref and n >= 3 and abs(pu - ref) / ref > 0.02 and groupe(parts[cid]) == 'Professionnel':
             ecarts[cid].append((pid_, pu, n))
+# clients à onglet complet : tous leurs articles 2026 (écart ou pas), prestations et forfaits compris
+complets = {cid for cid in ca_client if parts[cid]['name'].strip().lower() in CLIENTS_FORCES}
+for pid_, g in grille.items():
+    for cid, (pu, n) in g['cli'].items():
+        if cid in complets and not any(t[0] == pid_ for t in ecarts[cid]):
+            ecarts[cid].append((pid_, pu, n))
+print('clients à onglet complet :', [parts[c]['name'] for c in complets])
 print('articles hors prix spécifiques (prestations, forfaits, prix dispersés) :', exclus)
 gros = [cid for cid, ca in ca_client.most_common(40) if len(ecarts.get(cid, [])) >= 1 and groupe(parts[cid]) == 'Professionnel']
 spec |= set(gros[:15])
+spec |= complets
 spec = [cid for cid in sorted(spec, key=lambda cid: -ca_client.get(cid, 0)) if ecarts.get(cid)]
 print('clients avec prix spécifiques (%d) :' % len(spec), [(cp_name[cid][:24], len(ecarts[cid])) for cid in spec])
 # ---------- classeur
@@ -293,7 +302,7 @@ for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avo
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else '') + '_entier_categories', today.strftime('%Y-%m-%d'))
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s%g%s_%s.xlsx' % ('fiche_mini' if PART_MODE == 'fiche' else 'remise', REMISE['Pierres'], ('_tuffeau' + list(PART_FIXE.values())[0] if PART_FIXE else '') + ('_ecartfixe' if PRO_MODE == 'ecart' else '') + '_entier_categories' + ('_clients' if CLIENTS_FORCES else ''), today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})

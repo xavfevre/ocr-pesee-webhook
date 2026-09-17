@@ -3,8 +3,8 @@
 import sys, openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 sys.stdout.reconfigure(encoding='utf-8')
-SRC = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_fiche_mini15_tuffeau1500_ecartfixe_entier_categories_2026-09-17.xlsx'
-OUT = SRC.replace('_categories_', '_categories_remarques_')
+SRC = sys.argv[1] if len(sys.argv) > 1 else 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_fiche_mini15_tuffeau1500_ecartfixe_entier_categories_2026-09-17.xlsx'
+OUT = SRC.replace('_categories', '_categories_remarques', 1) if '_remarques' not in SRC else SRC
 wb = openpyxl.load_workbook(SRC)
 if 'Remarques' in wb.sheetnames:
     del wb['Remarques']
