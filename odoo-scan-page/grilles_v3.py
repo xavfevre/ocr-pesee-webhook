@@ -14,6 +14,7 @@ HAUSSE = args[0] if args else 10.0
 PART_MODE = os.environ.get('PART_MODE', 'remise')
 PRO_MODE = os.environ.get('PRO_MODE', 'pratique')   # 'ecart' : pro = particulier cible × (1 − remise), plancher pratiqué + hausse
 CLIENTS_FORCES = [n.strip().lower() for n in os.environ.get('CLIENTS_FORCES', '').split(',') if n.strip()]   # onglet complet imposé
+CLIENTS_EXCLUS = [n.strip().lower() for n in os.environ.get('CLIENTS_EXCLUS', '').split(',') if n.strip()]
 PART_FIXE = dict(kv.split('=') for kv in os.environ.get('PART_FIXE', '').split(',') if '=' in kv)   # ex. TUF0000-PS=1500   # 'fiche' : particulier = prix fiche +hausse, avec un écart minimum avec le pro
 FAMS = ['Pierres', 'Granulats / terre', 'Transport / location', 'Prestations / divers']
 REMISE = dict(zip(FAMS, [8.0, 5.0, 0.0, 5.0]))
@@ -239,11 +240,11 @@ print('articles hors prix spécifiques (prestations, forfaits, prix dispersés) 
 gros = [cid for cid, ca in ca_client.most_common(40) if len(ecarts.get(cid, [])) >= 1 and groupe(parts[cid]) == 'Professionnel']
 spec |= set(gros[:15])
 spec |= complets
-spec = [cid for cid in sorted(spec, key=lambda cid: -ca_client.get(cid, 0)) if ecarts.get(cid)]
+spec = [cid for cid in sorted(spec, key=lambda cid: -ca_client.get(cid, 0)) if ecarts.get(cid) and parts[cid]['name'].strip().lower() not in CLIENTS_EXCLUS]
 print('clients avec prix spécifiques (%d) :' % len(spec), [(cp_name[cid][:24], len(ecarts[cid])) for cid in spec])
 # ---------- classeur
 wb = openpyxl.Workbook()
-H = Font(bold=True, color='FFFFFF'); HF = PatternFill('solid', fgColor='01666B'); JAUNE = PatternFill('solid', fgColor='FFF2CC'); VERT = PatternFill('solid', fgColor='E2EFDA'); ORANGE = PatternFill('solid', fgColor='F8CBAD')
+H = Font(bold=True, color='FFFFFF'); HF = PatternFill('solid', fgColor='01666B'); JAUNE = PatternFill('solid', fgColor='FFF2CC'); VERT = PatternFill('solid', fgColor='E2EFDA'); ORANGE = PatternFill('solid', fgColor='F8CBAD'); SAUMON = PatternFill('solid', fgColor='FCE4D6')
 
 
 def entete(ws, cols, widths, freeze='B2'):
@@ -255,8 +256,8 @@ def entete(ws, cols, widths, freeze='B2'):
 
 
 ws = wb.active; ws.title = 'Grille 2027'
-entete(ws, ['Article', 'Unité', 'Catégorie', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Particuliers observé', 'Pros observé', 'Prix fiche actuel', 'Base pro retenue', 'Origine de la base',
-            'Écart mini pro %', 'PRO 2027', 'PARTICULIER 2027', 'Origine du prix particulier', 'Écart réel %', 'Hausse pro réelle % (vs pratiqué 2026)'], (50, 7, 20, 10, 8, 11, 11, 11, 11, 11, 20, 9, 13, 14, 34, 9, 12), 'B2')
+entete(ws, ['Article', 'Unité', 'Catégorie', 'CA 2026', 'Nb clients', 'Prix observé (tous)', 'Pros observé', 'Prix fiche actuel', 'Origine de la base',
+            'Écart mini pro %', 'Base pro retenue', 'PRO 2027', 'PARTICULIER 2027', 'Particuliers observé', 'Origine du prix particulier', 'Écart réel %', 'Hausse pro réelle % (vs pratiqué 2026)'], (50, 7, 20, 10, 8, 11, 11, 11, 20, 9, 11, 13, 14, 11, 34, 9, 12), 'B2')
 ORDRE_FAM = {f: i for i, f in enumerate(FAMS)}
 TITRE = PatternFill('solid', fgColor='CCE5E4')
 cat_prec = None
@@ -268,8 +269,10 @@ for pid_ in sorted(grille, key=lambda k: (ORDRE_FAM[grille[k]['fam']], grille[k]
         for j in range(1, 18):
             ws.cell(ws.max_row, j).fill = TITRE
         cat_prec = g['categ']
-    ws.append([g['nom'], g['unite'], g['categ'], round(g['ca']), g['nc'], g['tous'], g['part'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['base'], g['origine'], REMISE[g['fam']], g['pro27'], g['part27'], g['base_part'], round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None, round((g['pro27'] / g['base'] - 1) * 100, 1) if (g['pro27'] and g['base']) else None])
-    r = ws.max_row; ws.cell(r, 13).fill = VERT; ws.cell(r, 14).fill = VERT
+    ws.append([g['nom'], g['unite'], g['categ'], round(g['ca']), g['nc'], g['tous'], g['pro'], g['fiche'] if g['fiche'] > 1 else None, g['origine'],
+               REMISE[g['fam']], g['base'], g['pro27'], g['part27'], g['part'], g['base_part'],
+               round((1 - g['pro27'] / g['part27']) * 100, 1) if (g['pro27'] and g['part27']) else None, round((g['pro27'] / g['base'] - 1) * 100, 1) if (g['pro27'] and g['base']) else None])
+    r = ws.max_row; ws.cell(r, 11).fill = SAUMON; ws.cell(r, 12).fill = VERT; ws.cell(r, 13).fill = VERT; ws.cell(r, 14).fill = SAUMON
 ws.auto_filter.ref = ws.dimensions
 wr = wb.create_sheet('Remises')
 entete(wr, ['Famille', 'Remise pro retenue %', 'Rapport pro / particulier observé (médiane)', 'Articles comparables', 'Lecture'], (24, 14, 22, 12, 70), 'A2')
@@ -307,4 +310,4 @@ wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
 for r in list(ws.iter_rows(min_row=2, max_row=12, values_only=True)):
-    print('   %-44s %-4s fiche %8s part.obs %8s pro.obs %8s -> PRO27 %8s PART27 %8s écart %5s %% (%s)' % (r[0][:44], r[1], r[8], r[6], r[7], r[12], r[13], r[15], r[14]))
+    print('   %-44s %-4s fiche %8s part.obs %8s pro.obs %8s -> PRO27 %8s PART27 %8s écart %5s %% (%s)' % (r[0][:44], r[1], r[7], r[13], r[6], r[11], r[12], r[15], r[14]))
