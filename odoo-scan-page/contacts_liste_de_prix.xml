@@ -1,0 +1,9 @@
+<!-- res.partner.search.liste.de.prix (Maquignon) : vue de recherche res.partner héritée de base.view_res_partner_filter (128), prio 99, créée le 17/09/2026 par XML-RPC -->
+<data>
+  <xpath expr="//field[@name='category_id']" position="after">
+    <field name="specific_property_product_pricelist" string="Liste de prix"/>
+  </xpath>
+  <xpath expr="//filter[@name='group_country']" position="after">
+    <filter name="group_pricelist" string="Liste de prix" context="{'group_by': 'specific_property_product_pricelist'}"/>
+  </xpath>
+</data>
