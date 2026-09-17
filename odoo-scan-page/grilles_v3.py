@@ -246,7 +246,7 @@ for line in ['Factures clients validées de SARL MAQUIGNON du %s au %s (hors avo
              'Effacer une ligne d\'un onglet client = ce client repasse au tarif pro sur cet article. Effacer un onglet = plus de liste spécifique pour ce client.',
              'Chargement dans Odoo : Tarif Particulier (prix fixes), Tarif Professionnel (prix fixes), une liste par client = ses lignes + règle « tout le reste : Tarif Professionnel ».']:
     wl.append([line])
-out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_%s.xlsx' % today.strftime('%Y-%m-%d')
+out = 'C:/Users/xavfe/Desktop/Maquignon/Tarifs_2027_Maquignon_remise%g_%s.xlsx' % (REMISE['Pierres'], today.strftime('%Y-%m-%d'))
 wb.save(out)
 print('fichier :', out, '| articles :', len(grille), '| onglets clients :', len(spec))
 print('rapports pro/particulier observés (médiane) :', {f: (round((1 - statistics.median(v)) * 100, 1), len(v)) for f, v in ratios.items()})
