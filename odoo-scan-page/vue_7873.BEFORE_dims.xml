@@ -1,0 +1,50 @@
+<t t-name="website.planning_fab_card">
+  <t t-set="pierre" t-value="of.x_studio_catgorie and of.x_studio_catgorie.display_name or ''"/>
+  <t t-set="pierre" t-value="len(pierre.split('/')) &gt; 1 and pierre.split('/')[1].strip().upper() or (pierre or 'AUTRE')"/>
+  <t t-set="col" t-value="colors.get(pierre, '#9AA0A6')"/>
+  <a t-attf-href="/web#id={{of.id}}&amp;model=mrp.production&amp;view_type=form" target="_blank" style="text-decoration:none;color:inherit;">
+    <div class="ofc bg-white rounded shadow-sm p-2 mb-2" t-attf-style="border-left:5px solid {{col}};font-size:12px;">
+      <div class="d-flex justify-content-between">
+        <strong t-esc="of.name"/>
+        <span t-attf-style="background:{{col}};color:#fff;border-radius:8px;padding:0 6px;font-size:10px;" t-esc="pierre"/>
+      </div>
+
+    <div t-if="of.x_studio_ref_pierre" style="font-size:14px;font-weight:700;background:#F1EDE3;border-radius:4px;padding:1px 6px;margin:2px 0;letter-spacing:.3px;">
+      ◆ <t t-esc="of.x_studio_ref_pierre"/>
+    </div>
+    <div style="font-size:14px;font-weight:700;color:#222;margin:1px 0;">
+      <t t-esc="'%.2f' % (of.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.2f' % (of.x_studio_haut_m_1 or 0)"/><span style="font-weight:400;font-size:11px;"> m</span>
+      <span t-if="of.x_studio_nbr" style="float:right;background:#2d6a6f;color:#fff;border-radius:8px;padding:0 7px;font-size:12px;"><t t-esc="of.x_studio_nbr"/> pc</span>
+    </div>
+    <div t-if="of.x_studio_nom_du_client" class="text-truncate" style="font-size:12px;font-weight:600;"><t t-esc="of.x_studio_nom_du_client"/></div>
+    <div class="text-muted" style="font-size:10px;">
+      <t t-esc="of.product_id.default_code or ''"/>
+      <t t-if="of.x_studio_vol_total"> · <t t-esc="'%.2f' % of.x_studio_vol_total"/> m³</t>
+    </div>
+      <div style="font-size:10px;">
+        <span t-if="of.x_studio_poste_de_travail" class="badge text-bg-light" t-esc="of.x_studio_poste_de_travail.name"/>
+        <span t-if="of.x_studio_operateur" class="badge text-bg-light" t-esc="of.x_studio_operateur.name"/>
+        <span t-if="of.state != 'to_close'" t-attf-class="badge {{'text-bg-success' if of.state == 'progress' else 'text-bg-secondary'}}" t-esc="'En cours' if of.state == 'progress' else 'Confirmé'"/>
+      </div>
+    <t t-set="wos" t-value="of.workorder_ids"/>
+    <t t-set="t_wos" t-value="wos.filtered(lambda w: 'taille' in (w.name or '').lower() or 'taille' in (w.workcenter_id.name or '').lower())"/>
+    <t t-set="t_todo" t-value="t_wos.filtered(lambda w: w.state != 'done')"/>
+    <div class="d-flex gap-1 align-items-center flex-wrap" style="margin-top:3px;">
+      <span t-if="of.state == 'to_close'" style="background:#E67E22;color:#fff;border-radius:8px;padding:0 8px;font-weight:700;font-size:10px;">À CLÔTURER</span>
+      <span t-if="t_todo" style="background:#C0392B;color:#fff;border-radius:8px;padding:0 8px;font-weight:700;font-size:11px;">✂ TAILLE</span>
+      <span t-if="t_wos and not t_todo" style="background:#DDEEDD;color:#2E7D32;border-radius:8px;padding:0 6px;font-size:10px;">Taille ✓</span>
+      <span t-if="wos" class="badge text-bg-light" style="cursor:help;font-size:10px;"><t t-esc="len(wos.filtered(lambda w: w.state == 'done'))"/>/<t t-esc="len(wos)"/> op.</span>
+    </div>
+    <div t-if="wos" class="of-pop">
+      <div style="font-weight:700;margin-bottom:3px;">Opérations</div>
+      <t t-foreach="wos" t-as="w">
+        <t t-set="is_t" t-value="'taille' in (w.name or '').lower() or 'taille' in (w.workcenter_id.name or '').lower()"/>
+        <div t-attf-style="display:flex;gap:6px;align-items:baseline;{{'opacity:.5;text-decoration:line-through;' if w.state == 'done' else ''}}{{'color:#C0392B;font-weight:700;' if is_t and w.state != 'done' else ''}}">
+          <span t-esc="'✓' if w.state == 'done' else ('▶' if w.state == 'progress' else '○')"/>
+          <span><t t-esc="w.name"/> <span t-if="w.workcenter_id" style="color:#888;font-weight:400;">(<t t-esc="w.workcenter_id.name"/>)</span></span>
+        </div>
+      </t>
+    </div>
+    </div>
+  </a>
+</t>

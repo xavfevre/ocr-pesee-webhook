@@ -77,12 +77,12 @@
         <div id="colis-zone" class="scan-colis-zone"/>
         <div id="colis-jauge" style="display:none;margin:8px auto 0;max-width:430px;"><div style="background:#334155;border-radius:8px;height:12px;overflow:hidden;"><div id="colis-jauge-bar" style="height:12px;width:0%;background:#16a34a;transition:width .3s;"/></div><div id="colis-jauge-txt" style="color:#94a3b8;font-size:13px;font-weight:700;margin-top:3px;"/></div>
         <button id="btn-colis-nav" style="margin-top:10px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#334155;color:#e2e8f0;">📦 Palettes ouvertes…</button>
-        <button id="btn-colis-print" style="margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;">🖨 Bon de colisage</button><button id="btn-colis-open" style="display:none;margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#b45309;color:#fff;">🔓 Déclôturer</button>
+        <button id="btn-colis-print" style="margin-top:10px;margin-left:8px;border:none;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:800;cursor:pointer;background:#1d4ed8;color:#fff;">🖨 Bon de colisage</button>
       </div>
 
       <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner ici…"/>
       <button id="btn-cam" style="width:100%;margin-top:10px;border:none;border-radius:12px;padding:14px;font-size:17px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff;">📷 Scanner avec la caméra</button>
-      <div class="scan-hint"><b>1. Scannez la palette</b> (PACK…) : une palette vierge, ou la palette de l'opérateur concerné. <b>2. Scannez les OF</b> : c'est l'OF qui dit à qui est la pierre — une palette vierge devient celle de cet opérateur, la palette d'un autre opérateur est refusée. <b>3. Pour finir</b>, scannez ou touchez l'<b>emplacement</b> : la palette est <b>verrouillée</b> et le bon de colisage s'imprime. Une palette <b>clôturée</b> peut être scannée : son contenu s'affiche et son bon de colisage se réimprime ; le bouton <b>Déclôturer</b> la rouvre pour la modifier (nouvelle clôture ensuite, le bureau est prévenu).</div>
+      <div class="scan-hint"><b>1. Scannez la palette</b> (PACK…) : une palette vierge, ou la palette de l'opérateur concerné. <b>2. Scannez les OF</b> : c'est l'OF qui dit à qui est la pierre — une palette vierge devient celle de cet opérateur, la palette d'un autre opérateur est refusée. <b>3. Pour finir</b>, scannez ou touchez l'<b>emplacement</b> : la palette est <b>verrouillée</b> et le bon de colisage s'imprime. Une palette <b>clôturée</b> peut être scannée : son contenu s'affiche et son bon de colisage se réimprime.</div>
 
       <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
 
@@ -181,7 +181,7 @@
   function classFor(txt){
     if(!txt) return 'idle';
     if(txt.indexOf('✅') === 0 || txt.indexOf('📦') === 0 || txt.indexOf('✂') === 0) return 'ok';
-    if(txt.indexOf('ℹ') === 0 || txt.indexOf('🔓') === 0 || txt.indexOf('↩') === 0 || txt.indexOf('🗑') === 0 || txt.indexOf('📍') === 0 || txt.indexOf('👤') === 0 || txt.indexOf('👉') === 0 || txt.indexOf('⏳') === 0) return 'info';
+    if(txt.indexOf('ℹ') === 0 || txt.indexOf('↩') === 0 || txt.indexOf('🗑') === 0 || txt.indexOf('📍') === 0 || txt.indexOf('👤') === 0 || txt.indexOf('👉') === 0 || txt.indexOf('⏳') === 0) return 'info';
     if(txt.indexOf('⚠') === 0 || txt.indexOf('🔒') === 0) return 'warn';
     if(txt.indexOf('❌') === 0 || txt.indexOf('⛔') === 0) return 'err';
     return 'idle';
@@ -260,7 +260,6 @@
     document.querySelectorAll('.zone-btn').forEach(function(b){ b.disabled = ferme; b.style.opacity = ferme ? '.45' : ''; });
     var bu = document.getElementById('btn-undo'); if(bu){ bu.disabled = ferme; bu.style.opacity = ferme ? '.45' : ''; }
     var bp = document.getElementById('btn-colis-print'); if(bp){ bp.textContent = ferme ? '🖨 Réimprimer le bon de colisage' : '🖨 Bon de colisage'; }
-    var bo = document.getElementById('btn-colis-open'); if(bo){ bo.style.display = ferme ? '' : 'none'; }
     var box = document.getElementById('of-list'), itemsBox = document.getElementById('of-items');
     if(c){
       document.getElementById('of-count').textContent = (r.items || []).length;
@@ -437,11 +436,6 @@
     web('liste').then(function(r){ navData = {palettes: r.palettes || [], libres: r.libres || []}; navRender(); setTimeout(function(){ navSrch.focus(); }, 60); })
       .catch(function(e){ navList.innerHTML = '&lt;div style="color:#f87171;padding:8px;"&gt;Erreur : ' + esc(e.message) + '&lt;/div&gt;'; });
   }
-  document.getElementById('btn-colis-open').addEventListener('click', function(){
-    if(!colisActif){ setRes('⚠️ Aucune palette active'); beep(false); return; }
-    if(!confirm('Déclôturer la palette ' + colisNom + ' ?\nElle redevient modifiable : il faudra la clôturer à nouveau (nouveau bon de colisage, le bureau est prévenu).')){ return; }
-    act('decloturer').then(function(){ input.focus(); });
-  });
   document.getElementById('btn-colis-nav').addEventListener('click', openNav);
   document.getElementById('nav-cancel').addEventListener('click', function(){ navPop.style.display = 'none'; input.focus(); });
   navSrch.addEventListener('input', navRender);
