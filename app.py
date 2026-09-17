@@ -168,6 +168,10 @@ def resize_image(image_base64: str, max_size: int = 1024) -> str:
     from PIL import Image
     img_bytes = base64.b64decode(image_base64)
     img = Image.open(io.BytesIO(img_bytes))
+    try:
+        img.draft("RGB", (max_size, max_size))   # JPEG : décodage directement en taille réduite (mémoire ÷ 4 à 16)
+    except Exception:  # noqa: BLE001
+        pass
     if img.mode != "RGB":
         img = img.convert("RGB")
     img.thumbnail((max_size, max_size), Image.LANCZOS)
@@ -185,15 +189,28 @@ MISTRAL_MODELES = [m.strip() for m in os.environ.get(
     "mistral-medium-latest,mistral-small-latest,pixtral-large-latest,pixtral-12b-2409,mistral-large-latest",
 ).split(",") if m.strip()]
 _mistral_modele_ok = {}
+_MISTRAL = {}
+import threading as _thr  # noqa: E402
+_MISTRAL_LOCK = _thr.Lock()
+# 2 OCR en parallèle au maximum par worker : les autres attendent (les threads lancés sans limite
+# par le webhook ont fait dépasser la mémoire de l'instance Render le 17/09/2026)
+_OCR_SEM = _thr.BoundedSemaphore(2)
+
+
+def _mistral_client():
+    """Client Mistral partagé (import paresseux : accélère le boot). timeout par appel : sans lui, une
+    requête qui pend suffit à faire tuer le worker par gunicorn."""
+    with _MISTRAL_LOCK:
+        if "c" not in _MISTRAL:
+            from mistralai import Mistral
+            _MISTRAL["c"] = Mistral(api_key=MISTRAL_API_KEY, timeout_ms=30000)
+        return _MISTRAL["c"]
 
 
 def extract_with_mistral(image_base64, mime_type="image/jpeg"):
     """Appel Mistral Vision : cascade de modèles (403 palier) + retry sur 429."""
     image_base64 = resize_image(image_base64)
-    from mistralai import Mistral  # import paresseux : accélère le boot du service
-    # timeout par appel : sans lui, une requête qui pend suffit à faire tuer le
-    # worker par gunicorn (le budget global ne borne que les pauses entre essais)
-    client = Mistral(api_key=MISTRAL_API_KEY, timeout_ms=30000)
+    client = _mistral_client()
     last_error = None
     modeles = list(MISTRAL_MODELES)
     if _mistral_modele_ok.get("m") in modeles:
@@ -386,6 +403,15 @@ def ocr_pesee():
 
 
 def _ocr_traite(worksheet_id, model):
+    import gc
+    with _OCR_SEM:
+        try:
+            _ocr_traite_1(worksheet_id, model)
+        finally:
+            gc.collect()
+
+
+def _ocr_traite_1(worksheet_id, model):
     try:
         uid, models = odoo_connect()
 
@@ -687,10 +713,14 @@ def ma_tournee():
         wsmap = {}
         tids = [t["id"] for t in tasks]
         if tids:
+            # bin_size : Odoo renvoie la taille des photos au lieu de leur contenu (on ne teste que
+            # leur présence) — sans cela, chaque ouverture de « Ma tournée » téléchargeait toutes les
+            # photos de la tournée en base64 : dizaines de Mo par requête (dépassement mémoire Render, 17/09/2026)
             for w in x(models, uid, TOURNEE_WS_MODEL, "search_read",
                        [("x_project_task_id", "in", tids)],
                        fields=["x_project_task_id", "x_studio_photo",
-                               "x_studio_photo_1", "x_studio_photo_bon"]):
+                               "x_studio_photo_1", "x_studio_photo_bon"],
+                       context={"bin_size": True}):
                 wsmap[w["x_project_task_id"][0]] = w
 
         html = f'<div class="drv"><span>👤 {_esc(dname)}</span></div>'
