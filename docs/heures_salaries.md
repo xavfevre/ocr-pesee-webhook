@@ -657,3 +657,15 @@ période, **« Solde au (veille) »** à la place de « Heures M-1 », et son
 bouton 📄 Feuille Excel reprend la même période (`build_feuille` avec
 du/au : Heures M-1 = solde à la veille du premier jour). Navigation
 « période précédente / suivante » (même longueur) et « 📆 mois entier ».
+
+### Récup / sans solde « de telle heure à telle heure » (23/09, suite)
+Sur la page salarié, sous chaque nombre d'heures, un créneau facultatif
+« ou de … à … » : le créneau est **retiré des heures travaillées** (même
+découpe que le bureau : plage entière, début, fin, ou le plus long morceau
+si au milieu) et les heures se calculent (quart d'heure). Le bloc est
+repliable (« 🔄 Récup ou 🚫 sans solde pris dans la journée ? ») et s'ouvre
+seul quand il manque des heures. Action 2012 : `hj_recup_de/_a`,
+`hj_ss_de/_a` (heures décimales), durée = heures, refus si le créneau
+chevauche les heures travaillées, note automatique
+« Récup 16:00-17:00 · Sans solde 08:00-09:00 » (visible partout, préremplit
+les champs au rechargement).

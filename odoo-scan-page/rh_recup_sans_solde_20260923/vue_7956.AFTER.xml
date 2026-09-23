@@ -58,13 +58,16 @@
       .mh-ctrl.bad{background:#fee2e2;color:#991b1b;}
       .mh-ctrl.info{background:#f1f5f9;color:#475569;font-weight:600;}
       .mh-manque{margin-top:7px;border:1.5px dashed #f59e0b;border-radius:10px;padding:8px 10px;background:#fffbeb;}
-      .mh-manque .t{font-size:12.5px;font-weight:900;color:#92400e;margin-bottom:5px;}
+      .mh-manque .t{font-size:12.5px;font-weight:900;color:#92400e;margin-bottom:5px;cursor:pointer;}
+      .mh-manque[open] .t{margin-bottom:8px;}
       .mh-manque .q{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
       .mh-q{border:none;border-radius:9px;padding:7px 10px;font-weight:800;font-size:12.5px;cursor:pointer;}
       .mh-q-rec{background:#e0f2fe;color:#075985;}
       .mh-q-ss{background:#fee2e2;color:#991b1b;}
       .mh-manque label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#334155;margin:4px 0;}
-      .mh-manque input{width:76px;margin-left:auto;border:1.5px solid #cbd5e1;border-radius:8px;padding:5px 6px;font-weight:800;text-align:center;font-size:15px;}
+      .mh-manque input[type=number]{width:76px;margin-left:auto;border:1.5px solid #cbd5e1;border-radius:8px;padding:5px 6px;font-weight:800;text-align:center;font-size:15px;}
+      .mh-plage{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#64748b;margin:0 0 6px 24px;flex-wrap:wrap;}
+      .mh-plage input[type=time]{border:1.5px solid #cbd5e1;border-radius:8px;padding:4px 5px;font-weight:700;font-size:13px;width:96px;}
       .mh-lock.l-sans_solde{background:#fee2e2;color:#991b1b;}
       .mh-times{display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 8px;align-items:center;margin-top:4px;}
       .mh-times label{font-size:12.5px;font-weight:800;color:#64748b;}
@@ -261,12 +264,12 @@
           <t t-set="lock" t-value="s and s.x_type in ('cp', 'maladie', 'ferie', 'absence', 'repos')"/>
           <t t-set="stype" t-value="(s and s.x_type) or ''"/>
           <t t-set="s_theo" t-value="s.x_theo if (s and s.x_type in ('travail', 'recup', 'sans_solde')) else theo"/>
-          <div t-attf-class="mh-day t-{{stype or 'vide'}}" t-att-data-date="dstr" t-att-data-type="stype" t-att-data-theo="'%.4f' % s_theo" t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)" t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-hs="s and ('%.4f' % s.x_hs) or ''">
+          <div t-attf-class="mh-day t-{{stype or 'vide'}}" t-att-data-date="dstr" t-att-data-type="stype" t-att-data-theo="'%.4f' % s_theo" t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)" t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-hs="s and ('%.4f' % s.x_hs) or ''" t-att-data-note="(s and s.x_note) or ''">
             <div class="mh-dh">
               <span class="mh-dname"><t t-esc="jours[i]"/> <t t-esc="d.strftime('%d/%m')"/></span>
               <span class="mh-state" t-att-data-role="'state'">
                 <t t-if="s">
-                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="('%.2f' % s.x_heures).replace('.', ',')"/> h<t t-if="s.x_h_recup"> + 🔄 <t t-esc="('%.2f' % s.x_h_recup).replace('.', ',')"/> h récup</t><t t-if="s.x_h_sans_solde"> + 🚫 <t t-esc="('%.2f' % s.x_h_sans_solde).replace('.', ',')"/> h sans solde</t><t t-if="s.x_decouchage"> · 🛏</t></t>
+                  <t t-if="s.x_type == 'travail'">✓ <t t-esc="('%.2f' % s.x_heures).replace('.', ',')"/> h<t t-if="s.x_h_recup"> + 🔄 <t t-esc="('%.2f' % s.x_h_recup).replace('.', ',')"/> h récup</t><t t-if="s.x_h_sans_solde"> + 🚫 <t t-esc="('%.2f' % s.x_h_sans_solde).replace('.', ',')"/> h sans solde</t><t t-if="s.x_note and (s.x_note.startswith('Récup ') or s.x_note.startswith('Sans solde '))"> (<t t-esc="s.x_note"/>)</t><t t-if="s.x_decouchage"> · 🛏</t></t>
                   <t t-elif="s.x_type == 'cp'">🌴 Congés</t>
                   <t t-elif="s.x_type == 'maladie'">🤒 Maladie</t>
                   <t t-elif="s.x_type == 'ferie'">🎉 Férié</t>
@@ -348,19 +351,21 @@
                 🛏 Découchage (nuit en déplacement)
               </label>
               <div class="mh-ctrl info" data-role="ctrl"></div>
-              <div class="mh-manque" data-role="manque" style="display:none;">
-                <div class="t">Heures manquantes : de quoi s'agit-il ?</div>
-                <div class="q">
+              <details class="mh-manque" data-role="manque" style="display:none;">
+                <summary class="t" data-role="manque-t">🔄 Récup ou 🚫 sans solde pris dans la journée ? (facultatif)</summary>
+                <div class="q" data-role="manque-q">
                   <button type="button" class="mh-q mh-q-rec" data-act="q-recup">🔄 Tout en récup</button>
                   <button type="button" class="mh-q mh-q-ss" data-act="q-ss">🚫 Tout sans solde</button>
                 </div>
                 <label>🔄 Heures prises en récup
                   <input type="number" data-f="h_recup" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_recup) if (s and s.x_type == 'travail' and s.x_h_recup) else ''"/> h
                 </label>
+                <div class="mh-plage">ou de <input type="time" data-f="recup_de"/> à <input type="time" data-f="recup_a"/> <span>(le créneau est retiré de vos heures, les heures se calculent)</span></div>
                 <label>🚫 Heures sans solde (non payées)
                   <input type="number" data-f="h_ss" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_sans_solde) if (s and s.x_type == 'travail' and s.x_h_sans_solde) else ''"/> h
                 </label>
-              </div>
+                <div class="mh-plage">ou de <input type="time" data-f="ss_de"/> à <input type="time" data-f="ss_a"/></div>
+              </details>
               <button type="button" class="mh-save" data-act="save">💾 Enregistrer cette journée</button>
             </t>
           </div>
@@ -613,11 +618,68 @@
       cls = 'warn'; show = true;
     }
     ctrl.innerHTML = txt; ctrl.className = 'mh-ctrl ' + cls;
-    if(mq){ mq.style.display = show ? '' : 'none'; }
+    if(mq){
+      mq.style.display = (theo &lt;= 0) ? 'none' : '';
+      var mt = card.querySelector('[data-role=manque-t]'), mqq = card.querySelector('[data-role=manque-q]');
+      var manqueH = (cls === 'warn' || cls === 'bad');
+      if(mt){ mt.textContent = manqueH ? '⚠️ Heures manquantes : de quoi s\'agit-il ?' : ((R || S) ? '🔄 Récup / 🚫 sans solde de la journée' : '🔄 Récup ou 🚫 sans solde pris dans la journée ? (facultatif)'); }
+      if(mqq){ mqq.style.display = manqueH ? '' : 'none'; }
+      if(show){ mq.open = true; }
+    }
     return res;
   }
-  document.querySelectorAll('.mh-day').forEach(function(c){ calc(c); });
-  document.addEventListener('input', function(e){ var card = e.target.closest('.mh-day'); if(card &amp;&amp; e.target.matches('input[data-f]')){ calc(card); } });
+  /* créneau « de … à … » : retiré des heures travaillées (comme le bureau), durée reportée dans le nombre d'heures */
+  function retire(card, de, a){
+    var inp = inputs(card);
+    [[inp.m_deb, inp.m_fin], [inp.am_deb, inp.am_fin]].forEach(function(sg){
+      var s0 = toDec(sg[0].value), s1 = toDec(sg[1].value);
+      if(!(s1 &gt; s0) || a &lt;= s0 || de &gt;= s1){ return; }
+      if(de &lt;= s0 &amp;&amp; a &gt;= s1){ sg[0].value = ''; sg[1].value = ''; return; }
+      if(de &lt;= s0){ sg[0].value = fromDec(a); return; }
+      if(a &gt;= s1){ sg[1].value = fromDec(de); return; }
+      if((de - s0) &gt;= (s1 - a)){ sg[1].value = fromDec(de); } else { sg[0].value = fromDec(a); }
+    });
+  }
+  function plage(card, cle){
+    var inp = inputs(card); var i1 = inp[cle + '_de'], i2 = inp[cle + '_a'], n = inp['h_' + cle];
+    if(!i1 || !i2 || !n){ return null; }
+    if(!i1.value || !i2.value){ return null; }
+    var de = toDec(i1.value), a = toDec(i2.value);
+    if(!(de &lt; a)){ n.value = ''; return null; }
+    return {de:de, a:a, h:q4(a - de)};
+  }
+  function appliquePlage(card, cle){
+    var p = plage(card, cle); if(!p){ return; }
+    retire(card, p.de, p.a);
+    inputs(card)['h_' + cle].value = String(p.h);
+    var autre = (cle === 'recup') ? 'ss' : 'recup';
+    var q = plage(card, autre); if(q){ inputs(card)['h_' + autre].value = String(q.h); }
+    calc(card);
+  }
+  function videPlages(card, cle){
+    var inp = inputs(card);
+    (cle ? [cle] : ['recup', 'ss']).forEach(function(k){ if(inp[k + '_de']){ inp[k + '_de'].value = ''; } if(inp[k + '_a']){ inp[k + '_a'].value = ''; } });
+  }
+  function prefill(card){
+    var note = card.getAttribute('data-note') || ''; var inp = inputs(card);
+    [['Récup', 'recup'], ['Sans solde', 'ss']].forEach(function(p){
+      var m = note.match(new RegExp(p[0] + ' (\\d\\d:\\d\\d)-(\\d\\d:\\d\\d)'));
+      if(m &amp;&amp; inp[p[1] + '_de'] &amp;&amp; inp[p[1] + '_a']){ inp[p[1] + '_de'].value = m[1]; inp[p[1] + '_a'].value = m[2]; }
+    });
+  }
+  document.querySelectorAll('.mh-day').forEach(function(c){ prefill(c); calc(c); });
+  document.addEventListener('input', function(e){
+    var card = e.target.closest('.mh-day'); if(!card || !e.target.matches('input[data-f]')){ return; }
+    var f = e.target.getAttribute('data-f');
+    if(f === 'h_recup' || f === 'h_ss'){ videPlages(card, f === 'h_recup' ? 'recup' : 'ss'); }
+    calc(card);
+  });
+  document.addEventListener('change', function(e){
+    var card = e.target.closest('.mh-day'); if(!card || !e.target.matches('input[data-f]')){ return; }
+    var f = e.target.getAttribute('data-f');
+    if(f === 'recup_de' || f === 'recup_a'){ appliquePlage(card, 'recup'); }
+    if(f === 'ss_de' || f === 'ss_a'){ appliquePlage(card, 'ss'); }
+  });
   totals();
   /* Enregistrement via le relais Render, PAS /web/dataset/call_kw : cette page
      est consultée sans compte Odoo (lien signé), et call_kw est réservé aux
@@ -640,6 +702,11 @@
     var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_token:TOK, hj_date:card.getAttribute('data-date'), hj_type:typ,
                hj_m_deb:md, hj_m_fin:mf, hj_am_deb:ad, hj_am_fin:af,
                hj_h_recup:(typ === 'travail' ? (R || 0) : 0), hj_h_ss:(typ === 'travail' ? (S || 0) : 0)};
+    if(typ === 'travail'){
+      var pr = plage(card, 'recup'), ps = plage(card, 'ss');
+      if(pr){ ctx.hj_recup_de = pr.de; ctx.hj_recup_a = pr.a; ctx.hj_h_recup = pr.h; }
+      if(ps){ ctx.hj_ss_de = ps.de; ctx.hj_ss_a = ps.a; ctx.hj_h_ss = ps.h; }
+    }
     var dec = card.querySelector('input[data-f=decouchage]');
     ctx.hj_decouchage = (dec &amp;&amp; dec.checked) ? 1 : 0;
     card.style.opacity = .5;
@@ -655,11 +722,18 @@
       var st = card.querySelector('[data-role="state"]');
       var inp = inputs(card);
       if(ty === 'travail'){
-        st.textContent = '✓ ' + fr(res.heures||0) + ' h' + (res.h_recup ? ' + 🔄 ' + fr(res.h_recup) + ' h récup' : '') + (res.h_ss ? ' + 🚫 ' + fr(res.h_ss) + ' h sans solde' : '');
+        var pr2 = plage(card, 'recup'), ps2 = plage(card, 'ss');
+        var det = [];
+        if(pr2 &amp;&amp; res.h_recup){ det.push('Récup ' + fromDec(pr2.de) + '-' + fromDec(pr2.a)); }
+        if(ps2 &amp;&amp; res.h_ss){ det.push('Sans solde ' + fromDec(ps2.de) + '-' + fromDec(ps2.a)); }
+        if(!res.h_recup){ videPlages(card, 'recup'); }
+        if(!res.h_ss){ videPlages(card, 'ss'); }
+        st.textContent = '✓ ' + fr(res.heures||0) + ' h' + (res.h_recup ? ' + 🔄 ' + fr(res.h_recup) + ' h récup' : '') + (res.h_ss ? ' + 🚫 ' + fr(res.h_ss) + ' h sans solde' : '') + (det.length ? ' (' + det.join(' · ') + ')' : '');
         if(inp.h_recup){ inp.h_recup.value = res.h_recup ? String(res.h_recup) : ''; }
         if(inp.h_ss){ inp.h_ss.value = res.h_ss ? String(res.h_ss) : ''; }
       } else {
         st.textContent = LBL[ty] || ty;
+        videPlages(card);
         card.querySelectorAll('.mh-times input').forEach(function(i){ i.value=''; });
         if(inp.h_recup){ inp.h_recup.value = ''; }
         if(inp.h_ss){ inp.h_ss.value = ''; }
@@ -683,6 +757,7 @@
       inp.am_deb.value = card.getAttribute('data-tad'); inp.am_fin.value = card.getAttribute('data-taf');
       if(inp.h_recup){ inp.h_recup.value = ''; }
       if(inp.h_ss){ inp.h_ss.value = ''; }
+      videPlages(card);
       save(card, 'travail', toDec(inp.m_deb.value), toDec(inp.m_fin.value), toDec(inp.am_deb.value), toDec(inp.am_fin.value), 0, 0);
       return;
     }
@@ -697,6 +772,7 @@
     if(act === 'q-recup' || act === 'q-ss'){
       var r0 = calc(card); if(!r0){ return; }
       var reste = q4(Math.max(r0.theo - r0.H, 0));
+      videPlages(card);
       if(inp.h_recup){ inp.h_recup.value = (act === 'q-recup' &amp;&amp; reste) ? String(reste) : ''; }
       if(inp.h_ss){ inp.h_ss.value = (act === 'q-ss' &amp;&amp; reste) ? String(reste) : ''; }
       calc(card); return;

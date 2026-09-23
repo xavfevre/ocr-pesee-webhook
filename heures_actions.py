@@ -147,6 +147,10 @@ def _fr(h):
     return ("%.2f" % h).replace(".", ",")
 
 
+def _hm(h):
+    return "%02d:%02d" % (int(h), round((h - int(h)) * 60))
+
+
 def _delta_recup(typ, heures, theo, h_ss, payees):
     """Heures du jour comptées dans le solde « à récupérer » (x_hs) :
     - jour travaillé : travaillé + sans solde − horaire. Les heures faites en plus s'ajoutent au solde
@@ -260,6 +264,29 @@ def _a2012(call, ctx):
                     h_ss = _quart(ctx.get("hj_h_ss") or 0.0)
                 except (TypeError, ValueError):
                     raise HeuresErreur("Heures de récup / sans solde invalides.")
+                # créneaux « de telle heure à telle heure » : la durée fait foi, note automatique
+                plages = []
+                for cle, lbl in (("recup", "Récup"), ("ss", "Sans solde")):
+                    de, a = ctx.get("hj_%s_de" % cle), ctx.get("hj_%s_a" % cle)
+                    if de in (None, "") or a in (None, ""):
+                        continue
+                    try:
+                        de, a = float(de), float(a)
+                    except (TypeError, ValueError):
+                        raise HeuresErreur("Créneau de %s invalide." % lbl.lower())
+                    if not (0.0 <= de < a <= 24.0):
+                        raise HeuresErreur("%s : indiquez une heure de début avant l'heure de fin." % lbl)
+                    for (h1, h2) in ((md, mf), (ad, af)):
+                        if h2 > h1 and de < h2 and a > h1:
+                            raise HeuresErreur("Le créneau %s de %s à %s chevauche vos heures travaillées (%s-%s). Corrigez les horaires."
+                                               % (lbl.lower(), _hm(de), _hm(a), _hm(h1), _hm(h2)))
+                    if cle == "recup":
+                        h_recup = _quart(a - de)
+                    else:
+                        h_ss = _quart(a - de)
+                    plages.append("%s %s-%s" % (lbl, _hm(de), _hm(a)))
+                if plages:
+                    note = " · ".join(plages)
                 if h_recup < 0 or h_ss < 0 or h_recup > 12 or h_ss > 12:
                     raise HeuresErreur("Heures de récup / sans solde : entre 0 et 12 h.")
                 manque = max(theo - heures, 0.0)
