@@ -358,11 +358,11 @@
                   <button type="button" class="mh-q mh-q-ss" data-act="q-ss">🚫 Tout sans solde</button>
                 </div>
                 <label>🔄 Heures prises en récup
-                  <input type="number" data-f="h_recup" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_recup) if (s and s.x_type == 'travail' and s.x_h_recup) else ''"/> h
+                  <input type="number" data-f="h_recup" step="any" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_recup) if (s and s.x_type == 'travail' and s.x_h_recup) else ''"/> h
                 </label>
                 <div class="mh-plage">ou de <input type="time" data-f="recup_de"/> à <input type="time" data-f="recup_a"/> <span>(le créneau est retiré de vos heures, les heures se calculent)</span></div>
                 <label>🚫 Heures sans solde (non payées)
-                  <input type="number" data-f="h_ss" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_sans_solde) if (s and s.x_type == 'travail' and s.x_h_sans_solde) else ''"/> h
+                  <input type="number" data-f="h_ss" step="any" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_sans_solde) if (s and s.x_type == 'travail' and s.x_h_sans_solde) else ''"/> h
                 </label>
                 <div class="mh-plage">ou de <input type="time" data-f="ss_de"/> à <input type="time" data-f="ss_a"/></div>
               </details>
@@ -587,7 +587,7 @@
   }
   function inputs(card){ var o = {}; card.querySelectorAll('input[data-f]').forEach(function(i){ o[i.getAttribute('data-f')] = i; }); return o; }
   function num(i){ if(!i || i.value === ''){ return 0; } var v = parseFloat(String(i.value).replace(',', '.')); return isNaN(v) ? 0 : v; }
-  function q4(v){ return Math.round(v*4)/4; }
+  function q4(v){ return Math.round(v*60)/60; }   /* à la minute, comme les horaires */
   /* ligne de contrôle : ce que donne la journée, en clair, avant d'enregistrer */
   function calc(card){
     var inp = inputs(card); var ctrl = card.querySelector('[data-role=ctrl]'); var mq = card.querySelector('[data-role=manque]');

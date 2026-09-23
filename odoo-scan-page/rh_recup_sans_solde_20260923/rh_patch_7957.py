@@ -92,8 +92,8 @@ rep("""          <button type="button" class="ha-bt c-recup" data-t="recup">Réc
           <label>Ap.-midi</label><input type="time" id="ha-ad"/><input type="time" id="ha-af"/>
         </div>
         <div class="ha-extra">
-          <label for="ha-hr">🔄 Récup prise (h)</label><input type="number" id="ha-hr" step="0.25" min="0" max="12" placeholder="0"/>
-          <label for="ha-hs">🚫 Sans solde (h)</label><input type="number" id="ha-hs" step="0.25" min="0" max="12" placeholder="0"/>
+          <label for="ha-hr">🔄 Récup prise (h)</label><input type="number" id="ha-hr" step="any" min="0" max="12" placeholder="0"/>
+          <label for="ha-hs">🚫 Sans solde (h)</label><input type="number" id="ha-hs" step="any" min="0" max="12" placeholder="0"/>
           <label style="grid-column:1/-1;display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="ha-pay"/> Heures sup payées (pas mises en récup)</label>
         </div>""")
 # 📋 : même période que 📄

@@ -128,8 +128,8 @@
                 <td><input type="time" data-f="am_fin" t-att-value="fmt(s.x_am_fin) if (s and typ == 'travail') else ''"/></td>
                 <td data-role="h"><t t-if="typ == 'travail'" t-esc="('%.2f' % s.x_heures).replace('.', ',')"/></td>
                 <td t-attf-class="hs {{('pos' if s.x_hs &gt;= 0 else 'neg') if solde else ''}}" data-role="hs"><t t-if="solde" t-esc="('%+.2f' % s.x_hs).replace('.', ',')"/></td>
-                <td><input type="number" data-f="h_recup" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_recup) if (s and typ == 'travail' and s.x_h_recup) else ''"/></td>
-                <td><input type="number" data-f="h_ss" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_sans_solde) if (s and typ == 'travail' and s.x_h_sans_solde) else ''"/></td>
+                <td><input type="number" data-f="h_recup" step="any" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_recup) if (s and typ == 'travail' and s.x_h_recup) else ''"/></td>
+                <td><input type="number" data-f="h_ss" step="any" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_sans_solde) if (s and typ == 'travail' and s.x_h_sans_solde) else ''"/></td>
                 <td><input type="checkbox" data-f="payees" t-att-checked="'checked' if (s and s.x_hs_payees) else None"/></td>
                 <td>
                   <select data-f="type">

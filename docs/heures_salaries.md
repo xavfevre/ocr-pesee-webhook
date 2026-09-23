@@ -580,7 +580,7 @@ des prix Nobel »), et **les heures supplémentaires vont par défaut en récup*
 - Le jeton salarié peut poser `travail`, `recup` et `sans_solde` ; CP,
   maladie, férié, absence, repos restent réservés au bureau (et une journée
   posée par le bureau n'est pas modifiable par le salarié).
-- Jour travaillé : `hj_h_recup` / `hj_h_ss` (quarts d'heure, 0–12), refusés
+- Jour travaillé : `hj_h_recup` / `hj_h_ss` (à la minute, 0–12), refusés
   si récup + sans solde > heures manquantes (message explicite). 0 h
   travaillée + récup = horaire ⇒ normalisé en journée `recup` (idem sans
   solde). `hj_hs_payees` (bureau). Note conservée si `hj_note` absent (sauf
@@ -662,7 +662,7 @@ du/au : Heures M-1 = solde à la veille du premier jour). Navigation
 Sur la page salarié, sous chaque nombre d'heures, un créneau facultatif
 « ou de … à … » : le créneau est **retiré des heures travaillées** (même
 découpe que le bureau : plage entière, début, fin, ou le plus long morceau
-si au milieu) et les heures se calculent (quart d'heure). Le bloc est
+si au milieu) et les heures se calculent (à la minute). Le bloc est
 repliable (« 🔄 Récup ou 🚫 sans solde pris dans la journée ? ») et s'ouvre
 seul quand il manque des heures. Action 2012 : `hj_recup_de/_a`,
 `hj_ss_de/_a` (heures décimales), durée = heures, refus si le créneau

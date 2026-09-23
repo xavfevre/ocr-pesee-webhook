@@ -139,8 +139,9 @@ LBL_JOUR = {"cp": "Congés payés", "recup": "Récupération", "maladie": "Malad
 
 
 def _quart(v):
-    """Arrondi au quart d'heure."""
-    return round(float(v or 0.0) * 4) / 4.0
+    """Arrondi à la minute (les horaires sont saisis à la minute : 13:20…), pour que
+    « tout le manque en récup » tombe juste."""
+    return round(float(v or 0.0) * 60) / 60.0
 
 
 def _fr(h):
