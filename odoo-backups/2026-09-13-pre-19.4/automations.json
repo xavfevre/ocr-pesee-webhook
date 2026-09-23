@@ -18,18 +18,18 @@
  },
  {
   "id": 6,
-  "name": "Création automatique comptes 411A/401A pour nouveaux clients",
+  "action_server_ids": [
+   1016
+  ],
+  "active": true,
+  "filter_domain": "[\"|\", (\"company_id\", \"=\", False), (\"company_id\", \"in\", [2])]",
   "model_id": [
    90,
    "Contact"
   ],
+  "name": "Création automatique comptes 411A/401A pour nouveaux clients",
   "trigger": "on_create",
-  "trigger_field_ids": [],
-  "filter_domain": "[\"|\", (\"company_id\", \"=\", False), (\"company_id\", \"in\", [2])]",
-  "action_server_ids": [
-   1016
-  ],
-  "active": true
+  "trigger_field_ids": []
  },
  {
   "id": 8,
@@ -123,18 +123,18 @@
  },
  {
   "id": 15,
-  "name": "Création automatique comptes 411D/401D pour nouveaux clients",
+  "action_server_ids": [
+   1204
+  ],
+  "active": true,
+  "filter_domain": "[\"|\", (\"company_id\", \"=\", False), (\"company_id\", \"in\", [7])]",
   "model_id": [
    90,
    "Contact"
   ],
+  "name": "Création automatique comptes 411D/401D pour nouveaux clients",
   "trigger": "on_create",
-  "trigger_field_ids": [],
-  "filter_domain": "[\"|\", (\"company_id\", \"=\", False), (\"company_id\", \"in\", [7])]",
-  "action_server_ids": [
-   1204
-  ],
-  "active": true
+  "trigger_field_ids": []
  },
  {
   "id": 16,
@@ -154,5 +154,22 @@
    1207
   ],
   "active": true
+ },
+ {
+  "id": 17,
+  "action_server_ids": [
+   1208
+  ],
+  "active": true,
+  "filter_domain": "[\"&\", (\"move_type\", \"in\", [\"in_invoice\", \"in_refund\"]), (\"company_id\", \"in\", [2, 7])]",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "name": "Comptes fournisseur à la facture fournisseur",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   8298
+  ]
  }
 ]
