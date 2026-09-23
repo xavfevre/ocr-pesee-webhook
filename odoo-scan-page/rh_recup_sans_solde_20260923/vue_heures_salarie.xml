@@ -13,6 +13,10 @@
       .fs-emp a:hover{background:#334155;}
       .fs-emp select{border:1px solid #475569;border-radius:9px;padding:6px 8px;font-weight:800;background:#fff;color:#0f172a;max-width:320px;}
       .fs-emp .l{color:#94a3b8;font-size:12px;font-weight:800;}
+      .fs-per{display:inline-flex;align-items:center;gap:6px;font-weight:300;font-size:22px;}
+      .fs-per input[type=date]{border:1.5px solid #cbd5e1;border-radius:9px;padding:4px 8px;font-weight:800;font-size:16px;color:#0f172a;background:#fff;}
+      .fs-per button{border:none;border-radius:9px;background:#0f172a;color:#fff;font-weight:800;padding:7px 12px;cursor:pointer;font-size:14px;}
+      .fs-per button:disabled{opacity:.5;}
       table.fs{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;}
       .fs th{background:#0f172a;color:#e2e8f0;padding:6px 5px;font-size:11.5px;text-align:center;}
       .fs td{border-bottom:1px solid #e2e8f0;padding:3px 4px;text-align:center;font-weight:700;}
@@ -95,7 +99,9 @@
         <t t-set="e_next" t-value="tous[pos + 1] if (pos &gt;= 0 and pos + 1 &lt; len(tous_ids)) else None"/>
         <t t-set="exc_brut" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_exc') or '{}'"/>
         <div class="fs-head">
-          <h4 style="font-weight:300;margin:0;">📋 <b t-esc="emp.name"/> — <t t-if="libre">du <b t-esc="d1.strftime('%d/%m/%Y')"/> au <b t-esc="d2.strftime('%d/%m/%Y')"/></t><t t-else=""><t t-esc="mois_noms[d1.month - 1]"/> <t t-esc="d1.year"/></t> <span style="color:#94a3b8;font-size:13px;"> · <t t-esc="emp.company_id.name"/> · <t t-esc="cal.name if cal else 'sans horaire'"/></span></h4>
+          <h4 style="font-weight:300;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">📋 <b t-esc="emp.name"/> — <t t-if="not libre"><span><t t-esc="mois_noms[d1.month - 1]"/> <t t-esc="d1.year"/> :</span></t>
+            <span class="fs-per" title="Période de paie de ce salarié : modifiez les dates puis « Afficher » (mémorisées, comme sur sa ligne dans Heures salariés)">du <input type="date" id="fs-du" t-att-value="d1.strftime('%Y-%m-%d')"/> au <input type="date" id="fs-au" t-att-value="d2.strftime('%Y-%m-%d')"/> <button type="button" id="fs-per-go">Afficher</button></span>
+            <span style="color:#94a3b8;font-size:13px;"> · <t t-esc="emp.company_id.name"/> · <t t-esc="cal.name if cal else 'sans horaire'"/></span></h4>
           <div class="fs-nav">
             <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;{{q_prev}}&amp;k={{kk}}">◀ <t t-if="libre">période précédente</t><t t-else=""><t t-esc="mois_noms[int(m_prev[5:7]) - 1]"/></t></a>
             <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;k={{kk}}">Ce mois</a>
@@ -209,6 +215,19 @@
   document.querySelectorAll('a.fs-emp-lnk').forEach(function(a){ a.setAttribute('href', lienEmp(a.getAttribute('data-emp'))); });
   var selEmp = document.getElementById('fs-emp-sel');
   if(selEmp){ selEmp.addEventListener('change', function(){ if(selEmp.value){ location.href = lienEmp(selEmp.value); } }); }
+  /* dates du/au du titre : mémorisées pour ce salarié (action 2090, même mémoire que la ligne de /heures-admin), puis rechargement */
+  var perGo = document.getElementById('fs-per-go');
+  function appliquePeriode(){
+    var d = document.getElementById('fs-du').value, f = document.getElementById('fs-au').value;
+    if(!d || !f || d &gt; f){ alert('Choisissez des dates valides (du ≤ au).'); return; }
+    perGo.disabled = true; perGo.textContent = '…';
+    var lignes = {}; lignes[String(EMP)] = [d, f];
+    fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action_id:2090, ctx:{active_model:'x_heures_jour', hj_k:KK, lignes:lignes}})})
+      .then(function(r){ return r.json(); }).catch(function(){ return {}; })
+      .then(function(){ location.href = '/heures-salarie?emp=' + EMP + '&amp;du=' + d + '&amp;au=' + f + '&amp;k=' + KK; });
+  }
+  if(perGo){ perGo.addEventListener('click', appliquePeriode); }
+  ['fs-du', 'fs-au'].forEach(function(id){ var i = document.getElementById(id); if(i){ i.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ appliquePeriode(); } }); } });
   var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
   function toDec(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1]||0,10)/60; }
   function fr(h){ return (Math.round(h*100)/100).toFixed(2).replace('.', ','); }

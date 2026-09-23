@@ -675,3 +675,9 @@ Barre « ◀ précédent · liste déroulante par société · suivant ▶ » en
 la fiche, même ordre que /heures-admin (société puis nom). Le salarié cible
 s'ouvre sur **sa** période de paie mémorisée (`maquignon.heures_export_exc`,
 dates de sa ligne), sinon sur la période affichée.
+
+### Fiche : dates de la période modifiables (23/09, suite)
+Les dates « du … au … » du titre sont des champs de saisie ; « Afficher »
+mémorise la période pour ce salarié (action 2090, même mémoire que les
+dates de sa ligne dans /heures-admin, `maquignon.heures_export_exc`) puis
+recharge la fiche. En vue mois, les champs sont préremplis avec le mois.
