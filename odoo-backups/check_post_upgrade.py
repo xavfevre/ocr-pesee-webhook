@@ -47,7 +47,7 @@ for a in autos:
 # ── 3. Actions serveur custom : le code compile toujours (syntaxe) ──
 print("\n— Actions serveur clés —")
 for aid in (1189, 1190, 1191, 1192, 1194, 1195, 1016, 1204, 1113, 1114,
-            1163, 1199, 1200, 1201, 1202, 1205, 1206, 1207):
+            1163, 1199, 1200, 1201, 1202, 1205, 1206, 1207, 1208):
     try:
         code = EK('ir.actions.server', 'read', [[aid]], fields=['code'])[0]['code']
         compile(code, f'<a{aid}>', 'exec')
