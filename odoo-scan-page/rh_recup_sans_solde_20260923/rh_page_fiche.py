@@ -17,6 +17,17 @@ JS = r'''
   var KK = document.getElementById('fs-k').getAttribute('data-k');
   var EMP = parseInt(document.getElementById('fs-k').getAttribute('data-emp'), 10);
   var M1 = parseFloat(document.getElementById('fs-k').getAttribute('data-m1') || 0);
+  var QPER = document.getElementById('fs-k').getAttribute('data-qper') || '';
+  var EXC = {};
+  try { EXC = JSON.parse(document.getElementById('fs-k').getAttribute('data-exc') || '{}'); } catch(e){ EXC = {}; }
+  function lienEmp(id){
+    var per = EXC[String(id)];
+    var q = (per && per.length === 2 && per[0] && per[1]) ? ('du=' + per[0] + '&au=' + per[1]) : QPER;
+    return '/heures-salarie?emp=' + id + '&' + q + '&k=' + KK;
+  }
+  document.querySelectorAll('a.fs-emp-lnk').forEach(function(a){ a.setAttribute('href', lienEmp(a.getAttribute('data-emp'))); });
+  var selEmp = document.getElementById('fs-emp-sel');
+  if(selEmp){ selEmp.addEventListener('change', function(){ if(selEmp.value){ location.href = lienEmp(selEmp.value); } }); }
   var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
   function toDec(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1]||0,10)/60; }
   function fr(h){ return (Math.round(h*100)/100).toFixed(2).replace('.', ','); }
@@ -139,6 +150,11 @@ ARCH = r'''<t t-name="website.heures_salarie">
       .fs-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
       .fs-nav a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;display:inline-block;margin-bottom:4px;}
       .fs-info{background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#475569;font-size:12.5px;font-weight:600;line-height:1.45;}
+      .fs-emp{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;background:#0f172a;border-radius:12px;padding:8px 12px;}
+      .fs-emp a{border:1px solid #475569;border-radius:9px;padding:6px 12px;font-weight:800;text-decoration:none;color:#e2e8f0;background:#1e293b;}
+      .fs-emp a:hover{background:#334155;}
+      .fs-emp select{border:1px solid #475569;border-radius:9px;padding:6px 8px;font-weight:800;background:#fff;color:#0f172a;max-width:320px;}
+      .fs-emp .l{color:#94a3b8;font-size:12px;font-weight:800;}
       table.fs{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;}
       .fs th{background:#0f172a;color:#e2e8f0;padding:6px 5px;font-size:11.5px;text-align:center;}
       .fs td{border-bottom:1px solid #e2e8f0;padding:3px 4px;text-align:center;font-weight:700;}
@@ -212,6 +228,14 @@ ARCH = r'''<t t-name="website.heures_salarie">
         <t t-set="rl" t-value="request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',emp.id),('x_date','&lt;=',m0.strftime('%Y-%m-%d'))])"/>
         <t t-set="m_1" t-value="(emp.x_recup_solde or 0.0) + sum(rl.filtered(lambda l: not cp_ref or l.x_date &gt; cp_ref).mapped('x_heures')) + sum(avant.filtered(lambda r: not cp_ref or r.x_date &gt; cp_ref).mapped('x_hs'))"/>
         <t t-set="mrows" t-value="[r for r in rows if d1 &lt;= r.x_date and r.x_date &lt;= d2]"/>
+        <!-- navigation entre salariés : même ordre que /heures-admin (société puis nom) ; la période de paie mémorisée
+             du salarié cible (paramètre maquignon.heures_export_exc) est reprise par le script, sinon la période affichée -->
+        <t t-set="tous" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
+        <t t-set="tous_ids" t-value="tous.ids"/>
+        <t t-set="pos" t-value="tous_ids.index(emp.id) if emp.id in tous_ids else -1"/>
+        <t t-set="e_prev" t-value="tous[pos - 1] if pos &gt; 0 else None"/>
+        <t t-set="e_next" t-value="tous[pos + 1] if (pos &gt;= 0 and pos + 1 &lt; len(tous_ids)) else None"/>
+        <t t-set="exc_brut" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_exc') or '{}'"/>
         <div class="fs-head">
           <h4 style="font-weight:300;margin:0;">📋 <b t-esc="emp.name"/> — <t t-if="libre">du <b t-esc="d1.strftime('%d/%m/%Y')"/> au <b t-esc="d2.strftime('%d/%m/%Y')"/></t><t t-else=""><t t-esc="mois_noms[d1.month - 1]"/> <t t-esc="d1.year"/></t> <span style="color:#94a3b8;font-size:13px;"> · <t t-esc="emp.company_id.name"/> · <t t-esc="cal.name if cal else 'sans horaire'"/></span></h4>
           <div class="fs-nav">
@@ -224,6 +248,21 @@ ARCH = r'''<t t-name="website.heures_salarie">
             <a t-attf-href="/planning-rh?k={{kk}}&amp;mois={{d1.strftime('%Y-%m')}}">📅 Planning</a>
             <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{emp.x_heures_token or ''}}&amp;vue=mois&amp;mois={{d1.strftime('%Y-%m')}}" target="_blank">👤 Page du salarié</a>
           </div>
+        </div>
+        <div class="fs-emp">
+          <span class="l">SALARIÉ</span>
+          <a t-if="e_prev" class="fs-emp-lnk" t-att-data-emp="e_prev.id" t-attf-href="/heures-salarie?emp={{e_prev.id}}&amp;{{q_per}}&amp;k={{kk}}" title="Salarié précédent (ordre de la liste Heures)">◀ <t t-esc="e_prev.name"/></a>
+          <select id="fs-emp-sel" title="Aller à un autre salarié">
+            <t t-foreach="tous.mapped('company_id')" t-as="co">
+              <optgroup t-att-label="co.name">
+                <t t-foreach="tous.filtered(lambda e0: e0.company_id.id == co.id)" t-as="e0">
+                  <option t-att-value="e0.id" t-att-selected="'selected' if e0.id == emp.id else None" t-esc="e0.name"/>
+                </t>
+              </optgroup>
+            </t>
+          </select>
+          <a t-if="e_next" class="fs-emp-lnk" t-att-data-emp="e_next.id" t-attf-href="/heures-salarie?emp={{e_next.id}}&amp;{{q_per}}&amp;k={{kk}}" title="Salarié suivant (ordre de la liste Heures)"><t t-esc="e_next.name"/> ▶</a>
+          <span class="l" t-if="pos &gt;= 0"><t t-esc="pos + 1"/> / <t t-esc="len(tous_ids)"/></span>
         </div>
         <div class="fs-info">
           ✏️ <b>Chaque ligne s'enregistre toute seule</b> dès qu'une case est modifiée (✓ à droite de la ligne). <b>⚡</b> = horaire habituel.
@@ -295,7 +334,7 @@ ARCH = r'''<t t-name="website.heures_salarie">
           <div>⛔ Absences<b><t t-esc="len([r for r in mrows if r.x_type == 'absence'])"/> j</b></div>
         </div>
         <div style="color:#94a3b8;font-size:11.5px;font-weight:600;">Heures M-1 (ou Solde au …) = arrêté bureau (page ⏰ Horaires par défaut) + heures comptées en récup depuis, jusqu'à la veille de la période. Reste heures = ce solde + Récup ± de la période. Les jours grisés sont hors période (comptés dans la semaine, pas dans les totaux). Depuis 🗓 Heures, le bouton 📋 ouvre la fiche sur les dates saisies sur la ligne du salarié (sinon les dates de l'en-tête, sinon le mois).</div>
-        <div id="fs-k" t-att-data-k="kk" t-att-data-emp="emp.id" t-att-data-m1="'%.4f' % m_1" style="display:none;"/>
+        <div id="fs-k" t-att-data-k="kk" t-att-data-emp="emp.id" t-att-data-m1="'%.4f' % m_1" t-att-data-qper="q_per" t-att-data-exc="exc_brut" style="display:none;"/>
         <script>__JS__</script>
       </t>
     </div>

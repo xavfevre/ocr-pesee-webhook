@@ -669,3 +669,9 @@ seul quand il manque des heures. Action 2012 : `hj_recup_de/_a`,
 chevauche les heures travaillées, note automatique
 « Récup 16:00-17:00 · Sans solde 08:00-09:00 » (visible partout, préremplit
 les champs au rechargement).
+
+### Fiche : passer d'un salarié à l'autre (23/09, suite)
+Barre « ◀ précédent · liste déroulante par société · suivant ▶ » en haut de
+la fiche, même ordre que /heures-admin (société puis nom). Le salarié cible
+s'ouvre sur **sa** période de paie mémorisée (`maquignon.heures_export_exc`,
+dates de sa ligne), sinon sur la période affichée.
