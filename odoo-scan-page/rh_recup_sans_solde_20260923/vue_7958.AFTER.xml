@@ -1,0 +1,322 @@
+<t t-name="website.planning_rh">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f8fafc;}
+      .pr-wrap{max-width:none;width:100%;margin:0 auto;padding:14px 22px;box-sizing:border-box;}
+      .pr-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+      .pr-nav a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;}
+      .pr-dem{background:#fff7ed;border:1.5px solid #fdba74;border-radius:12px;padding:10px 14px;margin-bottom:10px;}
+      .pr-dem-l{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #fed7aa;flex-wrap:wrap;}
+      .pr-dem-l:first-of-type{border-top:none;}
+      .pr-ok{border:none;border-radius:8px;background:#16a34a;color:#fff;font-weight:800;padding:7px 12px;cursor:pointer;}
+      .pr-no{border:none;border-radius:8px;background:#dc2626;color:#fff;font-weight:800;padding:7px 12px;cursor:pointer;}
+      table.pr{border-collapse:collapse;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;width:100%;table-layout:fixed;}
+      .pr th{background:#0f172a;color:#e2e8f0;padding:6px 3px;text-align:center;font-size:12px;}
+      .pr th.emp{text-align:left;padding:6px 10px;width:200px;}
+      .pr td{border:1px solid #e2e8f0;text-align:center;padding:5px 2px;font-weight:800;height:30px;}
+      .pr td.emp{text-align:left;padding:5px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800;}
+      .pr td.soc{background:#e2e8f0;color:#334155;font-weight:900;text-align:left;padding:6px 10px;text-transform:uppercase;font-size:12.5px;}
+      .d-off{background:#f1f5f9;color:#cbd5e1;}
+      .d-t{background:#dcfce7;color:#14532d;}
+      .d-cp{background:#fbbf24;color:#7c2d12;}
+      .d-demi{font-weight:800;}
+      .d-mal{background:#f87171;color:#7f1d1d;}
+      .d-fer{background:#c4b5fd;color:#4c1d95;}
+      .d-abs{background:#b91c1c;color:#fff;}
+      .d-rec{background:#7dd3fc;color:#0c4a6e;}
+      .d-ss{background:#fecaca;color:#7f1d1d;}
+      .d-rep{background:#e2e8f0;color:#64748b;}
+      .d-pend{outline:2.5px dashed #f59e0b;outline-offset:-2.5px;}
+      .pr-leg{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;font-weight:700;color:#475569;}
+      .pr-leg span{padding:2px 9px;border-radius:6px;}
+      .pr-scroll{overflow-x:auto;}
+      .pr td[data-emp]{cursor:pointer;}
+      .pr td[data-emp]:hover{outline:2px solid #0f172a;outline-offset:-2px;}
+      .pr-pop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:300;align-items:center;justify-content:center;}
+      .pr-pop.show{display:flex;}
+      .pr-pop-box{background:#fff;border-radius:14px;padding:20px;width:360px;max-width:92vw;}
+      .pr-pop-box h5{margin:0 0 12px;font-weight:900;font-size:16px;}
+      .pr-typ{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px;}
+      .pr-typ button{border:2px solid transparent;border-radius:10px;padding:9px;font-weight:800;font-size:13px;cursor:pointer;}
+      .pr-typ button.on{border-color:#0f172a;}
+      .pr-typ .b-travail{background:#dcfce7;color:#166534;}
+      .pr-typ .b-cp{background:#fbbf24;color:#7c2d12;}
+      .pr-typ .b-recup{background:#7dd3fc;color:#0c4a6e;}
+      .pr-typ .b-ss{background:#fecaca;color:#7f1d1d;}
+      .pr-typ .b-maladie{background:#fecaca;color:#7f1d1d;}
+      .pr-typ .b-ferie{background:#c4b5fd;color:#4c1d95;}
+      .pr-typ .b-absence{background:#fca5a5;color:#7f1d1d;}
+      .pr-typ .b-repos{background:#e2e8f0;color:#475569;}
+      .pr-hzone{display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 8px;align-items:center;margin-bottom:12px;}
+      .pr-hzone label{font-size:12.5px;font-weight:800;color:#64748b;}
+      .pr-hzone input{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-weight:700;width:100%;box-sizing:border-box;}
+      .pr-pop-row{display:flex;gap:8px;}
+      .pr-pop-row button{flex:1;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;}
+      .pr-pop-cancel{background:#f1f5f9;color:#334155;}
+      .pr-pop-save{background:#0f172a;color:#fff;}
+    </style>
+    <div class="pr-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-else="">
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="mp" t-value="request.params.get('mois')"/>
+        <t t-set="d1" t-value="datetime.datetime.strptime(mp + '-01', '%Y-%m-%d').date() if mp else today.replace(day=1)"/>
+        <t t-set="d2" t-value="(d1.replace(year=d1.year + 1, month=1, day=1) if d1.month == 12 else d1.replace(month=d1.month + 1, day=1)) - datetime.timedelta(days=1)"/>
+        <t t-set="compp" t-value="request.params.get('comp') or 'all'"/>
+        <t t-set="dom" t-value="[('active','=',True)] if compp == 'all' else [('active','=',True),('company_id','=',int(compp))]"/>
+        <t t-set="emps" t-value="request.env['hr.employee'].sudo().search(dom, order='company_id, name')"/>
+        <t t-set="rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','in',emps.ids),('x_date','&gt;=',d1.strftime('%Y-%m-%d')),('x_date','&lt;=',d2.strftime('%Y-%m-%d'))])"/>
+        <t t-set="sk" t-value="dict(((r.x_employee_id.id, r.x_date.day), r) for r in rows)"/>
+        <t t-set="pend" t-value="request.env['x_demande_conge'].sudo().search([('x_statut','=','attente'),('x_employee_id','in',emps.ids)], order='x_du')"/>
+        <t t-set="nbj" t-value="(d2 - d1).days + 1"/>
+        <t t-set="jl" t-value="['L','M','M','J','V','S','D']"/>
+        <t t-set="typlbl" t-value="{'cp': 'CP', 'recup': 'Récup', 'sans_solde': 'Sans solde', 'maternite': 'Maternité', 'paternite': 'Paternité', 'evt_familial': 'Évén. familial', 'enfant_malade': 'Enfant malade'}"/>
+        <div class="pr-head">
+          <h4 style="font-weight:300;margin:0;">📅 Planning RH — <b t-esc="d1.strftime('%B %Y')"/></h4>
+          <div class="pr-nav">
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}&amp;mois={{((d1 - datetime.timedelta(days=1)).replace(day=1)).strftime('%Y-%m')}}">◀</a>
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}">Ce mois</a>
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}&amp;mois={{(d2 + datetime.timedelta(days=1)).strftime('%Y-%m')}}">▶</a>
+            <t t-foreach="request.env['res.company'].sudo().search([])" t-as="co">
+              <t t-if="request.env['hr.employee'].sudo().search_count([('company_id','=',co.id),('active','=',True)])">
+                <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{co.id}}&amp;mois={{d1.strftime('%Y-%m')}}" t-att-style="'background:#0f172a;color:#fff;' if compp == str(co.id) else ''" t-esc="co.name"/>
+              </t>
+            </t>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">🗓 Heures</a>
+            <a t-attf-href="/heures-liens?k={{kk}}">🔗 Liens</a>
+            <a t-attf-href="/heures-horaires?k={{kk}}">⏰ Horaires</a>
+          </div>
+        </div>
+        <div t-if="pend" class="pr-dem">
+          <div style="font-weight:900;margin-bottom:4px;">📨 Demandes de congés en attente (<t t-esc="len(pend)"/>)</div>
+          <t t-foreach="pend" t-as="dc">
+            <div class="pr-dem-l">
+              <span><b t-esc="dc.x_employee_id.name"/> · <t t-esc="typlbl.get(dc.x_type, dc.x_type)"/> du <b t-esc="dc.x_du.strftime('%d/%m')"/> au <b t-esc="dc.x_au.strftime('%d/%m/%Y')"/><t t-if="dc.x_periode == 'matin'"> · <b>matin uniquement</b></t><t t-elif="dc.x_periode == 'apresmidi'"> · <b>après-midi uniquement</b></t><t t-elif="dc.x_periode == 'horaires'"> · <b>de <t t-esc="'%.2g' % dc.x_h_de"/>h à <t t-esc="'%.2g' % dc.x_h_a"/>h</b></t><t t-if="dc.x_motif"> · « <t t-esc="dc.x_motif"/> »</t></span>
+              <span>
+                <button type="button" class="pr-ok" t-att-data-id="dc.id">✓ Approuver</button>
+                <button type="button" class="pr-no" t-att-data-id="dc.id">✗ Refuser</button>
+              </span>
+            </div>
+          </t>
+        </div>
+        <t t-set="histo" t-value="request.env['x_demande_conge'].sudo().search([('x_statut','!=','attente'),('x_employee_id','in',emps.ids)], order='write_date desc', limit=30)"/>
+        <details t-if="histo" class="pr-dem" style="background:#f8fafc;border:1px solid #e2e8f0;">
+          <summary style="font-weight:900;cursor:pointer;padding:2px 0;">🗂 Historique des demandes (<t t-esc="len(histo)"/> dernières)</summary>
+          <t t-foreach="histo" t-as="dc">
+            <div class="pr-dem-l" style="border-bottom:1px solid #eef2f6;">
+              <span>
+                <span t-attf-style="display:inline-block;border-radius:7px;padding:1px 9px;font-weight:900;font-size:11.5px;margin-right:6px;{{'background:#dcfce7;color:#166534;' if dc.x_statut == 'approuve' else 'background:#fee2e2;color:#991b1b;'}}"><t t-esc="'✓' if dc.x_statut == 'approuve' else '✕'"/></span>
+                <b t-esc="dc.x_employee_id.name"/> · <t t-esc="typlbl.get(dc.x_type, dc.x_type)"/> du <b t-esc="dc.x_du.strftime('%d/%m')"/> au <b t-esc="dc.x_au.strftime('%d/%m/%Y')"/><t t-if="dc.x_periode == 'matin'"> · matin</t><t t-elif="dc.x_periode == 'apresmidi'"> · après-midi</t><t t-elif="dc.x_periode == 'horaires'"> · <t t-esc="'%.2g' % dc.x_h_de"/>h–<t t-esc="'%.2g' % dc.x_h_a"/>h</t>
+                <t t-if="dc.x_motif"> · « <t t-esc="dc.x_motif"/> »</t>
+                <t t-if="dc.x_reponse"> · <i style="color:#64748b;" t-esc="dc.x_reponse"/></t>
+                <span style="color:#94a3b8;font-size:11.5px;"> — traitée le <t t-esc="dc.write_date.strftime('%d/%m/%Y')"/></span>
+              </span>
+            </div>
+          </t>
+        </details>
+        <t t-set="pendmap" t-value="dict(((dc.x_employee_id.id, (d1 + datetime.timedelta(days=n)).day), 1) for dc in pend for n in range(nbj) if dc.x_du &lt;= (d1 + datetime.timedelta(days=n)) and (d1 + datetime.timedelta(days=n)) &lt;= dc.x_au)"/>
+        <div class="pr-scroll">
+        <table class="pr">
+          <tr><th class="emp">Salarié</th>
+            <t t-foreach="range(nbj)" t-as="n">
+              <t t-set="dd" t-value="d1 + datetime.timedelta(days=n)"/>
+              <th t-att-style="'background:#334155;' if dd.weekday() &gt;= 5 else ''"><t t-esc="jl[dd.weekday()]"/><br/><t t-esc="dd.day"/></th>
+            </t>
+          </tr>
+          <t t-set="lastc" t-value="0"/>
+          <t t-foreach="emps" t-as="e">
+            <t t-if="e.company_id.id != lastc">
+              <tr><td class="soc" t-att-colspan="nbj + 1" t-esc="e.company_id.name"/></tr>
+              <t t-set="lastc" t-value="e.company_id.id"/>
+            </t>
+            <t t-set="cal" t-value="e.resource_calendar_id"/>
+            <tr>
+              <td class="emp" t-esc="e.name"/>
+              <t t-foreach="range(nbj)" t-as="n">
+                <t t-set="dd" t-value="d1 + datetime.timedelta(days=n)"/>
+                <t t-set="wt" t-value="str((((dd - datetime.timedelta(days=dd.weekday())) - datetime.date(1970,1,5)).days // 7) % 2)"/>
+                <t t-set="theo" t-value="sum([(a.hour_to - a.hour_from) for a in cal.attendance_ids if a.dayofweek == str(dd.weekday()) and not a.display_type and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)]) if cal else 0"/>
+                <t t-set="s" t-value="sk.get((e.id, dd.day))"/>
+                <t t-set="demi" t-value="bool(s and s.x_type == 'travail' and s.x_note and '— ' in s.x_note and ('(demande' in s.x_note or '(bureau)' in s.x_note or 'congé partiel' in s.x_note))"/>
+                <t t-set="demi_col" t-value="{'Récupération': '#7dd3fc', 'Congés payés': '#fbbf24', 'Maladie': '#f87171', 'Férié': '#c4b5fd', 'Absence': '#fca5a5', 'Sans solde': '#fca5a5', 'Congé maternité': '#fca5a5', 'Congé paternité': '#fca5a5', 'Événement familial': '#fca5a5', 'Enfant malade': '#fca5a5'}.get((s.x_note or '').split(' — ')[0], '#fbbf24') if demi else ''"/>
+                <t t-set="demi_txt" t-value="{'Récupération': '#0c4a6e', 'Congés payés': '#7c2d12', 'Maladie': '#7f1d1d', 'Férié': '#4c1d95'}.get((s.x_note or '').split(' — ')[0], '#7c2d12') if demi else ''"/>
+                <t t-set="demi_style" t-value="(('background:linear-gradient(90deg, %s 0%% 50%%, #dcfce7 50%% 100%%);color:%s;font-weight:800;' % (demi_col, demi_txt)) if 'matin en congé' in s.x_note else (('background:linear-gradient(90deg, #dcfce7 0%% 50%%, %s 50%% 100%%);color:%s;font-weight:800;' % (demi_col, demi_txt)) if 'après-midi en congé' in s.x_note else ('background:linear-gradient(135deg, %s 0%% 50%%, #dcfce7 50%% 100%%);color:%s;font-weight:800;' % (demi_col, demi_txt)))) if demi else ''"/>
+                <t t-set="cls" t-value="('d-demi' if demi else '') or (s and {'travail': 'd-t', 'cp': 'd-cp', 'maladie': 'd-mal', 'ferie': 'd-fer', 'absence': 'd-abs', 'recup': 'd-rec', 'sans_solde': 'd-ss', 'repos': 'd-rep'}.get(s.x_type, '')) or ('' if theo &gt; 0 else 'd-off')"/>
+                <td t-attf-class="{{cls}} {{'d-pend' if pendmap.get((e.id, dd.day)) else ''}}" t-att-style="demi_style or None" t-att-title="e.name + ' ' + dd.strftime('%d/%m') + ((' — ' + s.x_note) if s and s.x_note else '') + ((' — récup prise %g h' % s.x_h_recup) if s and s.x_h_recup else '') + ((' — sans solde %g h' % s.x_h_sans_solde) if s and s.x_h_sans_solde else '')" t-att-data-emp="e.id" t-att-data-ename="e.name" t-att-data-date="dd.strftime('%Y-%m-%d')" t-att-data-type="(s and s.x_type) or ''" t-att-data-md="(s and s.x_m_deb) or 0" t-att-data-mf="(s and s.x_m_fin) or 0" t-att-data-ad="(s and s.x_am_deb) or 0" t-att-data-af="(s and s.x_am_fin) or 0">
+                  <t t-if="demi"><t t-esc="('%g' % round(s.x_heures, 1))"/>½</t>
+                  <t t-elif="s and s.x_type == 'travail'"><t t-esc="('%g' % round(s.x_heures, 1))"/><sup t-if="s.x_h_recup" style="color:#0c4a6e;" title="heures de récup prises">R</sup><sup t-if="s.x_h_sans_solde" style="color:#7f1d1d;" title="heures sans solde">S</sup></t>
+                  <t t-elif="s and s.x_type == 'cp'">CP</t>
+                  <t t-elif="s and s.x_type == 'maladie'">M</t>
+                  <t t-elif="s and s.x_type == 'ferie'">F</t>
+                  <t t-elif="s and s.x_type == 'absence'">A</t>
+                  <t t-elif="s and s.x_type == 'recup'">R</t>
+                  <t t-elif="s and s.x_type == 'sans_solde'">SS</t>
+                  <t t-elif="theo &gt; 0"><span style="color:#cbd5e1;" t-esc="('%g' % round(theo, 1))"/></t>
+                </td>
+              </t>
+            </tr>
+          </t>
+        </table>
+        </div>
+        <div class="pr-leg">
+          <span class="d-t">travail (heures saisies)</span>
+          <span style="color:#cbd5e1;border:1px solid #e2e8f0;">théorique (pas encore saisi)</span>
+          <span class="d-cp">CP</span><span class="d-mal">Maladie</span><span class="d-fer">Férié</span>
+          <span class="d-abs">Absence</span><span class="d-rec">Récup</span><span class="d-ss">Sans solde</span><span class="d-off">jour non travaillé</span>
+          <span class="d-t">8,5<sup>R</sup> / <sup>S</sup> = jour travaillé avec des heures de récup prises / sans solde (survoler pour le détail)</span>
+          <span style="background:linear-gradient(90deg,#7dd3fc 0 50%,#dcfce7 50% 100%);color:#0c4a6e;">4½ congé partiel : gauche = matin, droite = après-midi, couleur du type (survoler pour le détail)</span>
+          <span class="d-pend" style="background:#fff;">demande en attente</span>
+        </div>
+        <div class="pr-pop" id="prPop">
+          <div class="pr-pop-box">
+            <h5 id="prPopT"/>
+            <div class="pr-typ" id="prTyp">
+              <button type="button" class="b-travail" data-t="travail">Travail</button>
+              <button type="button" class="b-cp" data-t="cp">CP</button>
+              <button type="button" class="b-recup" data-t="recup">Récup</button>
+              <button type="button" class="b-ss" data-t="sans_solde">Sans solde</button>
+              <button type="button" class="b-maladie" data-t="maladie">Maladie</button>
+              <button type="button" class="b-ferie" data-t="ferie">Férié</button>
+              <button type="button" class="b-absence" data-t="absence">Absence</button>
+              <button type="button" class="b-repos" data-t="repos">Repos</button>
+            </div>
+            <div id="prPer" class="pr-typ" style="display:none;">
+              <button type="button" class="b-repos" data-p="journee">Journée entière</button>
+              <button type="button" class="b-repos" data-p="matin">Matin</button>
+              <button type="button" class="b-repos" data-p="apresmidi">Après-midi</button>
+              <button type="button" class="b-repos" data-p="horaires">Horaires précis</button>
+            </div>
+            <div class="pr-hzone" id="prCz" style="display:none;">
+              <label>Congé de</label>
+              <input type="time" id="prC1"/>
+              <input type="time" id="prC2"/>
+            </div>
+            <div class="pr-hzone" id="prHzone">
+              <label>Matin</label>
+              <input type="time" id="prM1"/>
+              <input type="time" id="prM2"/>
+              <label>Ap.-midi</label>
+              <input type="time" id="prA1"/>
+              <input type="time" id="prA2"/>
+            </div>
+            <div class="pr-pop-row">
+              <button type="button" class="pr-pop-cancel" id="prPopCancel">Annuler</button>
+              <button type="button" class="pr-pop-save" id="prPopSave">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+        <div id="pr-k" t-att-data-k="kk" style="display:none;"/>
+        <script>
+(function(){
+  var KK = document.getElementById('pr-k').getAttribute('data-k');
+  /* Relais Render : page ouverte via la clé responsables, sans compte Odoo —
+     /web/dataset/call_kw répond « Session expired » hors backend. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
+  function handleErr(d){
+    var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
+    alert('Échec : ' + m);
+  }
+  function repond(id, dec, rep){
+    rpcAction(2014, {active_model:'x_demande_conge',dc_id:id,dc_decision:dec,dc_reponse:rep,hj_k:KK}).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ alert('Échec réseau'); });
+  }
+  var pop = document.getElementById('prPop');
+  var curEmp = null, curDate = null, curType = 'travail';
+  function f2t(v){
+    v = parseFloat(v || 0);
+    if(!v){ return ''; }
+    var h = Math.floor(v), m = Math.round((v - h) * 60);
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  }
+  function t2f(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1],10)/60; }
+  var curPer = 'journee';
+  function selPer(pp){
+    curPer = pp;
+    document.querySelectorAll('#prPer button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-p') === pp); });
+    document.getElementById('prCz').style.display = (pp === 'horaires') ? 'grid' : 'none';
+  }
+  function selType(t){
+    curType = t;
+    document.querySelectorAll('#prTyp button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-t') === t); });
+    var conge = (t !== 'travail' &amp;&amp; t !== 'repos');
+    document.getElementById('prPer').style.display = conge ? 'grid' : 'none';
+    document.getElementById('prHzone').style.display = (t === 'travail') ? 'grid' : 'none';
+    if(!conge){ document.getElementById('prCz').style.display = 'none'; }
+    else { selPer(curPer); }
+  }
+  var prOuverture = false;
+  function openCell(td){
+    prOuverture = true;
+    curEmp = td.getAttribute('data-emp');
+    curDate = td.getAttribute('data-date');
+    var dd = curDate.split('-');
+    document.getElementById('prPopT').textContent = td.getAttribute('data-ename') + ' — ' + dd[2] + '/' + dd[1] + '/' + dd[0];
+    document.getElementById('prM1').value = f2t(td.getAttribute('data-md'));
+    document.getElementById('prM2').value = f2t(td.getAttribute('data-mf'));
+    document.getElementById('prA1').value = f2t(td.getAttribute('data-ad'));
+    document.getElementById('prA2').value = f2t(td.getAttribute('data-af'));
+    curPer = 'journee';
+    selPer('journee');
+    selType(td.getAttribute('data-type') || 'travail');
+    prOuverture = false;
+    pop.classList.add('show');
+  }
+  document.getElementById('prPopCancel').addEventListener('click', function(){ pop.classList.remove('show'); });
+  pop.addEventListener('click', function(e){ if(e.target === pop){ pop.classList.remove('show'); } });
+  document.getElementById('prPopSave').addEventListener('click', function(){
+    if(!curEmp){ return; }
+    var btn = document.getElementById('prPopSave');
+    btn.disabled = true;
+    var conge = (curType !== 'travail' &amp;&amp; curType !== 'repos');
+    if(conge &amp;&amp; curPer === 'horaires'){
+      var cd = t2f(document.getElementById('prC1').value), ca = t2f(document.getElementById('prC2').value);
+      if(!(cd &lt; ca)){ alert('Renseignez les horaires du congé (début avant fin).'); return; }
+    }
+    rpcAction(2012, {active_model:'x_heures_jour', hj_emp:parseInt(curEmp,10), hj_date:curDate, hj_type:curType,
+      hj_periode:(conge ? curPer : 'journee'),
+      hj_c_de:(conge ? t2f(document.getElementById('prC1').value) : 0),
+      hj_c_a:(conge ? t2f(document.getElementById('prC2').value) : 0),
+      hj_m_deb:(curType === 'travail' ? t2f(document.getElementById('prM1').value) : 0),
+      hj_m_fin:(curType === 'travail' ? t2f(document.getElementById('prM2').value) : 0),
+      hj_am_deb:(curType === 'travail' ? t2f(document.getElementById('prA1').value) : 0),
+      hj_am_fin:(curType === 'travail' ? t2f(document.getElementById('prA2').value) : 0),
+      hj_k:KK}).then(function(r){return r.json();}).then(function(d){
+      btn.disabled = false;
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ btn.disabled = false; alert('Échec réseau'); });
+  });
+  document.addEventListener('click', function(e){
+    var ok = e.target.closest('.pr-ok');
+    if(ok){ if(confirm('Approuver cette demande ? Les jours seront inscrits automatiquement.')){ repond(parseInt(ok.getAttribute('data-id')), 'approuve', ''); } return; }
+    var no = e.target.closest('.pr-no');
+    if(no){ var m = prompt('Motif du refus (transmis au salarié) :', ''); if(m !== null){ repond(parseInt(no.getAttribute('data-id')), 'refuse', m); } return; }
+    var tb = e.target.closest('#prTyp button');
+    if(tb){ selType(tb.getAttribute('data-t')); return; }
+    var pb = e.target.closest('#prPer button');
+    if(pb){ selPer(pb.getAttribute('data-p')); return; }
+    var td = e.target.closest('td[data-emp]');
+    if(td){ openCell(td); }
+  });
+})();
+        </script>
+      </t>
+    </div>
+  </t>
+</t>

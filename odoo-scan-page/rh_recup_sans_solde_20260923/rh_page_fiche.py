@@ -1,0 +1,327 @@
+# -*- coding: utf-8 -*-
+"""Nouvelle page bureau /heures-salarie?emp=&mois=&k= : fiche mensuelle d'un salarié au format de la feuille Excel de
+Charlotte (blocs semaine, Arrivée/Départ ×2, heures, récup ±, récup prise, sans solde, HS payées, type, note),
+modifiable ligne par ligne (enregistrement automatique via le relais, action 2012 avec la clé bureau).
+  python rh_page_fiche.py            -> vue_fiche_NEW.xml
+  python rh_page_fiche.py test|prod  -> création / mise à jour de la vue qweb + website.page"""
+import io, os, sys
+sys.stdout.reconfigure(encoding='utf-8')
+
+
+def esc_js(js):
+    return js.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+
+JS = r'''
+(function(){
+  var KK = document.getElementById('fs-k').getAttribute('data-k');
+  var EMP = parseInt(document.getElementById('fs-k').getAttribute('data-emp'), 10);
+  var M1 = parseFloat(document.getElementById('fs-k').getAttribute('data-m1') || 0);
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+  function toDec(v){ if(!v){ return 0; } var p = v.split(':'); return parseInt(p[0],10) + parseInt(p[1]||0,10)/60; }
+  function fr(h){ return (Math.round(h*100)/100).toFixed(2).replace('.', ','); }
+  function num(i){ if(!i || i.value === ''){ return 0; } var v = parseFloat(String(i.value).replace(',', '.')); return isNaN(v) ? 0 : v; }
+  function fields(tr){ var o = {}; tr.querySelectorAll('[data-f]').forEach(function(i){ o[i.getAttribute('data-f')] = i; }); return o; }
+  function etat(tr, cls, txt){ var e = tr.querySelector('[data-role=etat]'); if(e){ e.className = 'fs-etat ' + cls; e.textContent = txt; } }
+  function rpc(ctx){
+    return fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action_id:2012, ctx:ctx})}).then(function(r){ return r.json(); });
+  }
+  function totals(){
+    var mois = {h:0, hs:0, r:0, s:0};
+    document.querySelectorAll('tr.fs-tot').forEach(function(tt){
+      var w = {h:0, hs:0, r:0, s:0};
+      var tr = tt.previousElementSibling;
+      while(tr && tr.hasAttribute('data-date')){
+        var ty = tr.getAttribute('data-type') || '';
+        if(ty === 'travail' || ty === 'recup' || ty === 'sans_solde'){
+          w.h += parseFloat(tr.getAttribute('data-h') || 0); w.hs += parseFloat(tr.getAttribute('data-hs') || 0);
+          w.r += parseFloat(tr.getAttribute('data-r') || 0); w.s += parseFloat(tr.getAttribute('data-s') || 0);
+          if(tr.getAttribute('data-in') === '1'){
+            mois.h += parseFloat(tr.getAttribute('data-h') || 0); mois.hs += parseFloat(tr.getAttribute('data-hs') || 0);
+            mois.r += parseFloat(tr.getAttribute('data-r') || 0); mois.s += parseFloat(tr.getAttribute('data-s') || 0);
+          }
+        }
+        tr = tr.previousElementSibling;
+      }
+      tt.querySelector('[data-role=wh]').textContent = fr(w.h);
+      var c = tt.querySelector('[data-role=whs]'); c.textContent = (w.hs >= 0 ? '+' : '') + fr(w.hs); c.className = 'hs ' + (w.hs >= 0 ? 'pos' : 'neg');
+      tt.querySelector('[data-role=wr]').textContent = w.r ? fr(w.r) : '';
+      tt.querySelector('[data-role=ws]').textContent = w.s ? fr(w.s) : '';
+    });
+    document.getElementById('fs-m-h').textContent = fr(mois.h) + ' h';
+    document.getElementById('fs-m-hs').textContent = (mois.hs >= 0 ? '+' : '') + fr(mois.hs) + ' h';
+    document.getElementById('fs-m-r').textContent = fr(mois.r) + ' h';
+    document.getElementById('fs-m-s').textContent = fr(mois.s) + ' h';
+    document.getElementById('fs-m-reste').textContent = (M1 + mois.hs >= 0 ? '+' : '') + fr(M1 + mois.hs) + ' h';
+  }
+  function applique(tr, res, typ){
+    var f = fields(tr);
+    var ty = res.type || typ;
+    tr.setAttribute('data-type', ty);
+    tr.setAttribute('data-h', res.heures || 0); tr.setAttribute('data-hs', res.hs || 0);
+    tr.setAttribute('data-r', res.h_recup || 0); tr.setAttribute('data-s', res.h_ss || 0);
+    if(res.theo !== undefined){ tr.setAttribute('data-theo', res.theo); }
+    tr.className = tr.className.replace(/\bt-[a-z_]+\b/g, '').trim() + ' t-' + ty;
+    tr.querySelector('[data-role=h]').textContent = (ty === 'travail') ? fr(res.heures || 0) : '';
+    var c = tr.querySelector('[data-role=hs]');
+    if(ty === 'travail' || ty === 'recup' || ty === 'sans_solde'){ c.textContent = ((res.hs || 0) >= 0 ? '+' : '') + fr(res.hs || 0); c.className = 'hs ' + ((res.hs || 0) >= 0 ? 'pos' : 'neg'); }
+    else { c.textContent = ''; c.className = 'hs'; }
+    if(f.type){ f.type.value = ty; }
+    if(ty !== 'travail'){
+      ['m_deb','m_fin','am_deb','am_fin'].forEach(function(k){ if(f[k]){ f[k].value = ''; } });
+      if(f.h_recup){ f.h_recup.value = ''; } if(f.h_ss){ f.h_ss.value = ''; }
+    } else {
+      if(f.h_recup){ f.h_recup.value = res.h_recup ? String(res.h_recup) : ''; }
+      if(f.h_ss){ f.h_ss.value = res.h_ss ? String(res.h_ss) : ''; }
+    }
+    if(f.payees){ f.payees.checked = !!res.payees; }
+    totals();
+  }
+  function saveRow(tr){
+    var f = fields(tr);
+    var typ = (f.type && f.type.value) || 'travail';
+    var travail = (typ === 'travail');
+    var ctx = {active_model:'x_heures_jour', hj_emp:EMP, hj_k:KK, hj_date:tr.getAttribute('data-date'), hj_type:typ,
+      hj_m_deb: travail ? toDec(f.m_deb.value) : 0, hj_m_fin: travail ? toDec(f.m_fin.value) : 0,
+      hj_am_deb: travail ? toDec(f.am_deb.value) : 0, hj_am_fin: travail ? toDec(f.am_fin.value) : 0,
+      hj_h_recup: travail ? num(f.h_recup) : 0, hj_h_ss: travail ? num(f.h_ss) : 0,
+      hj_hs_payees: (f.payees && f.payees.checked) ? 1 : 0,
+      hj_note: f.note ? f.note.value : ''};
+    if(f.decouchage){ ctx.hj_decouchage = f.decouchage.checked ? 1 : 0; }
+    etat(tr, 'busy', '…');
+    rpc(ctx).then(function(d){
+      if(d.error){ etat(tr, 'err', '✗'); alert('Échec : ' + ((d.error.data && d.error.data.message) || d.error.message || '')); return; }
+      applique(tr, d.result || {}, typ);
+      etat(tr, 'ok', '✓ enregistré');
+      setTimeout(function(){ etat(tr, 'ok', '✓'); }, 2500);
+    }).catch(function(){ etat(tr, 'err', '✗ réseau'); alert('Échec réseau'); });
+  }
+  var timers = {};
+  function plan(tr, delai){
+    var k = tr.getAttribute('data-date');
+    clearTimeout(timers[k]);
+    etat(tr, 'busy', '…');
+    timers[k] = setTimeout(function(){ saveRow(tr); }, delai);
+  }
+  document.addEventListener('change', function(e){
+    var tr = e.target.closest('tr[data-date]'); if(!tr || !e.target.hasAttribute('data-f')){ return; }
+    var f = e.target.getAttribute('data-f');
+    if(f === 'type'){
+      var t = e.target.value;
+      if(t === 'recup' || t === 'sans_solde' || t === 'cp' || t === 'maladie' || t === 'ferie' || t === 'absence' || t === 'repos'){
+        var libs = {recup:'journée ENTIÈRE de récupération', sans_solde:'journée ENTIÈRE sans solde', cp:'congé payé', maladie:'arrêt maladie', ferie:'jour férié', absence:'absence', repos:'repos'};
+        if(!confirm('Enregistrer le ' + tr.getAttribute('data-date').split('-').reverse().join('/') + ' en ' + libs[t] + ' ?')){ e.target.value = tr.getAttribute('data-type') || ''; return; }
+      }
+      if(t === ''){ e.target.value = tr.getAttribute('data-type') || ''; return; }
+    }
+    plan(tr, (f === 'note') ? 900 : 350);
+  });
+  document.addEventListener('click', function(e){
+    var q = e.target.closest('.fs-q'); if(!q){ return; }
+    var tr = q.closest('tr[data-date]'); var f = fields(tr);
+    f.m_deb.value = tr.getAttribute('data-tmd'); f.m_fin.value = tr.getAttribute('data-tmf');
+    f.am_deb.value = tr.getAttribute('data-tad'); f.am_fin.value = tr.getAttribute('data-taf');
+    if(f.h_recup){ f.h_recup.value = ''; } if(f.h_ss){ f.h_ss.value = ''; }
+    if(f.type){ f.type.value = 'travail'; }
+    saveRow(tr);
+  });
+  totals();
+})();
+'''
+
+ARCH = r'''<t t-name="website.heures_salarie">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f8fafc;}
+      .fs-wrap{max-width:1280px;margin:0 auto;padding:12px 18px;}
+      .fs-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+      .fs-nav a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;display:inline-block;margin-bottom:4px;}
+      .fs-info{background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;color:#475569;font-size:12.5px;font-weight:600;line-height:1.45;}
+      table.fs{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;}
+      .fs th{background:#0f172a;color:#e2e8f0;padding:6px 5px;font-size:11.5px;text-align:center;}
+      .fs td{border-bottom:1px solid #e2e8f0;padding:3px 4px;text-align:center;font-weight:700;}
+      .fs tr.fs-sem td{background:#cbd5e1;color:#0f172a;font-weight:900;text-align:left;padding:6px 10px;}
+      .fs tr.fs-tot td{background:#f1f5f9;font-weight:900;border-bottom:3px solid #cbd5e1;}
+      .fs td.j{text-align:left;white-space:nowrap;font-weight:800;}
+      .fs input[type=time]{border:1px solid #cbd5e1;border-radius:7px;padding:3px 3px;font-weight:700;width:84px;background:#fff;}
+      .fs input[type=number]{border:1px solid #cbd5e1;border-radius:7px;padding:3px 3px;font-weight:700;width:62px;text-align:center;background:#fff;}
+      .fs input[type=text]{border:1px solid #cbd5e1;border-radius:7px;padding:3px 6px;width:100%;min-width:110px;font-size:12px;background:#fff;}
+      .fs select{border:1px solid #cbd5e1;border-radius:7px;padding:3px 3px;font-weight:800;background:#fff;font-size:12px;}
+      tr.t-travail{background:#f0fdf4;} tr.t-cp{background:#fef3c7;} tr.t-maladie{background:#fee2e2;} tr.t-ferie{background:#ede9fe;} tr.t-absence{background:#fecaca;} tr.t-recup{background:#e0f2fe;} tr.t-sans_solde{background:#fee2e2;} tr.t-repos{background:#f1f5f9;}
+      tr.fs-out td{opacity:.55;}
+      .fs .hs{font-weight:900;} .fs .pos{color:#15803d;} .fs .neg{color:#dc2626;}
+      .fs-etat{font-size:11px;font-weight:900;white-space:nowrap;} .fs-etat.ok{color:#15803d;} .fs-etat.err{color:#dc2626;} .fs-etat.busy{color:#f59e0b;}
+      .fs-q{border:none;border-radius:7px;background:#16a34a;color:#fff;font-weight:800;padding:3px 7px;cursor:pointer;font-size:11.5px;}
+      .fs-recap{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}
+      .fs-recap div{background:#fff;border-radius:10px;padding:8px 14px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-weight:800;color:#64748b;font-size:12px;min-width:120px;}
+      .fs-recap b{font-size:18px;color:#0f172a;display:block;}
+      .fs-recap div.acc{background:#fef9c3;}
+    </style>
+    <div class="fs-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-set="empp" t-value="request.params.get('emp')"/>
+      <t t-set="emp" t-value="request.env['hr.employee'].sudo().browse(int(empp)) if (empp and empp.isdigit()) else None"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-elif="not (emp and emp.exists())">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <h4 style="font-weight:800;">Salarié introuvable</h4>
+          <a t-attf-href="/heures-admin?k={{kk}}">← Retour aux heures</a>
+        </div>
+      </t>
+      <t t-else="">
+        <t t-set="today" t-value="datetime.date.today()"/>
+        <t t-set="mp" t-value="request.params.get('mois')"/>
+        <t t-set="d1" t-value="datetime.datetime.strptime(mp + '-01', '%Y-%m-%d').date() if mp else today.replace(day=1)"/>
+        <t t-set="d2" t-value="(d1.replace(year=d1.year + 1, month=1, day=1) if d1.month == 12 else d1.replace(month=d1.month + 1, day=1)) - datetime.timedelta(days=1)"/>
+        <t t-set="m_prev" t-value="(d1 - datetime.timedelta(days=1)).replace(day=1).strftime('%Y-%m')"/>
+        <t t-set="m_next" t-value="(d2 + datetime.timedelta(days=1)).strftime('%Y-%m')"/>
+        <t t-set="mois_noms" t-value="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']"/>
+        <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
+        <t t-set="lundi0" t-value="d1 - datetime.timedelta(days=d1.weekday())"/>
+        <t t-set="dim_fin" t-value="d2 + datetime.timedelta(days=6 - d2.weekday())"/>
+        <t t-set="lundis" t-value="[lundi0 + datetime.timedelta(days=7 * k) for k in range(((dim_fin - lundi0).days // 7) + 1)]"/>
+        <t t-set="cal" t-value="emp.resource_calendar_id"/>
+        <t t-set="rows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',lundi0.strftime('%Y-%m-%d')),('x_date','&lt;=',dim_fin.strftime('%Y-%m-%d'))])"/>
+        <t t-set="sk" t-value="dict((r.x_date.strftime('%Y-%m-%d'), r) for r in rows)"/>
+        <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
+        <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
+        <t t-set="xk" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_key') or ''"/>
+        <!-- « Heures M-1 » = solde à récupérer à la veille du mois : arrêté bureau (date de référence) + heures comptées
+             en récup (x_hs) des jours postérieurs jusqu'à la veille + heures ajoutées par le bureau -->
+        <t t-set="cp_ref" t-value="emp.x_cp_ref_date"/>
+        <t t-set="pstart" t-value="datetime.date(d1.year if d1.month &gt;= 6 else d1.year - 1, 6, 1)"/>
+        <t t-set="m0" t-value="d1 - datetime.timedelta(days=1)"/>
+        <t t-set="avant" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',emp.id),('x_date','&gt;=',pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',m0.strftime('%Y-%m-%d')),('x_type','in',['travail','recup','sans_solde'])])"/>
+        <t t-set="rl" t-value="request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',emp.id),('x_date','&lt;=',m0.strftime('%Y-%m-%d'))])"/>
+        <t t-set="m_1" t-value="(emp.x_recup_solde or 0.0) + sum(rl.filtered(lambda l: not cp_ref or l.x_date &gt; cp_ref).mapped('x_heures')) + sum(avant.filtered(lambda r: not cp_ref or r.x_date &gt; cp_ref).mapped('x_hs'))"/>
+        <t t-set="mrows" t-value="[r for r in rows if d1 &lt;= r.x_date and r.x_date &lt;= d2]"/>
+        <div class="fs-head">
+          <h4 style="font-weight:300;margin:0;">📋 <b t-esc="emp.name"/> — <t t-esc="mois_noms[d1.month - 1]"/> <t t-esc="d1.year"/> <span style="color:#94a3b8;font-size:13px;"> · <t t-esc="emp.company_id.name"/> · <t t-esc="cal.name if cal else 'sans horaire'"/></span></h4>
+          <div class="fs-nav">
+            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;mois={{m_prev}}&amp;k={{kk}}">◀ <t t-esc="mois_noms[int(m_prev[5:7]) - 1]"/></a>
+            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;k={{kk}}">Ce mois</a>
+            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;mois={{m_next}}&amp;k={{kk}}"><t t-esc="mois_noms[int(m_next[5:7]) - 1]"/> ▶</a>
+            <a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{d1.strftime('%Y-%m')}}&amp;format=feuille&amp;emp={{emp.id}}&amp;k={{xk}}" target="_blank" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">📄 Feuille Excel</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;vue=mois&amp;mois={{d1.strftime('%Y-%m')}}">🗓 Heures</a>
+            <a t-attf-href="/planning-rh?k={{kk}}&amp;mois={{d1.strftime('%Y-%m')}}">📅 Planning</a>
+            <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{emp.x_heures_token or ''}}&amp;vue=mois&amp;mois={{d1.strftime('%Y-%m')}}" target="_blank">👤 Page du salarié</a>
+          </div>
+        </div>
+        <div class="fs-info">
+          ✏️ <b>Chaque ligne s'enregistre toute seule</b> dès qu'une case est modifiée (✓ à droite de la ligne). <b>⚡</b> = horaire habituel.
+          <b>Récup ±</b> = heures comptées dans le solde à récupérer : heures faites en plus (+), récup prise et heures manquantes (−) ; le sans solde ne compte pas. Cochez <b>HS payées</b> pour payer les heures en plus au lieu de les mettre en récup.
+          <b>Type</b> : Récup / Sans solde = journée entière ; pour une partie de journée, saisir les heures travaillées et les heures en récup ou sans solde.
+          <t t-if="verrou"> 🔒 Verrou paie : les salariés ne peuvent plus modifier jusqu'au <t t-esc="datetime.datetime.strptime(verrou, '%Y-%m-%d').strftime('%d/%m/%Y')"/> (le bureau reste libre).</t>
+        </div>
+        <table class="fs">
+          <t t-foreach="lundis" t-as="lundi">
+            <t t-set="wt" t-value="str(((lundi - datetime.date(1970,1,5)).days // 7) % 2)"/>
+            <tr class="fs-sem"><td colspan="14">Semaine <t t-esc="lundi.isocalendar()[1]"/> — du <t t-esc="lundi.strftime('%d/%m')"/> au <t t-esc="(lundi + datetime.timedelta(days=6)).strftime('%d/%m/%Y')"/></td></tr>
+            <tr><th>Jour</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Arrivée</th><th>Départ</th><th title="Heures effectuées (calculées)">Heures</th><th title="Heures comptées en récup : + heures sup, − récup prise / manquantes">Récup ±</th><th title="Heures prises en récup ce jour (partie de journée)">🔄 Récup prise</th><th title="Heures sans solde ce jour (partie de journée)">🚫 Sans solde</th><th title="Heures sup payées : le surplus n'entre pas dans le solde à récupérer">HS payées</th><th>Type</th><th>Note</th><th/></tr>
+            <t t-foreach="range(7)" t-as="i">
+              <t t-set="d" t-value="lundi + datetime.timedelta(days=i)"/>
+              <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
+              <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)] if cal else []"/>
+              <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(i) and not a.display_type and a.day_period == 'afternoon' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wt)] if cal else []"/>
+              <t t-set="tmd" t-value="min([a.hour_from for a in morn]) if morn else 0"/>
+              <t t-set="tmf" t-value="max([a.hour_to for a in morn]) if morn else 0"/>
+              <t t-set="tad" t-value="min([a.hour_from for a in aft]) if aft else 0"/>
+              <t t-set="taf" t-value="max([a.hour_to for a in aft]) if aft else 0"/>
+              <t t-set="theo" t-value="(tmf - tmd) + (taf - tad)"/>
+              <t t-set="s" t-value="sk.get(dstr)"/>
+              <t t-set="typ" t-value="(s and s.x_type) or ''"/>
+              <t t-set="solde" t-value="typ in ('travail', 'recup', 'sans_solde')"/>
+              <t t-set="in_m" t-value="d1 &lt;= d and d &lt;= d2"/>
+              <tr t-attf-class="{{'t-' + typ if typ else ''}} {{'fs-out' if not in_m else ''}}" t-att-data-date="dstr" t-att-data-type="typ" t-att-data-in="'1' if in_m else '0'" t-att-data-theo="'%.4f' % (s.x_theo if solde else theo)" t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)" t-att-data-h="('%.4f' % s.x_heures) if s else '0'" t-att-data-hs="('%.4f' % s.x_hs) if s else '0'" t-att-data-r="('%.4f' % s.x_h_recup) if s else '0'" t-att-data-s="('%.4f' % s.x_h_sans_solde) if s else '0'">
+                <td class="j"><t t-esc="jours[i]"/></td>
+                <td><t t-esc="d.strftime('%d/%m')"/><small t-if="theo &gt; 0" style="display:block;color:#94a3b8;font-weight:600;"><t t-esc="('%g' % round(theo, 2)).replace('.', ',')"/> h</small></td>
+                <td><input type="time" data-f="m_deb" t-att-value="fmt(s.x_m_deb) if (s and typ == 'travail') else ''"/></td>
+                <td><input type="time" data-f="m_fin" t-att-value="fmt(s.x_m_fin) if (s and typ == 'travail') else ''"/></td>
+                <td><input type="time" data-f="am_deb" t-att-value="fmt(s.x_am_deb) if (s and typ == 'travail') else ''"/></td>
+                <td><input type="time" data-f="am_fin" t-att-value="fmt(s.x_am_fin) if (s and typ == 'travail') else ''"/></td>
+                <td data-role="h"><t t-if="typ == 'travail'" t-esc="('%.2f' % s.x_heures).replace('.', ',')"/></td>
+                <td t-attf-class="hs {{('pos' if s.x_hs &gt;= 0 else 'neg') if solde else ''}}" data-role="hs"><t t-if="solde" t-esc="('%+.2f' % s.x_hs).replace('.', ',')"/></td>
+                <td><input type="number" data-f="h_recup" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_recup) if (s and typ == 'travail' and s.x_h_recup) else ''"/></td>
+                <td><input type="number" data-f="h_ss" step="0.25" min="0" max="12" placeholder="0" t-att-value="('%g' % s.x_h_sans_solde) if (s and typ == 'travail' and s.x_h_sans_solde) else ''"/></td>
+                <td><input type="checkbox" data-f="payees" t-att-checked="'checked' if (s and s.x_hs_payees) else None"/></td>
+                <td>
+                  <select data-f="type">
+                    <option value="" t-att-selected="'selected' if not typ else None">—</option>
+                    <option value="travail" t-att-selected="'selected' if typ == 'travail' else None">Travail</option>
+                    <option value="recup" t-att-selected="'selected' if typ == 'recup' else None">Récup (journée)</option>
+                    <option value="sans_solde" t-att-selected="'selected' if typ == 'sans_solde' else None">Sans solde (journée)</option>
+                    <option value="cp" t-att-selected="'selected' if typ == 'cp' else None">CP</option>
+                    <option value="maladie" t-att-selected="'selected' if typ == 'maladie' else None">Maladie</option>
+                    <option value="ferie" t-att-selected="'selected' if typ == 'ferie' else None">Férié</option>
+                    <option value="absence" t-att-selected="'selected' if typ == 'absence' else None">Absence</option>
+                    <option value="repos" t-att-selected="'selected' if typ == 'repos' else None">Repos</option>
+                  </select>
+                </td>
+                <td><input type="text" data-f="note" t-att-value="(s and s.x_note) or ''" placeholder="note"/><label t-if="s and s.x_decouchage" style="font-size:10px;color:#0369a1;font-weight:800;">🛏 découchage</label></td>
+                <td style="white-space:nowrap;"><button type="button" class="fs-q" t-if="theo &gt; 0" title="Journée normale : horaire habituel">⚡</button> <span class="fs-etat ok" data-role="etat"><t t-if="s">✓</t></span></td>
+              </tr>
+            </t>
+            <tr class="fs-tot"><td colspan="6" style="text-align:right;">Total semaine</td><td data-role="wh"/><td class="hs" data-role="whs"/><td data-role="wr"/><td data-role="ws"/><td colspan="4"/></tr>
+          </t>
+        </table>
+        <div class="fs-recap">
+          <div>Nombre total d'heures (mois)<b id="fs-m-h">–</b></div>
+          <div>Récup ± du mois<b id="fs-m-hs">–</b></div>
+          <div>🔄 Récup prises<b id="fs-m-r">–</b></div>
+          <div>🚫 Sans solde<b id="fs-m-s">–</b></div>
+          <div class="acc" t-att-title="'Solde à récupérer à la veille du mois : arrêté bureau %g h' % (emp.x_recup_solde or 0) + (' au ' + cp_ref.strftime('%d/%m/%Y') if cp_ref else '') + ' + heures comptées depuis'">Heures M-1<b><t t-esc="('%+.2f' % m_1).replace('.', ',')"/> h</b></div>
+          <div class="acc">Reste heures (à récupérer)<b id="fs-m-reste">–</b></div>
+          <div>🌴 CP<b><t t-esc="len([r for r in mrows if r.x_type == 'cp'])"/> j</b></div>
+          <div>🤒 Maladie<b><t t-esc="len([r for r in mrows if r.x_type == 'maladie'])"/> j</b></div>
+          <div>🎉 Fériés<b><t t-esc="len([r for r in mrows if r.x_type == 'ferie'])"/> j</b></div>
+          <div>⛔ Absences<b><t t-esc="len([r for r in mrows if r.x_type == 'absence'])"/> j</b></div>
+        </div>
+        <div style="color:#94a3b8;font-size:11.5px;font-weight:600;">Heures M-1 = arrêté bureau (page ⏰ Horaires par défaut) + heures comptées en récup depuis, jusqu'à la veille du mois. Reste heures = Heures M-1 + Récup ± du mois. Les jours grisés appartiennent au mois voisin (comptés dans la semaine, pas dans le mois).</div>
+        <div id="fs-k" t-att-data-k="kk" t-att-data-emp="emp.id" t-att-data-m1="'%.4f' % m_1" style="display:none;"/>
+        <script>__JS__</script>
+      </t>
+    </div>
+  </t>
+</t>'''
+ARCH = ARCH.replace('__JS__', esc_js(JS))
+import xml.dom.minidom
+xml.dom.minidom.parseString(ARCH.encode('utf-8'))
+io.open('vue_fiche_NEW.xml', 'w', encoding='utf-8', newline='\n').write(ARCH)
+print('vue_fiche_NEW.xml :', len(ARCH), 'chars, XML OK')
+
+mode = (sys.argv[1] if len(sys.argv) > 1 else '').lower()
+if mode in ('test', 'prod'):
+    import ssl, xmlrpc.client
+    U, D = ('https://testmaq230926v2.odoo.com', 'testmaq230926v2') if mode == 'test' else ('https://maquignon.odoo.com', 'maquignon')
+    arch = ARCH.replace('https://ocr-pesee-webhook.onrender.com/heures/rpc', 'http://127.0.0.1:5055/heures/rpc') if mode == 'test' else ARCH
+    us = os.environ['ODOO_USER']; p = os.environ['ODOO_PWD']
+    c = ssl.create_default_context()
+    uid = xmlrpc.client.ServerProxy(U + '/xmlrpc/2/common', context=c).authenticate(D, us, p, {})
+    m = xmlrpc.client.ServerProxy(U + '/xmlrpc/2/object', context=c)
+    x = lambda mo, me, *a, **k: m.execute_kw(D, uid, p, mo, me, list(a), k)
+    ids = x('ir.ui.view', 'search', [['key', '=', 'website.heures_salarie']])
+    if ids:
+        x('ir.ui.view', 'write', ids, {'arch_db': arch})
+        vid = ids[0]
+        print(mode, ': vue existante mise à jour', vid)
+    else:
+        vid = x('ir.ui.view', 'create', [{'name': 'Fiche heures salarié', 'key': 'website.heures_salarie', 'type': 'qweb', 'arch_db': arch}])
+        vid = vid[0] if isinstance(vid, list) else vid
+        print(mode, ': vue créée', vid)
+    pg = x('website.page', 'search', [['url', '=', '/heures-salarie']])
+    if pg:
+        x('website.page', 'write', pg, {'view_id': vid, 'is_published': True})
+        print(mode, ': page existante', pg)
+    else:
+        pid = x('website.page', 'create', [{'name': 'Fiche heures salarié', 'url': '/heures-salarie', 'view_id': vid, 'is_published': True, 'website_id': False}])
+        print(mode, ': page créée', pid)
+    print('contrôle :', x('website.page', 'search_read', [['url', '=', '/heures-salarie']], fields=['url', 'view_id', 'is_published', 'website_id']))

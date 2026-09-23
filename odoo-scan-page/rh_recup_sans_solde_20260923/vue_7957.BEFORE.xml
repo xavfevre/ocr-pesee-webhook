@@ -1,0 +1,434 @@
+<t t-name="website.heures_admin">
+  <t t-call="website.layout">
+    <style>
+      header#top, header.o_header_standard, footer, .o_footer, #o_cookies_bar, .o_bottom_fixed_element {display:none !important;}
+      #wrapwrap &gt; main {padding-top:0 !important;}
+      body{background:#f8fafc;}
+      .ha-wrap{max-width:none;margin:0 auto;padding:12px 18px;}
+      .ha-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+      .ha-nav a, .ha-comp a{border:1px solid #cbd5e1;border-radius:9px;padding:7px 12px;font-weight:800;text-decoration:none;color:#0f172a;background:#fff;margin-right:4px;}
+      .ha-comp a.on{background:#0f172a;color:#fff;}
+      table.ha{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+      .ha tr:first-child th:first-child{border-top-left-radius:10px;}
+      .ha tr:first-child th:last-child{border-top-right-radius:10px;}
+      .ha th{background:#0f172a;color:#e2e8f0;padding:7px 6px;font-size:12.5px;text-align:center;position:sticky;top:0;z-index:20;}
+      .ha th.emp{text-align:left;padding-left:10px;}
+      .ha td{border-bottom:1px solid #e2e8f0;padding:4px 5px;text-align:center;font-size:13px;font-weight:700;}
+      .ha td.emp{text-align:left;font-weight:800;padding-left:10px;white-space:nowrap;}
+      .ha td.soc{background:#e2e8f0;color:#334155;font-weight:900;text-align:left;padding:6px 10px;font-size:12.5px;text-transform:uppercase;}
+      .ha-cell{cursor:pointer;border-radius:7px;padding:5px 2px;display:block;}
+      .ha-cell:hover{outline:2px solid #94a3b8;}
+      .ha-mois th{font-size:10px;padding:5px 1px;}
+      .ha-mois tr.ha-sem th{top:0;font-size:9.5px;background:#1e293b;color:#94a3b8;padding:2px 1px;border-left:1px solid #334155;}
+      .ha-mois tr.ha-jours th{top:19px;}
+      .ha-mois td{padding:2px 1px;}
+      .ha-mois .ha-cell{padding:3px 1px;font-size:10px;border-radius:5px;}
+      .c-travail{background:#dcfce7;color:#14532d;}
+      .c-cp{background:#fef3c7;color:#92400e;}
+      .c-maladie{background:#fee2e2;color:#991b1b;}
+      .c-ferie{background:#ede9fe;color:#5b21b6;}
+      .c-absence{background:#fecaca;color:#7f1d1d;}
+      .c-recup{background:#e0f2fe;color:#075985;}
+      .c-repos{background:#f1f5f9;color:#94a3b8;}
+      .c-vide{background:#fff;color:#cbd5e1;}
+      .c-miss{background:#fff1f2;color:#e11d48;outline:1.5px dashed #fda4af;}
+      .ha-tot{font-weight:900;}
+      .ha-quick{border:none;border-radius:8px;background:#16a34a;color:#fff;font-weight:800;padding:5px 9px;cursor:pointer;font-size:12px;}
+      .ha-pop{position:fixed;inset:0;background:rgba(15,23,42,.6);display:none;align-items:center;justify-content:center;z-index:999;}
+      .ha-card{background:#fff;border-radius:14px;padding:18px;width:min(420px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.4);}
+      .ha-bt{border:none;border-radius:9px;padding:9px 11px;font-weight:800;cursor:pointer;margin:2px;font-size:13.5px;}
+      .ha-times{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 8px;align-items:center;margin:10px 0;}
+      .ha-times input{border:1.5px solid #cbd5e1;border-radius:8px;padding:6px;font-weight:700;width:100%;}
+      .ha-export{background:#1d4ed8;color:#fff;border-radius:9px;padding:8px 14px;font-weight:800;text-decoration:none;}
+    </style>
+    <div class="ha-wrap">
+      <t t-set="kk" t-value="(request.params.get('k') or '').strip()"/>
+      <t t-set="kref" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.rh_admin_key') or ''"/>
+      <t t-if="not (kk and kref and kk == kref)">
+        <div style="background:#fff;border-radius:14px;padding:26px;text-align:center;margin-top:40px;">
+          <div style="font-size:44px;">🔒</div>
+          <h4 style="font-weight:800;">Accès réservé</h4>
+          <div style="color:#64748b;">Cette page nécessite le lien responsable complet (avec sa clé).</div>
+        </div>
+      </t>
+      <t t-else=""><t t-set="_gate" t-value="1"/></t>
+      <t t-if="_gate">
+      <t t-set="today" t-value="datetime.date.today()"/>
+      <t t-set="semp" t-value="request.params.get('sem')"/>
+      <t t-set="monday" t-value="datetime.datetime.strptime(semp, '%Y-%m-%d').date() if semp else (today - datetime.timedelta(days=today.weekday()))"/>
+      <t t-set="compp" t-value="request.params.get('comp') or 'all'"/>
+      <t t-set="vuep" t-value="request.params.get('vue') or 'semaine'"/>
+      <t t-set="mdeb" t-value="datetime.datetime.strptime(request.params.get('mois') + '-01', '%Y-%m-%d').date() if request.params.get('mois') else today.replace(day=1)"/>
+      <t t-set="mfin" t-value="(mdeb.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)"/>
+      <t t-set="dates" t-value="[monday + datetime.timedelta(days=i) for i in range(7)] if vuep != 'mois' else [mdeb + datetime.timedelta(days=i) for i in range((mfin - mdeb).days + 1)]"/>
+      <t t-set="mois_export" t-value="(mdeb if vuep == 'mois' else monday).strftime('%Y-%m')"/>
+      <t t-set="jours" t-value="['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']"/>
+      <t t-set="dom" t-value="[('active','=',True)] if compp == 'all' else [('active','=',True),('company_id','=',int(compp))]"/>
+      <t t-set="emps" t-value="request.env['hr.employee'].sudo().search(dom, order='company_id, name')"/>
+      <t t-set="dfin" t-value="monday + datetime.timedelta(days=6)"/>
+      <t t-set="allrows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','in',emps.ids),('x_date','&gt;=',dates[0].strftime('%Y-%m-%d')),('x_date','&lt;=',dates[-1].strftime('%Y-%m-%d'))])"/>
+      <t t-set="sk" t-value="dict(((r.x_employee_id.id, r.x_date.strftime('%Y-%m-%d')), r) for r in allrows)"/>
+      <t t-set="wt" t-value="str(((monday - datetime.date(1970,1,5)).days // 7) % 2)"/>
+      <t t-set="fmt" t-value="lambda h: '%02d:%02d' % (int(h), round((h - int(h)) * 60)) if h else ''"/>
+      <div class="ha-head">
+        <h4 style="font-weight:300;margin:0;">🗓 Heures salariés — <t t-if="vuep == 'mois'"><b><t t-esc="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][mdeb.month - 1]"/> <t t-esc="mdeb.year"/></b></t><t t-else=""><b>semaine <t t-esc="monday.isocalendar()[1]"/></b> (<t t-esc="monday.strftime('%d/%m')"/> → <t t-esc="dfin.strftime('%d/%m')"/>)</t></h4>
+        <div class="ha-nav">
+          <t t-if="vuep == 'mois'">
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois&amp;mois={{((mdeb - datetime.timedelta(days=1)).replace(day=1)).strftime('%Y-%m')}}">◀ préc.</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois">Ce mois</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois&amp;mois={{(mfin + datetime.timedelta(days=1)).strftime('%Y-%m')}}">suiv. ▶</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}" style="background:#e2e8f0;">🗓 Vue semaine</a>
+          </t>
+          <t t-else="">
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday - datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">◀ préc.</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}">Cette semaine</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;sem={{(monday + datetime.timedelta(days=7)).strftime('%Y-%m-%d')}}">suiv. ▶</a>
+            <a t-attf-href="/heures-admin?k={{kk}}&amp;comp={{compp}}&amp;vue=mois&amp;mois={{mois_export}}" style="background:#e2e8f0;">📆 Vue mois</a>
+          </t>
+          <a t-attf-href="/planning-rh?k={{kk}}&amp;comp={{compp}}" style="background:#0f172a;color:#fff;">📅 Planning</a>
+          <a t-attf-href="/heures-liens?k={{kk}}" style="background:#0f172a;color:#fff;">🔗 Liens salariés</a>
+          <a t-attf-href="/heures-horaires?k={{kk}}" style="background:#0f172a;color:#fff;">⏰ Horaires par défaut</a>
+        </div>
+      </div>
+      <div class="ha-comp" style="margin-bottom:10px;">
+        <a t-att-class="'on' if compp == 'all' else ''" t-attf-href="/heures-admin?k={{kk}}&amp;sem={{monday.strftime('%Y-%m-%d')}}&amp;vue={{vuep}}&amp;mois={{mois_export}}">Toutes</a>
+        <t t-foreach="request.env['res.company'].sudo().search([])" t-as="co">
+          <a t-att-class="'on' if compp == str(co.id) else ''" t-attf-href="/heures-admin?k={{kk}}&amp;comp={{co.id}}&amp;sem={{monday.strftime('%Y-%m-%d')}}&amp;vue={{vuep}}&amp;mois={{mois_export}}" t-esc="co.name"/>
+        </t>
+        <t t-set="xk" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_key') or ''"/>
+        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;comp={{compp}}&amp;k={{xk}}" target="_blank">⬇ Export paie (mois)</a>
+        <a class="ha-export" t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;comp={{compp}}&amp;k={{xk}}&amp;format=silae" target="_blank" title="Éléments variables de paie pour Silae — format standard provisoire, codes rubriques ajustables (paramètre maquignon.silae_codes)">⬇ Export Silae (EVP)</a>
+        <span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;font-size:12px;font-weight:800;color:#334155;" title="Période de paie libre (ex. 26/07 → 25/08) : appliquée aux exports paie, Silae et aux feuilles 📄. Prérempli : lendemain de la fin du dernier export → aujourd'hui.">
+          👤 <select id="ha-emp-filtre" title="N'afficher qu'un seul salarié (facilite la saisie)" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;max-width:170px;"><option value="">Tous les salariés</option></select>
+          🗓 du <input type="date" id="ha-ex-du" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;"/>
+          au <input type="date" id="ha-ex-au" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 5px;font-weight:700;font-size:12px;"/>
+          <button type="button" id="ha-ex-fill" title="Recopier ces dates sur toutes les lignes salariés (à ajuster ensuite au cas par cas)" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;font-size:11.5px;padding:4px 8px;cursor:pointer;">⤵ Lignes</button>
+          <button type="button" id="ha-ex-clear" title="Vider les dates de toutes les lignes (retour à la période de l'en-tête)" style="border:none;border-radius:8px;background:#e2e8f0;color:#334155;font-weight:800;font-size:11.5px;padding:4px 8px;cursor:pointer;">✕</button>
+        </span>
+        <span id="ha-ex-fins" t-att-data-fins="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_fin') or ''" t-att-data-exc="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_export_exc') or ''" t-att-data-comp="compp" t-att-data-du="dates[0].strftime('%Y-%m-%d')" style="display:none;"/>
+        <t t-set="verrou" t-value="request.env['ir.config_parameter'].sudo().get_param('maquignon.heures_verrou') or ''"/>
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;padding:4px 8px;">
+          <span style="font-weight:800;font-size:12.5px;color:#334155;" t-att-title="'Les salariés ne peuvent plus modifier leurs heures jusqu\'à cette date incluse (le bureau reste libre)'">
+            <t t-if="verrou">🔒 Figé jusqu'au <t t-esc="datetime.datetime.strptime(verrou, '%Y-%m-%d').strftime('%d/%m/%Y')"/></t>
+            <t t-else="">🔓 Pas de verrou paie</t>
+          </span>
+          <input type="date" id="ha-vl-date" t-att-value="verrou or (monday - datetime.timedelta(days=1)).strftime('%Y-%m-%d')" style="border:1px solid #cbd5e1;border-radius:8px;padding:3px 6px;font-weight:700;font-size:12px;"/>
+          <button type="button" id="ha-vl-set" style="border:none;border-radius:8px;background:#0f172a;color:#fff;font-weight:800;font-size:12px;padding:5px 9px;cursor:pointer;">🔒 Figer</button>
+          <button type="button" id="ha-vl-clear" t-if="verrou" style="border:none;border-radius:8px;background:#fee2e2;color:#991b1b;font-weight:800;font-size:12px;padding:5px 9px;cursor:pointer;">Déverrouiller</button>
+        </span>
+      </div>
+      <table t-att-class="'ha ha-mois' if vuep == 'mois' else 'ha'">
+        <tr t-if="vuep == 'mois'" class="ha-sem">
+          <th class="emp"/>
+          <t t-set="sem_cles" t-value="[(d.isocalendar()[0], d.isocalendar()[1]) for d in dates]"/>
+          <t t-set="sem_groupes" t-value="[(k, sem_cles.count(k)) for k in sorted(set(sem_cles))]"/>
+          <t t-foreach="sem_groupes" t-as="g"><th t-att-colspan="g[1]"><t t-esc="'S%02d' % g[0][1]"/></th></t>
+          <th colspan="5"/>
+        </tr>
+        <tr class="ha-jours"><th class="emp">Salarié</th>
+          <t t-foreach="dates" t-as="d0"><th><t t-if="vuep == 'mois'"><t t-esc="jours[d0.weekday()][0]"/><br/><t t-esc="d0.strftime('%d')"/></t><t t-else=""><t t-esc="jours[d0.weekday()]"/> <t t-esc="d0.strftime('%d')"/></t></th></t>
+          <th>Total</th><th>Théo</th><th>Écart</th><th title="Découchages">🛏</th><th/>
+        </tr>
+        <t t-set="lastc" t-value="0"/>
+        <t t-foreach="emps" t-as="e">
+          <t t-if="e.company_id.id != lastc">
+            <tr><td class="soc" t-att-colspan="len(dates) + 6" t-esc="e.company_id.name"/></tr>
+            <t t-set="lastc" t-value="e.company_id.id"/>
+          </t>
+          <t t-set="cal" t-value="e.resource_calendar_id"/>
+          <t t-set="wtot" t-value="0.0"/>
+          <t t-set="wdec" t-value="0"/>
+          <t t-set="wtheo" t-value="0.0"/>
+          <tr t-att-data-emp="e.id" t-att-data-name="e.name">
+            <td class="emp"><a t-attf-href="/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}&amp;sem={{monday.strftime('%Y-%m-%d')}}" style="color:inherit;text-decoration:none;" t-esc="e.name"/> <button type="button" class="ha-copy" t-attf-data-link="https://maquignon.odoo.com/mes-heures?emp={{e.id}}&amp;t={{e.x_heures_token or ''}}" title="Copier le lien personnel du salarié" style="border:none;background:none;cursor:pointer;font-size:13px;">🔗</button><a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{mois_export}}&amp;format=feuille&amp;emp={{e.id}}&amp;k={{xk}}" target="_blank" title="Télécharger la feuille de temps hebdomadaire (Excel, format papier) — mois affiché ou plage du/au si renseignée" class="ha-feuille" style="text-decoration:none;font-size:13px;margin-left:2px;">📄</a><input type="date" class="ha-fx-du" title="Période spécifique de CE salarié — début (vide = dates de l'en-tête)" style="margin-left:3px;border:1px solid #e2e8f0;border-radius:6px;padding:1px 2px;font-size:10px;width:98px;color:#64748b;"/><input type="date" class="ha-fx-au" title="Période spécifique de CE salarié — fin (vide = dates de l'en-tête)" style="margin-left:2px;border:1px solid #e2e8f0;border-radius:6px;padding:1px 2px;font-size:10px;width:98px;color:#64748b;"/><t t-set="ha_ref" t-value="e.x_cp_ref_date"/><t t-set="ha_pstart" t-value="datetime.date(today.year if today.month &gt;= 6 else today.year - 1, 6, 1)"/><t t-set="ha_prows" t-value="request.env['x_heures_jour'].sudo().search([('x_employee_id','=',e.id),('x_date','&gt;=',ha_pstart.strftime('%Y-%m-%d')),('x_date','&lt;=',today.strftime('%Y-%m-%d')),('x_type','in',['recup','travail'])])"/><t t-set="ha_rl" t-value="sum(request.env['x_recup_ligne'].sudo().search([('x_employee_id','=',e.id)]).filtered(lambda l: not ha_ref or l.x_date &gt; ha_ref).mapped('x_heures'))"/><t t-set="ha_pris" t-value="sum(ha_prows.filtered(lambda r: r.x_type == 'recup' and (not ha_ref or r.x_date &gt; ha_ref)).mapped('x_theo')) + sum([max((sum([(a.hour_to - a.hour_from) for a in e.resource_calendar_id.attendance_ids if not a.display_type and a.dayofweek == str(r.x_date.weekday()) and (not e.resource_calendar_id.two_weeks_calendar or not a.week_type or a.week_type == str((((r.x_date - datetime.date(1970, 1, 5)).days) // 7) % 2))]) if e.resource_calendar_id else 0.0) - r.x_theo, 0.0) for r in ha_prows.filtered(lambda r: r.x_type == 'travail' and r.x_note and 'Récupération —' in r.x_note and (not ha_ref or r.x_date &gt; ha_ref))])"/><t t-set="ha_solde" t-value="(e.x_recup_solde or 0.0) + ha_rl - ha_pris"/><span t-if="ha_rl or e.x_recup_solde or (ha_ref and ha_pris)" t-attf-style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;background:{{'#dcfce7' if ha_solde &gt;= 0 else '#fee2e2'}};color:{{'#166534' if ha_solde &gt;= 0 else '#991b1b'}};" t-attf-title="Heures à récupérer — arrêté bureau {{'%g' % (e.x_recup_solde or 0)}} h + {{'%g' % ha_rl}} h mises − {{'%g' % round(ha_pris, 2)}} h récupérées">🔄 <t t-esc="('+' if ha_solde &gt; 0 else '') + ('%g' % round(ha_solde, 2))"/> h</span><span t-if="any('nterim' in (t0.name or '') for t0 in e.category_ids)" style="margin-left:4px;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:800;background:#fecdd3;color:#9f1239;border:1px solid #fb7185;">INTÉRIM</span></td>
+            <t t-foreach="dates" t-as="d">
+              <t t-set="dstr" t-value="d.strftime('%Y-%m-%d')"/>
+              <t t-set="wtd" t-value="str(((d - datetime.date(1970,1,5)).days // 7) % 2)"/>
+              <t t-set="morn" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and a.day_period == 'morning' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wtd)]"/>
+              <t t-set="aft" t-value="[a for a in cal.attendance_ids if a.dayofweek == str(d.weekday()) and not a.display_type and a.day_period == 'afternoon' and (not cal.two_weeks_calendar or not a.week_type or a.week_type == wtd)]"/>
+              <t t-set="tmd" t-value="min([a.hour_from for a in morn]) if morn else 0"/>
+              <t t-set="tmf" t-value="max([a.hour_to for a in morn]) if morn else 0"/>
+              <t t-set="tad" t-value="min([a.hour_from for a in aft]) if aft else 0"/>
+              <t t-set="taf" t-value="max([a.hour_to for a in aft]) if aft else 0"/>
+              <t t-set="theo" t-value="(tmf - tmd) + (taf - tad)"/>
+              <t t-set="s" t-value="sk.get((e.id, dstr))"/>
+              <!-- écart : les jours posés en congé/maladie/férié/absence/récup ne comptent
+                   pas dans le théorique ; jour travail = théo figé (demi-journées gérées) -->
+              <t t-set="wtheo" t-value="wtheo + (s.x_theo if (s and s.x_type == 'travail') else (0.0 if s else theo))"/>
+              <t t-set="wtot" t-value="wtot + (s.x_heures if (s and s.x_type == 'travail') else 0.0)"/>
+              <t t-set="miss" t-value="not s and theo &gt; 0 and d &lt;= today"/>
+              <t t-set="wdec" t-value="wdec + (1 if (s and s.x_decouchage) else 0)"/>
+              <td>
+                <span t-attf-class="ha-cell c-{{s and s.x_type or ('miss' if miss else 'vide')}}" t-att-data-date="dstr" t-att-data-theo="'%.4f' % theo" t-att-data-tmd="fmt(tmd)" t-att-data-tmf="fmt(tmf)" t-att-data-tad="fmt(tad)" t-att-data-taf="fmt(taf)" t-att-data-type="s and s.x_type or ''" t-att-data-heures="s and ('%.4f' % s.x_heures) or ''" t-att-data-md="s and fmt(s.x_m_deb) or ''" t-att-data-mf="s and fmt(s.x_m_fin) or ''" t-att-data-ad="s and fmt(s.x_am_deb) or ''" t-att-data-af="s and fmt(s.x_am_fin) or ''">
+                  <t t-if="s">
+                    <t t-if="s.x_type == 'travail'"><t t-esc="('%.2f' % s.x_heures).replace('.', ',')"/><t t-if="s.x_decouchage">🛏</t></t>
+                    <t t-elif="s.x_type == 'cp'">CP</t>
+                    <t t-elif="s.x_type == 'maladie'">MAL</t>
+                    <t t-elif="s.x_type == 'ferie'">FER</t>
+                    <t t-elif="s.x_type == 'absence'">ABS</t>
+                    <t t-elif="s.x_type == 'recup'">REC</t>
+                    <t t-else="">–</t>
+                  </t>
+                  <t t-else=""><t t-if="miss">!</t><t t-else="">·</t></t>
+                </span>
+              </td>
+            </t>
+            <td class="ha-tot" t-esc="('%.2f' % wtot).replace('.', ',')"/>
+            <td style="color:#64748b;" t-esc="('%.2f' % wtheo).replace('.', ',')"/>
+            <td t-attf-style="font-weight:900;color:{{'#16a34a' if wtot - wtheo &gt;= 0 else '#dc2626'}};" t-esc="('%+.2f' % (wtot - wtheo)).replace('.', ',')"/>
+            <td style="text-align:center;font-weight:800;color:#0369a1;" t-esc="wdec or ''"/>
+            <td><button type="button" class="ha-quick" title="Remplir les jours vides avec l'horaire habituel">⚡</button></td>
+          </tr>
+        </t>
+      </table>
+      <div style="color:#64748b;font-size:12.5px;margin-top:8px;">Cliquez sur une case pour saisir/corriger · <b>⚡</b> remplit les jours ouvrés vides de la période affichée avec l'horaire habituel · <b>!</b> = jour ouvré passé sans saisie · <b>🔗</b> copie le lien personnel du salarié (à lui envoyer par SMS/WhatsApp) · <b>📄</b> feuille de temps Excel du salarié (format papier, une feuille par semaine) · Export paie = un classeur Excel, un onglet par salarié.</div>
+      </t>
+      <div id="ha-k" t-att-data-k="kk" style="display:none;"/>
+    </div>
+    <div id="ha-pop" class="ha-pop">
+      <div class="ha-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <strong id="ha-pop-t" style="font-size:16px;">—</strong>
+          <button type="button" id="ha-pop-x" class="ha-bt" style="background:#e2e8f0;">✕</button>
+        </div>
+        <div>
+          <button type="button" class="ha-bt" style="background:#16a34a;color:#fff;" data-t="normal">✓ Journée normale</button>
+          <button type="button" class="ha-bt c-cp" data-t="cp">CP</button>
+          <button type="button" class="ha-bt c-maladie" data-t="maladie">Maladie</button>
+          <button type="button" class="ha-bt c-ferie" data-t="ferie">Férié</button>
+          <button type="button" class="ha-bt c-absence" data-t="absence">Absent</button>
+          <button type="button" class="ha-bt c-recup" data-t="recup">Récup</button>
+          <button type="button" class="ha-bt c-repos" data-t="repos">Repos</button>
+        </div>
+        <div class="ha-times">
+          <label>Matin</label><input type="time" id="ha-md"/><input type="time" id="ha-mf"/>
+          <label>Ap.-midi</label><input type="time" id="ha-ad"/><input type="time" id="ha-af"/>
+        </div>
+        <button type="button" class="ha-bt" id="ha-save" style="background:#1d4ed8;color:#fff;width:100%;padding:11px;">💾 Enregistrer</button>
+      </div>
+    </div>
+    <script>
+(function(){
+  var pop=document.getElementById('ha-pop'), curCell=null, curEmp=0;
+  var KK = (document.getElementById('ha-k') &amp;&amp; document.getElementById('ha-k').getAttribute('data-k')) || '';
+  document.addEventListener('click', function(e){
+    var cp = e.target.closest('.ha-copy'); if(!cp){ return; }
+    var lk = cp.getAttribute('data-link');
+    (navigator.clipboard ? navigator.clipboard.writeText(lk) : Promise.reject()).then(function(){
+      cp.textContent = '✓';
+      setTimeout(function(){ cp.textContent = '🔗'; }, 1200);
+    }).catch(function(){ prompt('Lien personnel du salarié :', lk); });
+  });
+  function toDec(v){ if(!v){ return 0; } var p=v.split(':'); return parseInt(p[0]) + parseInt(p[1]||0)/60; }
+  /* Relais Render : cette page est ouverte via la clé responsables, sans
+     compte Odoo — /web/dataset/call_kw répond « Session expired » dès que le
+     navigateur n'est pas logué au backend. */
+  var RPC = 'https://ocr-pesee-webhook.onrender.com/heures/rpc';
+    (function(){
+      var z = document.getElementById('ha-ex-fins');
+      var du = document.getElementById('ha-ex-du'), au = document.getElementById('ha-ex-au');
+      if(!z || !du || !au){ return; }
+      var fins = {};
+      try { fins = JSON.parse(z.getAttribute('data-fins') || '{}'); } catch(e){}
+      var fin = fins[z.getAttribute('data-comp')] || fins['all'] || '';
+      if(fin){
+        var d = new Date(fin + 'T00:00:00'); d.setDate(d.getDate() + 1);
+        du.value = d.toISOString().slice(0, 10);
+      } else {
+        du.value = z.getAttribute('data-du') || '';
+      }
+      au.value = new Date().toISOString().slice(0, 10);
+      /* plages par salarié : mémorisées au serveur DÈS LA SAISIE (et à l'export),
+         restaurées telles quelles au rechargement — on sait où on en est resté */
+      var excs = {};
+      try { excs = JSON.parse(z.getAttribute('data-exc') || '{}'); } catch(e){}
+      document.querySelectorAll('tr[data-emp]').forEach(function(tr){
+        var m = excs[tr.getAttribute('data-emp')];
+        if(!m){ return; }
+        var a = tr.querySelector('.ha-fx-du'), b = tr.querySelector('.ha-fx-au');
+        if(a &amp;&amp; b &amp;&amp; !a.value &amp;&amp; !b.value){
+          a.value = m[0];
+          b.value = m[1];
+          a.title = b.title = 'Période mémorisée : du ' + m[0] + ' au ' + m[1] + ' — là où la saisie s’est arrêtée (modifiez ou videz avec ✕).';
+          a.style.background = b.style.background = '#fef9c3';
+        }
+      });
+      var sauveTimer = null;
+      function sauvePlages(){
+        clearTimeout(sauveTimer);
+        sauveTimer = setTimeout(function(){
+          var lignes = {};
+          document.querySelectorAll('tr[data-emp]').forEach(function(tr){
+            var a = tr.querySelector('.ha-fx-du'), b = tr.querySelector('.ha-fx-au');
+            if(!a || !b){ return; }
+            lignes[tr.getAttribute('data-emp')] =
+              (a.value &amp;&amp; b.value &amp;&amp; a.value &lt;= b.value) ? [a.value, b.value] : [];
+          });
+          rpcAction(2090, {active_model: 'x_heures_jour', hj_k: KK, lignes: lignes});
+        }, 800);
+      }
+      document.querySelectorAll('tr[data-emp] .ha-fx-du, tr[data-emp] .ha-fx-au').forEach(function(i){
+        i.addEventListener('change', sauvePlages);
+      });
+      /* filtre « un seul salarié » : masque les autres lignes (memorise par onglet) */
+      var selEmp = document.getElementById('ha-emp-filtre');
+      if(selEmp){
+        var lignesEmp = Array.prototype.slice.call(document.querySelectorAll('tr[data-emp]'));
+        lignesEmp.map(function(tr){ return [tr.getAttribute('data-emp'), tr.getAttribute('data-name') || '']; })
+          .sort(function(a, b){ return a[1].localeCompare(b[1]); })
+          .forEach(function(p){
+            var o = document.createElement('option');
+            o.value = p[0]; o.textContent = p[1];
+            selEmp.appendChild(o);
+          });
+        var filtreEmp = function(){
+          var v = selEmp.value;
+          lignesEmp.forEach(function(tr){
+            tr.style.display = (!v || tr.getAttribute('data-emp') === v) ? '' : 'none';
+          });
+          document.querySelectorAll('td.soc').forEach(function(td){
+            td.parentElement.style.display = v ? 'none' : '';
+          });
+          try { sessionStorage.setItem('haEmpFiltre', v); } catch(e){}
+        };
+        selEmp.addEventListener('change', filtreEmp);
+        try {
+          var memEmp = sessionStorage.getItem('haEmpFiltre');
+          if(memEmp &amp;&amp; selEmp.querySelector('option[value="' + memEmp + '"]')){
+            selEmp.value = memEmp; filtreEmp();
+          }
+        } catch(e){}
+      }
+      function excLignes(){
+        var exc = {};
+        document.querySelectorAll('tr[data-emp]').forEach(function(tr){
+          var a = tr.querySelector('.ha-fx-du'), b = tr.querySelector('.ha-fx-au');
+          if(a &amp;&amp; b &amp;&amp; a.value &amp;&amp; b.value &amp;&amp; a.value &lt;= b.value){
+            exc[tr.getAttribute('data-emp')] = [a.value, b.value];
+          }
+        });
+        return exc;
+      }
+      document.querySelectorAll('a.ha-export').forEach(function(a){
+        a.addEventListener('click', function(ev){
+          var exc = excLignes();
+          var aExc = Object.keys(exc).length ? '&amp;exc=' + encodeURIComponent(JSON.stringify(exc)) : '';
+          if((du.value &amp;&amp; au.value &amp;&amp; du.value &lt;= au.value) || aExc){
+            ev.preventDefault();
+            var h = a.getAttribute('href');
+            if(du.value &amp;&amp; au.value){
+              h = h.replace(/&amp;?mois=[0-9-]*/, '') + '&amp;du=' + du.value + '&amp;au=' + au.value;
+            }
+            window.open(h + aExc, '_blank');
+          }
+        });
+      });
+      /* 📄 : période de la LIGNE si renseignée (exception salarié),
+         sinon dates de l'en-tête, sinon mois du lien */
+      var bFill = document.getElementById('ha-ex-fill'), bClear = document.getElementById('ha-ex-clear');
+      if(bFill){ bFill.onclick = function(){
+        document.querySelectorAll('tr[data-emp] .ha-fx-du').forEach(function(i){ i.value = du.value; });
+        document.querySelectorAll('tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = au.value; });
+        sauvePlages();
+      }; }
+      if(bClear){ bClear.onclick = function(){
+        document.querySelectorAll('tr[data-emp] .ha-fx-du, tr[data-emp] .ha-fx-au').forEach(function(i){ i.value = ''; i.style.background = ''; });
+        sauvePlages();
+      }; }
+      document.querySelectorAll('a.ha-feuille').forEach(function(a){
+        a.addEventListener('click', function(ev){
+          var tr = a.closest('tr');
+          var rdu = tr ? tr.querySelector('.ha-fx-du') : null;
+          var rau = tr ? tr.querySelector('.ha-fx-au') : null;
+          var d = (rdu &amp;&amp; rdu.value) ? rdu.value : du.value;
+          var f = (rau &amp;&amp; rau.value) ? rau.value : au.value;
+          if(d &amp;&amp; f &amp;&amp; d &lt;= f){
+            ev.preventDefault();
+            var h = a.getAttribute('href').replace(/&amp;?mois=[0-9-]*/, '');
+            window.open(h + '&amp;du=' + d + '&amp;au=' + f, '_blank');
+          }
+        });
+      });
+    })();
+  function rpcAction(actionId, ctx){
+    return fetch(RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action_id:actionId, ctx:ctx})});
+  }
+  function handleErr(d){
+    var m = (d.error &amp;&amp; ((d.error.data &amp;&amp; d.error.data.message) || d.error.message)) || '';
+    alert('Échec : ' + m);
+  }
+  function rpcSave(emp, date, typ, md, mf, ad, af, done){
+    rpcAction(2012, {active_model:'x_heures_jour',hj_emp:emp,hj_k:KK,hj_date:date,hj_type:typ,hj_m_deb:md,hj_m_fin:mf,hj_am_deb:ad,hj_am_fin:af}).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ handleErr(d); return; }
+      done(d.result||{});
+    }).catch(function(){ alert('Échec réseau'); });
+  }
+  function vlSet(dateStr){
+    rpcAction(2050, {active_model:'x_heures_jour', hj_k:KK, vl_date:dateStr}).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ handleErr(d); return; }
+      location.reload();
+    }).catch(function(){ alert('Échec réseau'); });
+  }
+  var vlSetBtn = document.getElementById('ha-vl-set');
+  if(vlSetBtn){ vlSetBtn.addEventListener('click', function(){
+    var dv = document.getElementById('ha-vl-date').value;
+    if(!dv){ alert('Choisissez la date de fin de verrouillage.'); return; }
+    if(confirm('Figer toutes les feuilles d\'heures jusqu\'au ' + dv.split('-').reverse().join('/') + ' inclus ?\nLes salariés ne pourront plus modifier ces journées (le bureau reste libre).')){ vlSet(dv); }
+  }); }
+  var vlClearBtn = document.getElementById('ha-vl-clear');
+  if(vlClearBtn){ vlClearBtn.addEventListener('click', function(){
+    if(confirm('Retirer le verrou de paie ? Les salariés pourront de nouveau modifier ces journées.')){ vlSet(''); }
+  }); }
+  document.addEventListener('click', function(e){
+    var cell = e.target.closest('.ha-cell');
+    if(cell){
+      curCell = cell; curEmp = parseInt(cell.closest('tr').getAttribute('data-emp'));
+      document.getElementById('ha-pop-t').textContent = cell.closest('tr').getAttribute('data-name') + ' — ' + cell.getAttribute('data-date');
+      document.getElementById('ha-md').value = cell.getAttribute('data-md') || cell.getAttribute('data-tmd');
+      document.getElementById('ha-mf').value = cell.getAttribute('data-mf') || cell.getAttribute('data-tmf');
+      document.getElementById('ha-ad').value = cell.getAttribute('data-ad') || cell.getAttribute('data-tad');
+      document.getElementById('ha-af').value = cell.getAttribute('data-af') || cell.getAttribute('data-taf');
+      pop.style.display='flex';
+      return;
+    }
+    var q = e.target.closest('.ha-quick');
+    if(q){
+      var tr = q.closest('tr');
+      var cells = tr.querySelectorAll('.ha-cell');
+      var todo = [];
+      cells.forEach(function(c){
+        if(!c.getAttribute('data-type') &amp;&amp; parseFloat(c.getAttribute('data-theo')||0) &gt; 0){ todo.push(c); }
+      });
+      if(!todo.length){ return; }
+      if(!confirm(tr.getAttribute('data-name') + ' : remplir ' + todo.length + ' jour(s) avec l’horaire habituel ?')){ return; }
+      var emp = parseInt(tr.getAttribute('data-emp'));
+      var left = todo.length;
+      todo.forEach(function(c){
+        rpcSave(emp, c.getAttribute('data-date'), 'travail', toDec(c.getAttribute('data-tmd')), toDec(c.getAttribute('data-tmf')), toDec(c.getAttribute('data-tad')), toDec(c.getAttribute('data-taf')), function(){
+          left -= 1; if(left === 0){ location.reload(); }
+        });
+      });
+    }
+  });
+  document.getElementById('ha-pop-x').addEventListener('click', function(){ pop.style.display='none'; });
+  pop.querySelectorAll('.ha-bt[data-t]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var t = b.getAttribute('data-t');
+      if(t === 'normal'){
+        rpcSave(curEmp, curCell.getAttribute('data-date'), 'travail', toDec(curCell.getAttribute('data-tmd')), toDec(curCell.getAttribute('data-tmf')), toDec(curCell.getAttribute('data-tad')), toDec(curCell.getAttribute('data-taf')), function(){ location.reload(); });
+      } else {
+        rpcSave(curEmp, curCell.getAttribute('data-date'), t, 0, 0, 0, 0, function(){ location.reload(); });
+      }
+    });
+  });
+  document.getElementById('ha-save').addEventListener('click', function(){
+    rpcSave(curEmp, curCell.getAttribute('data-date'), 'travail',
+      toDec(document.getElementById('ha-md').value), toDec(document.getElementById('ha-mf').value),
+      toDec(document.getElementById('ha-ad').value), toDec(document.getElementById('ha-af').value),
+      function(){ location.reload(); });
+  });
+})();
+    </script>
+  </t>
+</t>

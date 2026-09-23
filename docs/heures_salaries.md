@@ -548,3 +548,100 @@ pas concernés. H. sup structurelles chauffeurs : 190 − 151,67 = 38,33 h.
 - Balayage général des jours d'août sans miroir : il ne reste que les
   10 jours CP d'**Isabelle MAQUIGNON** (son allocation est à 0 — sa
   propre saisie CP les débloquera automatiquement).
+
+## Récup et sans solde saisis par le salarié, heures sup en récup par défaut (23/09)
+
+Demande de Xavier (feuille papier de Charlotte pour JOLLY Floran vs feuille
+Odoo) : la récup ne passe plus par une demande approuvée, le salarié saisit
+lui-même ses récups et son sans solde (les vacances restent sur validation),
+Charlotte corrige facilement, l'interface reste explicite (« il n'y a pas que
+des prix Nobel »), et **les heures supplémentaires vont par défaut en récup**.
+
+### Modèle `x_heures_jour`
+- Nouveaux champs : `x_h_recup` (heures prises en récup ce jour),
+  `x_h_sans_solde` (heures sans solde ce jour), `x_hs_payees` (booléen
+  « heures sup payées, pas en récup », bureau uniquement). Nouveau type de
+  jour **`sans_solde`** (journée entière).
+- **`x_hs` = heures comptées dans le solde « à récupérer »** du jour :
+  jour travaillé → `travaillé + sans solde − horaire` (heures en plus
+  ajoutées au solde, récup prise ou heures manquantes retirées, sans solde
+  neutre ; si « HS payées », le surplus n'entre pas) ; journée entière de
+  récup → `− horaire` ; sans solde / CP / maladie / férié / absence → 0.
+  C'est exactement la logique de la feuille papier (colonne « Heures
+  supplémentaires » −4,50 le 14/09 « en récup », −5,00 « sans solde » le
+  11/09 hors total, « Heures M-1 » + total = « Reste heures »).
+- **Solde à récupérer** (page salarié, badge admin, exports, fiche) =
+  arrêté bureau (`x_recup_solde` à `x_cp_ref_date`) + Σ `x_hs` des jours
+  postérieurs (types travail / récup / sans solde) + lignes `x_recup_ligne`
+  (désormais réservées au bureau : le champ « + heures à récupérer » de la
+  page salarié est retiré, le surplus est automatique).
+
+### Action 2012 (`heures_actions.py`)
+- Le jeton salarié peut poser `travail`, `recup` et `sans_solde` ; CP,
+  maladie, férié, absence, repos restent réservés au bureau (et une journée
+  posée par le bureau n'est pas modifiable par le salarié).
+- Jour travaillé : `hj_h_recup` / `hj_h_ss` (quarts d'heure, 0–12), refusés
+  si récup + sans solde > heures manquantes (message explicite). 0 h
+  travaillée + récup = horaire ⇒ normalisé en journée `recup` (idem sans
+  solde). `hj_hs_payees` (bureau). Note conservée si `hj_note` absent (sauf
+  note automatique « Récup X h » / « Sans solde X h »).
+- Bureau, saisie partielle (`hj_periode` matin / après-midi / horaires) :
+  récup et sans solde gardent l'horaire entier et remplissent
+  `x_h_recup` / `x_h_sans_solde` (note « Récup 4,50 h (bureau) ») ; CP,
+  maladie, férié, absence partiels inchangés (horaire réduit).
+- Action 2014 (approbation) : sans solde → type `sans_solde`, récup journée
+  → `x_hs = −horaire`, partiels → heures.
+- Réponse enrichie : `type`, `heures`, `theo`, `hs`, `h_recup`, `h_ss`,
+  `payees` (les pages mettent à jour la carte sans recharger).
+
+### Pages
+- **/mes-heures** : bandeau explicatif en 4 lignes ; par jour, trois boutons
+  « ✓ Journée normale », « 🔄 Toute la journée en récup », « 🚫 Toute la
+  journée sans solde » (confirmation), horaires, puis une **ligne de
+  contrôle** calculée en direct (« 9,50 h travaillées pour 8,50 h prévues :
+  +1,00 h ajoutée à vos heures à récupérer », « Il manque 4,50 h… précisez
+  récup ou sans solde ») et un bloc « Heures manquantes » avec « Tout en
+  récup » / « Tout sans solde » et les deux champs en heures. Total semaine
+  « Travaillé · Horaire · Récup semaine ». Tuiles : « À récupérer » (nouvelle
+  formule, détail du calcul en clair), « Récups prises » en heures, « Sans
+  solde ». Vue mois : 🔄 / 🚫 sur les jours concernés. Le bloc de demande ne
+  propose plus que CP et congés spéciaux.
+- **/heures-admin** : popup avec « Sans solde (journée) », champs récup /
+  sans solde en heures et case « HS payées » ; cases « 4,00 R 4,5 » /
+  « SS 5 » ; colonnes Récup ±, 🔄 h, 🚫 h ; badge solde recalculé ; lien
+  **📋** vers la fiche.
+- **NOUVEAU /heures-salarie?emp=&mois=&k=** (vue `website.heures_salarie`,
+  page 92 en prod) : fiche mensuelle d'un salarié au format de la feuille
+  Excel — blocs semaine, Arrivée/Départ ×2, Heures, Récup ±, récup prise,
+  sans solde, HS payées, type, note ; **chaque ligne s'enregistre toute
+  seule** dès qu'une case change (✓ / ✗ à droite, ⚡ = horaire habituel),
+  totaux semaine, récap mois avec **Heures M-1** et **Reste heures** comme
+  sur le papier, lien 📄 Feuille Excel.
+- **/planning-rh** : type sans solde (SS), exposants R / S sur les jours
+  partiels, bouton « Sans solde » dans la popup.
+
+### Exports (`export_heures.py`)
+- Paie : colonnes « Écart compté en récup », « H. sup payées », « H. récup
+  prises », « H. sans solde », « Jours sans solde » ; lignes hebdo avec
+  Récup ± / Récup prise / Sans solde ; solde récup à fin de mois.
+- Silae : `hs` = heures sup **payées** seulement, nouveau code `ABSSH`
+  (heures sans solde partielles), journées sans solde en absences `ABSS`.
+- Feuille hebdo (gabarit papier) : colonne H = `x_hs` en valeur (la formule
+  `G − E2` du gabarit est remplacée), mention SANS SOLDE, annotations
+  « en récup 4,50 h » / « sans solde (−5,00 h) » / « HS payées » dans Total,
+  Heures M-1 = solde à la veille du mois. Vérifié sur JOLLY septembre :
+  semaine 38 = 37,50 h / −1,50, sans solde hors total, comme le papier.
+
+### Migration du 23/09 (`migration_rh.py`)
+Journées entières de récup (`x_hs = −horaire`), récup partielle de JOLLY
+du 14/09 (horaire 8,50, récup 4,50), JOLLY 11/09 absence → sans solde,
+automatisation 87 (miroir hr.leave) : `sans_solde` → Congés sans solde (9).
+Les lignes `x_recup_ligne` existantes (Delphine, MODDE, RANGER) sont
+conservées : aucune ne double un surplus de journée.
+
+### Tests
+15 scénarios de l'action 2012 sur MAQUIGNON Théo (prod, juin 2026, tout
+supprimé), rendu + saisie des 5 pages par Playwright sur la base de test
+`testmaq230926v2` (relais local branché sur la base de test), exports paie /
+Silae / feuille sur la base de test. Scripts et vues avant/après :
+`odoo-scan-page/rh_recup_sans_solde_20260923/`.
