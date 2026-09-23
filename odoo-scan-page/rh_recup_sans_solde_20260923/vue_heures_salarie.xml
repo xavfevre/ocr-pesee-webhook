@@ -48,11 +48,19 @@
       </t>
       <t t-else="">
         <t t-set="today" t-value="datetime.date.today()"/>
+        <!-- période : du/au (dates de paie saisies sur la ligne du salarié dans /heures-admin) ou mois entier -->
+        <t t-set="dup" t-value="(request.params.get('du') or '').strip()"/>
+        <t t-set="aup" t-value="(request.params.get('au') or '').strip()"/>
+        <t t-set="libre" t-value="bool(len(dup) == 10 and len(aup) == 10 and dup &lt;= aup)"/>
         <t t-set="mp" t-value="request.params.get('mois')"/>
-        <t t-set="d1" t-value="datetime.datetime.strptime(mp + '-01', '%Y-%m-%d').date() if mp else today.replace(day=1)"/>
-        <t t-set="d2" t-value="(d1.replace(year=d1.year + 1, month=1, day=1) if d1.month == 12 else d1.replace(month=d1.month + 1, day=1)) - datetime.timedelta(days=1)"/>
+        <t t-set="d1" t-value="datetime.datetime.strptime(dup, '%Y-%m-%d').date() if libre else (datetime.datetime.strptime(mp + '-01', '%Y-%m-%d').date() if mp else today.replace(day=1))"/>
+        <t t-set="d2" t-value="datetime.datetime.strptime(aup, '%Y-%m-%d').date() if libre else ((d1.replace(year=d1.year + 1, month=1, day=1) if d1.month == 12 else d1.replace(month=d1.month + 1, day=1)) - datetime.timedelta(days=1))"/>
+        <t t-set="nper" t-value="(d2 - d1).days + 1"/>
         <t t-set="m_prev" t-value="(d1 - datetime.timedelta(days=1)).replace(day=1).strftime('%Y-%m')"/>
         <t t-set="m_next" t-value="(d2 + datetime.timedelta(days=1)).strftime('%Y-%m')"/>
+        <t t-set="q_per" t-value="('du=%s&amp;au=%s' % (d1.strftime('%Y-%m-%d'), d2.strftime('%Y-%m-%d'))) if libre else ('mois=' + d1.strftime('%Y-%m'))"/>
+        <t t-set="q_prev" t-value="('du=%s&amp;au=%s' % ((d1 - datetime.timedelta(days=nper)).strftime('%Y-%m-%d'), (d1 - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))) if libre else ('mois=' + m_prev)"/>
+        <t t-set="q_next" t-value="('du=%s&amp;au=%s' % ((d2 + datetime.timedelta(days=1)).strftime('%Y-%m-%d'), (d2 + datetime.timedelta(days=nper)).strftime('%Y-%m-%d'))) if libre else ('mois=' + m_next)"/>
         <t t-set="mois_noms" t-value="['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']"/>
         <t t-set="jours" t-value="['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']"/>
         <t t-set="lundi0" t-value="d1 - datetime.timedelta(days=d1.weekday())"/>
@@ -74,12 +82,13 @@
         <t t-set="m_1" t-value="(emp.x_recup_solde or 0.0) + sum(rl.filtered(lambda l: not cp_ref or l.x_date &gt; cp_ref).mapped('x_heures')) + sum(avant.filtered(lambda r: not cp_ref or r.x_date &gt; cp_ref).mapped('x_hs'))"/>
         <t t-set="mrows" t-value="[r for r in rows if d1 &lt;= r.x_date and r.x_date &lt;= d2]"/>
         <div class="fs-head">
-          <h4 style="font-weight:300;margin:0;">📋 <b t-esc="emp.name"/> — <t t-esc="mois_noms[d1.month - 1]"/> <t t-esc="d1.year"/> <span style="color:#94a3b8;font-size:13px;"> · <t t-esc="emp.company_id.name"/> · <t t-esc="cal.name if cal else 'sans horaire'"/></span></h4>
+          <h4 style="font-weight:300;margin:0;">📋 <b t-esc="emp.name"/> — <t t-if="libre">du <b t-esc="d1.strftime('%d/%m/%Y')"/> au <b t-esc="d2.strftime('%d/%m/%Y')"/></t><t t-else=""><t t-esc="mois_noms[d1.month - 1]"/> <t t-esc="d1.year"/></t> <span style="color:#94a3b8;font-size:13px;"> · <t t-esc="emp.company_id.name"/> · <t t-esc="cal.name if cal else 'sans horaire'"/></span></h4>
           <div class="fs-nav">
-            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;mois={{m_prev}}&amp;k={{kk}}">◀ <t t-esc="mois_noms[int(m_prev[5:7]) - 1]"/></a>
+            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;{{q_prev}}&amp;k={{kk}}">◀ <t t-if="libre">période précédente</t><t t-else=""><t t-esc="mois_noms[int(m_prev[5:7]) - 1]"/></t></a>
             <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;k={{kk}}">Ce mois</a>
-            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;mois={{m_next}}&amp;k={{kk}}"><t t-esc="mois_noms[int(m_next[5:7]) - 1]"/> ▶</a>
-            <a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?mois={{d1.strftime('%Y-%m')}}&amp;format=feuille&amp;emp={{emp.id}}&amp;k={{xk}}" target="_blank" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">📄 Feuille Excel</a>
+            <a t-if="libre" t-attf-href="/heures-salarie?emp={{emp.id}}&amp;mois={{d1.strftime('%Y-%m')}}&amp;k={{kk}}" title="Afficher le mois entier">📆 <t t-esc="mois_noms[d1.month - 1]"/> entier</a>
+            <a t-attf-href="/heures-salarie?emp={{emp.id}}&amp;{{q_next}}&amp;k={{kk}}"><t t-if="libre">période suivante</t><t t-else=""><t t-esc="mois_noms[int(m_next[5:7]) - 1]"/></t> ▶</a>
+            <a t-attf-href="https://ocr-pesee-webhook.onrender.com/export-heures?{{q_per}}&amp;format=feuille&amp;emp={{emp.id}}&amp;k={{xk}}" target="_blank" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">📄 Feuille Excel</a>
             <a t-attf-href="/heures-admin?k={{kk}}&amp;vue=mois&amp;mois={{d1.strftime('%Y-%m')}}">🗓 Heures</a>
             <a t-attf-href="/planning-rh?k={{kk}}&amp;mois={{d1.strftime('%Y-%m')}}">📅 Planning</a>
             <a t-attf-href="/mes-heures?emp={{emp.id}}&amp;t={{emp.x_heures_token or ''}}&amp;vue=mois&amp;mois={{d1.strftime('%Y-%m')}}" target="_blank">👤 Page du salarié</a>
@@ -143,18 +152,18 @@
           </t>
         </table>
         <div class="fs-recap">
-          <div>Nombre total d'heures (mois)<b id="fs-m-h">–</b></div>
-          <div>Récup ± du mois<b id="fs-m-hs">–</b></div>
+          <div>Nombre total d'heures (<t t-if="libre">période</t><t t-else="">mois</t>)<b id="fs-m-h">–</b></div>
+          <div>Récup ± <t t-if="libre">de la période</t><t t-else="">du mois</t><b id="fs-m-hs">–</b></div>
           <div>🔄 Récup prises<b id="fs-m-r">–</b></div>
           <div>🚫 Sans solde<b id="fs-m-s">–</b></div>
-          <div class="acc" t-att-title="'Solde à récupérer à la veille du mois : arrêté bureau %g h' % (emp.x_recup_solde or 0) + (' au ' + cp_ref.strftime('%d/%m/%Y') if cp_ref else '') + ' + heures comptées depuis'">Heures M-1<b><t t-esc="('%+.2f' % m_1).replace('.', ',')"/> h</b></div>
+          <div class="acc" t-att-title="'Solde à récupérer à la veille du mois : arrêté bureau %g h' % (emp.x_recup_solde or 0) + (' au ' + cp_ref.strftime('%d/%m/%Y') if cp_ref else '') + ' + heures comptées depuis'"><t t-if="libre">Solde au <t t-esc="m0.strftime('%d/%m')"/></t><t t-else="">Heures M-1</t><b><t t-esc="('%+.2f' % m_1).replace('.', ',')"/> h</b></div>
           <div class="acc">Reste heures (à récupérer)<b id="fs-m-reste">–</b></div>
           <div>🌴 CP<b><t t-esc="len([r for r in mrows if r.x_type == 'cp'])"/> j</b></div>
           <div>🤒 Maladie<b><t t-esc="len([r for r in mrows if r.x_type == 'maladie'])"/> j</b></div>
           <div>🎉 Fériés<b><t t-esc="len([r for r in mrows if r.x_type == 'ferie'])"/> j</b></div>
           <div>⛔ Absences<b><t t-esc="len([r for r in mrows if r.x_type == 'absence'])"/> j</b></div>
         </div>
-        <div style="color:#94a3b8;font-size:11.5px;font-weight:600;">Heures M-1 = arrêté bureau (page ⏰ Horaires par défaut) + heures comptées en récup depuis, jusqu'à la veille du mois. Reste heures = Heures M-1 + Récup ± du mois. Les jours grisés appartiennent au mois voisin (comptés dans la semaine, pas dans le mois).</div>
+        <div style="color:#94a3b8;font-size:11.5px;font-weight:600;">Heures M-1 (ou Solde au …) = arrêté bureau (page ⏰ Horaires par défaut) + heures comptées en récup depuis, jusqu'à la veille de la période. Reste heures = ce solde + Récup ± de la période. Les jours grisés sont hors période (comptés dans la semaine, pas dans les totaux). Depuis 🗓 Heures, le bouton 📋 ouvre la fiche sur les dates saisies sur la ligne du salarié (sinon les dates de l'en-tête, sinon le mois).</div>
         <div id="fs-k" t-att-data-k="kk" t-att-data-emp="emp.id" t-att-data-m1="'%.4f' % m_1" style="display:none;"/>
         <script>
 (function(){

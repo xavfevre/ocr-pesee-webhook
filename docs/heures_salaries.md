@@ -645,3 +645,15 @@ supprimé), rendu + saisie des 5 pages par Playwright sur la base de test
 `testmaq230926v2` (relais local branché sur la base de test), exports paie /
 Silae / feuille sur la base de test. Scripts et vues avant/après :
 `odoo-scan-page/rh_recup_sans_solde_20260923/`.
+
+### Fiche et feuille Excel sur la période de paie du salarié (23/09, suite)
+Charlotte fait les paies à cheval sur deux mois, avec des dates différentes
+selon le salarié (dates mémorisées par ligne dans `/heures-admin`,
+paramètre `maquignon.heures_export_exc`). Le bouton **📋** ouvre donc la
+fiche `/heures-salarie?emp=&du=&au=&k=` sur les dates de la ligne (sinon
+celles de l'en-tête, sinon le mois), comme le bouton 📄. La fiche affiche
+alors « du … au … », des semaines couvrant la période, les totaux de la
+période, **« Solde au (veille) »** à la place de « Heures M-1 », et son
+bouton 📄 Feuille Excel reprend la même période (`build_feuille` avec
+du/au : Heures M-1 = solde à la veille du premier jour). Navigation
+« période précédente / suivante » (même longueur) et « 📆 mois entier ».
