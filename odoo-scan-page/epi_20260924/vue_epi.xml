@@ -57,9 +57,9 @@
         <t t-set="stock" t-value="{}"/>
         <t t-set="_q" t-value="[stock.update({q.product_id.id: stock.get(q.product_id.id, 0.0) + q.quantity}) for q in quants]"/>
         <t t-set="emps" t-value="request.env['hr.employee'].sudo().search([('active','=',True)], order='company_id, name')"/>
-        <t t-set="mvs" t-value="request.env['stock.move'].sudo().search([('state','=','done'),'|',('location_dest_id','=',loc_conso),('location_id','=',loc_conso)], order='date desc, id desc', limit=60)"/>
+        <t t-set="mvs" t-value="request.env['stock.move'].sudo().search([('state','=','done'),('product_id.active','=',True),'|',('location_dest_id','=',loc_conso),('location_id','=',loc_conso)], order='date desc, id desc', limit=60)"/>
         <t t-set="annules" t-value="set([r.origin.replace('Annulation ', '') for r in request.env['stock.picking'].sudo().search([('origin','like','Annulation EPI'),('state','=','done')])])"/>
-        <t t-set="mvs_an" t-value="request.env['stock.move'].sudo().search([('state','=','done'),('x_employee_id','!=',False),('date','&gt;=',annee + '-01-01'),('date','&lt;=',annee + '-12-31'),'|',('location_dest_id','=',loc_conso),('location_id','=',loc_conso)])"/>
+        <t t-set="mvs_an" t-value="request.env['stock.move'].sudo().search([('state','=','done'),('product_id.active','=',True),('x_employee_id','!=',False),('date','&gt;=',annee + '-01-01'),('date','&lt;=',annee + '-12-31 23:59:59'),'|',('location_dest_id','=',loc_conso),('location_id','=',loc_conso)])"/>
         <t t-set="conso" t-value="{}"/>
         <t t-set="_c" t-value="[conso.setdefault(r.x_employee_id, {}).update({r.product_id: conso.get(r.x_employee_id, {}).get(r.product_id, 0.0) + (r.quantity if r.location_dest_id.id == loc_conso else -r.quantity)}) for r in mvs_an]"/>
         <div class="ep-brand">
