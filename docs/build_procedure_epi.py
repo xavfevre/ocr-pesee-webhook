@@ -126,8 +126,12 @@ for num, txt in regles:
 note("La page fonctionne sur l'ordinateur de l'accueil comme sur un téléphone, sans compte Odoo. Pas de signature du salarié : la saisie fait foi.", bg=GREENL, fg=GREEN)
 
 sect("1 · OUVRIR LA PAGE EPI")
-story.append(Paragraph("Lien de la page (à mettre en favori) :", st_txt))
+steps([
+    "<b>À l'accueil</b> (sans compte Odoo) : le lien ci-dessous, à mettre en favori sur l'ordinateur et sur le téléphone.",
+    "<b>Depuis Odoo</b> (bureau, comptes connectés) : menu <b>Inventaire → EPI</b>. La page s'ouvre dans un nouvel onglet, c'est la même.",
+])
 story.append(Paragraph(LIEN, st_lien))
+capture("menu_inventaire", "Dans Odoo, le menu EPI de l'application Inventaire ouvre la page.", max_h=22 * mm)
 note("Ce lien contient la clé d'accès de l'accueil : ne pas le transmettre en dehors du bureau et de l'accueil. En cas de doute, le bureau peut changer la clé.", bg=REDL, fg=RED)
 
 sect("2 · REMETTRE UN EPI À UN SALARIÉ")
