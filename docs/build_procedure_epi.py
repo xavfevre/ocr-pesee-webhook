@@ -159,11 +159,11 @@ capture("entree", "Le bloc d'entrée en stock : une ligne par EPI et par taille 
 
 sect("5 · SUIVRE LE STOCK ET LA CONSOMMATION")
 steps([
-    "<b>« 📊 Stock EPI »</b> : une ligne par EPI et par taille. <b>Rouge</b> = rupture, <b>orange</b> = 2 ou moins : prévenir le bureau pour recommander. La valeur du stock est indiquée dessous.",
+    "<b>« 📊 Stock EPI »</b> : une ligne par EPI et par taille, avec le stock mini et maxi. <b>Rouge</b> = rupture ou sous le mini, <b>orange</b> = au mini : prévenir le bureau, qui lance les demandes de prix (bouton 🛒). La valeur du stock est indiquée dessous.",
     "<b>« 👤 Consommation par salarié »</b> : pour l'année affichée, ce que chaque salarié a reçu (détail par EPI, total, coût), avec un filtre par nom et les flèches pour changer d'année.",
     "Le bureau retrouve les mêmes informations dans Odoo : fiche du salarié → onglet <b>EPI</b> ; Inventaire → Analyse des mouvements, grouper par <b>Salarié</b>.",
 ])
-capture("stock", "Le stock par taille, avec les couleurs d'alerte.", max_h=72 * mm)
+capture("stock", "Le stock par taille : rouge sous le mini, orange au mini.", max_h=60 * mm)
 
 # ───────────── PAGE 2 — BUREAU : NOUVEL ARTICLE ─────────────
 story.append(PageBreak())
@@ -188,7 +188,17 @@ steps([
 captures2("variantes_haut", "Onglet Attributs & Variantes : l'attribut Pointure et ses valeurs.",
           "variante", "Fiche d'une variante (pointure 42) : le champ Code-barres, propre à cette taille.", max_h=80 * mm)
 
-sect("8 · OÙ RETROUVER LES INFORMATIONS DANS ODOO", TEAL)
+sect("8 · BUREAU — FOURNISSEURS, STOCK MINI ET DEMANDES DE PRIX", ORANGE)
+steps([
+    "<b>Référencer les fournisseurs</b> sur la fiche article, onglet <b>Achats</b>, tableau « Fournisseurs » : une ligne par fournisseur (prix, quantité mini, délai). Un fournisseur qui n'existe pas encore se crée depuis la ligne (ou Achats → Commandes → Fournisseurs → Nouveau). Plusieurs fournisseurs sur un même EPI = une demande de prix à chacun, pour comparer.",
+    "<b>Stock mini / maxi</b> : sur la page EPI, tableau « Stock EPI », colonnes <b>Mini</b> et <b>Maxi</b>, par taille. Enregistré aussitôt (c'est une règle de réapprovisionnement Odoo sur Maq/Stock EPI). Sous le mini, la ligne passe en rouge ; au mini, en orange.",
+    "<b>Demandes de prix</b> : bouton <b>« 🛒 Demandes de prix aux fournisseurs »</b> sous le tableau. La page annonce les EPI sous le mini et les fournisseurs concernés, puis crée dans Odoo <b>une demande de prix (brouillon) par fournisseur</b>, quantité = de quoi remonter au maxi, prix et référence du fournisseur repris de la fiche. Relancer le bouton met à jour la demande existante, sans doublon.",
+    "Un EPI sous le mini <b>sans fournisseur référencé</b> est signalé : compléter l'onglet Achats de l'article, puis relancer.",
+    "Dans Odoo, <b>Achats → Demandes de prix</b> : vérifier, <b>Envoyer par e-mail</b> au fournisseur, puis <b>Confirmer</b> la commande retenue. À la livraison, <b>valider la réception</b> dans Odoo (elle est de type « Réception EPI » : le stock EPI est mis à jour tout seul, sans passer par « Entrée en stock » sur la page).",
+])
+capture("stock_bas", "Sous le tableau Stock EPI : le bouton de demandes de prix ; la liste des demandes en cours (numéro, fournisseur, état, montant) s'affiche dessous, avec un lien vers Odoo.", max_h=60 * mm)
+
+sect("9 · OÙ RETROUVER LES INFORMATIONS DANS ODOO", TEAL)
 steps([
     "<b>Fiche salarié → onglet EPI</b> : tout ce qu'il a reçu (date, EPI, quantité, référence du transfert).",
     "<b>Inventaire → Opérations</b> : transferts <b>« Dotation EPI »</b> (remises, référence WH/EPI/…) et <b>« Réception EPI »</b> (entrées, WH/EPIIN/…), avec le champ Salarié.",

@@ -47,3 +47,19 @@ annulation puis double annulation refusée, onglet EPI de la fiche salarié alim
 - **`docs/procedure_epi.pdf`** (5 pages, `docs/build_procedure_epi.py`, captures `docs/captures_epi/`, lien de la
   page passé en argument : la copie du dépôt ne contient pas la clé). Copie avec le lien complet :
   `Desktop/Maquignon/Procedure_EPI.pdf`.
+
+## Fournisseurs, stock mini et demandes de prix (24/09, suite)
+- **Stock mini / maxi** : colonnes Mini / Maxi dans le tableau Stock EPI de la page, saisies directement
+  (action **2113** : règle de réapprovisionnement `stock.warehouse.orderpoint` sur Maq/Stock EPI, déclenchement
+  manuel ; mini = maxi = 0 supprime la règle). Rouge = rupture ou sous le mini, orange = au mini.
+- **Fournisseurs** : lignes fournisseur de la fiche article (`product.supplierinfo`, onglet Achats), affichées
+  dans la colonne Fournisseurs ; « aucun » en orange s'il n'y en a pas.
+- **Demandes de prix** (action **2114**, bouton 🛒) : pour chaque EPI sous son mini, une demande de prix
+  brouillon **par fournisseur référencé** (quantité = maxi − stock, au moins la quantité mini du fournisseur, prix
+  et référence fournisseur repris), origine `EPI stock mini`, type d'opération **Réception EPI** (la réception
+  validée dans Odoo entre directement dans Stock EPI). `apercu=1` = calcul seul (la page confirme avant de créer).
+  Un nouveau passage met à jour la demande brouillon existante du fournisseur (pas de doublon). Les EPI sans
+  fournisseur sont listés. Liste des demandes en cours (brouillon / envoyée / à approuver / commandée) sous le bouton.
+- Fiche procédure : section 8 (bureau) ajoutée, PDF 6 pages.
+Testé (`test_epi_achats.py`, fournisseur de test archivé ensuite) : règles 2/4 et 1/1, refus d'un mini négatif,
+aperçu, création P00120 (2 lignes, 59,90 €, Réception EPI), 2e passage = mise à jour, suppression de règle.
