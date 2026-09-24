@@ -38,3 +38,12 @@ par nom. Aide intégrée : créer un nouvel EPI dans la catégorie EPI.
 Tests (`test_epi.py`, article « TEST EPI (à archiver) » archivé ensuite) : clé fausse refusée,
 remise sans stock refusée, réception 2, remise 1 à Théo, remise 3 refusée puis forcée (stock −2),
 annulation puis double annulation refusée, onglet EPI de la fiche salarié alimenté.
+
+## Code-barres tapé et fiche procédure (24/09, suite)
+- La secrétaire n'a pas de douchette : champ **Code-barres** (saisie clavier + Entrée) dans les blocs Remise et
+  Entrée en stock, qui sélectionne l'EPI (`data-barcode` sur les options, `product.product.barcode`) ; code inconnu
+  = message. Pour un EPI à tailles, le code-barres se saisit sur **chaque variante** (le champ n'apparaît pas sur
+  la fiche modèle quand il y a des variantes).
+- **`docs/procedure_epi.pdf`** (5 pages, `docs/build_procedure_epi.py`, captures `docs/captures_epi/`, lien de la
+  page passé en argument : la copie du dépôt ne contient pas la clé). Copie avec le lien complet :
+  `Desktop/Maquignon/Procedure_EPI.pdf`.

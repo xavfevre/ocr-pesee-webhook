@@ -21,6 +21,9 @@
       .ep-btn.rec{background:#1d4ed8;color:#fff;font-size:14px;padding:9px;}
       .ep-btn:disabled{opacity:.5;}
       .ep-stock-info{font-weight:900;font-size:13px;margin-top:4px;}
+      .ep-form input.ep-scan{border-color:#0f172a;background:#f8fafc;}
+      .ep-form input.ep-scan.ok{border-color:#16a34a;background:#dcfce7;}
+      .ep-form input.ep-scan.bad{border-color:#dc2626;background:#fee2e2;}
       .ep-stock-info.ok{color:#15803d;} .ep-stock-info.warn{color:#b45309;} .ep-stock-info.bad{color:#b91c1c;}
       .ep-flash{border-radius:12px;padding:10px 14px;font-weight:900;margin-bottom:12px;}
       .ep-flash.ok{background:#dcfce7;color:#166534;} .ep-flash.err{background:#fee2e2;color:#991b1b;}
@@ -81,11 +84,13 @@
                     </optgroup>
                   </t>
                 </select>
+                <label for="ep-scan">Code-barres</label>
+                <input type="text" id="ep-scan" class="ep-scan" data-cible="ep-prod" placeholder="tapez le code-barres de l'EPI puis Entrée (ou choisissez-le ci-dessous)" autocomplete="off" inputmode="numeric"/>
                 <label for="ep-prod">EPI</label>
                 <div>
                   <select id="ep-prod">
                     <option value="">— choisir —</option>
-                    <t t-foreach="prods" t-as="pr"><option t-att-value="pr.id" t-att-data-stock="'%g' % stock.get(pr.id, 0.0)"><t t-esc="pr.display_name"/> — stock <t t-esc="'%g' % stock.get(pr.id, 0.0)"/></option></t>
+                    <t t-foreach="prods" t-as="pr"><option t-att-value="pr.id" t-att-data-stock="'%g' % stock.get(pr.id, 0.0)" t-att-data-barcode="pr.barcode or ''"><t t-esc="pr.display_name"/> — stock <t t-esc="'%g' % stock.get(pr.id, 0.0)"/></option></t>
                   </select>
                   <div id="ep-stock-info" class="ep-stock-info"></div>
                 </div>
@@ -102,10 +107,12 @@
             <div class="ep-card">
               <h5>📦 Entrée en stock (EPI reçus)</h5>
               <div class="ep-form">
+                <label for="ep-rec-scan">Code-barres</label>
+                <input type="text" id="ep-rec-scan" class="ep-scan" data-cible="ep-rec-prod" placeholder="tapez le code-barres de l'EPI reçu puis Entrée" autocomplete="off" inputmode="numeric"/>
                 <label for="ep-rec-prod">EPI</label>
                 <select id="ep-rec-prod">
                   <option value="">— choisir —</option>
-                  <t t-foreach="prods" t-as="pr"><option t-att-value="pr.id"><t t-esc="pr.display_name"/> (stock <t t-esc="'%g' % stock.get(pr.id, 0.0)"/>)</option></t>
+                  <t t-foreach="prods" t-as="pr"><option t-att-value="pr.id" t-att-data-barcode="pr.barcode or ''"><t t-esc="pr.display_name"/> (stock <t t-esc="'%g' % stock.get(pr.id, 0.0)"/>)</option></t>
                 </select>
                 <label for="ep-rec-qty">Quantité</label>
                 <input type="number" id="ep-rec-qty" value="1" min="1" max="200" step="1"/>
@@ -115,7 +122,7 @@
                 <input type="text" id="ep-rec-note" placeholder="fournisseur, n° de BL… (facultatif)"/>
               </div>
               <button type="button" id="ep-rec-go" class="ep-btn rec">📦 Entrer en stock</button>
-              <div class="ep-help" style="margin-top:8px;">Nouvel EPI à suivre ? Dans Odoo, créer l'article dans la catégorie <b>EPI</b> avec « Suivre le stock » coché (tailles en variantes) : il apparaît ici aussitôt.</div>
+              <div class="ep-help" style="margin-top:8px;">Nouvel EPI à suivre ? Dans Odoo, créer l'article dans la catégorie <b>EPI</b> avec « Suivre l'inventaire » coché et son code-barres tapé dans le champ Code-barres (tailles en variantes : un code par taille). Il apparaît ici aussitôt.</div>
             </div>
           </div>
           <div>
@@ -206,6 +213,20 @@
     z.textContent = 'En stock : ' + n; z.className = 'ep-stock-info ' + (n &lt;= 0 ? 'bad' : (n &lt;= 2 ? 'warn' : 'ok'));
   }
   if(selP){ selP.addEventListener('change', majStock); majStock(); }
+  /* code-barres tapé (ou scanné) puis Entrée : sélectionne l'EPI dans la liste ; inconnu = message */
+  function scan(inp){
+    var code = (inp.value || '').trim(); if(!code){ return; }
+    var sel = document.getElementById(inp.getAttribute('data-cible')); var trouve = null;
+    for(var i = 0; i &lt; sel.options.length; i++){ var bc = sel.options[i].getAttribute('data-barcode') || ''; if(bc &amp;&amp; bc === code){ trouve = sel.options[i]; break; } }
+    if(!trouve){ inp.className = 'ep-scan bad'; alert('Code-barres ' + code + ' inconnu.' + String.fromCharCode(10) + 'Vérifiez la saisie, ou enregistrez ce code sur la fiche de l' + String.fromCharCode(39) + 'article dans Odoo (champ Code-barres ; pour un EPI à tailles, sur chaque variante). Sinon choisissez l' + String.fromCharCode(39) + 'EPI dans la liste.'); inp.select(); return; }
+    sel.value = trouve.value; inp.className = 'ep-scan ok'; inp.value = trouve.textContent.trim();
+    if(sel === selP){ majStock(); var q = document.getElementById('ep-qty'); if(q){ q.focus(); q.select(); } }
+    else { var q2 = document.getElementById('ep-rec-qty'); if(q2){ q2.focus(); q2.select(); } }
+  }
+  document.querySelectorAll('input.ep-scan').forEach(function(inp){
+    inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); scan(inp); } });
+    inp.addEventListener('focus', function(){ inp.value = ''; inp.className = 'ep-scan'; });
+  });
   var go = document.getElementById('ep-go');
   function remettre(force){
     var emp = document.getElementById('ep-emp').value, prod = selP.value, qty = document.getElementById('ep-qty').value, date = document.getElementById('ep-date').value, note = document.getElementById('ep-note').value;
