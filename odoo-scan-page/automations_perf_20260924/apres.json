@@ -1,0 +1,258 @@
+[
+ {
+  "id": 7,
+  "name": "Transfert champs BC vers OF",
+  "model_name": "mrp.production",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   18017,
+   18018,
+   18839
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1477
+  ],
+  "active": true,
+  "trigger_fields": [
+   "origin",
+   "product_id",
+   "sale_line_id"
+  ],
+  "actions": [
+   {
+    "id": 1477,
+    "name": "Exécuter le code",
+    "state": "code",
+    "code": "if record.sale_line_id:\n    _dups = env['mrp.production'].search([\n        ('sale_line_id', '=', record.sale_line_id.id),\n        ('id', '!=', record.id),\n        ('state', '!=', 'cancel'),\n    ])\n    if _dups:\n        _already = env['mail.message'].search_count([\n            ('model', '=', 'mrp.production'),\n            ('res_id', '=', record.id),\n            ('subject', '=', 'Doublon OF potentiel'),\n        ])\n        if not _already:\n            record.message_post(\n                subject='Doublon OF potentiel',\n                body=\"\\u26a0\\ufe0f Doublon potentiel : OF actif(s) deja existant(s) pour cette ligne : %s\"\n                     % ', '.join(_dups.mapped('name')),\n            )\nif record.origin and not record.x_studio_nom_du_client:\n    sale_order = env['sale.order'].search([('name', '=', record.origin)], limit=1)\n    if sale_order and sale_order.partner_id:\n        vals = {'x_studio_nom_du_client': sale_order.partner_id.name}\n        try:\n            vals['x_studio_ref_commande_client'] = sale_order.client_order_ref or ''\n        except Exception:\n            vals['x_studio_ref_commande_client'] = ''\n        matching_line = False\n        if record.sale_line_id and record.sale_line_id.order_id.id == sale_order.id:\n            matching_line = record.sale_line_id\n        if not matching_line and sale_order.order_line and record.product_id:\n            product_lines = sale_order.order_line.filtered(\n                lambda l: l.product_id.id == record.product_id.id\n            ).sorted(key=lambda l: (l.sequence, l.id))\n            if len(product_lines) == 1:\n                matching_line = product_lines[0]\n            elif len(product_lines) > 1:\n                existing_mos_count = env['mrp.production'].search_count([\n                    ('origin', '=', record.origin),\n                    ('product_id', '=', record.product_id.id),\n                    ('id', '<', record.id),\n                    ('state', '!=', 'cancel'),\n                ])\n                index = existing_mos_count % len(product_lines)\n                matching_line = product_lines[index]\n        if not matching_line and sale_order.order_line:\n            matching_line = sale_order.order_line[0]\n        if matching_line:\n            try:\n                if not record.sale_line_id:\n                    vals['sale_line_id'] = matching_line.id\n            except Exception:\n                pass\n            try:\n                vals['x_studio_ref_pierre'] = matching_line.x_studio_ref_pierre or ''\n            except Exception:\n                vals['x_studio_ref_pierre'] = ''\n            try:\n                vals['x_studio_nbr'] = matching_line.x_studio_nbr or 0\n            except Exception:\n                vals['x_studio_nbr'] = 0\n            try:\n                vals['x_studio_long_m_1'] = matching_line.x_studio_long or 0.0\n            except Exception:\n                vals['x_studio_long_m_1'] = 0.0\n            try:\n                vals['x_studio_larg_m_1'] = matching_line.x_studio_larg or 0.0\n            except Exception:\n                vals['x_studio_larg_m_1'] = 0.0\n            try:\n                vals['x_studio_haut_m_1'] = matching_line.x_studio_epais or 0.0\n            except Exception:\n                vals['x_studio_haut_m_1'] = 0.0\n            try:\n                vals['x_studio_surf_total'] = matching_line.x_studio_surf or 0.0\n            except Exception:\n                vals['x_studio_surf_total'] = 0.0\n            try:\n                vals['x_studio_vol_total'] = matching_line.x_studio_vol or 0.0\n            except Exception:\n                vals['x_studio_vol_total'] = 0.0\n        vol_total = vals.get('x_studio_vol_total', 0) or 0\n        if vol_total:\n            vals['product_qty'] = vol_total\n        if matching_line:\n            try:\n                line_name = matching_line.name or ''\n                desc_parts = line_name.split('\\n')\n                vals['x_studio_description_article'] = (\n                    '\\n'.join(desc_parts[1:]).strip() if len(desc_parts) > 1 else ''\n                )\n            except Exception:\n                vals['x_studio_description_article'] = ''\n        vals['log_note'] = \"%s | %s\\nNbr: %s  L: %.3f  l: %.3f  H: %.3f m\" % (\n            vals.get('x_studio_nom_du_client', '') or '',\n            vals.get('x_studio_ref_pierre', '') or '',\n            int(vals.get('x_studio_nbr', 0) or 0),\n            float(vals.get('x_studio_long_m_1', 0) or 0),\n            float(vals.get('x_studio_larg_m_1', 0) or 0),\n            float(vals.get('x_studio_haut_m_1', 0) or 0),\n        )\n        record.write(vals)\nif record.origin:\n    sale_order = env['sale.order'].search([('name', '=', record.origin)], limit=1)\n    if sale_order and sale_order.order_line and record.product_id:\n        if record.sale_line_id and record.sale_line_id.order_id.id == sale_order.id:\n            matching_line = record.sale_line_id\n        else:\n            product_lines = sale_order.order_line.filtered(\n                lambda l: l.product_id.id == record.product_id.id\n            ).sorted(key=lambda l: (l.sequence, l.id))\n            if product_lines:\n                existing_mos_count = env['mrp.production'].search_count([\n                    ('origin', '=', record.origin),\n                    ('product_id', '=', record.product_id.id),\n                    ('id', '<', record.id),\n                    ('state', '!=', 'cancel'),\n                ])\n                index = existing_mos_count % len(product_lines) if len(product_lines) > 0 else 0\n                matching_line = product_lines[index]\n            else:\n                matching_line = False\n        if matching_line and matching_line.x_studio_taille_de_p:\n            already_exists = record.workorder_ids.filtered(\n                lambda w: 'taille de pierre' in w.name.lower()\n            )\n            if not already_exists:\n                workcenter = env['mrp.workcenter'].search(\n                    [('name', 'ilike', 'TC1350 Atelier')], limit=1\n                ) or env['mrp.workcenter'].search([('name', 'ilike', 'TC1350')], limit=1)\n                if workcenter:\n                    texte = matching_line.x_studio_taille_de_p.strip()\n                    workorder_name = 'Taille de pierre - ' + texte if texte else 'Taille de pierre'\n                    env['mrp.workorder'].create({\n                        'name': workorder_name,\n                        'production_id': record.id,\n                        'workcenter_id': workcenter.id,\n                        'product_uom_id': record.product_uom_id.id,\n                        'qty_production': record.product_qty,\n                    })\nif record.origin:\n    sale_order = env['sale.order'].search([('name', '=', record.origin)], limit=1)\n    if sale_order and sale_order.x_studio_tache:\n        tache_id = sale_order.x_studio_tache.id\n        record.write({'x_studio_tche_commande_pierre': tache_id})\n        for workorder in record.workorder_ids:\n            workorder.write({'x_studio_tche_commande_pierre': tache_id})"
+   }
+  ]
+ },
+ {
+  "id": 12,
+  "name": "Update Nbr Split",
+  "model_name": "mrp.production",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   18014,
+   24153,
+   24291
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1494
+  ],
+  "active": true,
+  "trigger_fields": [
+   "name",
+   "x_studio_nbr",
+   "x_studio_nbr_original_1"
+  ],
+  "actions": [
+   {
+    "id": 1494,
+    "name": "Exécuter le code",
+    "state": "code",
+    "code": "for rec in records:\n    if '-' in rec.name:\n        prefix = rec.name.rsplit('-', 1)[0]\n        all_mos = env['mrp.production'].search([\n            ('name', 'like', prefix + '%')\n        ], order='id asc')\n        if len(all_mos) > 0:\n            first_mo = all_mos[0]\n            if not first_mo.x_studio_nbr_original_1:\n                first_mo.write({'x_studio_nbr_original_1': first_mo.x_studio_nbr})\n            original = first_mo.x_studio_nbr_original_1\n            total = len(all_mos)\n            if total > 1 and original:\n                new_nbr = original / total\n                mos_to_update = all_mos.filtered(lambda mo: mo.x_studio_nbr != new_nbr)\n                if mos_to_update:\n                    mos_to_update.write({'x_studio_nbr': new_nbr})\n                    rec.message_post(body=\"✅ %s OF mis à jour: %s → %s\" % (len(mos_to_update), original, new_nbr))\n    elif rec.x_studio_nbr and not rec.x_studio_nbr_original_1:\n        rec.write({'x_studio_nbr_original_1': rec.x_studio_nbr})"
+   }
+  ]
+ },
+ {
+  "id": 14,
+  "name": "Classement automatique plans de fabrication",
+  "model_name": "sale.order",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   10795,
+   24557
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1513
+  ],
+  "active": true,
+  "trigger_fields": [
+   "order_line",
+   "x_studio_plan_gnral"
+  ],
+  "actions": [
+   {
+    "id": 1513,
+    "name": "Exécuter le code",
+    "state": "code",
+    "code": "VENTES_FOLDER_ID = env['documents.document'].search([('name', '=', 'Ventes'), ('type', '=', 'folder')], limit=1).id\nfor order in records:\n    attachments_order = env['ir.attachment'].search([\n        ('res_model', '=', 'sale.order'),\n        ('res_id', '=', order.id),\n        ('res_field', '=', 'x_studio_plan_gnral')\n    ])\n    attachments_lines = env['ir.attachment']\n    for line in order.order_line:\n        if line.x_studio_plan_ligne_attachment:\n            attachments_lines = attachments_lines | line.x_studio_plan_ligne_attachment\n    all_attachments = attachments_order | attachments_lines\n    if all_attachments:\n        tag_client = env['documents.tag'].search([\n            ('name', '=', order.partner_id.name)\n        ], limit=1)\n        if not tag_client:\n            tag_client = env['documents.tag'].create({\n                'name': order.partner_id.name\n            })\n        tag_plan = env['documents.tag'].search([\n            ('name', '=', 'Plan de fabrication')\n        ], limit=1)\n        if not tag_plan:\n            tag_plan = env['documents.tag'].create({\n                'name': 'Plan de fabrication'\n            })\n        for att in all_attachments:\n            existing_doc = env['documents.document'].search([\n                ('attachment_id', '=', att.id)\n            ], limit=1)\n            if not existing_doc:\n                if att.res_field == 'x_studio_plan_gnral':\n                    type_plan = \"Plan général\"\n                else:\n                    type_plan = \"Plan ligne\"\n                doc_name = \"[%s] %s - %s\" % (order.name, type_plan, att.name)\n                env['documents.document'].create({\n                    'attachment_id': att.id,\n                    'folder_id': VENTES_FOLDER_ID,\n                    'name': doc_name,\n                    'res_model': 'sale.order',\n                    'res_id': order.id,\n                    'partner_id': order.partner_id.id,\n                    'tag_ids': [Command.set([tag_client.id, tag_plan.id])]\n                })"
+   }
+  ]
+ },
+ {
+  "id": 53,
+  "name": "FSM - Corriger TVA articles",
+  "model_name": "sale.order.line",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   10843,
+   10859
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1650
+  ],
+  "active": true,
+  "trigger_fields": [
+   "product_id",
+   "tax_ids"
+  ],
+  "actions": [
+   {
+    "id": 1650,
+    "name": "Exécuter le code",
+    "state": "code",
+    "code": "for record in records:\n    if record.display_type:\n        continue\n    if not record.product_id:\n        continue\n    product_taxes = record.product_id.taxes_id.filtered(\n        lambda t: t.company_id == record.company_id\n    )\n    if not product_taxes:\n        continue\n    fiscal_position = record.order_id.fiscal_position_id\n    if fiscal_position:\n        product_taxes = fiscal_position.map_tax(product_taxes)\n    if record.tax_ids != product_taxes:\n        record.write({'tax_ids': [Command.set(product_taxes.ids)]})"
+   }
+  ]
+ },
+ {
+  "id": 55,
+  "name": "PdV - Corriger qty_delivered sur lignes transférées",
+  "model_name": "sale.order.line",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   10873,
+   10874
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1659
+  ],
+  "active": true,
+  "trigger_fields": [
+   "qty_delivered",
+   "qty_invoiced"
+  ],
+  "actions": [
+   {
+    "id": 1659,
+    "name": "Exécuter le code",
+    "state": "code",
+    "code": "# Available variables:\n#  - env: environment on which the action is triggered\n#  - model: model of the record on which the action is triggered; is a void recordset\n#  - record: record on which the action is triggered; may be void\n#  - records: recordset of all records on which the action is triggered in multi-mode; may be void\n#  - time, datetime, dateutil, timezone: useful Python libraries\n#  - float_compare: utility function to compare floats based on specific precision\n#  - b64encode, b64decode: functions to encode/decode binary data\n#  - log: log(message, level='info'): logging function to record debug information in ir.logging table\n#  - _logger: _logger.info(message): logger to emit messages in server logs\n#  - UserError: exception class for raising user-facing warning messages\n#  - Command: x2many commands namespace\n# To return an action, assign: action = {...}\n\n\n\n\n# Corrige la double-livraison sur les lignes transferees au PdV\nfor record in records:\n        if record.pos_order_line_ids and record.product_uom_qty > 0 and record.qty_invoiced >= record.product_uom_qty and record.qty_delivered > record.product_uom_qty:\n                    if record.qty_delivered != record.qty_invoiced:\n                                    record.write({'qty_delivered': record.qty_invoiced})"
+   }
+  ]
+ },
+ {
+  "id": 61,
+  "name": "Commande Pierres : étape selon OF",
+  "model_name": "mrp.production",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   18043
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1905
+  ],
+  "active": true,
+  "trigger_fields": [
+   "state"
+  ],
+  "actions": [
+   {
+    "id": 1905,
+    "name": "Commande Pierres : étape selon OF",
+    "state": "code",
+    "code": "# Étape de la tâche Commande Pierres selon les OF : recalcul DIFFÉRÉ en fin de transaction (une passe par tâche,\n# au lieu d'un balayage de tous les OF de la tâche à chaque changement d'état de chaque OF).\n_tids = set(records.mapped('x_studio_tche_commande_pierre').ids)\nif _tids:\n    _d = env.cr.precommit.data\n    if 'maq_etape_of' not in _d:\n        _d['maq_etape_of'] = set()\n        def _maq_etape_of():\n            _ids = env.cr.precommit.data.pop('maq_etape_of', set())\n            TASKS = env['project.task'].browse(sorted(_ids)).exists()\n            STAGES = [113, 119, 114, 115, 116, 117, 118]\n            for task in TASKS:\n                if not task:\n                    continue\n                so_recs = task.x_studio_devis_commandes_1\n                of_recs = task.x_studio_of\n                idx = 0\n                if so_recs:\n                    idx = 1\n                has_sale = False\n                has_deliv = False\n                has_inv = False\n                for s in so_recs:\n                    if s.state == 'sale':\n                        has_sale = True\n                    if s.delivery_status == 'full':\n                        has_deliv = True\n                    if s.invoice_status == 'invoiced':\n                        has_inv = True\n                of_total = 0\n                of_done = 0\n                of_open = 0\n                of_inprog = False\n                for o in of_recs:\n                    of_total += 1\n                    if o.state in ('confirmed', 'progress', 'to_close'):\n                        of_inprog = True\n                    if o.state == 'done':\n                        of_done += 1\n                    if o.state not in ('done', 'cancel'):\n                        of_open += 1\n                if has_sale and idx < 2:\n                    idx = 2\n                if of_inprog and idx < 3:\n                    idx = 3\n                if of_total > 0 and of_open == 0 and of_done > 0 and idx < 4:\n                    idx = 4\n                if has_deliv and idx < 5:\n                    idx = 5\n                if has_inv and idx < 6:\n                    idx = 6\n                cur = 0\n                if task.stage_id and task.stage_id.id in STAGES:\n                    cur = STAGES.index(task.stage_id.id)\n                if idx > cur:\n                    task.write({'stage_id': STAGES[idx]})\n            env.flush_all()\n        env.cr.precommit.add(_maq_etape_of)\n    _d['maq_etape_of'].update(_tids)\n"
+   }
+  ]
+ },
+ {
+  "id": 68,
+  "name": "UdF selon le libellé de variante du produit",
+  "model_name": "sale.order.line",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   10843,
+   10852
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1949
+  ],
+  "active": true,
+  "trigger_fields": [
+   "product_id",
+   "product_uom_id"
+  ],
+  "actions": [
+   {
+    "id": 1949,
+    "name": "Remplir UdF selon le libellé de variante (Tonne/Forfait/Heure/Tour/Jours)",
+    "state": "code",
+    "code": "# UdF selon le libelle de variante du produit : (Tonne), (Forfait), (Heure),\n# (au Tour), (par jours) — posee uniquement si l'unite de mesure de la ligne\n# ne porte pas deja cette unite, et sans ecraser une UdF saisie manuellement.\nMAP = [('(tonne', 'Tonne'), ('(forfait', 'Forfait'), ('(heure', 'Heure'),\n       ('au tour)', 'Tour'), ('par jours)', 'Jours'), ('par jour)', 'Jours')]\nUOM_EQ = {'tonne': 'Tonne', 'forfait': 'Forfait', 'hours': 'Heure',\n          'heure': 'Heure', 'heures': 'Heure', 'jours': 'Jours', 'jour': 'Jours',\n          'unité': 'Unité(s)', 'unités': 'Unité(s)', 'm²': 'm²', 'm³': 'm³'}\nfor rec in records:\n    if rec.x_studio_udf:\n        continue\n    name = (rec.product_id.display_name or rec.name or '').lower()\n    uom = (rec.product_uom_id.name or '').strip().lower()\n    cible = None\n    for motif, udf in MAP:\n        if motif in name:\n            cible = udf\n            break\n    if cible and UOM_EQ.get(uom) != cible:\n        rec.write({'x_studio_udf': cible})\n"
+   }
+  ]
+ },
+ {
+  "id": 76,
+  "name": "Fab en cours : recalcul depuis OF",
+  "model_name": "mrp.production",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   18017,
+   18043
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1979
+  ],
+  "active": true,
+  "trigger_fields": [
+   "origin",
+   "state"
+  ],
+  "actions": [
+   {
+    "id": 1979,
+    "name": "Fab en cours : recalcul depuis OF",
+    "state": "code",
+    "code": "# Recalcul « Fab en cours » DIFFÉRÉ en fin de transaction : une seule passe par commande, quel que soit\n# le nombre d'OF / OT écrits dans la transaction (avant : recalcul complet à chaque écriture de chaque OF,\n# soit un coût quadratique à la confirmation d'une commande de plusieurs centaines de lignes).\nnames = set(r.origin for r in records if r.origin)\nif names:\n    _d = env.cr.precommit.data\n    if 'maq_fab_recalc' not in _d:\n        _d['maq_fab_recalc'] = set()\n        def _maq_fab_recalc():\n            noms = env.cr.precommit.data.pop('maq_fab_recalc', set())\n            orders = env['sale.order'].search([('name', 'in', sorted(noms))]) if noms else env['sale.order']\n            TRC = [51, 49, 54, 57, 46, 59]\n            for so in orders:\n                ofs = env['mrp.production'].search([('origin', '=', so.name), ('company_id', '=', 1)], order='name')\n                open_ofs = ofs.filtered(lambda o: o.state in ('draft', 'confirmed', 'progress', 'to_close'))\n                nonplan = 0\n                nonprog = 0\n                ntr = 0\n                for of in open_ofs:\n                    wos = of.workorder_ids\n                    assigned = False\n                    dated = False\n                    for w in wos:\n                        if w.employee_assigned_ids or w.date_start:\n                            assigned = True\n                        if w.date_start:\n                            dated = True\n                    if not assigned:\n                        nonplan += 1\n                    if not dated:\n                        nonprog += 1\n                    if of.x_studio_catgorie and of.x_studio_catgorie.id in TRC:\n                        ntr += 1\n                fams = {}\n                for of in ofs:\n                    raw = of.x_studio_catgorie.display_name if of.x_studio_catgorie else ''\n                    parts = raw.split('/')\n                    nm = parts[1].strip() if len(parts) > 1 else (raw or 'Autre')\n                    fams[nm] = fams.get(nm, 0) + 1\n                dts = [w.date_start for of in open_ofs for w in of.workorder_ids if w.date_start]\n                planif = min(dts).date() if dts else False\n                nums = [(o.name or '').replace('WH/OF/', '').lstrip('0') for o in open_ofs]\n                if not nums:\n                    of_liste = ''\n                elif len(nums) == 1:\n                    of_liste = 'n°' + nums[0]\n                else:\n                    of_liste = 'n°%s → %s' % (nums[0], nums[-1])\n                done_p = sum(int(o.x_studio_nbr or 0) for o in ofs.filtered(lambda o: o.state == 'done'))\n                tot_p = sum(int(o.x_studio_nbr or 0) for o in ofs)\n                so.write({\n                    'x_studio_fab_encours': bool(open_ofs),\n                    'x_studio_of_non_planifies': nonplan,\n                    'x_studio_of_non_programmes': nonprog,\n                    'x_studio_of_tranches': ntr,\n                    'x_studio_vol_of': sum(o.x_studio_vol_total or 0.0 for o in ofs),\n                    'x_studio_vol_reste': sum(o.x_studio_vol_total or 0.0 for o in open_ofs),\n                    'x_studio_produits_fab': ' · '.join('%s (%s)' % (k, v) for k, v in sorted(fams.items())),\n                    'x_studio_of_liste': of_liste,\n                    'x_studio_pierres_faites': '%s / %s' % (done_p, tot_p),\n                    'x_studio_date_planif': planif,\n                })\n            env.flush_all()\n        env.cr.precommit.add(_maq_fab_recalc)\n    _d['maq_fab_recalc'].update(names)\n"
+   }
+  ]
+ },
+ {
+  "id": 77,
+  "name": "Fab en cours : recalcul depuis OT",
+  "model_name": "mrp.workorder",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   18162,
+   18685,
+   18160
+  ],
+  "filter_domain": false,
+  "filter_pre_domain": false,
+  "action_server_ids": [
+   1980
+  ],
+  "active": true,
+  "trigger_fields": [
+   "date_start",
+   "employee_assigned_ids",
+   "state"
+  ],
+  "actions": [
+   {
+    "id": 1980,
+    "name": "Fab en cours : recalcul depuis OT",
+    "state": "code",
+    "code": "# Recalcul « Fab en cours » DIFFÉRÉ en fin de transaction : une seule passe par commande, quel que soit\n# le nombre d'OF / OT écrits dans la transaction (avant : recalcul complet à chaque écriture de chaque OF,\n# soit un coût quadratique à la confirmation d'une commande de plusieurs centaines de lignes).\nnames = set(p.origin for p in records.mapped('production_id') if p.origin)\nif names:\n    _d = env.cr.precommit.data\n    if 'maq_fab_recalc' not in _d:\n        _d['maq_fab_recalc'] = set()\n        def _maq_fab_recalc():\n            noms = env.cr.precommit.data.pop('maq_fab_recalc', set())\n            orders = env['sale.order'].search([('name', 'in', sorted(noms))]) if noms else env['sale.order']\n            TRC = [51, 49, 54, 57, 46, 59]\n            for so in orders:\n                ofs = env['mrp.production'].search([('origin', '=', so.name), ('company_id', '=', 1)], order='name')\n                open_ofs = ofs.filtered(lambda o: o.state in ('draft', 'confirmed', 'progress', 'to_close'))\n                nonplan = 0\n                nonprog = 0\n                ntr = 0\n                for of in open_ofs:\n                    wos = of.workorder_ids\n                    assigned = False\n                    dated = False\n                    for w in wos:\n                        if w.employee_assigned_ids or w.date_start:\n                            assigned = True\n                        if w.date_start:\n                            dated = True\n                    if not assigned:\n                        nonplan += 1\n                    if not dated:\n                        nonprog += 1\n                    if of.x_studio_catgorie and of.x_studio_catgorie.id in TRC:\n                        ntr += 1\n                fams = {}\n                for of in ofs:\n                    raw = of.x_studio_catgorie.display_name if of.x_studio_catgorie else ''\n                    parts = raw.split('/')\n                    nm = parts[1].strip() if len(parts) > 1 else (raw or 'Autre')\n                    fams[nm] = fams.get(nm, 0) + 1\n                dts = [w.date_start for of in open_ofs for w in of.workorder_ids if w.date_start]\n                planif = min(dts).date() if dts else False\n                nums = [(o.name or '').replace('WH/OF/', '').lstrip('0') for o in open_ofs]\n                if not nums:\n                    of_liste = ''\n                elif len(nums) == 1:\n                    of_liste = 'n°' + nums[0]\n                else:\n                    of_liste = 'n°%s → %s' % (nums[0], nums[-1])\n                done_p = sum(int(o.x_studio_nbr or 0) for o in ofs.filtered(lambda o: o.state == 'done'))\n                tot_p = sum(int(o.x_studio_nbr or 0) for o in ofs)\n                so.write({\n                    'x_studio_fab_encours': bool(open_ofs),\n                    'x_studio_of_non_planifies': nonplan,\n                    'x_studio_of_non_programmes': nonprog,\n                    'x_studio_of_tranches': ntr,\n                    'x_studio_vol_of': sum(o.x_studio_vol_total or 0.0 for o in ofs),\n                    'x_studio_vol_reste': sum(o.x_studio_vol_total or 0.0 for o in open_ofs),\n                    'x_studio_produits_fab': ' · '.join('%s (%s)' % (k, v) for k, v in sorted(fams.items())),\n                    'x_studio_of_liste': of_liste,\n                    'x_studio_pierres_faites': '%s / %s' % (done_p, tot_p),\n                    'x_studio_date_planif': planif,\n                })\n            env.flush_all()\n        env.cr.precommit.add(_maq_fab_recalc)\n    _d['maq_fab_recalc'].update(names)\n"
+   }
+  ]
+ }
+]
