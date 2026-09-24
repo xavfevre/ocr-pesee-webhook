@@ -63,3 +63,7 @@ annulation puis double annulation refusée, onglet EPI de la fiche salarié alim
 - Fiche procédure : section 8 (bureau) ajoutée, PDF 6 pages.
 Testé (`test_epi_achats.py`, fournisseur de test archivé ensuite) : règles 2/4 et 1/1, refus d'un mini négatif,
 aperçu, création P00120 (2 lignes, 59,90 €, Réception EPI), 2e passage = mise à jour, suppression de règle.
+
+## Menu Inventaire (24/09, suite)
+Menu **Inventaire → EPI** (ir.ui.menu 1063, séquence 95, entre Produits et Analyse) → action URL 2099
+(`/epi?k=…`, nouvel onglet). Visible par tous les utilisateurs de l'Inventaire ; l'URL de l'action contient la clé.
