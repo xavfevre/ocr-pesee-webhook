@@ -1167,6 +1167,9 @@ WEB_ACTIONS_AUTORISEES = {
     2081,  # boutons transport : BC automatiques par recette (planning mois)
     2101,  # tablette opérateur : palettiser N pièces d'un OF (même non terminé)
     2102,  # poste de scan : palette active du poste (scan / quantité / retrait / clôture / transfert)
+    2110,  # EPI : remise à un salarié (page /epi)
+    2111,  # EPI : entrée en stock
+    2112,  # EPI : annulation d'une remise
     2103,  # alerte hebdo palettes (bureau) — envoi manuel possible
 }
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
