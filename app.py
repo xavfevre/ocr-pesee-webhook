@@ -1170,6 +1170,8 @@ WEB_ACTIONS_AUTORISEES = {
     2110,  # EPI : remise à un salarié (page /epi)
     2111,  # EPI : entrée en stock
     2112,  # EPI : annulation d'une remise
+    2113,  # EPI : stock mini / maxi
+    2114,  # EPI : demandes de prix aux fournisseurs
     2103,  # alerte hebdo palettes (bureau) — envoi manuel possible
 }
 HEURES_ORIGINE = os.environ.get("HEURES_ORIGINE", ODOO_URL or "https://maquignon.odoo.com")
