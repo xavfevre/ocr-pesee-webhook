@@ -2721,13 +2721,13 @@
  },
  {
   "id": 1114,
-  "name": "MAJ tâche planning - date intervention",
+  "binding_model_id": false,
+  "code": "for record in records:\n d = record.x_studio_date_previsionnelle_dintervention\n if d:\n  start = record.commitment_date or datetime.datetime.combine(d, datetime.time(6,0)); end = record.x_fin_intervention or ((start + datetime.timedelta(hours=4)) if record.commitment_date else datetime.datetime.combine(d, datetime.time(15,0))); end = end if end > start else start + datetime.timedelta(hours=1)\n  slots = env['planning.slot'].search([('name','=',record.name)])\n  if len(slots) == 1: slots.write({'start_datetime': start, 'end_datetime': end})\n  elif not slots and record.state == 'sale': env['planning.slot'].create({'name': record.name, 'partner_id': record.partner_id.id, 'start_datetime': start, 'end_datetime': end, 'company_id': record.company_id.id})",
   "model_id": [
    775,
    "Sales Order"
   ],
-  "code": "for record in records:\n d = record.x_studio_date_previsionnelle_dintervention\n if d: start = record.commitment_date or datetime.datetime.combine(d, datetime.time(6,0)); end = record.x_fin_intervention or ((start + datetime.timedelta(hours=4)) if record.commitment_date else datetime.datetime.combine(d, datetime.time(15,0))); end = end if end > start else start + datetime.timedelta(hours=1); env['planning.slot'].search([('name','=',record.name)]).write({'start_datetime': start, 'end_datetime': end})",
-  "binding_model_id": false,
+  "name": "MAJ tâche planning - date intervention",
   "usage": "ir_actions_server"
  },
  {
