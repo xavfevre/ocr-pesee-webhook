@@ -1,0 +1,137 @@
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  width: 260px;
+  margin: 0;
+  padding: 12px 14px;
+  color: #1f1f1f;
+  background: #fff;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 10px;
+  color: #714b67;
+}
+
+.row {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+fieldset {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 0 0 10px;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+fieldset label {
+  display: block;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+#width-row input[type="range"] {
+  width: 100%;
+}
+
+#width-row.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #714b67;
+  border-radius: 8px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+#premium-box {
+  border: 1px solid #714b67;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: #faf6f9;
+}
+
+#premium-box p {
+  margin: 0 0 8px;
+}
+
+#premium-box button {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px;
+  border: none;
+  border-radius: 5px;
+  background: #714b67;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#premium-box button:hover {
+  background: #5d3d55;
+}
+
+#premium-box button.link {
+  background: none;
+  color: #714b67;
+  font-weight: 400;
+  text-decoration: underline;
+  padding: 2px;
+  margin-bottom: 0;
+}
+
+#btn-trial {
+  background: #fff !important;
+  color: #714b67 !important;
+  border: 1px solid #714b67 !important;
+}
+
+.mini-hint {
+  display: block;
+  font-size: 10px;
+  color: #714b67;
+  margin-top: 2px;
+}
+
+.trial-info {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #777;
+}
+
+kbd {
+  background: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 10px;
+}
