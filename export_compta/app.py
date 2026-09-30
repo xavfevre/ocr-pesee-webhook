@@ -1295,10 +1295,10 @@ def _rappro_applique(comp, journal, props, avance=None):
                     erreurs.append("%s : lignes à réconcilier introuvables" % l["lib"][:40])
                     continue
                 ids = l_att + l_stmt
-                # écart de quelques centimes entre facture(s) et virement réel
-                # (lettrage toléré par Sage) : passé en écart de règlement
+                # écart entre facture(s) et virement réel (Sage a lettré avec une ligne d'écart :
+                # escompte, frais de virement, arrondi) : passé en écart de règlement, comme Sage
                 ecart = round(sum(r["debit"] for r in l_att_rows) - tot_stmt, 2)
-                if 0 < abs(ecart) <= 0.05:
+                if 0 < abs(ecart) <= 50.0:
                     cpt = _compte_ecart(comp, "charge" if ecart > 0 else "produit")
                     if cpt:
                         m_ec = _q("account.move", "create", [{
@@ -1356,6 +1356,15 @@ def _rappro_applique(comp, journal, props, avance=None):
                 if connecte[jid]:
                     faits += 1
                     continue
+            # banque connectée et paiement déjà saisi sans ligne de relevé trouvée : on ne crée
+            # JAMAIS d'écriture 512 (doublon avec le relevé) ; le paiement reste « En paiement »
+            # et sera rapproché à un prochain import, quand la ligne sera synchronisée.
+            if jid not in connecte:
+                connecte[jid] = bool(_q("account.bank.statement.line", "search_count", [("journal_id", "=", jid)]))
+            if connecte[jid]:
+                erreurs.append("%s %.2f € : paiement déjà saisi, ligne de relevé introuvable dans Odoo — reste « En paiement », à rapprocher au prochain import"
+                               % (l["lib"][:40], l["debit"]))
+                continue
             # lignes d'attente des paiements
             moves = [p["move_id"][0] for p in _q("account.payment", "read", pay_ids, fields=["move_id"]) if p["move_id"]]
             l_att = _q("account.move.line", "search",
@@ -1777,7 +1786,7 @@ def _gl_analyse(comp, clients):
                     props.append({"ligne": {"date": date_reg, "lib": lib, "piece": lettre,
                                             "debit": montant, "credit": 0.0},
                                   "type": "facture", "ids": [inv["id"]], "journal_id": jid,
-                                  "detail": ["aucun paiement saisi dans Odoo — cocher pour créer le paiement de %.2f € au %s : la facture passe « En paiement », le rapprochement bancaire se fait ensuite dans le widget"
+                                  "detail": ["aucun paiement saisi dans Odoo et ligne de relevé introuvable (pas encore synchronisée ?) — cocher pour créer le paiement de %.2f € au %s : la facture passe « En paiement » et sera rapprochée au prochain import"
                                              % (montant, date_reg)]})
                 else:
                     deja += 1
