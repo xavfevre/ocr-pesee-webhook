@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Page « Tranches » (/planning-tranches) pour l'opérateur du sciage primaire : pièces dont le sciage secondaire est
 planifié dans les N prochains jours, regroupées par matière puis par épaisseur de tranche retenue (H par défaut,
-changeable pièce par pièce à l'écran, mémorisé sur l'appareil), avec le nombre de pièces et les m² de tranche à débiter.
+changeable pièce par pièce ; le choix est ENREGISTRÉ SUR L'OF, champ x_epaisseur_tranche, donc partagé entre tous les écrans),
+avec le nombre de pièces et les m² de tranche à débiter. Rafraîchissement automatique toutes les 3 minutes.
   python tranches_page.py dry    -> boards/tranches.xml + contrôle XML (lecture seule)
   python tranches_page.py apply  -> crée ou met à jour la vue website.planning_tranches et la page /planning-tranches"""
 import html, io, os, ssl, sys, xmlrpc.client
@@ -11,17 +12,30 @@ mode = (sys.argv[1] if len(sys.argv) > 1 else 'dry').lower()
 
 JS = r"""
 (function () {
-  var KEY = 'pf_tranches_ep';
-  var mem = {};
-  try { mem = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { mem = {}; }
   function f3(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
   function f1(v) { return (Math.round(v * 100) / 100).toFixed(2).replace('.', ','); }
+  function meme(a, b) { return Math.abs(a - b) < 0.0000005; }
+  function rpcWrite(ids, vals, cb) {
+    fetch('/web/dataset/call_kw', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { model: 'mrp.production', method: 'write', args: [ids, vals], kwargs: {} } })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.error) { cb(false, d.error.data && d.error.data.message || d.error.message); } else { cb(true); }
+    }).catch(function (e) { cb(false, String(e)); });
+  }
+  function toast(txt, ko) {
+    var t = document.createElement('div');
+    t.textContent = txt;
+    t.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:' + (ko ? '#b91c1c' : '#2d6a6f') + ';color:#fff;padding:8px 16px;border-radius:8px;z-index:999;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 3500);
+  }
   function dimsOf(tr) {
     return [parseFloat(tr.getAttribute('data-l')) || 0, parseFloat(tr.getAttribute('data-w')) || 0, parseFloat(tr.getAttribute('data-h')) || 0];
   }
   function choix(tr) {
-    var d = dimsOf(tr), c = parseFloat(mem[tr.getAttribute('data-of')]);
-    if (c && d.indexOf(c) >= 0) { return c; }
+    var d = dimsOf(tr), c = parseFloat(tr.getAttribute('data-ep')) || 0;
+    if (c) { for (var i = 0; i < d.length; i++) { if (d[i] && meme(d[i], c)) { return d[i]; } } }
     return d[2] || d[1] || d[0];
   }
   function render() {
@@ -34,18 +48,31 @@ JS = r"""
         var d = dimsOf(tr), e = choix(tr), nb = parseInt(tr.getAttribute('data-nb')) || 1;
         var vol = d[0] * d[1] * d[2] * nb, m2 = e ? vol / e : 0;
         var cell = tr.querySelector('td.tr-ep'); cell.innerHTML = '';
-        var vus = {};
+        var vus = [];
         d.forEach(function (v) {
-          if (!v || vus[v]) { return; }
-          vus[v] = 1;
+          if (!v) { return; }
+          for (var k = 0; k < vus.length; k++) { if (meme(vus[k], v)) { return; } }
+          vus.push(v);
           var b = document.createElement('button'); b.type = 'button';
-          b.className = 'ep-btn' + (v === e ? ' on' : ''); b.textContent = f3(v); b.title = 'Retenir cette cote comme épaisseur de tranche';
-          b.addEventListener('click', function () { mem[tr.getAttribute('data-of')] = v; try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch (x) {} render(); });
+          b.className = 'ep-btn' + (meme(v, e) ? ' on' : ''); b.textContent = f3(v);
+          b.title = meme(v, e) ? 'Épaisseur retenue' : 'Retenir cette cote comme épaisseur de tranche (enregistré sur l’OF, visible sur tous les écrans)';
+          b.addEventListener('click', function () {
+            if (meme(v, e)) { return; }
+            var ofId = parseInt(tr.getAttribute('data-of'));
+            b.disabled = true;
+            rpcWrite([ofId], { x_epaisseur_tranche: v }, function (ok, msg) {
+              if (!ok) { b.disabled = false; toast('Échec de l’enregistrement : ' + msg, true); return; }
+              tr.setAttribute('data-ep', String(v));
+              render();
+              toast(tr.getAttribute('data-name') + ' : épaisseur ' + f3(v) + ' m enregistrée');
+            });
+          });
           cell.appendChild(b);
         });
-        var k = f3(e);
-        if (!groupes[k]) { groupes[k] = { nb: 0, m2: 0, vol: 0, rows: [] }; }
-        groupes[k].nb += nb; groupes[k].m2 += m2; groupes[k].vol += vol; groupes[k].rows.push(tr);
+        if (parseFloat(tr.getAttribute('data-ep')) > 0) { var m_ = document.createElement('span'); m_.textContent = '✎'; m_.title = 'Choix enregistré sur l’OF'; m_.style.cssText = 'color:#0f766e;font-size:12px;margin-left:2px;'; cell.appendChild(m_); }
+        var k2 = f3(e);
+        if (!groupes[k2]) { groupes[k2] = { nb: 0, m2: 0, vol: 0, rows: [] }; }
+        groupes[k2].nb += nb; groupes[k2].m2 += m2; groupes[k2].vol += vol; groupes[k2].rows.push(tr);
       });
       var cles = Object.keys(groupes).sort(function (a, b) { return parseFloat(b) - parseFloat(a); });
       var totNb = 0, totM2 = 0, totVol = 0;
@@ -71,10 +98,22 @@ JS = r"""
     });
   }
   var rz = document.getElementById('tr-reset');
-  if (rz) { rz.addEventListener('click', function () { mem = {}; try { localStorage.removeItem(KEY); } catch (x) {} render(); }); }
+  if (rz) {
+    rz.addEventListener('click', function () {
+      var rows = Array.prototype.slice.call(document.querySelectorAll('tr.tr-piece')).filter(function (tr) { return parseFloat(tr.getAttribute('data-ep')) > 0; });
+      if (!rows.length) { toast('Aucun choix enregistré sur les pièces affichées.'); return; }
+      if (!confirm('Remettre la hauteur H comme épaisseur sur les ' + rows.length + ' pièce(s) affichée(s) ayant un choix enregistré ? Cela s’applique à tous les écrans.')) { return; }
+      rpcWrite(rows.map(function (tr) { return parseInt(tr.getAttribute('data-of')); }), { x_epaisseur_tranche: 0 }, function (ok, msg) {
+        if (!ok) { toast('Échec : ' + msg, true); return; }
+        rows.forEach(function (tr) { tr.setAttribute('data-ep', '0'); });
+        render(); toast(rows.length + ' pièce(s) remise(s) en H');
+      });
+    });
+  }
   var pr = document.getElementById('tr-print');
   if (pr) { pr.addEventListener('click', function () { window.print(); }); }
   render();
+  setTimeout(function () { window.location.reload(); }, 180000);
 })();
 """
 
@@ -101,6 +140,7 @@ ARCH = """<t t-name="website.planning_tranches">
       tr.tr-grp td{background:#fef3c7;font-weight:800;font-size:13px;border-top:2px solid #f59e0b;}
       .ep-btn{border:1.5px solid #cbd5e1;background:#fff;border-radius:6px;padding:1px 7px;font-weight:700;font-size:12px;margin-right:3px;cursor:pointer;color:#334155;}
       .ep-btn.on{background:#0f172a;color:#fff;border-color:#0f172a;}
+      .ep-btn:disabled{opacity:.5;}
       @media print { .nav-tabs, .tr-outils, .ep-btn:not(.on) {display:none !important;} .tr-mat{box-shadow:none;border:1px solid #999;page-break-inside:avoid;} }
     </style>
 
@@ -137,7 +177,7 @@ ARCH = """<t t-name="website.planning_tranches">
             <t t-foreach="[7, 14, 30]" t-as="dd">
               <a t-attf-href="/planning-tranches?days={{dd}}&amp;tp={{tp}}" t-attf-class="btn btn-sm py-0 {{'btn-dark' if days == dd else 'btn-outline-secondary'}}"><t t-esc="dd"/> jours</a>
             </t>
-            <button type="button" id="tr-reset" class="btn btn-sm btn-outline-secondary py-0" title="Remettre l'épaisseur H sur toutes les pièces">↺ Tout en H</button>
+            <button type="button" id="tr-reset" class="btn btn-sm btn-outline-secondary py-0" title="Remettre la hauteur H sur toutes les pièces affichées ayant un choix enregistré (pour tous les écrans)">↺ Tout en H</button>
             <button type="button" id="tr-print" class="btn btn-sm btn-outline-dark py-0">🖨 Imprimer</button>
             <button onclick="window.location.reload()" class="btn btn-sm btn-outline-dark py-0">↻ Actualiser</button>
           </div>
@@ -152,7 +192,7 @@ ARCH = """<t t-name="website.planning_tranches">
           </t>
           <a t-if="tp and tp not in mats" t-attf-href="/planning-tranches?days={{days}}" class="btn btn-sm py-0 btn-dark" title="Aucune pièce de cette matière sur la période : cliquer pour retirer le filtre"><t t-esc="tp.capitalize()"/> ✕</a>
         </div>
-        <p class="small text-muted mb-3 tr-outils">Une ligne = un OF (toutes ses pièces). L'épaisseur de tranche retenue est par défaut la hauteur H de la pièce ; cliquer une autre cote pour la retenir (choix mémorisé sur cet appareil). m² de tranche = volume des pièces ÷ épaisseur retenue.</p>
+        <p class="small text-muted mb-3 tr-outils">Une ligne = un OF (toutes ses pièces). L'épaisseur de tranche retenue est par défaut la hauteur H de la pièce ; cliquer une autre cote la retient : le choix est enregistré sur l'OF (✎) et s'affiche sur tous les écrans, qui se rafraîchissent toutes les 3 minutes. m² de tranche = volume des pièces ÷ épaisseur retenue.</p>
 
         <t t-foreach="mats" t-as="mk">
           <t t-set="m_ofs" t-value="[o for o in ofs if matfn(premier[o.id]) == mk]"/>
@@ -176,7 +216,7 @@ ARCH = """<t t-name="website.planning_tranches">
                     <tbody>
                       <t t-foreach="m_ofs" t-as="o">
                         <t t-set="w" t-value="premier[o.id]"/>
-                        <tr class="tr-piece" t-att-data-of="o.id" t-att-data-l="o.x_studio_long_m_1 or 0" t-att-data-w="o.x_studio_larg_m_1 or 0" t-att-data-h="o.x_studio_haut_m_1 or 0" t-att-data-nb="int(o.x_studio_nbr or 0) or 1" t-att-data-date="w.date_start and w.date_start.strftime('%Y-%m-%d') or ''">
+                        <tr class="tr-piece" t-att-data-of="o.id" t-att-data-name="o.name" t-att-data-l="o.x_studio_long_m_1 or 0" t-att-data-w="o.x_studio_larg_m_1 or 0" t-att-data-h="o.x_studio_haut_m_1 or 0" t-att-data-nb="int(o.x_studio_nbr or 0) or 1" t-att-data-ep="o.x_epaisseur_tranche or 0" t-att-data-date="w.date_start and w.date_start.strftime('%Y-%m-%d') or ''">
                           <td class="tr-ep"/>
                           <td><b t-esc="o.x_studio_ref_pierre or ''"/></td>
                           <td><t t-esc="'%.3f' % (o.x_studio_long_m_1 or 0)"/> × <t t-esc="'%.3f' % (o.x_studio_larg_m_1 or 0)"/> × <t t-esc="'%.3f' % (o.x_studio_haut_m_1 or 0)"/></td>
@@ -217,6 +257,7 @@ if mode == 'apply':
     uid = xmlrpc.client.ServerProxy(U + '/xmlrpc/2/common', context=c).authenticate(D, us, p, {})
     m = xmlrpc.client.ServerProxy(U + '/xmlrpc/2/object', context=c)
     x = lambda mo, me, *a, **k: m.execute_kw(D, uid, p, mo, me, list(a), k)
+    assert 'x_epaisseur_tranche' in x('mrp.production', 'fields_get', ['x_epaisseur_tranche'], ['type']), 'champ x_epaisseur_tranche absent : lancer tranches_champ.py'
     ids = x('ir.ui.view', 'search', [['key', '=', 'website.planning_tranches']])
     if ids:
         x('ir.ui.view', 'write', ids, {'arch_db': arch}); vid = ids[0]; print('vue mise à jour', vid)
