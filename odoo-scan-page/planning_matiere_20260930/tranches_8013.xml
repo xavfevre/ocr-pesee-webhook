@@ -124,7 +124,7 @@
   var mem = {};
   try { mem = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { mem = {}; }
   function f3(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
-  function f1(v) { return (Math.round(v * 10) / 10).toFixed(1).replace('.', ','); }
+  function f1(v) { return (Math.round(v * 100) / 100).toFixed(2).replace('.', ','); }
   function dimsOf(tr) {
     return [parseFloat(tr.getAttribute('data-l')) || 0, parseFloat(tr.getAttribute('data-w')) || 0, parseFloat(tr.getAttribute('data-h')) || 0];
   }
