@@ -1,0 +1,5 @@
+<data>
+  <xpath expr="//field[@name='order_line']/list" position="attributes">
+    <attribute name="limit">30</attribute>
+  </xpath>
+</data>

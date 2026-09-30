@@ -1,0 +1,27 @@
+{
+ "automation": {
+  "id": 96,
+  "active": true,
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   10843,
+   17560,
+   17554,
+   17552,
+   17568
+  ],
+  "action_server_ids": [
+   2101
+  ],
+  "model_id": [
+   741,
+   "Sales Order Line"
+  ]
+ },
+ "action": {
+  "id": 2101,
+  "name": "Calcul Poids depuis Volume (serveur)",
+  "code": "# poids = volume x poids au m3 du produit ; n'écrit que si la valeur change (lignes importées comprises)\nfor line in records:\n    if line.display_type:\n        continue\n    poids = round((line.x_studio_vol or 0.0) * (line.x_studio_poids_au_m3 or 0.0), 2)\n    if abs((line.x_studio_poids or 0.0) - poids) > 0.005:\n        line.write({'x_studio_poids': poids})\n",
+  "state": "code"
+ }
+}
