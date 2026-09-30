@@ -102,6 +102,7 @@
           <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'carriere' else ''}}" t-attf-href="/planning-machines?board=carriere&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">🏔 Board Carrière</a></li>
           <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'finition' else ''}}" t-attf-href="/planning-machines?board=finition&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">✨ Board Finition</a></li>
           <li class="nav-item"><a t-attf-class="nav-link {{'active fw-bold' if board == 'autres' else ''}}" t-attf-href="/planning-machines?board=autres&amp;day={{day.strftime('%Y-%m-%d')}}&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">🛠 Autres postes</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-tranches?tp={{tp}}">🪚 Tranches</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">👷 Vue opérateurs</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-fabrication?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">📅 Vue semaine</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">📆 Vue mois</a></li>

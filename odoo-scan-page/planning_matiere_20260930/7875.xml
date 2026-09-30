@@ -39,6 +39,7 @@
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=complet&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">🏭 Board complet</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=secondaire&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">🪚 Sciage secondaire</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-machines?board=primaire&amp;q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">🪨 Sciage primaire</a></li>
+          <li class="nav-item"><a class="nav-link" t-attf-href="/planning-tranches?tp={{tp}}">🪚 Tranches</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-operateurs?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">👷 Vue opérateurs</a></li>
           <li class="nav-item"><a class="nav-link active fw-bold" href="#">📅 Vue semaine</a></li>
           <li class="nav-item"><a class="nav-link" t-attf-href="/planning-mois?q={{q}}&amp;bc={{bc}}&amp;tp={{tp}}">📆 Vue mois</a></li>
