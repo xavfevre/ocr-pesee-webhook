@@ -1866,9 +1866,125 @@ def rappro_page():
 <label>Société</label><select name="societe">
 <option value="1">SARL MAQUIGNON</option><option value="3">CHATEL'GRANULATS</option><option value="4">CARRIERE D'HAIMS</option></select>
 <label>Fichier Sage (.xlsx) — état de rapprochement bancaire OU grand-livre des tiers avec lettrage (le type est détecté automatiquement)</label><input type="file" name="fichier" accept=".xlsx" required/>
-<br/><button type="submit">🔎 Analyser</button></form>""" % token)
+<br/><button type="submit">🔎 Analyser</button></form>
+<p><a href="rappro/cb-chatel?token=%s">💳 Remises CB Chatel'Granulats : rapprocher les sessions de caisse avec les remises des terminaux</a></p>""" % (token, token))
     return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token),
                     mimetype="text/html")
+
+
+# ── Remises CB Chatel'Granulats : sessions de caisse (51121000) <-> lignes « REMISE CB … BRUT x - COM y » ──
+CB_CHATEL = {"comp": 3, "compte_cb": 4819, "commission": 3154, "journal_banque": 36, "journal_cb": 80}
+
+
+def _cb_chatel_plan():
+    """Pour chaque règlement de session non lettré (débit 51121000), la combinaison exacte (1 à 4 lignes, J-1 à J+6)
+    de lignes REMISE CB libres dont les bruts font le total. Renvoie (plan, sans, reste)."""
+    import datetime as _dt, itertools as _it
+    cfg = CB_CHATEL; ctx = {"allowed_company_ids": [cfg["comp"]]}
+    sess = _q("account.move.line", "search_read",
+              [("account_id", "=", cfg["compte_cb"]), ("reconciled", "=", False), ("debit", ">", 0),
+               ("parent_state", "=", "posted"), ("journal_id", "=", cfg["journal_cb"])],
+              fields=["id", "date", "debit", "move_id"], order="date", context=ctx)
+    st = _q("account.bank.statement.line", "search_read",
+            [("company_id", "=", cfg["comp"]), ("journal_id", "=", cfg["journal_banque"]),
+             ("payment_ref", "ilike", "REMISE CB"), ("is_reconciled", "=", False)],
+            fields=["id", "date", "amount", "payment_ref", "move_id"], order="date", context=ctx)
+    for s2 in st:
+        mb = re.search(r"BRUT\s+([\d\s]+,\d{2})", s2["payment_ref"] or "")
+        s2["brut"] = round(float(mb.group(1).replace(" ", "").replace(",", ".")), 2) if mb else None
+        s2["d"] = _dt.date.fromisoformat(str(s2["date"])[:10])
+    plan, used, sans = [], set(), []
+    for l in sess:
+        d = _dt.date.fromisoformat(str(l["date"])[:10]); total = round(l["debit"], 2)
+        cands = [s2 for s2 in st if s2["id"] not in used and s2["brut"] and -1 <= (s2["d"] - d).days <= 6]
+        found = None
+        for k in range(1, min(4, len(cands)) + 1):
+            for sub in _it.combinations(cands, k):
+                if abs(sum(s2["brut"] for s2 in sub) - total) < 0.005:
+                    found = sub
+                    break
+            if found:
+                break
+        if found:
+            used.update(s2["id"] for s2 in found); plan.append((l, list(found)))
+        else:
+            sans.append(l)
+    reste = [s2 for s2 in st if s2["id"] not in used]
+    return plan, sans, reste
+
+
+def _cb_chatel_applique(plan):
+    """Contrepartie du relevé basculée sur 51121000 (net), OD commission 627800 / 51121000, lettrage session + lignes."""
+    cfg = CB_CHATEL; ctx = {"allowed_company_ids": [cfg["comp"]]}
+    faits, erreurs = 0, []
+    for l, found in plan:
+        try:
+            ids = [l["id"]]
+            for s2 in found:
+                cp = _q("account.move.line", "search_read",
+                        [("move_id", "=", s2["move_id"][0]), ("account_id.account_type", "!=", "asset_cash"), ("reconciled", "=", False)],
+                        fields=["id", "credit", "account_id"], context=ctx)
+                cp = [q for q in cp if abs(q["credit"] - s2["amount"]) < 0.005]
+                if len(cp) != 1:
+                    raise Exception("contrepartie introuvable pour la ligne du %s (%.2f)" % (s2["date"], s2["amount"]))
+                if cp[0]["account_id"][0] != cfg["compte_cb"]:
+                    _q("account.move.line", "write", [cp[0]["id"]], {"account_id": cfg["compte_cb"], "name": "Remise CB (brut %.2f)" % s2["brut"]}, context=ctx)
+                ids.append(cp[0]["id"])
+                com = round(s2["brut"] - s2["amount"], 2)
+                if com > 0.005:
+                    od = _q("account.move", "create", [{
+                        "journal_id": cfg["journal_banque"], "date": s2["date"],
+                        "ref": "Commission CB remise du %s (brut %.2f)" % (s2["date"], s2["brut"]),
+                        "line_ids": [(0, 0, {"account_id": cfg["commission"], "debit": com, "credit": 0.0, "name": "Commission CB"}),
+                                     (0, 0, {"account_id": cfg["compte_cb"], "debit": 0.0, "credit": com, "name": "Commission CB"})]}], context=ctx)
+                    od = od[0] if isinstance(od, list) else od
+                    _q("account.move", "action_post", [od], context=ctx)
+                    ids += _q("account.move.line", "search", [("move_id", "=", od), ("account_id", "=", cfg["compte_cb"])], context=ctx)
+            _q("account.move.line", "reconcile", ids, context=ctx)
+            faits += 1
+        except Exception as exc:
+            erreurs.append("session du %s (%.2f) : %s" % (l["date"], l["debit"], _erreur_propre(exc)))
+    return faits, erreurs
+
+
+def _cb_chatel_html(plan, sans, reste, token, resultat=None):
+    lignes = "".join("<tr><td>%s</td><td class='num'>%.2f</td><td>%s</td></tr>" % (
+        l["date"], l["debit"], " + ".join("%s brut %.2f (net %.2f)" % (str(s2["date"])[5:], s2["brut"], s2["amount"]) for s2 in found))
+        for l, found in plan)
+    sans_h = ", ".join("%s (%.2f)" % (l["date"], l["debit"]) for l in sans) or "aucune"
+    recents = [s2 for s2 in reste if str(s2["date"]) >= "2026-07-01"]
+    corps = "<h2>💳 Remises CB Chatel'Granulats</h2>"
+    if resultat:
+        corps += "<p class='ok'>%s</p>" % resultat
+    corps += ("<p>Sessions de caisse non rapprochées : <b>%d</b> — appariées exactement : <b>%d</b> (%.2f €) — sans correspondance : %s.</p>"
+              "<p>Lignes « REMISE CB » encore libres : %d, dont depuis juillet : %s.</p>"
+              % (len(plan) + len(sans), len(plan), sum(l["debit"] for l, _ in plan), sans_h, len(reste),
+                 ", ".join("%s (brut %.2f)" % (s2["date"], s2["brut"]) for s2 in recents) or "aucune"))
+    if plan:
+        corps += ("<table><tr><th>Session</th><th>Total CB</th><th>Lignes de relevé (brut)</th></tr>%s</table>"
+                  "<form method='post' action='cb-chatel/applique?token=%s'><button type='submit'>✅ Rapprocher ces %d sessions</button></form>"
+                  % (lignes, token, len(plan)))
+    corps += "<p><a href='../rappro?token=%s'>← Retour</a></p>" % token
+    return Response(RAPPRO_PAGE.replace("__CORPS__", corps).replace("__TOKEN__", token), mimetype="text/html")
+
+
+@bp.route("/rappro/cb-chatel", methods=["GET"])
+def rappro_cb_chatel():
+    _check_token()
+    token = request.args.get("token", "")
+    plan, sans, reste = _cb_chatel_plan()
+    return _cb_chatel_html(plan, sans, reste, token)
+
+
+@bp.route("/rappro/cb-chatel/applique", methods=["POST"])
+def rappro_cb_chatel_applique():
+    _check_token()
+    token = request.args.get("token", "") or request.form.get("token", "")
+    plan, sans, reste = _cb_chatel_plan()
+    faits, erreurs = _cb_chatel_applique(plan)
+    plan2, sans2, reste2 = _cb_chatel_plan()
+    msg = "%d session(s) rapprochée(s)." % faits + (" Erreurs : " + " ; ".join(erreurs) if erreurs else "")
+    return _cb_chatel_html(plan2, sans2, reste2, token, resultat=msg)
 
 
 @bp.route("/rappro/analyse", methods=["POST"])
