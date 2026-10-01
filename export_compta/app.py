@@ -16,6 +16,7 @@ option pour les marquer transmis.
 
 Jeton : ir.config_parameter `maquignon.compta_key` (?token=...).
 """
+import unicodedata
 import calendar
 import re
 import io
@@ -1442,6 +1443,21 @@ def _gl_parse(fichier):
     return [cl for cl in clients if cl["ecritures"]]
 
 
+_MOTS_VIDES = {"SARL", "SAS", "SASU", "EURL", "SA", "SCI", "SNC", "EARL", "GAEC", "ETS", "SOCIETE", "ENTREPRISE", "COMPAGNIE",
+               "MONSIEUR", "MADAME", "MLLE", "MME", "MR", "CLIENT", "FRANCE", "CENTRE", "OUEST", "NORD", "SUD", "EST",
+               "AGENCE", "GROUPE", "SERVICES", "SERVICE", "BATIMENT", "TRAVAUX", "MAQUIGNON", "CARRIERE", "CARRIERES",
+               "HAIMS", "CHATEL", "GRANULATS", "PIERRE", "PIERRES", "TAILLE", "VIREMENT", "VIR", "INST", "SEPA", "RECU"}
+
+
+def _nom_dans_libelle(nom, libelle):
+    """Vrai si un mot significatif (4 lettres et plus, hors mots vides) du nom du client figure dans le libellé du relevé."""
+    def mots(t):
+        t = unicodedata.normalize("NFKD", t or "").encode("ascii", "ignore").decode().upper()
+        return {w for w in re.findall(r"[A-Z]{4,}", t) if w not in _MOTS_VIDES}
+    m_nom, m_lib = mots(nom), mots(libelle)
+    return bool(m_nom and m_nom & m_lib)
+
+
 def _gl_analyse(comp, clients):
     """Groupes (client, lettre) équilibrés → propositions par facture Odoo."""
     import re as _re
@@ -1500,7 +1516,9 @@ def _gl_analyse(comp, clients):
               fields=["date", "amount", "journal_id", "move_id", "payment_ref"], limit=0)
     stmt_uses = set()
 
-    def stmt_pour(jid, montant, dstr):
+    def stmt_pour(jid, montant, dstr, nom=None):
+        """Ligne de relevé du journal, même montant, à ± 5 jours de la date Sage ; sinon, si le libellé du relevé
+        porte le nom du client (acompte reçu avant la facture, date Sage différente), jusqu'à ± 90 jours."""
         import datetime as _dt
         try:
             dref = _dt.date.fromisoformat(dstr[:10])
@@ -1515,6 +1533,8 @@ def _gl_analyse(comp, clients):
             ecart = abs((_dt.date.fromisoformat(str(s2["date"])[:10]) - dref).days)
             if ecart <= 5:
                 cands.append((ecart, s2))
+            elif nom and ecart <= 90 and _nom_dans_libelle(nom, s2.get("payment_ref")):
+                cands.append((100 + ecart, s2))   # après les candidats proches
         if not cands:
             return None
         return sorted(cands, key=lambda c: c[0])[0][1]
@@ -1734,7 +1754,7 @@ def _gl_analyse(comp, clients):
                and not any(i["payment_state"] in ("paid", "reversed") for i in etats):
                 matches = []
                 for e in regs:
-                    s2 = stmt_pour(journal_pour(e["journal"]), e["credit"], e["date"])
+                    s2 = stmt_pour(journal_pour(e["journal"]), e["credit"], e["date"], cl.get("nom"))
                     if s2 is None:
                         matches = None
                         break
