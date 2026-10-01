@@ -26,6 +26,7 @@
       table.onf tr:nth-child(even) td{background:#fafbfc;}
       .onf-cli{font-weight:800;color:#0f172a;text-decoration:none;font-size:16.5px;}
       .onf-cli:hover{color:#2563eb;}
+    .onf-contact{font-weight:600;color:#475569;}
       .onf-bc{font-weight:700;color:#334155;text-decoration:none;}
       .onf-of{font-weight:800;font-size:16px;}
       .onf-of.ok{color:#b91c1c;}
@@ -83,8 +84,8 @@
             <t t-set="undeliv" t-value="so.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment and l.qty_delivered + 0.001 &lt; l.qty_invoiced and l.qty_invoiced &lt;= l.product_uom_qty + 0.001)"/>
             <t t-set="partiel" t-value="bool(so.invoice_ids.filtered(lambda i: i.state == 'posted' and i.move_type == 'out_invoice'))"/>
             <t t-set="task" t-value="tache_par_so.get(so.id)"/>
-            <tr t-attf-class="{{'done' if all_done else ''}}" t-att-data-alldone="'1' if all_done else '0'" t-att-data-rest="'%.2f' % (rest_amt if n_done else 0)" t-att-data-amount="'%.2f' % so.amount_total" t-att-data-date="so.date_order.strftime('%Y-%m-%d')" t-att-data-client="(so.partner_id.name or '').lower()" t-att-data-q="((so.partner_id.name or '') + ' ' + so.name + ' ' + (task.name if task else '') + ' ' + (so.client_order_ref or '')).lower()">
-              <td><a class="onf-cli" t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank"><t t-esc="so.partner_id.name"/></a>
+            <tr t-attf-class="{{'done' if all_done else ''}}" t-att-data-alldone="'1' if all_done else '0'" t-att-data-rest="'%.2f' % (rest_amt if n_done else 0)" t-att-data-amount="'%.2f' % so.amount_total" t-att-data-date="so.date_order.strftime('%Y-%m-%d')" t-att-data-client="(so.partner_id.commercial_partner_id.name or '').lower()" t-att-data-q="((so.partner_id.commercial_partner_id.name or '') + ' ' + (so.partner_id.name or '') + ' ' + so.name + ' ' + (task.name if task else '') + ' ' + (so.client_order_ref or '')).lower()">
+              <td><a class="onf-cli" t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank"><t t-esc="so.partner_id.commercial_partner_id.name"/><t t-if="so.partner_id != so.partner_id.commercial_partner_id">, <span class="onf-contact"><t t-esc="so.partner_id.name"/></span></t></a>
                 <div class="onf-lines" t-if="so.client_order_ref"><t t-esc="so.client_order_ref[:40]"/></div></td>
               <td><a class="onf-bc" t-attf-href="/web#id={{so.id}}&amp;model=sale.order&amp;view_type=form" target="_blank"><t t-esc="so.name"/></a></td>
               <td><t t-esc="so.date_order.strftime('%d/%m/%y')"/></td>
