@@ -34,7 +34,8 @@
                   color: #fff; font-size: 15px; font-weight: 900; padding: 12px 26px; cursor: pointer; margin-top: 14px; }
     .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
     .chip { font-size: 12.5px; font-weight: 800; padding: 6px 12px; border-radius: 20px; background: #fff;
-            border: 1px solid var(--border); }
+            border: 1px solid var(--border); cursor: pointer; user-select: none; }
+    .chip.active { border-color: var(--cy-dk); background: var(--cy-lt); box-shadow: 0 0 0 2px var(--cy-lt); }
     .chip.ok { color: #1d7f3f; } .chip.due { color: #b4281e; }
     .chip.warn { color: #b07c10; } .chip.off { color: var(--muted); }
     .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
@@ -93,10 +94,10 @@
   <div class="card">
     <h2>Clients suivis ({{ nb }})</h2>
     <div class="chips">
-      <span class="chip ok">● Programmée : {{ stats.get('ok', 0) }}</span>
-      <span class="chip due">● Échue : {{ stats.get('due', 0) }}</span>
-      <span class="chip warn">● Sans email : {{ stats.get('warn', 0) }}</span>
-      <span class="chip off">● Hors cible / exclus : {{ stats.get('off', 0) }}</span>
+      <span class="chip ok" data-f="ok">● Programmée : {{ stats.get('ok', 0) }}</span>
+      <span class="chip due" data-f="due">● Échue : {{ stats.get('due', 0) }}</span>
+      <span class="chip warn" data-f="warn">● Sans email : {{ stats.get('warn', 0) }}</span>
+      <span class="chip off" data-f="off">● Hors cible / exclus : {{ stats.get('off', 0) }}</span>
     </div>
     <div class="toolbar">
       <input type="text" id="q" placeholder="🔍 Rechercher un nom, une ville…">
@@ -107,7 +108,7 @@
         <tr><th>Client</th><th>CP</th><th>Ville</th><th>Email</th><th>Téléphone</th>
             <th>Dernière vidange</th><th>Relance prévue</th><th>Statut</th></tr>
         {% for c in clients %}
-        <tr>
+        <tr data-cls="{{ c.cls }}">
           <td><b>{{ c.nom }}</b></td>
           <td>{{ c.cp }}</td>
           <td>{{ c.ville }}</td>
@@ -124,11 +125,25 @@
 </div>
 <script>
   var q = document.getElementById('q');
-  q.addEventListener('input', function () {
+  var activeFilter = '';
+  function applyFilters() {
     var v = q.value.toLowerCase();
     document.querySelectorAll('#tbl tr').forEach(function (tr, i) {
       if (i === 0) { return; }
-      tr.style.display = tr.textContent.toLowerCase().indexOf(v) === -1 ? 'none' : '';
+      var okTxt = tr.textContent.toLowerCase().indexOf(v) !== -1;
+      var okCls = !activeFilter || tr.dataset.cls === activeFilter;
+      tr.style.display = (okTxt && okCls) ? '' : 'none';
+    });
+  }
+  q.addEventListener('input', applyFilters);
+  document.querySelectorAll('.chip').forEach(function (ch) {
+    ch.addEventListener('click', function () {
+      var f = ch.dataset.f;
+      activeFilter = (activeFilter === f) ? '' : f;
+      document.querySelectorAll('.chip').forEach(function (c2) {
+        c2.classList.toggle('active', c2.dataset.f === activeFilter);
+      });
+      applyFilters();
     });
   });
 </script>
