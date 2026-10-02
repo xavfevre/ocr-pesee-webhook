@@ -3,6 +3,7 @@
   <group string="Chorus Pro" name="protec_chorus">
     <field name="x_chorus_service_code"/>
     <field name="x_chorus_engagement"/>
+    <field name="x_chorus_marche"/>
   </group>
 </xpath>
 </data>

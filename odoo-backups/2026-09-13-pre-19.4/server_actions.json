@@ -3136,7 +3136,7 @@
  {
   "id": 1209,
   "binding_model_id": false,
-  "code": "p = record.partner_id.commercial_partner_id\nvals = {k: v for k, v in {'buyer_reference': (not record.buyer_reference) and p.x_chorus_service_code, 'purchase_order_reference': (not record.purchase_order_reference) and p.x_chorus_engagement}.items() if v}\nif vals and record.move_type in ('out_invoice', 'out_refund'): record.write(vals)",
+  "code": "p = record.partner_id.commercial_partner_id\nvals = {k: v for k, v in {'buyer_reference': (not record.buyer_reference) and p.x_chorus_service_code, 'purchase_order_reference': (not record.purchase_order_reference) and p.x_chorus_engagement, 'contract_reference': (not record.contract_reference) and p.x_chorus_marche}.items() if v}\nif vals and record.move_type in ('out_invoice', 'out_refund'): record.write(vals)",
   "model_id": [
    459,
    "Journal Entry"
