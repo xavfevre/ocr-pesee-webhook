@@ -2722,7 +2722,7 @@
  {
   "id": 1114,
   "binding_model_id": false,
-  "code": "for record in records:\n d = record.x_studio_date_previsionnelle_dintervention\n if d:\n  start = record.commitment_date or datetime.datetime.combine(d, datetime.time(6,0)); end = record.x_fin_intervention or ((start + datetime.timedelta(hours=4)) if record.commitment_date else datetime.datetime.combine(d, datetime.time(15,0))); end = end if end > start else start + datetime.timedelta(hours=1)\n  slots = env['planning.slot'].search([('name','=',record.name)])\n  if len(slots) == 1: slots.write({'start_datetime': start, 'end_datetime': end})\n  elif not slots and record.state == 'sale': env['planning.slot'].create({'name': record.name, 'partner_id': record.partner_id.id, 'start_datetime': start, 'end_datetime': end, 'company_id': record.company_id.id})",
+  "code": "for record in records.filtered('x_studio_date_previsionnelle_dintervention'):\n d = record.x_studio_date_previsionnelle_dintervention; start = record.commitment_date or datetime.datetime.combine(d, datetime.time(6,0)); end = record.x_fin_intervention or ((start + datetime.timedelta(hours=4)) if record.commitment_date else datetime.datetime.combine(d, datetime.time(15,0))); end = end if end > start else start + datetime.timedelta(hours=1); slots = env['planning.slot'].search([('name','=',record.name)])\n if len(slots) == 1: slots.write({'start_datetime': start, 'end_datetime': end})\n elif not slots and record.state == 'sale': env['planning.slot'].create({'name': record.name, 'partner_id': record.partner_id.id, 'start_datetime': start, 'end_datetime': end, 'company_id': record.company_id.id})",
   "model_id": [
    775,
    "Sales Order"
@@ -3131,6 +3131,17 @@
    "Journal Entry"
   ],
   "name": "Comptes fournisseur depuis facture",
+  "usage": "base_automation"
+ },
+ {
+  "id": 1209,
+  "binding_model_id": false,
+  "code": "p = record.partner_id.commercial_partner_id\nvals = {k: v for k, v in {'buyer_reference': (not record.buyer_reference) and p.x_chorus_service_code, 'purchase_order_reference': (not record.purchase_order_reference) and p.x_chorus_engagement}.items() if v}\nif vals and record.move_type in ('out_invoice', 'out_refund'): record.write(vals)",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "name": "Chorus Pro depuis fiche client",
   "usage": "base_automation"
  }
 ]
