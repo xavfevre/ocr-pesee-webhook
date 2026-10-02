@@ -3143,5 +3143,16 @@
   ],
   "name": "Chorus Pro depuis fiche client",
   "usage": "base_automation"
+ },
+ {
+  "id": 1211,
+  "binding_model_id": false,
+  "code": "record.unlink()",
+  "model_id": [
+   168,
+   "Activity"
+  ],
+  "name": "Supprimer rappel changement de conducteur",
+  "usage": "base_automation"
  }
 ]
