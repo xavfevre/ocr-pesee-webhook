@@ -66,7 +66,7 @@ FIELDS = {
     'sale.order': ['x_studio_nota', 'x_studio_lieu_dintervention_1', 'x_studio_lieu_dintervention_2',
                    'x_studio_interlocuteur_1', 'x_studio_date_previsionnelle_dintervention',
                    'x_bi_technicien_id', 'x_bi_camion_id', 'x_bi_conformite', 'x_fin_intervention'],
-    'stock.picking': ['x_technicien_id', 'x_camion_id', 'x_conformite', 'x_bi_seq_code'],
+    'stock.picking': ['x_technicien_id', 'x_camion_id', 'x_conformite', 'x_bi_seq_code', 'x_greenfosse'],
     'product.pricelist.item': ['applied_on', 'product_tmpl_id', 'compute_price', 'fixed_price',
                                'date_start', 'date_end'],
     'account.move.line': ['balance', 'move_name', 'parent_state'],

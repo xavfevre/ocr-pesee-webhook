@@ -364,6 +364,9 @@
             <span>
               <span t-attf-style="display:inline-block;width:11px;height:11px;border:1px solid #333;vertical-align:middle;margin-right:3px;background:#{'#333' if o.x_conformite == 'NC' else '#fff'};"/>NC
             </span>
+            <span t-if="o.x_greenfosse" style="margin-left:12px;color:#2b8a3e;font-weight:bold;">
+              <span style="display:inline-block;width:11px;height:11px;border:1px solid #2b8a3e;vertical-align:middle;margin-right:3px;background:#2b8a3e;"/>GREENFOSSE
+            </span>
           </div>
         </div>
       </div>

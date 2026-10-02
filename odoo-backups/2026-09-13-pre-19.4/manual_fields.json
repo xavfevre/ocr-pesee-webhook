@@ -1241,5 +1241,16 @@
   "required": false,
   "selection": false,
   "ttype": "char"
+ },
+ {
+  "id": 23084,
+  "field_description": "Greenfosse",
+  "model": "stock.picking",
+  "name": "x_greenfosse",
+  "on_delete": false,
+  "relation": false,
+  "required": false,
+  "selection": false,
+  "ttype": "boolean"
  }
 ]
