@@ -171,5 +171,22 @@
   "trigger_field_ids": [
    8298
   ]
+ },
+ {
+  "id": 18,
+  "action_server_ids": [
+   1209
+  ],
+  "active": true,
+  "filter_domain": "[('move_type', 'in', ['out_invoice', 'out_refund'])]",
+  "model_id": [
+   459,
+   "Journal Entry"
+  ],
+  "name": "Chorus Pro : préremplir facture depuis le client",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   8298
+  ]
  }
 ]

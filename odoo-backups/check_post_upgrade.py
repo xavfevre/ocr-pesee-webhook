@@ -28,6 +28,7 @@ probes = {
     4260: ("Devis : CGV agrandies", "font-size:1.08em"),
     4261: ("Facture : CGV page dédiée", "page-break-before"),
     4262: ("Popup bascule société", "x_company_id"),
+    4266: ("Fiche client : encadré Chorus Pro", "x_chorus_service_code"),
     4162: ("Page planning semaine (+ Dupliquer)", "dmodal"),
 }
 for vid, (label, probe) in probes.items():
@@ -47,7 +48,7 @@ for a in autos:
 # ── 3. Actions serveur custom : le code compile toujours (syntaxe) ──
 print("\n— Actions serveur clés —")
 for aid in (1189, 1190, 1191, 1192, 1194, 1195, 1016, 1204, 1113, 1114,
-            1163, 1199, 1200, 1201, 1202, 1205, 1206, 1207, 1208):
+            1163, 1199, 1200, 1201, 1202, 1205, 1206, 1207, 1208, 1209):
     try:
         code = EK('ir.actions.server', 'read', [[aid]], fields=['code'])[0]['code']
         compile(code, f'<a{aid}>', 'exec')
@@ -73,6 +74,8 @@ FIELDS = {
     'fleet.vehicle': ['x_surnom'],
     'fleet.vehicle.odometer': ['value', 'x_litres'],
     'x_bascule_societe': ['x_move_id', 'x_company_id'],
+    'res.partner': ['x_chorus_service_code', 'x_chorus_engagement'],
+    'account.move': ['buyer_reference', 'contract_reference', 'purchase_order_reference'],
 }
 for model, flds in FIELDS.items():
     try:
