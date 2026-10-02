@@ -539,6 +539,7 @@ def fiche(slot_id):
             if any(row.values()):
                 data["dechets"][code] = row
         data["dechets_none"] = bool(f.get("dechets_none"))
+        data["greenfosse"] = bool(f.get("greenfosse"))
 
         # Tranches de curage (lignes dynamiques rue par rue)
         data["curage_commune"] = f.get("curage_commune", "").strip()
@@ -619,6 +620,20 @@ def fiche(slot_id):
             elif pv == "KEEP":
                 nphotos += 1
         x(models, uid, "planning.slot", "write", [slot_id], vals)
+
+        # Report de la case Greenfosse sur le BI du jour (affichée sur le PDF)
+        if _ref0:
+            try:
+                bis = x(models, uid, "stock.picking", "search_read",
+                        [["origin", "=", _ref0]], fields=["scheduled_date"])
+                jour = [b["id"] for b in bis
+                        if (b.get("scheduled_date") or "")[:10] == card["day"]]
+                cibles = jour or [b["id"] for b in bis]
+                if cibles:
+                    x(models, uid, "stock.picking", "write", [cibles],
+                      {"x_greenfosse": data["greenfosse"]})
+            except Exception:
+                pass
 
         # Message chatter pour le bureau (mail.message direct : message_post
         # échappe le HTML passé par XML-RPC en v19) — pas de message en pause
@@ -744,6 +759,8 @@ def render_fiche_html(card, vals, data, nphotos=0):
     if rows_t:
         html += ("<table border='1' cellpadding='3'><tr><th>Nature des travaux</th><th>Quantité</th><th>Temps</th></tr>"
                  + rows_t + "</table>")
+    if data.get("greenfosse"):
+        html += "<p>🌱 <b>Greenfosse</b></p>"
     if vals["x_fdt_commentaires"]:
         html += f"<p><b>Commentaires :</b><br/>{vals['x_fdt_commentaires']}</p>"
     if rows_d:
