@@ -1030,6 +1030,110 @@ def plein():
                            vehicles=vehicles, today=date.today().isoformat(),
                            last_cuve=_last_cuve(uid, models), result=result, error=error)
 
+# ─── NOTES DE FRAIS ──────────────────────────────────────────────────────────
+# Le chauffeur photographie son ticket depuis l'app : la note de frais est
+# créée dans Odoo à son nom (photo jointe) et soumise à validation — le bureau
+# reçoit la même demande de validation que pour une saisie manuelle.
+FRAIS_CATEGORIES = [
+    ("repas",  "Repas",               2),   # [FOOD] Meals
+    ("hotel",  "Hôtel / Déplacement", 3),   # [TRANS & ACC] Travel & Accommodation
+    ("autre",  "Autre dépense",       7),   # [EXP_GEN] Expenses
+]
+
+@bp.route("/frais", methods=["GET", "POST"])
+def frais():
+    emp_id = request.args.get("c", type=int)
+    sig = request.args.get("s", "")
+    if not emp_id or not check_sig(f"driver:{emp_id}", sig):
+        abort(403)
+    uid, models = odoo_connect()
+    emp = x(models, uid, "hr.employee", "read", [emp_id],
+            fields=["name", "company_id", "expense_manager_id"],
+            context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7]})
+    if not emp:
+        abort(404)
+    emp_name = emp[0]["name"]
+    comp_id = emp[0]["company_id"][0] if emp[0]["company_id"] else 2
+
+    result, error = None, None
+    if request.method == "POST":
+        f = request.form
+        try:
+            montant = _num(f, "montant")
+            cat = f.get("categorie") or "repas"
+            prod = {k: p for k, _l, p in FRAIS_CATEGORIES}.get(cat, 2)
+            label = {k: l for k, l, _p in FRAIS_CATEGORIES}.get(cat, "Repas")
+            commerce = (f.get("commerce") or "").strip()
+            jour = f.get("date") or date.today().isoformat()
+            photo = f.get("photo", "")
+            if montant <= 0:
+                raise ValueError("Le montant est obligatoire.")
+            if not photo.startswith("data:"):
+                raise ValueError("La photo du ticket est obligatoire.")
+            ctx = {"allowed_company_ids": [comp_id]}
+            eid = x(models, uid, "hr.expense", "create", [{
+                "name": commerce or label,
+                "employee_id": emp_id,
+                "product_id": prod,
+                "total_amount_currency": montant,
+                "date": jour,
+                "payment_mode": "own_account",
+                "company_id": comp_id,
+                "description": f"Saisi par {emp_name} depuis l'app chauffeur",
+            }], context=ctx)[0]
+            att = x(models, uid, "ir.attachment", "create", [{
+                "name": f"ticket_{jour}.jpg",
+                "datas": photo.split(",", 1)[1],
+                "res_model": "hr.expense", "res_id": eid,
+                "mimetype": "image/jpeg",
+            }], context=ctx)[0]
+            try:
+                x(models, uid, "hr.expense", "write", [eid],
+                  {"message_main_attachment_id": att}, context=ctx)
+            except Exception:
+                pass
+            # Soumission par écriture directe de l'état : action_submit
+            # approuverait d'office (l'utilisateur technique a les droits
+            # d'approbation) et sauterait le contrôle du bureau.
+            x(models, uid, "hr.expense", "write", [eid],
+              {"state": "submitted"}, context=ctx)
+            # Activité « Validation de dépenses » pour le responsable
+            # (équivalent du flux natif) : responsable NDF de l'employé,
+            # sinon Natacha.
+            try:
+                mgr = emp[0].get("expense_manager_id")
+                mgr_uid = mgr[0] if mgr else 2
+                exp_model = x(models, uid, "ir.model", "search",
+                              [["model", "=", "hr.expense"]], limit=1)[0]
+                x(models, uid, "mail.activity", "create", [{
+                    "res_model": "hr.expense", "res_model_id": exp_model,
+                    "res_id": eid, "activity_type_id": 10, "user_id": mgr_uid,
+                    "summary": "Validation de dépenses",
+                    "date_deadline": date.today().isoformat(),
+                }], context=ctx)
+            except Exception:
+                pass
+            result = {"montant": montant, "label": label, "commerce": commerce,
+                      "jour": jour}
+        except ValueError as ex:
+            error = str(ex) or "Saisie invalide — vérifiez les valeurs."
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+
+    # 5 dernières notes du chauffeur (réassurance)
+    derniers = x(models, uid, "hr.expense", "search_read",
+                 [["employee_id", "=", emp_id]],
+                 fields=["name", "date", "total_amount", "state"],
+                 order="date desc", limit=5,
+                 context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7]})
+    etats = {"draft": "Brouillon", "submitted": "En validation",
+             "approved": "Validée", "paid": "Remboursée", "refused": "Refusée"}
+    return render_template("frais.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
+                           categories=FRAIS_CATEGORIES,
+                           today=date.today().isoformat(),
+                           derniers=derniers, etats=etats,
+                           result=result, error=error)
+
 # ─── ASTREINTE (opération non prévue) ────────────────────────────────────────
 # Le chauffeur crée lui-même la tâche planning depuis son téléphone, puis
 # enchaîne directement sur la fiche de fin de travaux correspondante.
