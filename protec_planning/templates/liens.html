@@ -41,6 +41,11 @@
     <span>Backup manuel si un chauffeur n'a pas pu saisir son plein depuis son téléphone</span>
   </a>
 
+  <a class="admin-link" href="{{ BASE }}/fosses?token={{ token }}">
+    🌱 Relance fosses — secrétariat
+    <span>Réglage du délai et du mail de rappel des 4 ans, tableau des clients suivis, export Excel</span>
+  </a>
+
   {% if error %}<div class="error">⚠️ {{ error }}</div>{% endif %}
 
   {% for r in rows %}

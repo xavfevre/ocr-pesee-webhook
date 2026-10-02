@@ -1201,6 +1201,109 @@ def _shift_month(mois, delta):
     mo = (mo - 1) % 12 + 1
     return f"{y:04d}-{mo:02d}"
 
+# ─── RELANCE FOSSES (page bureau Manon / Natacha) ────────────────────────────
+# Réglage du délai (mois) et du mail de rappel + tableau des clients suivis.
+FOSSE_AUTOMATION_ID = 21   # base.automation « Fosse : rappel vidange à 4 ans »
+FOSSE_TEMPLATE_ID = 69     # mail.template « Rappel vidange fosse — 4 ans »
+
+def _fosse_clients(uid, models, delai_mois):
+    rows = x(models, uid, "res.partner", "search_read",
+             [["x_fosse_derniere_vidange", "!=", False]],
+             fields=["name", "city", "zip", "email", "phone", "is_company",
+                     "x_fosse_derniere_vidange"],
+             context={"allowed_company_ids": [2, 1, 3, 4, 5, 6, 7]})
+    out, today = [], date.today()
+    for r in rows:
+        d = date.fromisoformat(r["x_fosse_derniere_vidange"])
+        y, mo = d.year, d.month + delai_mois
+        y += (mo - 1) // 12
+        mo = (mo - 1) % 12 + 1
+        try:
+            due = date(y, mo, d.day)
+        except ValueError:
+            due = date(y, mo, 28)
+        if "NE PLUS UTILISER" in (r["name"] or "").upper():
+            statut, cls = "Exclu (ne plus utiliser)", "off"
+        elif r["is_company"]:
+            statut, cls = "Hors cible (professionnel)", "off"
+        elif not r["email"]:
+            statut, cls = "Sans email — à appeler", "warn"
+        elif due <= today:
+            statut, cls = "Échue — envoi imminent", "due"
+        else:
+            statut, cls = "Programmée", "ok"
+        out.append({
+            "nom": r["name"], "ville": r["city"] or "", "cp": r["zip"] or "",
+            "email": r["email"] or "", "tel": r["phone"] or "",
+            "vidange": d.strftime("%d/%m/%Y"), "relance": due.strftime("%d/%m/%Y"),
+            "due_iso": due.isoformat(), "statut": statut, "cls": cls,
+        })
+    out.sort(key=lambda z: z["due_iso"])
+    return out
+
+def _fosse_params(uid, models):
+    auto = x(models, uid, "base.automation", "read", [FOSSE_AUTOMATION_ID],
+             fields=["trg_date_range", "active"])[0]
+    tpl = x(models, uid, "mail.template", "read", [FOSSE_TEMPLATE_ID],
+            fields=["subject", "body_html"])[0]
+    return auto, tpl
+
+@bp.route("/fosses", methods=["GET", "POST"])
+def fosses():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    uid, models = odoo_connect()
+    saved, error = None, None
+    if request.method == "POST":
+        f = request.form
+        try:
+            delai = int(f.get("delai") or 0)
+            if not 1 <= delai <= 120:
+                raise ValueError("Le délai doit être entre 1 et 120 mois.")
+            sujet = (f.get("sujet") or "").strip()
+            corps = (f.get("corps") or "").strip()
+            if not sujet or not corps:
+                raise ValueError("L'objet et le corps du mail sont obligatoires.")
+            x(models, uid, "base.automation", "write", [FOSSE_AUTOMATION_ID],
+              {"trg_date_range": delai,
+               "active": f.get("actif") == "1"})
+            x(models, uid, "mail.template", "write", [FOSSE_TEMPLATE_ID],
+              {"subject": sujet, "body_html": corps})
+            saved = True
+        except ValueError as ex:
+            error = str(ex)
+        except Exception:
+            error = "Erreur d'enregistrement — réessayez."
+    auto, tpl = _fosse_params(uid, models)
+    clients = _fosse_clients(uid, models, auto["trg_date_range"] or 48)
+    stats = {}
+    for c in clients:
+        stats[c["cls"]] = stats.get(c["cls"], 0) + 1
+    return render_template("fosses.html", token=SECRET, auto=auto, tpl=tpl,
+                           clients=clients, stats=stats, nb=len(clients),
+                           saved=saved, error=error)
+
+@bp.route("/fosses/export")
+def fosses_export():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    uid, models = odoo_connect()
+    auto, _tpl = _fosse_params(uid, models)
+    clients = _fosse_clients(uid, models, auto["trg_date_range"] or 48)
+    import io, csv as _csv
+    buf = io.StringIO()
+    w = _csv.writer(buf, delimiter=";")
+    w.writerow(["Nom", "Code postal", "Ville", "Email", "Téléphone",
+                "Dernière vidange", "Relance prévue", "Statut"])
+    for c in clients:
+        w.writerow([c["nom"], c["cp"], c["ville"], c["email"], c["tel"],
+                    c["vidange"], c["relance"], c["statut"]])
+    out = "﻿" + buf.getvalue()
+    from flask import Response
+    return Response(out, mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition":
+                             f"attachment; filename=relance_fosses_{date.today().isoformat()}.csv"})
+
 # ─── SAISIE MANUELLE (admin/secrétariat) ─────────────────────────────────────
 # Backup de /plein pour Manon : si un chauffeur n'a pas pu saisir son plein
 # depuis son téléphone, la secrétaire peut le faire ici pour n'importe quel
