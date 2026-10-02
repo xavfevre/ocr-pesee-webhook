@@ -188,5 +188,20 @@
   "trigger_field_ids": [
    8298
   ]
+ },
+ {
+  "id": 19,
+  "action_server_ids": [
+   1211
+  ],
+  "active": true,
+  "filter_domain": "[\"&\", (\"res_model\", \"=\", \"fleet.vehicle\"), \"|\", (\"note\", \"ilike\", \"changement de conducteur\"), (\"note\", \"ilike\", \"new driver\")]",
+  "model_id": [
+   168,
+   "Activity"
+  ],
+  "name": "Pas de rappel changement de conducteur",
+  "trigger": "on_create",
+  "trigger_field_ids": []
  }
 ]
