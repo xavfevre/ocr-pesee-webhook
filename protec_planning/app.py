@@ -1126,6 +1126,10 @@ def frais():
                  fields=["name", "date", "total_amount", "state"],
                  order="date desc", limit=5,
                  context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7]})
+    for d_ in derniers:
+        if d_.get("date"):
+            an, mo, jr = d_["date"].split("-")
+            d_["date"] = f"{jr}/{mo}/{an}"
     etats = {"draft": "Brouillon", "submitted": "En validation",
              "approved": "Validée", "paid": "Remboursée", "refused": "Refusée"}
     return render_template("frais.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
