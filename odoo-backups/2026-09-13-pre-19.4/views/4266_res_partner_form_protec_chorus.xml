@@ -5,5 +5,8 @@
     <field name="x_chorus_engagement"/>
     <field name="x_chorus_marche"/>
   </group>
+  <group string="Assainissement" name="protec_fosse">
+    <field name="x_fosse_derniere_vidange"/>
+  </group>
 </xpath>
 </data>
