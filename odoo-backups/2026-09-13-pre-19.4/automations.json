@@ -224,7 +224,8 @@
  {
   "id": 21,
   "action_server_ids": [
-   1213
+   1213,
+   1215
   ],
   "active": true,
   "filter_domain": "['&', '&', '&', ('is_company', '=', False), ('x_fosse_derniere_vidange', '!=', False), ('email', '!=', False), ('name', 'not ilike', 'NE PLUS UTILISER')]",

@@ -106,7 +106,7 @@
     <div class="scroll">
       <table id="tbl">
         <tr><th>Client</th><th>CP</th><th>Ville</th><th>Email</th><th>Téléphone</th>
-            <th>Dernière vidange</th><th>Relance prévue</th><th>Statut</th></tr>
+            <th>Dernière vidange</th><th>Relance prévue</th><th>Dernière relance envoyée</th><th>Statut</th></tr>
         {% for c in clients %}
         <tr data-cls="{{ c.cls }}">
           <td><b>{{ c.nom }}</b></td>
@@ -116,6 +116,7 @@
           <td style="white-space:nowrap;">{{ c.tel }}</td>
           <td style="white-space:nowrap;">{{ c.vidange }}</td>
           <td style="white-space:nowrap;"><b>{{ c.relance }}</b></td>
+          <td style="white-space:nowrap;">{{ c.relancee }}</td>
           <td><span class="st {{ c.cls }}">{{ c.statut }}</span></td>
         </tr>
         {% endfor %}
