@@ -2964,68 +2964,68 @@
  },
  {
   "id": 1189,
-  "name": "FDT - Voir la fiche (commande)",
+  "binding_model_id": false,
+  "code": "ref = (record.name or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','sale.order'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None; att = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'sale.order','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
   "model_id": [
    775,
    "Sales Order"
   ],
-  "code": "ref = (record.name or '').split(' ')[0]\nif not ref: raise UserError(\"Aucune reference de commande sur ce document.\")\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)])\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','sale.order'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None\natt = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'sale.order','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
-  "binding_model_id": false,
+  "name": "FDT - Voir la fiche (commande)",
   "usage": "ir_actions_server"
  },
  {
   "id": 1190,
-  "name": "FDT - Voir la fiche (facture)",
+  "binding_model_id": false,
+  "code": "refs = [r for r in ([o.name for o in record.invoice_line_ids.mapped('sale_line_ids.order_id')] or ([record.invoice_origin.split(',')[0].strip().split(' ')[0]] if record.invoice_origin else [])) if r]; ref = refs[0] if refs else ''\nslots = env['planning.slot'].sudo().search(['|']*(len(refs)-1) + [('name','=like',r+'%') for r in refs] + [('x_fdt_fait','=',True)]) if refs else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if refs else \"Aucune reference de commande sur ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','account.move'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None; att = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'account.move','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
   "model_id": [
    459,
    "Journal Entry"
   ],
-  "code": "refs = [r for r in ([o.name for o in record.invoice_line_ids.mapped('sale_line_ids.order_id')] or ([record.invoice_origin.split(',')[0].strip().split(' ')[0]] if record.invoice_origin else [])) if r]; ref = refs[0] if refs else ''\nif not ref: raise UserError(\"Aucune reference de commande sur ce document.\")\nslots = env['planning.slot'].sudo().search(['|']*(len(refs)-1) + [('name','=like',r+'%') for r in refs] + [('x_fdt_fait','=',True)])\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','account.move'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None\natt = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'account.move','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
-  "binding_model_id": false,
+  "name": "FDT - Voir la fiche (facture)",
   "usage": "ir_actions_server"
  },
  {
   "id": 1191,
-  "name": "FDT - Voir la fiche (BI)",
+  "binding_model_id": false,
+  "code": "ref = (record.origin or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','stock.picking'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None; att = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'stock.picking','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
   "model_id": [
    896,
    "Transfer"
   ],
-  "code": "ref = (record.origin or '').split(' ')[0]\nif not ref: raise UserError(\"Aucune reference de commande sur ce document.\")\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)])\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\")\npdf, _t = env['ir.actions.report'].sudo()._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', slots.ids); name = 'Rapport_' + ref + ('' if len(slots) == 1 else '_lot') + '.pdf'; Att = env['ir.attachment'].sudo(); att = Att.search([('res_model','=','stock.picking'),('res_id','=',record.id),('name','=',name)], limit=1); att.write({'raw': pdf}) if att else None\natt = att or Att.create({'name':name,'raw':pdf,'mimetype':'application/pdf','res_model':'stock.picking','res_id':record.id}); action = {'type':'ir.actions.act_url','url':'/web/content/'+str(att.id)+'?download=false','target':'new'}",
-  "binding_model_id": false,
+  "name": "FDT - Voir la fiche (BI)",
   "usage": "ir_actions_server"
  },
  {
   "id": 1192,
-  "name": "FDT - Envoyer la fiche (BI)",
+  "binding_model_id": false,
+  "code": "ref = (record.origin or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','stock.picking'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'stock.picking','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'stock.picking','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])}); action = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
   "model_id": [
    896,
    "Transfer"
   ],
-  "code": "ref = (record.origin or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','stock.picking'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'stock.picking','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'stock.picking','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])})\naction = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
-  "binding_model_id": false,
+  "name": "FDT - Envoyer la fiche (BI)",
   "usage": "ir_actions_server"
  },
  {
   "id": 1194,
-  "name": "FDT - Envoyer la fiche (commande)",
+  "binding_model_id": false,
+  "code": "ref = (record.name or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','sale.order'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'sale.order','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'sale.order','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])}); action = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
   "model_id": [
    775,
    "Sales Order"
   ],
-  "code": "ref = (record.name or '').split(' ')[0]\nslots = env['planning.slot'].sudo().search([('name','=like',ref+'%'),('x_fdt_fait','=',True)]) if ref else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if ref else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','sale.order'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'sale.order','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'sale.order','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])})\naction = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
-  "binding_model_id": false,
+  "name": "FDT - Envoyer la fiche (commande)",
   "usage": "ir_actions_server"
  },
  {
   "id": 1195,
-  "name": "FDT - Envoyer la fiche (facture)",
+  "binding_model_id": false,
+  "code": "refs = [r for r in ([o.name for o in record.invoice_line_ids.mapped('sale_line_ids.order_id')] or ([record.invoice_origin.split(',')[0].strip().split(' ')[0]] if record.invoice_origin else [])) if r]; ref = refs[0] if refs else ''\nslots = env['planning.slot'].sudo().search(['|']*(len(refs)-1) + [('name','=like',r+'%') for r in refs] + [('x_fdt_fait','=',True)]) if refs else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if refs else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','account.move'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'account.move','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'account.move','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])}); action = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
   "model_id": [
    459,
    "Journal Entry"
   ],
-  "code": "refs = [r for r in ([o.name for o in record.invoice_line_ids.mapped('sale_line_ids.order_id')] or ([record.invoice_origin.split(',')[0].strip().split(' ')[0]] if record.invoice_origin else [])) if r]; ref = refs[0] if refs else ''\nslots = env['planning.slot'].sudo().search(['|']*(len(refs)-1) + [('name','=like',r+'%') for r in refs] + [('x_fdt_fait','=',True)]) if refs else None\nif not slots: raise UserError(\"Aucune fiche de fin de travaux remplie pour ce document.\" if refs else \"Aucune reference de commande sur ce document.\")\nRep = env['ir.actions.report'].sudo(); Att = env['ir.attachment'].sudo(); att_ids = []\nfor sl in slots: fn = 'Rapport_' + ((sl.name or '').split(' ')[0] or str(sl.id)) + '.pdf'; pdf, _t = Rep._render_qweb_pdf('protec_custom.report_fiche_fin_travaux', sl.ids); Att.search([('res_model','=','account.move'),('res_id','=',record.id),('name','=',fn)]).unlink(); att_ids.append(Att.create({'name':fn,'raw':pdf,'mimetype':'application/pdf','res_model':'account.move','res_id':record.id}).id)\nbody = \"<p>Bonjour,</p><p>Veuillez trouver ci-joint le rapport d'intervention relatif à notre intervention.</p><p>Nous restons à votre disposition pour tout complément d'information.</p>\" + str(env.user.signature or \"<p>Cordialement,<br/>PROTEC « Pôle Assainissement »<br/>02 47 65 20 46</p>\"); ctx = dict(env.context); ctx.update({'default_model':'account.move','default_res_ids':[record.id],'default_composition_mode':'comment','default_subject':\"Rapport d'intervention \" + ref,'default_body':body,'default_attachment_ids':[(6,0,att_ids)],'default_partner_ids':([record.partner_id.id] if record.partner_id else [])})\naction = {'type':'ir.actions.act_window','name':\"Envoyer le rapport d'intervention\",'res_model':'mail.compose.message','view_mode':'form','views':[[False,'form']],'target':'new','context':ctx}",
-  "binding_model_id": false,
+  "name": "FDT - Envoyer la fiche (facture)",
   "usage": "ir_actions_server"
  },
  {
@@ -3153,6 +3153,17 @@
    "Activity"
   ],
   "name": "Supprimer rappel changement de conducteur",
+  "usage": "base_automation"
+ },
+ {
+  "id": 1212,
+  "binding_model_id": false,
+  "code": "d = record.x_studio_date_previsionnelle_dintervention or (record.date_order and record.date_order.date())\np = record.partner_id.commercial_partner_id\nif d and record.state == 'sale' and any(l.product_id.id in (54, 55, 56, 57, 147, 148, 149, 150, 249) for l in record.order_line) and (not p.x_fosse_derniere_vidange or p.x_fosse_derniere_vidange < d): p.write({'x_fosse_derniere_vidange': d})",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "name": "MAJ date dernière vidange fosse",
   "usage": "base_automation"
  }
 ]

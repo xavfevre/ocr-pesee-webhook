@@ -203,5 +203,22 @@
   "name": "Pas de rappel changement de conducteur",
   "trigger": "on_create",
   "trigger_field_ids": []
+ },
+ {
+  "id": 20,
+  "action_server_ids": [
+   1212
+  ],
+  "active": true,
+  "filter_domain": "[('state', '=', 'sale'), ('company_id', '=', 2)]",
+  "model_id": [
+   775,
+   "Sales Order"
+  ],
+  "name": "Fosse : MAJ date dernière vidange à la confirmation",
+  "trigger": "on_create_or_write",
+  "trigger_field_ids": [
+   15502
+  ]
  }
 ]
