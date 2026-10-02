@@ -74,7 +74,7 @@ FIELDS = {
     'fleet.vehicle': ['x_surnom'],
     'fleet.vehicle.odometer': ['value', 'x_litres'],
     'x_bascule_societe': ['x_move_id', 'x_company_id'],
-    'res.partner': ['x_chorus_service_code', 'x_chorus_engagement'],
+    'res.partner': ['x_chorus_service_code', 'x_chorus_engagement', 'x_chorus_marche'],
     'account.move': ['buyer_reference', 'contract_reference', 'purchase_order_reference'],
 }
 for model, flds in FIELDS.items():
