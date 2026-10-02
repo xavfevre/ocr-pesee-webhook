@@ -3165,5 +3165,16 @@
   ],
   "name": "MAJ date dernière vidange fosse",
   "usage": "base_automation"
+ },
+ {
+  "id": 1213,
+  "binding_model_id": false,
+  "code": false,
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "name": "Envoyer rappel vidange fosse",
+  "usage": "base_automation"
  }
 ]

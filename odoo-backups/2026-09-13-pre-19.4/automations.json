@@ -220,5 +220,20 @@
   "trigger_field_ids": [
    15502
   ]
+ },
+ {
+  "id": 21,
+  "action_server_ids": [
+   1213
+  ],
+  "active": true,
+  "filter_domain": "['&', '&', '&', ('is_company', '=', False), ('x_fosse_derniere_vidange', '!=', False), ('email', '!=', False), ('name', 'not ilike', 'NE PLUS UTILISER')]",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "name": "Fosse : rappel vidange à 4 ans (particuliers)",
+  "trigger": "on_time",
+  "trigger_field_ids": []
  }
 ]
