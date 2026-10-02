@@ -48,7 +48,7 @@ for a in autos:
 # ── 3. Actions serveur custom : le code compile toujours (syntaxe) ──
 print("\n— Actions serveur clés —")
 for aid in (1189, 1190, 1191, 1192, 1194, 1195, 1016, 1204, 1113, 1114,
-            1163, 1199, 1200, 1201, 1202, 1205, 1206, 1207, 1208, 1209, 1211, 1212):
+            1163, 1199, 1200, 1201, 1202, 1205, 1206, 1207, 1208, 1209, 1211, 1212, 1215):
     try:
         code = EK('ir.actions.server', 'read', [[aid]], fields=['code'])[0]['code']
         compile(code, f'<a{aid}>', 'exec')
@@ -74,7 +74,7 @@ FIELDS = {
     'fleet.vehicle': ['x_surnom'],
     'fleet.vehicle.odometer': ['value', 'x_litres'],
     'x_bascule_societe': ['x_move_id', 'x_company_id'],
-    'res.partner': ['x_chorus_service_code', 'x_chorus_engagement', 'x_chorus_marche', 'x_fosse_derniere_vidange'],
+    'res.partner': ['x_chorus_service_code', 'x_chorus_engagement', 'x_chorus_marche', 'x_fosse_derniere_vidange', 'x_fosse_derniere_relance'],
     'account.move': ['buyer_reference', 'contract_reference', 'purchase_order_reference'],
 }
 for model, flds in FIELDS.items():

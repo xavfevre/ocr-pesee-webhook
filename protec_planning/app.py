@@ -1210,7 +1210,7 @@ def _fosse_clients(uid, models, delai_mois):
     rows = x(models, uid, "res.partner", "search_read",
              [["x_fosse_derniere_vidange", "!=", False]],
              fields=["name", "city", "zip", "email", "phone", "is_company",
-                     "x_fosse_derniere_vidange"],
+                     "x_fosse_derniere_vidange", "x_fosse_derniere_relance"],
              context={"allowed_company_ids": [2, 1, 3, 4, 5, 6, 7]})
     out, today = [], date.today()
     for r in rows:
@@ -1236,6 +1236,8 @@ def _fosse_clients(uid, models, delai_mois):
             "nom": r["name"], "ville": r["city"] or "", "cp": r["zip"] or "",
             "email": r["email"] or "", "tel": r["phone"] or "",
             "vidange": d.strftime("%d/%m/%Y"), "relance": due.strftime("%d/%m/%Y"),
+            "relancee": ("/".join(reversed(r["x_fosse_derniere_relance"].split("-")))
+                          if r.get("x_fosse_derniere_relance") else ""),
             "due_iso": due.isoformat(), "statut": statut, "cls": cls,
         })
     out.sort(key=lambda z: z["due_iso"])
@@ -1294,10 +1296,10 @@ def fosses_export():
     buf = io.StringIO()
     w = _csv.writer(buf, delimiter=";")
     w.writerow(["Nom", "Code postal", "Ville", "Email", "Téléphone",
-                "Dernière vidange", "Relance prévue", "Statut"])
+                "Dernière vidange", "Relance prévue", "Dernière relance envoyée", "Statut"])
     for c in clients:
         w.writerow([c["nom"], c["cp"], c["ville"], c["email"], c["tel"],
-                    c["vidange"], c["relance"], c["statut"]])
+                    c["vidange"], c["relance"], c["relancee"], c["statut"]])
     out = "﻿" + buf.getvalue()
     from flask import Response
     return Response(out, mimetype="text/csv; charset=utf-8",

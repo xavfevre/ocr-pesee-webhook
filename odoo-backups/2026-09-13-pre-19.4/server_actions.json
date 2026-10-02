@@ -3176,5 +3176,16 @@
   ],
   "name": "Envoyer rappel vidange fosse",
   "usage": "base_automation"
+ },
+ {
+  "id": 1215,
+  "binding_model_id": false,
+  "code": "record.write({'x_fosse_derniere_relance': datetime.date.today()})",
+  "model_id": [
+   90,
+   "Contact"
+  ],
+  "name": "Horodater relance fosse",
+  "usage": "base_automation"
  }
 ]

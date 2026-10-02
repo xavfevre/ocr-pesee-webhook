@@ -7,6 +7,7 @@
   </group>
   <group string="Assainissement" name="protec_fosse">
     <field name="x_fosse_derniere_vidange"/>
+    <field name="x_fosse_derniere_relance"/>
   </group>
 </xpath>
 </data>
