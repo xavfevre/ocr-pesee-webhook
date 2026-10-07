@@ -11,7 +11,7 @@
 import os, ssl, sys, xmlrpc.client
 sys.stdout.reconfigure(encoding='utf-8')
 mode = (sys.argv[1] if len(sys.argv) > 1 else 'dry').lower()
-U, D = 'https://maquignon.odoo.com', 'maquignon'
+U = os.environ.get('ODOO_URL', 'https://maquignon.odoo.com'); D = os.environ.get('ODOO_DB', 'maquignon')
 us = os.environ['ODOO_USER']; p = os.environ['ODOO_PWD']
 c = ssl.create_default_context()
 uid = xmlrpc.client.ServerProxy(U + '/xmlrpc/2/common', context=c).authenticate(D, us, p, {})
@@ -91,13 +91,17 @@ for so in records:
                         'order_line': [(0, 0, {'product_id': PRODUIT, 'name': desc, 'product_qty': 1.0, 'price_unit': 0.0})]})
         crees |= po
         if t.email:
-            env['mail.template'].sudo().browse(TPL).send_mail(po.id, force_send=True)
+            # copie à Céline (paramètre maquignon.transport_tarif_cc) et à la personne qui envoie
+            cc = [a.strip() for a in (env['ir.config_parameter'].sudo().get_param('maquignon.transport_tarif_cc', 'celine@maquignon.com') or '').split(',') if a.strip()]
+            if env.user.email and env.user.email not in cc:
+                cc.append(env.user.email)
+            env['mail.template'].sudo().browse(TPL).send_mail(po.id, force_send=True, email_values={'email_cc': ', '.join(cc)})
             po.write({'state': 'sent'})
             envoyes.append(t.name)
     if crees:
         so.message_post(body="Demandes de tarif transport créées : %%s%%s" %% (
             ', '.join(crees.mapped('partner_id.name')),
-            (' (envoyées par mail à : %%s)' %% ', '.join(envoyes)) if envoyes else " (aucun mail : pas d'adresse e-mail sur la fiche transporteur)"))
+            (' (envoyées par mail à : %%s, copie à %%s)' %% (', '.join(envoyes), ', '.join(cc))) if envoyes else " (aucun mail : pas d'adresse e-mail sur la fiche transporteur)"))
     action = {'type': 'ir.actions.act_window', 'res_model': 'purchase.order', 'name': 'Tarifs transport %%s' %% so.name,
               'view_mode': 'list,form', 'domain': [('origin', '=', so.name)], 'context': {'create': False}}
 '''
@@ -157,6 +161,9 @@ if mode == 'dry':
     print('simulation : rien modifié'); sys.exit(0)
 
 if mode == 'apply':
+    if not x('ir.config_parameter', 'search', [['key', '=', 'maquignon.transport_tarif_cc']]):
+        x('ir.config_parameter', 'create', [{'key': 'maquignon.transport_tarif_cc', 'value': 'celine@maquignon.com'}])
+    print('copie des demandes de tarif (maquignon.transport_tarif_cc) :', x('ir.config_parameter', 'get_param', 'maquignon.transport_tarif_cc'))
     cat_id = cat[0] if cat else one(x('res.partner.category', 'create', [{'name': NOM_CAT, 'color': 4}]))
     for t in x('res.partner', 'search_read', [['name', 'in', TRANSPORTEURS]], fields=['name', 'category_id']):
         if cat_id not in t['category_id']:
