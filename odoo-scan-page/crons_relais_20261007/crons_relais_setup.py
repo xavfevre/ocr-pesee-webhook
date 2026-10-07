@@ -124,8 +124,11 @@ def creer_modele():
         print('   droits d accès créés (lecture utilisateurs, tout administrateurs)')
     if not x('ir.ui.menu', 'search', [['name', '=', NOM_MENU]]):
         act = one(x('ir.actions.act_window', 'create', [{'name': NOM_MENU, 'res_model': MODELE, 'view_mode': 'list,form'}]))
-        parent = x('ir.ui.menu', 'search', [['complete_name', '=', 'Settings/Technical']], limit=1) or [8]
-        mn = one(x('ir.ui.menu', 'create', [{'name': NOM_MENU, 'parent_id': parent[0], 'action': 'ir.actions.act_window,%d' % act}]))
+        try:
+            parent = ref('base.menu_custom')   # Paramètres > Technique
+        except Exception:  # noqa: BLE001
+            parent = 8
+        mn = one(x('ir.ui.menu', 'create', [{'name': NOM_MENU, 'parent_id': parent, 'action': 'ir.actions.act_window,%d' % act}]))
         print('   menu %s créé sous Paramètres > Technique (action %s)' % (mn, act))
     return mid
 
