@@ -146,14 +146,16 @@ def tarif(call, so_id):
         _note(call, 'sale.order', so_id, "Demandes de tarif transport : rien à créer, une demande est déjà en cours pour chaque transporteur coché (voir Achats, origine %s)." % so['name'])
         return 'rien à créer'
     noms = {p['id']: p['name'] for p in call('purchase.order', 'read', [c[0] for c in crees], ['name'])}
-    liens = ', '.join('<a href="/odoo/purchase/%d">%s</a> (%s)' % (pid, noms.get(pid, pid), nom) for pid, nom in crees)
+    # texte brut : message_post par XML-RPC échappe le HTML (un lien <a> s'afficherait en clair dans le fil)
+    liens = ', '.join('%s (%s)' % (noms.get(pid, pid), nom) for pid, nom in crees)
     details = []
     if envoyes:
         details.append('envoyées par mail à %s, copie à %s' % (', '.join(envoyes), ', '.join(cc)))
     if sans_mail:
         details.append("sans envoi pour %s : pas d'adresse e-mail sur la fiche transporteur" % ', '.join(sans_mail))
-    _note(call, 'sale.order', so_id, "Demandes de tarif transport créées : %s (%s). Saisir le prix HT reçu sur chaque demande puis la confirmer : "
-                                     "le transporteur retenu, son prix et la ligne « Transport de pierres » se reportent sur le devis." % (liens, ' ; '.join(details)))
+    _note(call, 'sale.order', so_id, "Demandes de tarif transport créées : %s (%s). Les ouvrir dans Achats (origine %s), saisir le prix HT reçu sur chacune "
+                                     "puis la confirmer : le transporteur retenu, son prix et la ligne « Transport de pierres » se reportent sur le devis." % (
+                                         liens, ' ; '.join(details), so['name']))
     return '%d demande(s) créée(s) : %s' % (len(crees), ', '.join(str(n) for n in noms.values()))
 
 

@@ -75,9 +75,9 @@ pour une base de test) les convertit, `retour` remet le code archivé (`action_<
   = webhook seul. Filtres resserrés : 102 = état achat + article Transport affrété ; 103 = mode renseigné + société 1.
 - Relais : route `/odoo/transport/<tarif|achat-confirme|mode-devis>?token=…` (`patch_relais_webhooks_transport.py`),
   réponse immédiate (Odoo n'attend qu'une seconde, `timeout=1`), traitement dans un thread, logique dans
-  `transport_webhooks.py` (XML-RPC, mêmes notes qu'avant, liens vers les demandes de prix, copie au vendeur du devis
+  `transport_webhooks.py` (XML-RPC, mêmes notes qu'avant, numéros des demandes de prix en texte brut (`message_post` par RPC échappe le HTML), copie au vendeur du devis
   en plus de Céline). `&host=<base de test>` dans l'URL = tout se passe sur cette base.
-- Différences visibles : la liste des demandes ne s'ouvre plus (le fil du devis les liste avec des liens) ; la ligne
+- Différences visibles : la liste des demandes ne s'ouvre plus (le fil du devis donne leurs numéros, à ouvrir dans Achats) ; la ligne
   « Transport de pierres » apparaît quelques secondes après l'enregistrement (recharger le devis) ; la copie au
   « cliqueur » devient la copie au vendeur du devis (le webhook ne connaît pas l'utilisateur).
 - Sécurité : une copie de la production est neutralisée par Odoo (`webhook_url` effacée sur toutes les actions webhook),

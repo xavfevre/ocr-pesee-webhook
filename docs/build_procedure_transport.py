@@ -201,7 +201,7 @@ story.append(Paragraph("Transporteur extérieur : demander un tarif", st_h2))
 steps([
     "Cocher les <b>transporteurs à consulter</b> (contacts portant l'étiquette « Transporteur » : GENDRON TRANSPORTS, TRANSPORTS P. FRECHOT…). Pour en ajouter un : fiche fournisseur avec adresse e-mail + étiquette « Transporteur ».",
     "Cliquer <b>« Demander un tarif transport »</b> : Odoo crée une <b>demande de prix</b> (Achats) par transporteur, pré-remplie avec la commande, l'enlèvement à Usseau, l'adresse de livraison, le nombre de palettes (ou une estimation sur 1 500 kg par palette), le poids et le volume des lignes, la date souhaitée. Si la fiche du transporteur a un e-mail, la demande part aussitôt par mail, <b>avec Céline en copie</b> (et le vendeur du devis) ; sinon elle est créée sans envoi (le fil du devis le dit).",
-    "Quelques secondes plus tard, le fil du devis liste les demandes créées (avec un lien vers chacune) ; elles sont aussi dans Achats (origine = n° du devis). Saisir sur chacune le <b>prix HT reçu</b> (ligne « Transport affrété ») et, en note, le délai.",
+    "Quelques secondes plus tard, le fil du devis liste les demandes créées ; les ouvrir dans Achats (origine = n° du devis). Saisir sur chacune le <b>prix HT reçu</b> (ligne « Transport affrété ») et, en note, le délai.",
     "<b>Confirmer</b> la demande retenue : elle devient l'ordre de transport ; le devis reçoit <b>Transporteur retenu, Prix d'achat transport HT, Ordre de transport</b> ; les autres demandes sont annulées ; une note le dit dans le fil.",
     "La ligne <b>« Transport de pierres »</b> du devis prend automatiquement le <b>prix d'achat + 40 %</b> (marge réglable par Xavier) et le nom du transporteur ; l'ajuster si besoin.",
 ])
