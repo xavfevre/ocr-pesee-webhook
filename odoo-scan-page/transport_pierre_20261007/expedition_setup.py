@@ -102,6 +102,8 @@ CSS_COMMUN = '''
       .exp-pal-meta{color:#cbd5e1;font-size:13px;margin-top:2px;word-break:break-word;}
       .exp-del{border:none;border-radius:10px;background:#7f1d1d;color:#fff;font-size:18px;padding:10px 12px;cursor:pointer;}
       .exp-alert{background:#92400e;color:#fef3c7;border-radius:10px;padding:8px 12px;font-weight:800;margin-top:8px;}
+      .exp-devis{background:#0f172a;border:1px dashed #475569;border-radius:10px;padding:10px 12px;color:#94a3b8;font-weight:700;margin-bottom:10px;}
+      .exp-devis.ok{border-style:solid;border-color:#38bdf8;color:#e0f2fe;} .exp-devis.warn{border-color:#f59e0b;color:#fde68a;}
       .exp-empty{color:#64748b;font-size:14px;padding:6px 0;}
       #exp-total{color:#5eead4;font-weight:800;font-size:16px;margin-top:10px;text-align:right;}
       .exp-go{width:100%;border:none;border-radius:12px;padding:18px;font-size:20px;font-weight:900;background:#16a34a;color:#fff;cursor:pointer;}
@@ -139,6 +141,19 @@ JS_PAGE = r'''
       .then(function(d){ if(d.error){ throw new Error(d.error.message || 'Erreur'); } return d.result || {}; });
   }
   function show(id, on){ var e = document.getElementById(id); if(e){ e.style.display = on ? '' : 'none'; } }
+  function devisBandeau(){
+    var b = document.getElementById('exp-devis'); if(!b){ return; }
+    var p = st.palettes[0];
+    if(!p){ b.className = 'exp-devis'; b.textContent = 'Scannez une palette : le mode prévu au devis s\'affichera ici.'; return; }
+    if(p.mode_devis){
+      var qui = p.mode_devis === 'exterieur' ? (p.transporteur_devis || 'transporteur à choisir') : (p.mode_devis === 'camions' ? (p.camion_devis || 'camion à choisir') : '');
+      var diff = st.mode && st.mode !== p.mode_devis;
+      b.className = 'exp-devis ' + (diff ? 'warn' : 'ok');
+      b.textContent = (diff ? '⚠️ Vous avez choisi « ' + (MODES[st.mode] || st.mode) + ' » mais le ' : '✅ Prévu au ') + 'devis ' + (p.commande || '') + ' : ' + (MODES[p.mode_devis] || p.mode_devis) + (qui ? ' — ' + qui : '') + ' (' + (p.mode_devis_src || '') + ')';
+    } else {
+      b.className = 'exp-devis warn'; b.textContent = '⚠️ Mode de transport non renseigné sur le devis ' + (p.commande || '') + ' : choisissez ci-dessous (le devis sera complété au départ).';
+    }
+  }
   function val(id, v){ var e = document.getElementById(id); if(e){ e.value = (v == null ? '' : String(v)); } }
   function get(id){ var e = document.getElementById(id); return e ? e.value : ''; }
   function lireForm(){
@@ -154,6 +169,7 @@ JS_PAGE = r'''
     var lbl = document.getElementById('exp-chauffeur-lbl'); if(lbl){ lbl.textContent = st.mode === 'client' ? 'Personne qui enlève (nom)' : 'Chauffeur (facultatif)'; }
     val('exp-camion', st.mode === 'camions' ? st.camion : ''); val('exp-immat', st.mode === 'camions' ? '' : st.camion);
     val('exp-transporteur', st.transporteur_id || 0); val('exp-chauffeur', st.chauffeur); val('exp-par', st.charge_par || 0); val('exp-lettre', st.lettre);
+    devisBandeau();
   }
   function renderList(){
     var box = document.getElementById('exp-list'), tot = document.getElementById('exp-total');
@@ -170,7 +186,7 @@ JS_PAGE = r'''
     var ton = 0, cub = 0; st.palettes.forEach(function(p){ ton += (p.ton || 0); cub += (p.cub || 0); });
     tot.textContent = st.palettes.length + ' palette(s) · ' + Math.round(ton) + ' kg · ' + (Math.round(cub * 1000) / 1000) + ' m³';
     btnValider.disabled = false;
-    box.querySelectorAll('.exp-del').forEach(function(b){ b.onclick = function(){ st.palettes.splice(parseInt(b.getAttribute('data-i')), 1); save(); renderList(); }; });
+    box.querySelectorAll('.exp-del').forEach(function(b){ b.onclick = function(){ st.palettes.splice(parseInt(b.getAttribute('data-i')), 1); save(); renderList(); devisBandeau(); }; });
   }
   function doScan(v){
     input.value = ''; v = (v || '').trim(); if(!v || busy){ return; }
@@ -179,8 +195,9 @@ JS_PAGE = r'''
       busy = false;
       if(st.palettes.some(function(q){ return q.id === p.id; })){ setRes('ℹ️ ' + p.name + ' est déjà dans le chargement', 'info'); beep(false); input.focus(); return; }
       st.palettes.push(p);
-      if(!st.mode && p.mode_devis){ st.mode = p.mode_devis; if(p.transporteur_devis_id){ st.transporteur_id = p.transporteur_devis_id; } renderMode(); setRes('✅ ' + p.name + ' ajoutée — mode prévu au devis : ' + (MODES[p.mode_devis] || p.mode_devis) + (p.transporteur_devis ? ' (' + p.transporteur_devis + ')' : ''), 'ok'); }
-      else { setRes('✅ ' + p.name + ' ajoutée (' + (p.client || '?') + ', ' + p.ton + ' kg)', 'ok'); }
+      if(!st.mode && p.mode_devis){ st.mode = p.mode_devis; if(p.transporteur_devis_id){ st.transporteur_id = p.transporteur_devis_id; } if(p.mode_devis === 'camions' && p.camion_devis){ st.camion = p.camion_devis; } renderMode(); setRes('✅ ' + p.name + ' ajoutée — transport prévu au devis : ' + (MODES[p.mode_devis] || p.mode_devis) + (p.transporteur_devis ? ' (' + p.transporteur_devis + ')' : (p.camion_devis ? ' (' + p.camion_devis + ')' : '')), 'ok'); }
+      else if(st.mode && p.mode_devis && p.mode_devis !== st.mode){ renderMode(); setRes('⚠️ ' + p.name + ' ajoutée, mais son devis prévoit « ' + (MODES[p.mode_devis] || p.mode_devis) + ' » : vérifiez le mode choisi', 'warn'); }
+      else { renderMode(); setRes('✅ ' + p.name + ' ajoutée (' + (p.client || '?') + ', ' + p.ton + ' kg)' + (p.mode_devis ? '' : ' — mode non renseigné sur le devis'), p.mode_devis ? 'ok' : 'warn'); }
       save(); renderList(); beep(true); input.focus();
     }).catch(function(e){ busy = false; setRes(String(e && e.message ? e.message : e), 'err'); beep(false); input.focus(); });
   }
@@ -258,7 +275,16 @@ PAGE = '''<t t-name="website.expedition_page">
       <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:16px;white-space:nowrap;background:#fff;border-radius:8px 8px 0 0;padding:4px 6px 0;"><li class="nav-item"><a class="nav-link" href="/vue-operateur">✅ Ma production</a></li><li class="nav-item"><a class="nav-link" href="/vue-operateur?hist=1">🕘 Historique</a></li><li class="nav-item"><a class="nav-link" href="/scan">📦 Poste de scan</a></li><li class="nav-item"><a class="nav-link active fw-bold" href="#">🚚 Expédition</a></li></ul>
       <h3 class="scan-h">🚚 Expédition — départ des palettes</h3>
       <div class="exp-card">
-        <div class="exp-lbl">1. Qui transporte ?</div>
+        <div class="exp-lbl">1. Scannez les bons de colisage</div>
+        <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner le bon de colisage…"/>
+        <button type="button" id="btn-cam">📷 Scanner avec la caméra</button>
+        <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
+        <div id="exp-list"/>
+        <div id="exp-total"/>
+      </div>
+      <div class="exp-card">
+        <div class="exp-lbl">2. Transport (prérempli depuis le devis)</div>
+        <div id="exp-devis" class="exp-devis">Scannez une palette : le mode prévu au devis s'affichera ici.</div>
         <div class="exp-modes">
           <button type="button" class="exp-mode" data-mode="camions">🚛 Nos camions</button>
           <button type="button" class="exp-mode" data-mode="exterieur">🏢 Transporteur extérieur</button>
@@ -273,14 +299,6 @@ PAGE = '''<t t-name="website.expedition_page">
         <div class="exp-field"><label>Chargé par</label>
           <select id="exp-par"><option value="0">— qui charge —</option><t t-foreach="chargeurs" t-as="em"><option t-att-value="em.id"><t t-esc="em.name"/></option></t></select></div>
         <div id="exp-f-lettre" class="exp-field" style="display:none;"><label>N° de lettre de voiture / référence (facultatif)</label><input id="exp-lettre" type="text" autocomplete="off"/></div>
-      </div>
-      <div class="exp-card">
-        <div class="exp-lbl">2. Scannez les bons de colisage</div>
-        <input id="scan-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scanner le bon de colisage…"/>
-        <button type="button" id="btn-cam">📷 Scanner avec la caméra</button>
-        <div id="scan-res" class="scan-res idle">En attente d'un scan…</div>
-        <div id="exp-list"/>
-        <div id="exp-total"/>
       </div>
       <div class="exp-card">
         <div class="exp-lbl">3. Départ</div>

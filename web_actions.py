@@ -1563,7 +1563,7 @@ def _exp_palette(call, colis):
     so = None
     if colis.get('x_commande_id'):
         so = call('sale.order', 'read', [colis['x_commande_id'][0]],
-                  fields=['name', 'partner_id', 'partner_shipping_id', 'x_mode_transport', 'x_transporteur_id', 'state'])[0]
+                  fields=['name', 'partner_id', 'partner_shipping_id', 'x_mode_transport', 'x_transporteur_id', 'carrier_id', 'state'])[0]
     qui = colis['x_exp_transporteur_id'][1] if colis.get('x_exp_transporteur_id') else (colis.get('x_exp_camion') or colis.get('x_exp_chauffeur') or '')
     return {'id': colis['id'], 'name': colis['name'], 'zone': colis['x_studio_zone'] or '',
             'items': [{'of_id': i.get('of_id'), 'kind': i.get('kind'), 'qte': i.get('qte')} for i in items],
@@ -1573,7 +1573,9 @@ def _exp_palette(call, colis):
             'commande': so['name'] if so else '', 'commande_id': so['id'] if so else 0,
             'client': (so['partner_id'][1] if so else (colis.get('x_studio_client') or '')) or '',
             'adresse': _exp_adresse(call, so['partner_shipping_id'][0]) if so and so['partner_shipping_id'] else '',
-            'mode_devis': (so.get('x_mode_transport') or '') if so else '',
+            'mode_devis': (so.get('x_mode_transport') or ('camions' if so.get('carrier_id') else '')) if so else '',
+            'mode_devis_src': ('mode de transport du devis' if so.get('x_mode_transport') else ('méthode de livraison du devis' if so.get('carrier_id') else 'non renseigné sur le devis')) if so else 'palette sans commande',
+            'camion_devis': so['carrier_id'][1] if so and so.get('carrier_id') else '',
             'transporteur_devis_id': so['x_transporteur_id'][0] if so and so.get('x_transporteur_id') else 0,
             'transporteur_devis': so['x_transporteur_id'][1] if so and so.get('x_transporteur_id') else '',
             'statut': colis.get('x_exp_statut') or 'stock', 'exp_date': (colis.get('x_exp_date') or '')[:16],
@@ -1655,7 +1657,15 @@ def _exp_valider(call, ctx):
         noms = ', '.join(p['name'] for p in grp); ton = sum(p['ton'] for p in grp)
         if not so_id:
             details.append(('(sans commande)', grp[0]['client'], noms, ton, '')); continue
-        so = call('sale.order', 'read', [so_id], fields=['name'])[0]
+        so = call('sale.order', 'read', [so_id], fields=['name', 'x_mode_transport', 'x_transporteur_id'])[0]
+        # le devis apprend le mode choisi au chargement s'il ne l'avait pas (et le transporteur)
+        maj = {}
+        if not so.get('x_mode_transport'):
+            maj['x_mode_transport'] = mexp
+        if mexp == 'exterieur' and tr_id and not so.get('x_transporteur_id'):
+            maj['x_transporteur_id'] = tr_id
+        if maj:
+            _sur(lambda: call('sale.order', 'write', [so_id], maj))
         reste_of = call('mrp.production', 'search_count', [['origin', '=', so['name']], ['state', 'not in', ['done', 'cancel']]])
         reste_pal = call('stock.package', 'search_count', [['x_commande_id', '=', so_id], ['x_studio_cloturee', '=', True], '|', ['x_exp_statut', '=', False], ['x_exp_statut', 'not in', list(EXP_PARTIS)]])
         complet = (reste_of == 0 and reste_pal == 0)
