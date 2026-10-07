@@ -26,5 +26,5 @@ pour une base de test), `patch_relais_taches.py` (route app.py + `_appel_thread`
 (faux Odoo : parc, CACES, récup, fériés dont calendrier 2 semaines, point d'entrée). Code d'origine : `action_<id>_code.py`.
 
 Non portés (volontairement) : 1900 « report auto des OT » et 1932 « déblocage OT » (SQL direct pour contourner un bug
-d'écriture v19, impossible par RPC), 2116 « CA camion » (créé le jour même par ailleurs), 1673 « Virement CB » (inactif,
-47 lignes : à supprimer si vraiment abandonné).
+d'écriture v19, impossible par RPC), 2116 « CA camion » (créé le jour même par ailleurs), 1673 « Virement CB » : inactif depuis le 29/07/2026, supprimé avec son cron 98 le 07/10/2026 à la
+demande de Xavier (code archivé dans `action_1673_code.py`).
