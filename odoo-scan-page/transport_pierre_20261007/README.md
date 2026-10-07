@@ -15,3 +15,15 @@ Mis en place en production par `transport_devis_setup.py apply` (test de bout en
   annulation des autres demandes de la commande, note dans le fil.
 
 Phases suivantes : champs de suivi sur la palette, écran Expédition (scan du bon de colisage), lien BL/facture, livraison.
+
+## Phase 2 (07/10/2026) : palettes et écran Expédition
+
+- Champs stock.package : `x_exp_statut` (stock / chargee / enlevee / livree), `x_exp_mode`, `x_exp_transporteur_id`, `x_exp_camion`,
+  `x_exp_chauffeur`, `x_exp_date`, `x_exp_par_id`, `x_exp_lot` (CHG-AAAAMMJJ-HHMM), `x_exp_lettre`, `x_livraison_date` ;
+  vues Inventaire > Colis : 8043 (formulaire, groupe Expédition) et 8044 (liste, colonnes optionnelles).
+- Pages web : `/expedition` (vue 8045, website.page 95) et `/expedition/liste?lot=…` (vue 8046, website.page 96, imprimable).
+  Onglet « 🚚 Expédition » ajouté sur le poste de scan (7890) et la tablette (7907) ; menu Logistiques > Expédition palettes (1066).
+- Relais : action 2104 `_expedition` (modes scanner / valider / annuler / lots) ; `expedition_setup.py`, `patch_relais_expedition.py`,
+  `test_expedition_mock.py` (faux Odoo), `test_expedition_prod.py lecture|cycle <PACK>` (cycle = départ test sans mail puis annulation et nettoyage).
+- Règles : palette clôturée et non vide seulement ; refus si déjà partie ; par commande : note dans le fil, tâche Commande Pierres
+  → Expédié si tout est parti et si elle est encore avant cette étape ; mail au bureau (clé maquignon.palettes_alerte_email) avec la liste.

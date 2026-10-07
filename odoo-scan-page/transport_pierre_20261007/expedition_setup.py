@@ -255,6 +255,7 @@ PAGE = '''<t t-name="website.expedition_page">
     <t t-set="camions" t-value="request.env['delivery.carrier'].sudo().search([('active', '=', True), ('company_id', 'in', [1, False]), ('name', 'not ilike', 'Retrait'), ('name', 'not ilike', 'Standard')], order='name')"/>
     <t t-set="chargeurs" t-value="request.env['hr.employee'].sudo().search([('company_id', '=', 1), ('active', '=', True)], order='name')"/>
     <div class="scan-wrap">
+      <ul class="nav nav-tabs mb-2 flex-nowrap overflow-auto" style="font-size:16px;white-space:nowrap;background:#fff;border-radius:8px 8px 0 0;padding:4px 6px 0;"><li class="nav-item"><a class="nav-link" href="/vue-operateur">✅ Ma production</a></li><li class="nav-item"><a class="nav-link" href="/vue-operateur?hist=1">🕘 Historique</a></li><li class="nav-item"><a class="nav-link" href="/scan">📦 Poste de scan</a></li><li class="nav-item"><a class="nav-link active fw-bold" href="#">🚚 Expédition</a></li></ul>
       <h3 class="scan-h">🚚 Expédition — départ des palettes</h3>
       <div class="exp-card">
         <div class="exp-lbl">1. Qui transporte ?</div>
