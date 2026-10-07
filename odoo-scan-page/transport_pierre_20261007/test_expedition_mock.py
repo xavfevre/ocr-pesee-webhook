@@ -47,7 +47,7 @@ class Faux:
             ok = {'=': lambda: val == v, '!=': lambda: val != v,
                   'in': lambda: (any(e in v for e in val) if isinstance(val, list) else val in v),
                   'not in': lambda: (not any(e in v for e in val) if isinstance(val, list) else val not in v),
-                  '=ilike': lambda: str(val).lower() == str(v).lower(), '>=': lambda: str(val) >= str(v)}[op]()
+                  '=ilike': lambda: str(val).lower() == str(v).lower(), '>=': lambda: bool(val) and str(val) >= str(v)}[op]()
             if not ok:
                 # gestion minimale du « | » : si la condition précédente était un « | », on tolère un échec
                 if i > 0 and dom[i - 1] == '|' or (i + 1 < len(dom) and False):
@@ -120,7 +120,7 @@ l = W.executer(o, 2104, {'mode': 'lots', 'jours': 3})
 check(len(l['lots']) == 1 and l['lots'][0]['lot'] == r['lot'] and l['lots'][0]['n'] == 1, 'lot listé : %s' % l['lots'][0]['lot'])
 print('=== annulation ===')
 a = W.executer(o, 2104, {'mode': 'annuler', 'palette_id': 445})
-check(a['ok'] == 1 and not o.data['stock.package'][445]['x_exp_statut'] and o.data['stock.package'][445]['x_exp_lot'] == '', 'palette remise en stock : %s' % a['msg'])
+check(a['ok'] == 1 and not o.data['stock.package'][445]['x_exp_statut'] and not o.data['stock.package'][445]['x_exp_lot'], 'palette remise en stock : %s' % a['msg'])
 print('=== enlèvement client sans mail ===')
 r2 = W.executer(o, 2104, {'mode': 'valider', 'palettes': [445], 'exp_mode': 'client', 'chauffeur': 'M. Lézart', 'camion': 'EF-456-GH', 'charge_par': 0, 'sans_mail': 1})
 check(o.data['stock.package'][445]['x_exp_statut'] == 'enlevee' and 'enlèvement par le client' in r2['msg'], 'statut Enlevée : %s' % r2['msg'])

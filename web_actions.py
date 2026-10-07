@@ -1593,7 +1593,7 @@ def _exp_controle(p):
 def _exp_lots(call, jours=3):
     import datetime as _dt
     depuis = (_dt.datetime.utcnow() - _dt.timedelta(days=int(jours or 3))).strftime('%Y-%m-%d 00:00:00')
-    rows = call('stock.package', 'search_read', [['x_exp_lot', '!=', False], ['x_exp_date', '>=', depuis]],
+    rows = call('stock.package', 'search_read', [['x_exp_lot', '!=', False], ['x_exp_statut', 'in', list(EXP_PARTIS)], ['x_exp_date', '>=', depuis]],
                 fields=EXP_CHAMPS, order='x_exp_date desc, name')
     lots = {}
     for c in rows:
@@ -1691,8 +1691,8 @@ def _exp_annuler(call, ctx):
     if (colis.get('x_exp_statut') or '') not in ('chargee', 'enlevee'):
         raise WebErreur("%s n'est pas en cours d'expédition (statut : %s)." % (colis['name'], colis.get('x_exp_statut') or 'en stock'))
     lot = colis.get('x_exp_lot') or ''
-    call('stock.package', 'write', [colis['id']], {'x_exp_statut': False, 'x_exp_mode': False, 'x_exp_transporteur_id': False, 'x_exp_camion': '',
-                                                   'x_exp_chauffeur': '', 'x_exp_date': False, 'x_exp_par_id': False, 'x_exp_lot': '', 'x_exp_lettre': ''})
+    call('stock.package', 'write', [colis['id']], {'x_exp_statut': False, 'x_exp_mode': False, 'x_exp_transporteur_id': False, 'x_exp_camion': False,
+                                                   'x_exp_chauffeur': False, 'x_exp_date': False, 'x_exp_par_id': False, 'x_exp_lot': False, 'x_exp_lettre': False})
     if colis.get('x_commande_id'):
         _note(call, 'sale.order', colis['x_commande_id'][0], '↩️ Départ annulé pour %s (chargement %s) : la palette est de nouveau en stock.' % (colis['name'], lot))
     return {'ok': 1, 'msg': '↩️ %s remise en stock (chargement %s annulé pour cette palette)' % (colis['name'], lot)}
