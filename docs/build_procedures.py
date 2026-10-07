@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Procédures opérateurs — atelier pierre Maquignon (tablette + poste de scan).
-Version du 16/09/2026 : règle « une palette = un opérateur ».
+Version du 07/10/2026 : règle « une palette = un opérateur », pose et clôture sur la palette d'un collègue sur confirmation.
 Génère procedures_operateurs.pdf dans le dossier courant (python docs/build_procedures.py depuis docs/)."""
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -40,7 +40,7 @@ def header_footer(canv, doc):
     canv.setFont("Helvetica-Bold", 15)
     canv.drawString(MARG, H - 14 * mm, "SARL MAQUIGNON — Procédures atelier pierre")
     canv.setFont("Helvetica", 9)
-    canv.drawRightString(W - MARG, H - 14 * mm, "Tablette & poste de scan · septembre 2026")
+    canv.drawRightString(W - MARG, H - 14 * mm, "Tablette & poste de scan · octobre 2026")
     canv.setFillColor(GREY)
     canv.setFont("Helvetica", 8.5)
     canv.drawString(MARG, 9 * mm, "En cas de blocage : appeler le bureau. Ne jamais forcer une action refusée par l'écran.")
@@ -164,16 +164,16 @@ sect("LES 6 RÈGLES PALETTES — à afficher à l'atelier et au poste de scan", 
 story.append(Spacer(1, 4))
 regles = [
     ("1", "<b>Une palette = un opérateur.</b> La première pierre que vous posez (ou le premier scan d'une palette vierge) fait de vous le <b>responsable</b> de la palette. Elle apparaît ensuite dans « Mes palettes »."),
-    ("2", "<b>On ne pose jamais sur la palette d'un collègue.</b> L'écran la refuse : « ⛔ PACK… est la palette de … ». Besoin d'y ajouter une pierre ? Le collègue la pose lui-même, ou le bureau change le responsable."),
+    ("2", "<b>La palette d'un collègue : seulement sur confirmation.</b> L'écran prévient « PACK… est la palette de … » et demande <b>« Oui, poser »</b> ou <b>« Non »</b>. Si vous confirmez, la palette reste celle du collègue et votre pose est notée. Répondez Non si ce n'est pas voulu."),
     ("3", "<b>Sur la tablette, choisissez toujours votre nom</b> avant d'agir (le dernier nom choisi reste affiché : vérifiez-le). <b>Au poste de scan, pas de nom</b> : c'est l'OF scanné qui dit à qui est la pierre."),
     ("4", "<b>Votre palette active vous suit.</b> Le bouton ⚡ de la tablette montre la dernière palette sur laquelle vos pierres ont été posées, depuis la tablette ou depuis le poste de scan."),
     ("5", "<b>Palette neuve = étiquette PACK pré-imprimée.</b> Scannez-la (ou tapez son numéro, ex. 440) : elle devient la vôtre. Ne réutilisez jamais une étiquette d'une palette déjà partie."),
-    ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime et <b>Céline le reçoit aussitôt par mail</b> ; plus rien ne peut y être ajouté. Erreur après la clôture ? Le bouton <b>« 🔓 Déclôturer »</b> du poste de scan la rouvre (le bureau est prévenu) : on corrige, puis on clôture à nouveau."),
+    ("6", "<b>Palette pleine → clôturer avec l'emplacement</b> (Stock Atelier / Stock Usine). Elle est verrouillée, le bon de colisage s'imprime et <b>Céline le reçoit aussitôt par mail</b> ; plus rien ne peut y être ajouté. Erreur après la clôture ? Le bouton <b>« 🔓 Déclôturer »</b> du poste de scan la rouvre (le bureau est prévenu) : on corrige, puis on clôture à nouveau. La palette d'un collègue se clôture aussi, après la confirmation <b>« Oui, clôturer »</b>."),
 ]
 for num, txt in regles:
     story.append(Paragraph('<font color="#15803D"><b>%s</b></font>   %s' % (num, txt), st_rule))
-note("Message « ⛔ palette de … » ou « 🔒 clôturée » = l'écran a raison. Prenez une de vos palettes ou une palette vierge. Ne cherchez pas à contourner.", bg=GREENL, fg=GREEN)
-story.append(Paragraph("Ce qui a changé les 16 et 17/09/2026 : bouton « Déclôturer » au poste de scan (17/09) ; sur la tablette chacun ne voit plus que ses palettes (plus de liste « palettes des autres ») et la dernière palette n'est plus mémorisée sur la tablette mais sur votre nom. Au poste de scan, plus de nom à choisir : la palette affichée est celle du poste, et l'OF scanné dit à qui est la pierre.", st_small))
+note("« 🔒 clôturée » = l'écran a raison, prenez une autre palette. « Palette de … » = l'écran demande une confirmation : Oui seulement si c'est voulu (compléter ou fermer la palette d'un collègue absent), sinon Non.", bg=GREENL, fg=GREEN)
+story.append(Paragraph("Ce qui a changé le 07/10/2026 : poser une pierre sur la palette d'un collègue, ou la clôturer, redevient possible après une confirmation à l'écran (tablette et poste de scan) ; la palette reste celle du collègue. Les 16 et 17/09/2026 : bouton « Déclôturer » au poste de scan (17/09) ; sur la tablette chacun ne voit plus que ses palettes (plus de liste « palettes des autres ») et la dernière palette n'est plus mémorisée sur la tablette mais sur votre nom. Au poste de scan, plus de nom à choisir : la palette affichée est celle du poste, et l'OF scanné dit à qui est la pierre.", st_small))
 
 # ───────────────────────── PAGE 1 — MA PRODUCTION ─────────────────────────
 story.append(PageBreak())
@@ -198,9 +198,9 @@ capture("tablette_ma_production", "Tablette, onglet Ma production : nom de l'op�
 # ───────────────────────── PAGE 2 — MISE EN PALETTE ─────────────────────────
 story.append(PageBreak())
 sect("FICHE 2 — METTRE LES PIERRES EN PALETTE (depuis la tablette)")
-story.append(Paragraph("Dès qu'une pierre est faite, la carte propose la mise en palette, sans passer par le poste de scan. Seules <b>vos</b> palettes sont proposées.", st_step))
+story.append(Paragraph("Dès qu'une pierre est faite, la carte propose la mise en palette, sans passer par le poste de scan. <b>Vos</b> palettes sont proposées en premier ; celles des collègues sont dans la section « Palettes des autres opérateurs » (pose et clôture sur confirmation).", st_step))
 story.append(Paragraph("Une pierre est finie quand sa <b>dernière opération</b> est terminée. S'il reste une opération (ex. taille après sciage), la carte de l'Historique affiche « ⏭ Reste à faire : … ». Les pièces déjà comptées avec « +1 pièce » peuvent partir sur palette avant la fin : bouton <b>« Palettiser (N faites) »</b>, sur Ma production comme sur l'Historique.", st_step))
-story.append(Paragraph("Chaque palette affiche une <b>jauge de poids</b> (verte, orange à partir de 80 %, rouge au-delà du seuil de 1 500 kg réglable par le bureau) et le bouton ⚡ indique le poids déjà posé. Après chaque pose, un message vert confirme en bas de l'écran ; en cas de refus, un message rouge, sans fenêtre à fermer.", st_step))
+story.append(Paragraph("Chaque palette affiche une <b>jauge de poids</b> (verte, orange à partir de 80 %, rouge au-delà du seuil de 1 500 kg réglable par le bureau) et le bouton ⚡ indique le poids déjà posé. Après chaque pose, un message vert confirme en bas de l'écran ; en cas de refus, un message rouge, sans fenêtre à fermer. Seule la palette d'un collègue ouvre une fenêtre de confirmation.", st_step))
 story.append(Paragraph("Cas 1 — même palette que la pierre précédente", st_h2))
 steps([
     "Appuyer sur le bouton vert <b>⚡ PACK…</b> (votre palette active) : la pierre part directement dessus. Une seule pression, terminé.",
@@ -211,17 +211,25 @@ steps([
     "Appuyer sur <b>« Mettre au colis »</b> (ou « Palettiser (N faites) ») : la liste <b>« Mes palettes »</b> s'affiche, avec pour chacune : nombre d'OF, m³, kg, client, réf. commande et prépalettisation.",
     "Toucher la palette voulue. Pour une <b>palette neuve</b> : scanner le code-barre de son étiquette (📷) ou taper son numéro dans la case, puis Entrée — elle devient la vôtre.",
     "« Palettes sans opérateur » : anciennes palettes ouvertes avant le 16/09, sans responsable. Le premier qui pose dessus en devient responsable.",
+    "« Palettes des autres opérateurs » : les palettes ouvertes des collègues, avec leur nom. On peut aussi scanner ou taper le numéro d'une de ces palettes. Dans les deux cas, la pose demande confirmation (voir ci-dessous).",
 ])
 story.append(Paragraph("Clôturer une palette pleine (depuis la tablette)", st_h2))
 steps([
-    "Dans la liste « Mes palettes », appuyer sur le <b>cadenas 🔒</b> à droite de la palette.",
+    "Dans la liste « Mes palettes », appuyer sur le <b>cadenas 🔒</b> à droite de la palette. Palette d'un collègue (section « Palettes des autres opérateurs ») : la fenêtre « … est la palette de … Clôturer quand même ? » s'affiche d'abord ; appuyer sur <b>« Oui, clôturer »</b> seulement si c'est voulu.",
     "Choisir l'emplacement : <b>Stock Atelier</b> ou <b>Stock Usine</b>.",
     "Le bon de colisage s'imprime et la palette est verrouillée (plus rien ne peut y être ajouté). Votre bouton ⚡ l'oublie automatiquement.",
     "<b>Au même moment, Céline reçoit le mail « Palette clôturée : PACK… »</b> avec le bon de colisage en pièce jointe (client, emplacement, cubage, tonnage) : inutile de la prévenir.",
 ])
 captures2("tablette_pave_quantite", "Pavé « Combien sur la palette ? » : nombre de pièces à poser (ou « Tout »), puis « Choisir la palette ».",
           "tablette_choisir_palette", "Choix de la palette : « Mes palettes » seulement avec leur jauge de poids, case pour scanner ou taper le n° d'une palette vierge, cadenas 🔒 pour clôturer, bouton 🔑 Responsable.")
-note("« ⛔ PACK… est la palette de … » : vous avez scanné ou tapé la palette d'un collègue. Prenez une de vos palettes ou une palette vierge.")
+story.append(Paragraph("Poser sur la palette d'un collègue (sur confirmation)", st_h2))
+steps([
+    "Choisir la palette du collègue (section « Palettes des autres opérateurs », ou scanner / taper son numéro).",
+    "La fenêtre <b>« 🤝 Palette d'un autre opérateur »</b> s'affiche : « PACK… est la palette de X. Poser quand même N pièce(s) de WH/OF/… dessus ? ». Appuyer sur <b>« ✅ Oui, poser »</b>, ou sur <b>« ✖ Non »</b> pour revenir à la liste. Rien n'est enregistré avant la réponse.",
+    "Après Oui : la pierre est posée, <b>la palette reste celle du collègue</b>, vous êtes ajouté dans « Opérateurs ayant posé », et la pose est notée sur l'OF de la pierre. Votre bouton ⚡ ne change pas.",
+    "Retirer une pierre de la palette d'un collègue ne se fait pas depuis la tablette : au poste de scan (corbeille 🗑️) ou par le bureau.",
+])
+note("Cette confirmation sert à éviter les erreurs de palette : si vous n'aviez pas l'intention de poser sur la palette d'un collègue, répondez Non et prenez une de vos palettes ou une palette vierge.")
 capture("tablette_historique", "Onglet Historique : les opérations terminées par jour ; quand il reste une opération, la carte indique « ⏭ Reste à faire : … » à la place du bouton « Mettre au colis ».")
 
 # ───────────────────────── PAGE 3 — POSTE DE SCAN ─────────────────────────
@@ -232,7 +240,7 @@ captures2("scan_accueil", "Poste de scan au démarrage : aucune palette active, 
           "scan_palette_active", "Palette scannée : son numéro, à qui elle est, cubage / tonnage, la jauge de poids, et son contenu OF par OF (🗑️ retirer, 💥 rebut).")
 steps([
     "<b>Scanner la palette</b> (étiquette PACK…) ou appuyer sur <b>« Palettes ouvertes… »</b> et la toucher dans la liste. L'écran affiche à qui elle est (« Palette de … ») ou « Palette vierge ». Vérifiez toujours la palette affichée avant de scanner des pierres.",
-    "<b>Scanner les OF</b> un par un (code-barre de la fiche OF ou de la tablette). C'est l'OF qui dit à qui est la pierre : sur une palette vierge, la première pierre attribue la palette à son opérateur ; sur la palette d'un autre opérateur, l'écran refuse (⛔) — scannez la palette de cet opérateur ou une palette vierge.",
+    "<b>Scanner les OF</b> un par un (code-barre de la fiche OF ou de la tablette). C'est l'OF qui dit à qui est la pierre : sur une palette vierge, la première pierre attribue la palette à son opérateur ; sur la palette d'un autre opérateur, l'écran prévient (⛔ « … est la palette de … — cette pierre est de … ») et propose <b>« ✅ Poser quand même »</b> : appuyer dessus pour confirmer (la palette reste à son opérateur, la pose est notée sur l'OF), ou scanner une autre palette pour annuler.",
     "L'OF doit être terminé (dernière opération faite) ou ses pièces comptées sur la tablette.",
     "OF à plusieurs pièces : le pavé « Combien sur cette palette ? » s'affiche — taper le nombre puis Valider, « Tout », ou scanner directement la suite pour tout mettre.",
     "Erreur de scan ? <b>« Retirer dernier OF »</b>, ou la corbeille 🗑️ en face de la ligne concernée. Pierre cassée ? le bouton 💥 (Fiche 4).",
@@ -240,7 +248,7 @@ steps([
     "<b>Palette déjà clôturée ?</b> On peut la scanner quand même : l'écran affiche « 🔒 Clôturée · lecture seule » et son contenu ; rien ne peut y être ajouté ni retiré, mais le bouton <b>« Réimprimer le bon de colisage »</b> fonctionne. Pour la modifier, appuyer sur le bouton orange <b>« 🔓 Déclôturer »</b> (voir plus bas).",
 ])
 captures2("scan_quantite", "OF à plusieurs pièces : le pavé demande combien de pièces vont sur cette palette.",
-          "scan_refus", "Refus ⛔ : la pierre scannée est d'un autre opérateur que celui de la palette active.")
+          "scan_refus", "Avertissement ⛔ : la pierre scannée est d'un autre opérateur que celui de la palette active. Depuis le 07/10, une fenêtre propose « ✅ Poser quand même » ou « ✖ Non ».")
 captures2("scan_palettes_ouvertes", "« Palettes ouvertes… » : les palettes en cours avec leur opérateur, puis celles sans opérateur ; on touche une palette pour la rendre active.",
           "scan_cloturee", "Palette déjà clôturée scannée : « 🔒 Clôturée · lecture seule », contenu affiché sans corbeille, boutons de clôture grisés, « Réimprimer le bon de colisage » et « 🔓 Déclôturer » disponibles.")
 story.append(Paragraph("Clôturer la palette", st_h2))
@@ -296,7 +304,7 @@ story.append(Paragraph("Dans Odoo : <b>Inventaire → Produits → Colis</b>. La
 story.append(Paragraph("Changer le responsable d'une palette (opérateur absent, erreur de nom…)", st_h2))
 steps([
     "Ouvrir la palette (PACK…) et modifier le champ <b>Opérateur (responsable de la palette)</b>. Effacer le champ = palette « sans opérateur » : le premier qui pose dessus la reprend.",
-    "Le champ « Opérateurs ayant posé » garde l'historique de tous ceux qui ont posé dessus (lecture seule).",
+    "Le champ « Opérateurs ayant posé » garde l'historique de tous ceux qui ont posé dessus (lecture seule), y compris un collègue qui a posé sur confirmation ; dans ce cas une note « 🤝 … confirmé » est aussi dans le fil de l'OF de la pierre.",
     "La palette active d'un opérateur se règle sur sa fiche employé, champ <b>Palette active (poste de scan)</b> ; elle se remet à jour toute seule à la prochaine pose.",
     "<b>Depuis la tablette, sans passer par le bureau</b> : dans « Choisir le colis », le bouton « 🔑 Responsable : prendre la palette d'un autre opérateur » demande le code responsable, liste les palettes ouvertes des autres et les transfère à l'opérateur choisi sur la tablette. Le code se règle dans Paramètres → Technique → Paramètres système, clé maquignon.palette_code_chef.",
 ])
