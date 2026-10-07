@@ -112,6 +112,81 @@ tableau(["Étape", "Qui", "Où", "Ce qui se passe"], [
 note("Trois règles : une palette ne part que <b>clôturée</b> ; une palette partie ne se re-scanne pas (l'écran la refuse) ; en cas d'erreur, on <b>annule le départ</b> depuis « Départs des 10 derniers jours », on ne bricole pas la fiche Colis.", bg=GREENL, fg=GREEN)
 story.append(Paragraph("Mis en place le 07/10/2026. Pages : /expedition (écran), /expedition/liste (liste de chargement), Suivi devis/commande (ligne « 📦 palettes »), Inventaire → Colis (cadre « Expédition »).", st_small))
 
+# ───────────── ORGANIGRAMME DU FLUX ─────────────
+from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
+
+
+def organigramme():
+    Wd, Hd = W - 2 * MARG, 150 * mm
+    d = Drawing(Wd, Hd)
+    C = {"celine": colors.HexColor("#01666B"), "atelier": colors.HexColor("#1D4ED8"), "charg": colors.HexColor("#0E7490"),
+         "odoo": colors.HexColor("#B45309"), "client": colors.HexColor("#15803D"), "fin": colors.HexColor("#334155")}
+
+    def boite(x, y, w, h, titre, lignes, coul, fs=8.2):
+        d.add(Rect(x, y, w, h, rx=5, ry=5, fillColor=colors.white, strokeColor=coul, strokeWidth=1.3))
+        d.add(Rect(x, y + h - 5.2 * mm, w, 5.2 * mm, rx=5, ry=5, fillColor=coul, strokeColor=coul))
+        d.add(Rect(x, y + h - 5.2 * mm, w, 2.6 * mm, fillColor=coul, strokeColor=coul))
+        d.add(String(x + w / 2, y + h - 3.7 * mm, titre, fontName="Helvetica-Bold", fontSize=8.6, fillColor=colors.white, textAnchor="middle"))
+        yy = y + h - 9.3 * mm
+        for ln in lignes:
+            d.add(String(x + w / 2, yy, ln, fontName="Helvetica", fontSize=fs, fillColor=INK, textAnchor="middle")); yy -= 3.8 * mm
+
+    def fleche(x1, y1, x2, y2):
+        d.add(Line(x1, y1, x2, y2, strokeColor=GREY, strokeWidth=1.1))
+        import math
+        a = math.atan2(y2 - y1, x2 - x1); L = 2.6 * mm
+        d.add(Polygon([x2, y2, x2 - L * math.cos(a - 0.45), y2 - L * math.sin(a - 0.45), x2 - L * math.cos(a + 0.45), y2 - L * math.sin(a + 0.45)], fillColor=GREY, strokeColor=GREY))
+
+    g = 3 * mm; col = (Wd - 2 * g) / 3
+    # ligne 1 : devis
+    y1, h1 = Hd - 16 * mm, 14 * mm
+    boite(0, y1, Wd, h1, "1 - DEVIS  (Céline)", ["Mode de transport choisi sur le devis : nos camions / transporteur extérieur / enlèvement par le client", "La ligne « Transport de pierres » s'ajoute toute seule en fin de devis"], C["celine"])
+    # ligne 2 : trois branches
+    y2, h2 = y1 - 27 * mm, 22 * mm
+    boite(0, y2, col, h2, "Nos camions", ["Ligne transport créée à 0 :", "Céline la chiffre", "(variante au choix)"], C["celine"])
+    boite(col + g, y2, col, h2, "Transporteur extérieur", ["Demande de tarif aux transporteurs", "(copie à Céline) → prix saisis →", "offre confirmée = ordre de transport", "ligne transport = achat + 40 %"], C["celine"], fs=7.8)
+    boite(2 * (col + g), y2, col, h2, "Enlèvement par le client", ["Pas de ligne transport", "(une ligne vide est retirée)"], C["client"])
+    for i in range(3):
+        fleche(i * (col + g) + col / 2, y1, i * (col + g) + col / 2, y2 + h2)
+    # ligne 3 : fabrication
+    y3, h3 = y2 - 19 * mm, 14 * mm
+    boite(0, y3, Wd, h3, "2 - COMMANDE confirmée → FABRICATION  (atelier)", ["Pierres faites, mises en palette ; palettes clôturées avec emplacement : bon de colisage imprimé, mail à Céline"], C["atelier"])
+    for i in range(3):
+        fleche(i * (col + g) + col / 2, y2, i * (col + g) + col / 2, y3 + h3)
+    # ligne 4 : expédition
+    y4, h4 = y3 - 20 * mm, 15 * mm
+    boite(0, y4, Wd, h4, "3 - EXPÉDITION  (chargeur, écran Expédition)", ["Scan des bons de colisage → transport prérempli depuis le devis → « Valider le départ »", "Liste de chargement imprimée et signée ; palette « Chargée » (ou « Enlevée » pour un client)"], C["charg"])
+    fleche(Wd / 2, y3, Wd / 2, y4 + h4)
+    # ligne 5 : automatismes
+    y5, h5 = y4 - 24 * mm, 19 * mm; col4 = (Wd - 3 * g) / 4
+    boite(0, y5, col4, h5, "BL validé", ["pièces parties, en m³ ;", "reliquat automatique ;", "transporteur et suivi"], C["odoo"], fs=7.6)
+    boite(col4 + g, y5, col4, h5, "Commande", ["notes : départ, BL,", "livraison ; devis", "complété si besoin"], C["odoo"], fs=7.6)
+    boite(2 * (col4 + g), y5, col4, h5, "Bureau", ["mail « Départ palettes »", "+ liste de chargement", "(Céline, Loïc)"], C["odoo"], fs=7.6)
+    boite(3 * (col4 + g), y5, col4, h5, "Tâche Commande Pierres", ["→ « Expédié » quand", "tout est parti"], C["odoo"], fs=7.6)
+    for i in range(4):
+        fleche(Wd / 2, y4, i * (col4 + g) + col4 / 2, y5 + h5)
+    d.add(String(Wd, y5 + h5 + 1.2 * mm, "4 - automatique (Odoo)", fontName="Helvetica-Oblique", fontSize=7.5, fillColor=C["odoo"], textAnchor="end"))
+    # ligne 6 : livraison selon le mode
+    y6, h6 = y5 - 24 * mm, 19 * mm
+    boite(0, y6, col, h6, "Nos camions : chauffeur", ["« Ma tournée » : cadre", "« Palettes à livrer »", "→ « Palettes livrées »"], C["charg"], fs=7.8)
+    boite(col + g, y6, col, h6, "Transporteur : Céline", ["récépissé reçu →", "« Marquer livré » (écran", "Expédition) ou fiche Colis"], C["celine"], fs=7.8)
+    boite(2 * (col + g), y6, col, h6, "Client", ["palette « Enlevée »", "dès le départ :", "rien à faire"], C["client"], fs=7.8)
+    for i in range(3):
+        fleche(Wd / 2, y5, i * (col + g) + col / 2, y6 + h6)
+    d.add(String(Wd, y6 + h6 + 1.2 * mm, "5 - livraison", fontName="Helvetica-Oblique", fontSize=7.5, fillColor=C["charg"], textAnchor="end"))
+    # ligne 7 : livrée -> facture
+    y7, h7 = y6 - 17 * mm, 12 * mm
+    boite(0, y7, Wd, h7, "Palette « Livrée » → 6 - FACTURE  (Céline)", ["Note « Livraison » sur la commande ; facturation sur les quantités réellement livrées (reliquat = reste à produire ou à charger)"], C["fin"])
+    for i in range(3):
+        fleche(i * (col + g) + col / 2, y6, i * (col + g) + col / 2, y7 + h7)
+    return d
+
+
+story.append(PageBreak())
+sect("ORGANIGRAMME DU FLUX — du devis à la facture", GREEN)
+story.append(organigramme())
+story.append(Paragraph("Couleurs : vert-bleu = Céline, bleu = atelier et chargeur, orange = ce qu'Odoo fait tout seul, vert = client. Les pages et boutons sont détaillés dans les fiches suivantes.", st_small))
+
 # ───────────── FICHE 1 — CÉLINE : LE DEVIS ─────────────
 story.append(PageBreak())
 sect("FICHE 1 — CÉLINE : décider et chiffrer le transport sur le devis")
@@ -125,7 +200,7 @@ steps([
 story.append(Paragraph("Transporteur extérieur : demander un tarif", st_h2))
 steps([
     "Cocher les <b>transporteurs à consulter</b> (contacts portant l'étiquette « Transporteur » : GENDRON TRANSPORTS, TRANSPORTS P. FRECHOT…). Pour en ajouter un : fiche fournisseur avec adresse e-mail + étiquette « Transporteur ».",
-    "Cliquer <b>« Demander un tarif transport »</b> : Odoo crée une <b>demande de prix</b> (Achats) par transporteur, pré-remplie avec la commande, l'enlèvement à Usseau, l'adresse de livraison, le nombre de palettes (ou une estimation sur 1 500 kg par palette), le poids et le volume des lignes, la date souhaitée. Si la fiche du transporteur a un e-mail, la demande part aussitôt par mail ; sinon elle est créée sans envoi (le fil du devis le dit).",
+    "Cliquer <b>« Demander un tarif transport »</b> : Odoo crée une <b>demande de prix</b> (Achats) par transporteur, pré-remplie avec la commande, l'enlèvement à Usseau, l'adresse de livraison, le nombre de palettes (ou une estimation sur 1 500 kg par palette), le poids et le volume des lignes, la date souhaitée. Si la fiche du transporteur a un e-mail, la demande part aussitôt par mail, <b>avec Céline en copie</b> (et la personne qui clique) ; sinon elle est créée sans envoi (le fil du devis le dit).",
     "La liste des demandes de la commande s'ouvre : saisir sur chacune le <b>prix HT reçu</b> (ligne « Transport affrété ») et, en note, le délai.",
     "<b>Confirmer</b> la demande retenue : elle devient l'ordre de transport ; le devis reçoit <b>Transporteur retenu, Prix d'achat transport HT, Ordre de transport</b> ; les autres demandes sont annulées ; une note le dit dans le fil.",
     "La ligne <b>« Transport de pierres »</b> du devis prend automatiquement le <b>prix d'achat + 40 %</b> (marge réglable par Xavier) et le nom du transporteur ; l'ajuster si besoin.",
