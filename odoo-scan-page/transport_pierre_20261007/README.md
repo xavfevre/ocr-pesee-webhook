@@ -27,3 +27,15 @@ Phases suivantes : champs de suivi sur la palette, écran Expédition (scan du b
   `test_expedition_mock.py` (faux Odoo), `test_expedition_prod.py lecture|cycle <PACK>` (cycle = départ test sans mail puis annulation et nettoyage).
 - Règles : palette clôturée et non vide seulement ; refus si déjà partie ; par commande : note dans le fil, tâche Commande Pierres
   → Expédié si tout est parti et si elle est encore avant cette étape ; mail au bureau (clé maquignon.palettes_alerte_email) avec la liste.
+
+## Phase 3 (07/10/2026) : bon de livraison et facturation
+
+- Au départ (`_exp_valider`), pour chaque commande du chargement : `_exp_lignes_livrees` calcule la quantité livrée par ligne
+  (OF entier = toute la quantité de sa ligne, en m³ ou tonne ; répartition = prorata des pièces ; plafonné au reste à livrer),
+  puis `_exp_bl` valide le transfert en attente (chaîne PICK → PACK → OUT si ancienne route) pour ces quantités :
+  `quantity` + `picked=True` sur les mouvements chargés, les autres restent non prélevés, `button_validate` avec
+  `skip_backorder` → Odoo crée le reliquat tout seul (mécanique vérifiée sur WH/INT/00008, transfert de test interne neutre).
+  Transporteur (camion → delivery.carrier) et référence de suivi (lot, qui, palettes, lettre) écrits sur le BL.
+- Les quantités livrées suivent la réalité : la facturation « sur quantités livrées » de Céline se base dessus.
+- Paramètre système `maquignon.expedition_bl` = 0 pour désactiver ; mode relais `bl_plan` (lecture seule) pour contrôler.
+- En cas d'erreur Odoo sur le BL, le départ reste enregistré et une note « BL non validé automatiquement : … » est posée sur la commande.

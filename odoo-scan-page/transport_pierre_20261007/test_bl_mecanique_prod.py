@@ -33,8 +33,8 @@ if not prod:
 prod = prod[0]
 print('type %s | emplacement %s | article consommable non suivi : %s' % (pt['name'], loc, prod['name']))
 pid = one(x('stock.picking', 'create', [{'picking_type_id': pt['id'], 'location_id': loc, 'location_dest_id': loc, 'origin': 'TEST EXPEDITION (à ignorer)',
-                                         'move_ids': [(0, 0, {'name': 'test 1', 'product_id': prod['id'], 'product_uom_qty': 5, 'product_uom': prod['uom_id'][0], 'location_id': loc, 'location_dest_id': loc}),
-                                                      (0, 0, {'name': 'test 2', 'product_id': prod['id'], 'product_uom_qty': 3, 'product_uom': prod['uom_id'][0], 'location_id': loc, 'location_dest_id': loc})]}]))
+                                         'move_ids': [(0, 0, {'product_id': prod['id'], 'product_uom_qty': 5, 'product_uom': prod['uom_id'][0], 'location_id': loc, 'location_dest_id': loc}),
+                                                      (0, 0, {'product_id': prod['id'], 'product_uom_qty': 3, 'product_uom': prod['uom_id'][0], 'location_id': loc, 'location_dest_id': loc})]}]))
 x('stock.picking', 'action_confirm', [pid])
 mv = x('stock.move', 'search_read', [['picking_id', '=', pid]], fields=['id', 'product_uom_qty', 'quantity', 'picked', 'state'], order='id')
 print('après confirmation :', [(v['product_uom_qty'], v['quantity'], v['picked'], v['state']) for v in mv], '| état', x('stock.picking', 'read', [pid], ['name', 'state'])[0])
