@@ -148,6 +148,10 @@ def retour():
     for auto_id, dom in DOMAINES_ORIGINE.items():
         x('base.automation', 'write', [auto_id], {'filter_domain': dom})
     print('filtres des automatisations 102 / 103 remis à l origine')
+    tpls = x('mail.template', 'search', [['name', 'like', 'Transport pierre : note automatique']])
+    if tpls:
+        x('mail.template', 'unlink', tpls)
+        print('modèles de mail des notes instantanées supprimés :', tpls)
 
 
 if mode == 'etat':

@@ -86,3 +86,9 @@ pour une base de test) les convertit, `retour` remet le code archivé (`action_<
 - Tests : `test_transport_webhooks_mock.py` (faux Odoo, 12 cas) ; `test_webhooks_base_test.py <hôte> <S…>` (copie du
   devis, mode camions -> ligne à 0, demande de tarif -> P… + mail en attente, confirmation à 410 -> 574 sur le devis).
 - Reste dans la base : 3 720 lignes dans 423 autres actions serveur (+ 320 dans 37 champs calculés), hors périmètre.
+
+**Retour en arrière le 07/10/2026 au soir** (Xavier : « remets comme avant et économise du code sur autre chose ») : les trois actions ont
+retrouvé leur code Python (`transport_webhooks_setup.py retour` : code archivé remis, enfants et modèles de mail supprimés, filtres
+des automatisations d'origine) pour garder le comportement synchrone (liste des demandes ouverte, ligne visible tout de suite,
+copie à la personne qui clique). La route `/odoo/transport/<quoi>` et `transport_webhooks.py` restent dans le relais, inutilisés.
+L'économie de lignes se fait sur d'autres actions (voir `odoo-scan-page/crons_relais_20261007/`).
