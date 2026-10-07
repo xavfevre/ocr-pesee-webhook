@@ -17,7 +17,7 @@ class Faux:
                 446: {'id': 446, 'name': 'PACK0000476', 'x_studio_cloturee': False, 'x_operateur_id': False, 'x_operateur_ids': [], 'x_studio_zone': '', 'x_studio_cubage': 0.1, 'x_studio_tonnage': 200,
                       'x_commande_id': [42821, 'S11731'], 'x_studio_client': "LEZ'ARTS DECO & PIERRE", 'x_exp_statut': False, 'x_exp_mode': False, 'x_exp_transporteur_id': False,
                       'x_exp_camion': '', 'x_exp_chauffeur': '', 'x_exp_date': False, 'x_exp_par_id': False, 'x_exp_lot': '', 'x_exp_lettre': '', 'x_studio_tche_commande_pierre': False}},
-            'mrp.production': {500: {'id': 500, 'name': 'WH/OF/12862', 'state': 'done', 'origin': 'S11731', 'x_studio_colis': [445, 'PACK0000475'], 'x_studio_nbr': 3, 'write_date': '2026-10-01 10:00:00',
+            'mrp.production': {500: {'id': 500, 'name': 'WH/OF/12862', 'state': 'done', 'origin': 'S11731', 'x_studio_colis': [445, 'PACK0000475'], 'x_studio_nbr': 3, 'sale_line_id': [7001, 'ligne'], 'write_date': '2026-10-01 10:00:00',
                                      'product_id': [1, 'TUFFEAU'], 'move_finished_ids': [], 'workorder_ids': [], 'x_studio_nom_du_client': "LEZ'ARTS", 'x_studio_ref_commande_client': '',
                                      'x_studio_palette': 'Palette 1', 'x_studio_ref_pierre': 'SG5', 'x_note_atelier': '', 'x_studio_long_m_1': 0.5, 'x_studio_larg_m_1': 0.2, 'x_studio_haut_m_1': 0.1,
                                      'x_studio_surf_total': 0.0, 'x_studio_vol_total': 0.03}},
@@ -32,6 +32,12 @@ class Faux:
             'res.company': {1: {'id': 1, 'email': 'contact@maquignon.com'}},
             'res.users': {2: {'id': 2, 'partner_id': [3, 'Isabelle']}},
             'mail.mail': {},
+            'sale.order.line': {7001: {'id': 7001, 'product_uom_qty': 0.09, 'qty_delivered': 0.0}},
+            'stock.picking': {800: {'id': 800, 'name': 'WH/OUT/00800', 'sale_id': [42821, 'S11731'], 'state': 'confirmed', 'picking_type_code': 'outgoing', 'move_ids': [8001, 8002], 'carrier_id': False, 'carrier_tracking_ref': False, 'backorder_ids': []}},
+            'stock.move': {8001: {'id': 8001, 'picking_id': [800, 'WH/OUT/00800'], 'sale_line_id': [7001, 'ligne'], 'product_uom_qty': 0.09, 'quantity': 0.0, 'picked': False, 'state': 'confirmed'},
+                           8002: {'id': 8002, 'picking_id': [800, 'WH/OUT/00800'], 'sale_line_id': [7002, 'ligne 2'], 'product_uom_qty': 0.05, 'quantity': 0.0, 'picked': False, 'state': 'confirmed'}},
+            'delivery.carrier': {4: {'id': 4, 'name': 'SEMI GE-106-QS'}},
+            'ir.config_parameter': {},
         }
         self.journal = []
 
@@ -79,6 +85,16 @@ class Faux:
             nid = 9000 + len(store); store[nid] = dict(vals, id=nid); return nid
         if method in ('message_post', 'send'):
             return 1
+        if method == 'button_validate':
+            pk = store[args[0][0]]; mvs = [self.data['stock.move'][i] for i in pk['move_ids']]
+            reste = [(v['product_uom_qty'] - (v['quantity'] if v['picked'] else 0.0)) for v in mvs]
+            for v in mvs:
+                if v['picked']: v['state'] = 'done'
+                else: v['state'] = 'cancel'
+            if any(r > 0.0005 for r in reste):
+                bid = 801; store[bid] = {'id': bid, 'name': pk['name'] + '-1', 'sale_id': pk['sale_id'], 'state': 'confirmed', 'picking_type_code': pk['picking_type_code'], 'move_ids': [], 'carrier_id': False, 'carrier_tracking_ref': False, 'backorder_ids': []}
+                pk['backorder_ids'] = [bid]
+            pk['state'] = 'done'; return True
         raise Exception('non simulé : %s.%s' % (model, method))
 
 
@@ -110,6 +126,13 @@ check(pk['x_exp_statut'] == 'chargee' and pk['x_exp_mode'] == 'exterieur' and pk
 check(o.data['project.task'][6531]['stage_id'][0] == 99, 'tâche Commande Pierres passée en Expédié (tout est parti)')
 check(any(m == 'sale.order' and me == 'message_post' for m, me, *_ in o.journal), 'note dans le fil de la commande')
 check(any(m == 'mail.mail' and me == 'create' for m, me, *_ in o.journal), 'mail au bureau créé')
+pk = o.data['stock.picking'][800]; mv1 = o.data['stock.move'][8001]
+check(pk['state'] == 'done' and mv1['quantity'] == 0.09 and mv1['picked'] and mv1['state'] == 'done' and pk['backorder_ids'] == [801], 'BL validé pour la ligne de la palette (0,09 m³), reliquat créé pour le reste')
+check('GENDRON' in (pk['carrier_tracking_ref'] or '') and 'PACK0000475' in pk['carrier_tracking_ref'], 'référence de suivi sur le BL : %s' % pk['carrier_tracking_ref'])
+check(any(m == 'sale.order' and me == 'message_post' and 'validé pour 1 ligne' in str(k.get('body')) for m, me, a, k in o.journal), 'note BL dans le fil de la commande')
+print('=== plan BL en lecture seule ===')
+o2 = Faux(); pl = W.executer(o2, 2104, {'mode': 'bl_plan', 'palettes': [445]})
+check(pl['plan'][0]['lignes'] == {'7001': 0.09} and 'WH/OUT/00800' in pl['plan'][0]['bl'] and not any(me in ('write', 'button_validate') for _, me, *_ in o2.journal), 'plan : %s' % pl['plan'][0])
 print('=== même palette : déjà partie ===')
 try:
     W.executer(o, 2104, {'mode': 'scanner', 'code': 'PACK0000475'}); check(False, 'refus attendu')
