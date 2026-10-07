@@ -1388,32 +1388,64 @@ def odoo_transport_webhook(quoi):
     return jsonify({"status": "accepted", "quoi": quoi, "id": donnees["_id"], "base": hote or "production"})
 
 
+def _appel_thread(hote):
+    """Fonction call(model, method, *params, **kw) sur une connexion propre au thread (un proxy XML-RPC partagé n'est
+    pas sûr entre threads) : production, ou base de test si hote est renseigné."""
+    if hote:
+        db = hote.split(".")[0]
+        uid = xmlrpc.client.ServerProxy(f"https://{hote}/xmlrpc/2/common").authenticate(db, ODOO_USER, ODOO_PASSWORD, {})
+        if not uid:
+            raise ValueError(f"base de test {hote} : authentification refusée")
+        models = xmlrpc.client.ServerProxy(f"https://{hote}/xmlrpc/2/object")
+
+        def call(model, method, *params, **kw):
+            return models.execute_kw(db, uid, ODOO_PASSWORD, model, method, list(params), kw)
+    else:
+        uid, models = odoo_connect()
+
+        def call(model, method, *params, **kw):
+            return x(models, uid, model, method, *params, **kw)
+    return call
+
+
 def _transport_webhook_traite(quoi, donnees, hote):
     import transport_webhooks
     import web_actions
     call = None
     try:
-        if hote:
-            # connexion propre au thread (un proxy XML-RPC partagé n'est pas sûr entre threads)
-            db = hote.split(".")[0]
-            uid = xmlrpc.client.ServerProxy(f"https://{hote}/xmlrpc/2/common").authenticate(db, ODOO_USER, ODOO_PASSWORD, {})
-            if not uid:
-                raise ValueError(f"base de test {hote} : authentification refusée")
-            models = xmlrpc.client.ServerProxy(f"https://{hote}/xmlrpc/2/object")
-
-            def call(model, method, *params, **kw):
-                return models.execute_kw(db, uid, ODOO_PASSWORD, model, method, list(params), kw)
-        else:
-            uid, models = odoo_connect()
-
-            def call(model, method, *params, **kw):
-                return x(models, uid, model, method, *params, **kw)
+        call = _appel_thread(hote)
         res = transport_webhooks.transport_webhook(call, quoi, donnees)
         app.logger.info(f"webhook transport {quoi} #{donnees.get('_id')} ({hote or 'production'}) : {res}")
     except Exception as exc:  # noqa: BLE001
         app.logger.error(f"webhook transport {quoi} #{donnees.get('_id')} ({hote or 'production'}) : {exc}")
         if call is not None and donnees.get("_model"):
             web_actions._note(call, donnees["_model"], int(donnees["_id"]), f"❌ Transport (webhook {quoi}) : {str(exc)[-300:]}")
+
+
+# ─── TÂCHES PLANIFIÉES PORTÉES SUR LE RELAIS (x_relais_tache) ────────────────
+# Les crons Odoo (parc auto, CACES, récup, fériés) n'ont plus de code : leur action crée un enregistrement
+# x_relais_tache dont le nom est la clé de la tâche ; l'automatisation « à la création » appelle ce webhook et
+# taches_relais.executer fait le travail puis écrit l'état et le résultat sur l'enregistrement (journal dans Odoo).
+@app.route("/odoo/tache", methods=["POST"])
+@require_secret
+def odoo_tache_webhook():
+    donnees = request.get_json(silent=True, force=True) or {}
+    if donnees.get("_model") != "x_relais_tache" or not donnees.get("_id"):
+        return jsonify({"error": "payload inattendu"}), 400
+    hote = _hote_requete()
+    nom = donnees.get("x_name") or ""
+    app.logger.info(f"tâche relais {nom} #{donnees['_id']} reçue ({hote or 'production'})")
+    threading.Thread(target=_tache_traite, args=(int(donnees["_id"]), nom, hote), daemon=True).start()
+    return jsonify({"status": "accepted", "tache": nom, "id": donnees["_id"], "base": hote or "production"})
+
+
+def _tache_traite(tache_id, nom, hote):
+    import taches_relais
+    try:
+        res = taches_relais.executer(_appel_thread(hote), tache_id, nom)
+        app.logger.info(f"tâche relais {nom} #{tache_id} ({hote or 'production'}) : {str(res)[:300]}")
+    except Exception as exc:  # noqa: BLE001
+        app.logger.error(f"tâche relais {nom} #{tache_id} ({hote or 'production'}) : {exc}")
 
 
 def _fab_dash_nightly():
