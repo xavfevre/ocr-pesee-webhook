@@ -5,7 +5,7 @@
  2. Résumé d'une ligne dans l'en-tête, sous « Modèle de devis » : champ calculé x_transport_resume
     (« Transporteur extérieur — GENDRON TRANSPORTS — achat 300,00 € HT — ordre P00132 », « Nos camions », …).
 Réécrit la vue 8042 (sale.order.form.transport.pierre). Base : ODOO_URL / ODOO_DB (défaut production).
-  python devis_onglet_transport.py dry | apply | retour   (retour = vue 8042 d'origine, sans onglet)"""
+  python devis_onglet_transport.py dry | apply | compact | retour   (apply = onglet ; compact = sans onglet, cadres par société + résumé ; retour = origine)"""
 import os, ssl, sys, xmlrpc.client
 sys.stdout.reconfigure(encoding='utf-8')
 mode = (sys.argv[1] if len(sys.argv) > 1 else 'dry').lower()
@@ -73,6 +73,21 @@ ARCH_ORIGINE = '''<data>
   </xpath>
 </data>'''
 
+# sans onglet (choix Xavier) : le cadre pierre reste sous l'en-tête ; « Demande de transport Maquignon » visible pour
+# Haims (4) et Chatel'Granulats (3) seulement, « Transport de la commande (pierre) » et « Fabrication » pour Maquignon (1) ;
+# résumé Transport dans l'en-tête.
+ARCH_COMPACT = '''<data>
+  <xpath expr="//group[@name='studio_group_5s9_1iulplco5']" position="attributes">
+    <attribute name="invisible">company_id not in [3, 4]</attribute>
+  </xpath>
+  <xpath expr="//group[@name='studio_group_5s9_1iulplco5']" position="after">
+    %(groupe)s
+  </xpath>
+  <xpath expr="//field[@name='sale_order_template_id']" position="after">
+    <field name="x_transport_resume" string="Transport" readonly="1" invisible="company_id not in [1]"/>
+  </xpath>
+</data>'''
+
 params = {'cat': CAT, 'action': ACT}
 champ = x('ir.model.fields', 'search', [['model', '=', 'sale.order'], ['name', '=', 'x_transport_resume']])
 print('champ résumé :', champ or 'absent')
@@ -81,6 +96,18 @@ if mode == 'dry':
 if mode == 'retour':
     x('ir.ui.view', 'write', [VUE], {'arch_db': ARCH_ORIGINE % {'groupe': GROUPE % params}})
     print('vue 8042 remise à l origine (cadre sous l en-tête, pas d onglet)'); sys.exit(0)
+if mode == 'compact':
+    if not champ:
+        champ = [one(x('ir.model.fields', 'create', [{'name': 'x_transport_resume', 'model_id': MODEL_SO, 'field_description': 'Transport (résumé)', 'ttype': 'char', 'state': 'manual',
+                                                      'store': False, 'readonly': True, 'compute': COMPUTE,
+                                                      'depends': 'x_mode_transport,x_transporteur_id,x_transport_achat,x_ordre_transport_id'}]))]
+        print('champ résumé créé :', champ)
+    x('ir.ui.view', 'write', [VUE], {'arch_db': ARCH_COMPACT % {'groupe': GROUPE % params}})
+    arch = x('sale.order', 'get_view', view_id=2614, view_type='form')['arch']
+    i = arch.find('name="studio_group_5s9_1iulplco5"'); j = arch.find('name="maq_transport_pierre"')
+    print('vue 8042 compacte : pas d onglet : %s | cadre Demande de transport Maquignon invisible=%r | cadre pierre présent %s | résumé en-tête %s' % (
+        'maq_transport_fab' not in arch, __import__('re').search(r'invisible="([^"]*)"', arch[i:i + 400]) and __import__('re').search(r'invisible="([^"]*)"', arch[i:i + 400]).group(1), j > 0, 'x_transport_resume' in arch))
+    sys.exit(0)
 if not champ:
     champ = [one(x('ir.model.fields', 'create', [{'name': 'x_transport_resume', 'model_id': MODEL_SO, 'field_description': 'Transport (résumé)', 'ttype': 'char', 'state': 'manual',
                                                   'store': False, 'readonly': True, 'compute': COMPUTE,
