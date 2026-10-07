@@ -51,12 +51,13 @@ for so in records:
         seq = max(produits.mapped('sequence') or [10]) + 1
         for l in so.order_line.filtered(lambda l: l.sequence >= seq):
             l.write({'sequence': l.sequence + 1})
-        prix = so.x_transport_achat if (so.x_mode_transport == 'exterieur' and so.x_transport_achat) else 0.0
+        marge = 1.0 + float(env['ir.config_parameter'].sudo().get_param('maquignon.transport_marge_pct', '40') or 0) / 100.0
+        prix = round(so.x_transport_achat * marge, 2) if (so.x_mode_transport == 'exterieur' and so.x_transport_achat) else 0.0
         nom = 'Transport de pierres (Forfait Palettes)' + ((' - ' + so.x_transporteur_id.name) if (so.x_mode_transport == 'exterieur' and so.x_transporteur_id) else '')
         so.write({'order_line': [(0, 0, {'product_id': DEFAUT, 'name': nom, 'product_uom_qty': 1.0, 'price_unit': prix, 'sequence': seq})]})
         so.message_post(body="Ligne « Transport de pierres » ajoutée en fin de devis (%%s) : prix de vente à ajuster par Céline%%s." %% (
             'nos camions' if so.x_mode_transport == 'camions' else 'transporteur extérieur',
-            (' - prix d achat reporté : %%.2f EUR HT' %% prix) if prix else ''))
+            (' - prix d achat + %%.0f %%%% = %%.2f EUR HT' %% ((marge - 1) * 100, prix)) if prix else ''))
     elif so.x_mode_transport == 'client' and existantes and all(l.price_unit in (0.0, 1.0) for l in existantes):
         existantes.unlink()
         so.message_post(body="Enlèvement par le client : ligne « Transport de pierres » vide retirée du devis.")
@@ -68,17 +69,19 @@ CODE_102_AJOUT = '''
     DEFAUT = %(defaut)d
     existantes = so.order_line.filtered(lambda l: not l.display_type and l.product_id.id in VARIANTES)
     vides = existantes.filtered(lambda l: l.price_unit in (0.0, 1.0))
+    marge = 1.0 + float(env['ir.config_parameter'].sudo().get_param('maquignon.transport_marge_pct', '40') or 0) / 100.0
+    vente = round(po.amount_untaxed * marge, 2)
     if vides:
-        vides.write({'price_unit': po.amount_untaxed, 'name': 'Transport de pierres (Forfait Palettes) - ' + po.partner_id.name})
-        so.message_post(body="Ligne « Transport de pierres » : prix d achat %%.2f EUR HT reporté, prix de vente à ajuster." %% po.amount_untaxed)
+        vides.write({'price_unit': vente, 'name': 'Transport de pierres (Forfait Palettes) - ' + po.partner_id.name})
+        so.message_post(body="Ligne « Transport de pierres » : prix d achat %%.2f EUR HT + %%.0f %%%% = %%.2f EUR HT (à ajuster si besoin)." %% (po.amount_untaxed, (marge - 1) * 100, vente))
     elif not existantes:
         produits = so.order_line.filtered(lambda l: not l.display_type and 'Eco-contribution' not in (l.name or ''))
         seq = max(produits.mapped('sequence') or [10]) + 1
         for l in so.order_line.filtered(lambda l: l.sequence >= seq):
             l.write({'sequence': l.sequence + 1})
         so.write({'order_line': [(0, 0, {'product_id': DEFAUT, 'name': 'Transport de pierres (Forfait Palettes) - ' + po.partner_id.name,
-                                         'product_uom_qty': 1.0, 'price_unit': po.amount_untaxed, 'sequence': seq})]})
-        so.message_post(body="Ligne « Transport de pierres » ajoutée en fin de devis au prix d achat %%.2f EUR HT : prix de vente à ajuster." %% po.amount_untaxed)
+                                         'product_uom_qty': 1.0, 'price_unit': vente, 'sequence': seq})]})
+        so.message_post(body="Ligne « Transport de pierres » ajoutée en fin de devis : prix d achat %%.2f EUR HT + %%.0f %%%% = %%.2f EUR HT (à ajuster si besoin)." %% (po.amount_untaxed, (marge - 1) * 100, vente))
 '''
 
 auto = x('base.automation', 'search', [['name', '=', NOM_AUTO]])
@@ -89,6 +92,9 @@ print('état : automatisation ligne %s | automatisation 102 %s (action %s, ligne
 params = {'variantes': VARIANTES, 'defaut': DEFAUT}
 
 if mode == 'apply':
+    if not x('ir.config_parameter', 'search', [['key', '=', 'maquignon.transport_marge_pct']]):
+        x('ir.config_parameter', 'create', [{'key': 'maquignon.transport_marge_pct', 'value': '40'}])
+    print('marge transport (maquignon.transport_marge_pct) :', x('ir.config_parameter', 'get_param', 'maquignon.transport_marge_pct'), '%')
     if auto:
         a = x('base.automation', 'read', auto, ['action_server_ids'])[0]
         x('ir.actions.server', 'write', a['action_server_ids'], {'code': CODE_LIGNE % params})
