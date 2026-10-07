@@ -24,7 +24,7 @@ class Faux:
             'x_repartition_palette': {},
             'sale.order': {42821: {'id': 42821, 'name': 'S11731', 'partner_id': [15897, "LEZ'ARTS DECO & PIERRE"], 'partner_shipping_id': [15897, "LEZ'ARTS DECO & PIERRE"],
                                    'x_mode_transport': 'exterieur', 'x_transporteur_id': [18880, 'GENDRON TRANSPORTS'], 'state': 'sale'}},
-            'res.partner': {15897: {'id': 15897, 'name': "LEZ'ARTS DECO & PIERRE", 'street': '12 rue des Pierres', 'street2': False, 'zip': '86000', 'city': 'POITIERS'},
+            'res.partner': {15897: {'id': 15897, 'name': "LEZ'ARTS DECO & PIERRE", 'street': '12 rue des Pierres', 'street2': False, 'zip': '86000', 'city': 'POITIERS', 'commercial_partner_id': [15897, "LEZ'ARTS DECO & PIERRE"]},
                             18880: {'id': 18880, 'name': 'GENDRON TRANSPORTS'}},
             'project.task.type': {99: {'id': 99, 'name': 'Expédié', 'project_ids': [13], 'sequence': 60}, 50: {'id': 50, 'name': 'Prêt à expédier', 'project_ids': [13], 'sequence': 50}},
             'project.task': {6531: {'id': 6531, 'name': 'LEZART - 31/08/26 socles', 'stage_id': [50, 'Prêt à expédier']}},
@@ -147,4 +147,23 @@ check(a['ok'] == 1 and not o.data['stock.package'][445]['x_exp_statut'] and not 
 print('=== enlèvement client sans mail ===')
 r2 = W.executer(o, 2104, {'mode': 'valider', 'palettes': [445], 'exp_mode': 'client', 'chauffeur': 'M. Lézart', 'camion': 'EF-456-GH', 'charge_par': 0, 'sans_mail': 1})
 check(o.data['stock.package'][445]['x_exp_statut'] == 'enlevee' and 'enlèvement par le client' in r2['msg'], 'statut Enlevée : %s' % r2['msg'])
+print('=== livraison : palettes à livrer pour le camion, livrer, annuler la livraison ===')
+o3 = Faux()
+W.executer(o3, 2104, {'mode': 'valider', 'palettes': [445], 'exp_mode': 'camions', 'camion': 'SEMI GE-106-QS', 'chauffeur': 'Mickaël', 'charge_par': 478, 'sans_mail': 1})
+al = W.executer(o3, 2104, {'mode': 'a_livrer', 'camions': ['SEMI GE-106-QS'], 'jours': 7})
+check(len(al['palettes']) == 1 and al['palettes'][0]['name'] == 'PACK0000475' and al['palettes'][0]['partner_commercial_id'] == 15897, 'palette chargée sur le camion trouvée pour la tournée : %s' % al['palettes'][0]['name'])
+check(W.executer(o3, 2104, {'mode': 'a_livrer', 'camions': ['DAF Camion 8 x 4 EY-665-NV'], 'jours': 7})['palettes'] == [], 'rien pour un autre camion')
+lv = W.executer(o3, 2104, {'mode': 'livrer', 'palettes': [445], 'qui': 'DURAND Mickaël', 'source': 'tournee'})
+pk3 = o3.data['stock.package'][445]
+check(lv['ok'] == 1 and pk3['x_exp_statut'] == 'livree' and pk3['x_livraison_date'], 'palette livrée avec date : %s' % lv['msg'])
+check(any(m == 'sale.order' and me == 'message_post' and 'Livraison' in str(k.get('body')) and 'entièrement livrée' in str(k.get('body')) for m, me, a, k in o3.journal), 'note de livraison sur la commande (entièrement livrée)')
+lots = W.executer(o3, 2104, {'mode': 'lots', 'jours': 10})
+check(lots['lots'][0].get('livrees') == 1 and lots['lots'][0]['palettes'][0]['statut'] == 'livree', 'départs récents : statut livré')
+an = W.executer(o3, 2104, {'mode': 'annuler', 'palette_id': 445})
+check(pk3['x_exp_statut'] == 'chargee' and not pk3['x_livraison_date'], 'annulation de la livraison : palette de nouveau chargée (%s)' % an['msg'])
+try:
+    W.executer(o3, 2104, {'mode': 'livrer', 'palettes': [446]}); check(False, 'refus attendu')
+except W.WebErreur as e:
+    check('en cours de livraison' in str(e), 'refus d une palette non partie : %s' % e)
+
 print('\nTOUS LES TESTS PASSENT')

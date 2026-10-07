@@ -557,6 +557,9 @@ h3{font-weight:800;font-size:21px;margin:8px 2px 14px;}
 .drv a{color:#cffafe;font-size:13px;text-decoration:none;font-weight:600;}
 .day{font-weight:800;color:#334155;font-size:15px;margin:18px 2px 9px;border-bottom:2px solid #cbd5e1;padding-bottom:3px;}
 .day.tod{color:#01666B;border-color:#01666B;}
+.pal{background:#ecfeff;border:1px solid #67e8f9;border-radius:10px;padding:8px 10px;margin:8px 0;font-size:14px;}
+.palrow{padding:2px 0;color:#0f172a;} .palrow i{color:#64748b;font-size:12px;}
+.palbtn{margin-top:6px;width:100%;border:none;border-radius:10px;padding:12px;font-size:16px;font-weight:800;background:#0e7490;color:#fff;}
 .daynav{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.10);}
 .daynav button{border:none;background:#01666B;color:#fff;font-size:20px;font-weight:800;border-radius:10px;min-width:52px;height:46px;cursor:pointer;}
 .daynav button:disabled{background:#cbd5e1;}
@@ -635,6 +638,12 @@ function upFail(lbl,payload,attempt,err){
   setTxt(lbl,'\u274c \u00c9chec \u2014 touchez pour renvoyer');
   toast('\u274c Envoi impossible ('+err+') \u2014 r\u00e9essayez',false);
   if(navigator.vibrate){navigator.vibrate([120,90,120]);}
+}
+function livrer(tid,ids,tok){
+  if(!confirm('Confirmer la livraison de ces '+ids.length+' palette(s) ?')){ return; }
+  fetch('/tournee/livraison',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_id:tid,token:tok,palettes:ids})})
+    .then(function(r){return r.json();}).then(function(d){ if(!d.ok){ throw new Error(d.error||'refus'); } toast('✅ '+(d.msg||'Livraison enregistrée')); setTimeout(function(){ location.reload(); }, 900); })
+    .catch(function(e){ toast('⚠️ '+e.message); });
 }
 function up(inp,tid,kind,tok){
   var f=inp.files&&inp.files[0]; if(!f){return;}
@@ -723,6 +732,34 @@ def ma_tournee():
                        context={"bin_size": True}):
                 wsmap[w["x_project_task_id"][0]] = w
 
+        # palettes chargées sur les camions de la tournée (expédition pierre), à livrer
+        palmap, pal_reste = {}, {}
+        try:
+            import web_actions
+            def _call(model, method, *params, **kw):
+                return x(models, uid, model, method, *params, **kw)
+            camions = sorted({t["x_studio_transport"][1] for t in tasks if t.get("x_studio_transport")})
+            pals = web_actions.executer(_call, 2104, {"mode": "a_livrer", "camions": camions, "jours": 7}).get("palettes", []) if camions else []
+            if pals:
+                pmap = {}
+                pids = sorted({t["partner_id"][0] for t in tasks if t.get("partner_id")})
+                for pr in x(models, uid, "res.partner", "read", pids, fields=["commercial_partner_id"]) if pids else []:
+                    pmap[pr["id"]] = pr["commercial_partner_id"][0] if pr.get("commercial_partner_id") else pr["id"]
+                pris = set()
+                for t in tasks:
+                    cam = t["x_studio_transport"][1] if t.get("x_studio_transport") else ""
+                    comm = pmap.get(t["partner_id"][0]) if t.get("partner_id") else 0
+                    for pl in pals:
+                        if pl["id"] in pris or pl["camion"] != cam:
+                            continue
+                        if pl["partner_commercial_id"] and comm and pl["partner_commercial_id"] == comm:
+                            palmap.setdefault(t["id"], []).append(pl); pris.add(pl["id"])
+                for pl in pals:
+                    if pl["id"] not in pris:
+                        pal_reste.setdefault(pl["camion"], []).append(pl)
+        except Exception as e:  # noqa: BLE001 — la tournée s'affiche même sans les palettes
+            app.logger.warning(f"ma-tournee palettes: {e}")
+
         html = f'<div class="drv"><span>👤 {_esc(dname)}</span></div>'
         if not tasks:
             html += '<div class="empty">✅ Aucune mission à venir.<br/>Bonne journée !</div>'
@@ -742,6 +779,7 @@ def ma_tournee():
                  '<div id="daylbl" class="daylbl"></div>'
                  '<button id="nextday">▶</button></div>')
         cur_day = None
+        reste_affiche = set()
         for t in tasks:
             try:
                 dt = datetime.strptime(t["planned_date_begin"], "%Y-%m-%d %H:%M:%S")
@@ -790,6 +828,19 @@ def ma_tournee():
                 html += f'<span class="veh">🚛 {_esc(veh)}</span>'
             if ocr:
                 html += f'<div class="ocr">{_esc(ocr)}</div>'
+            pls = list(palmap.get(t["id"], []))
+            cam_t = t["x_studio_transport"][1] if t.get("x_studio_transport") else ""
+            if cam_t and pal_reste.get(cam_t) and cam_t not in reste_affiche:
+                pls += [dict(pl, autre=1) for pl in pal_reste[cam_t]]; reste_affiche.add(cam_t)
+            if pls:
+                ids_js = ",".join(str(pl["id"]) for pl in pls)
+                html += '<div class="pal"><b>📦 Palettes à livrer</b>'
+                for pl in pls:
+                    html += (f'<div class="palrow">{_esc(pl["name"])} — {_esc(pl["client"])}'
+                             f'{(" · " + _esc(pl["commande"])) if pl.get("commande") else ""} · {pl["ton"]} kg'
+                             f'{" <i>(autre client, même camion)</i>" if pl.get("autre") else ""}</div>')
+                html += (f'<button type="button" class="palbtn" onclick="livrer({t["id"]},[{ids_js}],'
+                         f'\'{_tournee_sign(t["id"], "livr")}\')">📍 Palettes livrées</button></div>')
             lblbon = "✓ Bon scanné — reprendre" if done_bon else "📷 Scanner le bon de pesée"
             html += (f'<label class="ph scan {"done" if done_bon else ""}">{lblbon}'
                      f'<input type="file" accept="image/*" capture="environment" '
@@ -811,6 +862,34 @@ def ma_tournee():
     except Exception as e:
         app.logger.error(f"Erreur ma-tournee: {e}")
         return _tournee_page(f'<div class="empty">Erreur : {_esc(str(e)[:120])}</div>'), 500
+
+
+@app.route("/tournee/livraison", methods=["POST"])
+def tournee_livraison():
+    """Chauffeur : palettes livrées (jeton de la mission, type livr) -> relais 2104 mode livrer."""
+    try:
+        data = request.get_json(force=True)
+        task_id = int(data.get("task_id"))
+        token = data.get("token")
+        ids = [int(i) for i in (data.get("palettes") or [])]
+        if not token or not hmac.compare_digest(token, _tournee_sign(task_id, "livr")):
+            return jsonify({"ok": False, "error": "jeton invalide"}), 403
+        if not ids:
+            return jsonify({"ok": False, "error": "aucune palette"}), 400
+        uid, models = odoo_connect()
+        def _call(model, method, *params, **kw):
+            return x(models, uid, model, method, *params, **kw)
+        t = x(models, uid, "project.task", "read", [task_id], fields=["x_studio_chauffeur", "name"])[0]
+        qui = t["x_studio_chauffeur"][1] if t.get("x_studio_chauffeur") else ""
+        import web_actions
+        try:
+            res = web_actions.executer(_call, 2104, {"mode": "livrer", "palettes": ids, "qui": qui, "source": "tournee"})
+        except web_actions.WebErreur as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True, "msg": res.get("msg", "")})
+    except Exception as e:
+        app.logger.error(f"Erreur tournee-livraison: {e}")
+        return jsonify({"ok": False, "error": str(e)[:150]}), 500
 
 
 @app.route("/tournee/upload", methods=["POST"])

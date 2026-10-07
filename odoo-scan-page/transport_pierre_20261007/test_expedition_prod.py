@@ -44,6 +44,13 @@ try:
     print('re-scan (doit refuser) :', rpc({'mode': 'scanner', 'code': code}))
 except Exception as e:
     print('re-scan refusé :', e)
+lv = rpc({'mode': 'livrer', 'palettes': [pk_id], 'qui': 'TEST', 'source': 'bureau'})
+pkl = x('stock.package', 'read', [pk_id], ['x_exp_statut', 'x_livraison_date'])[0]
+print('livraison :', lv['msg'], '|', pkl)
+lots = rpc({'mode': 'lots', 'jours': 10})
+print('départs récents (livrées) :', [(l['lot'], l.get('livrees'), l['n']) for l in lots['lots'] if l['lot'] == r['lot']])
+a0 = rpc({'mode': 'annuler', 'palette_id': pk_id})
+print('annulation livraison :', a0['msg'], '|', x('stock.package', 'read', [pk_id], ['x_exp_statut', 'x_livraison_date'])[0])
 a = rpc({'mode': 'annuler', 'palette_id': pk_id})
 print('annulation :', a['msg'])
 pk2 = x('stock.package', 'read', [pk_id], ['x_exp_statut', 'x_exp_mode', 'x_exp_chauffeur', 'x_exp_camion', 'x_exp_date', 'x_exp_lot'])[0]
@@ -51,9 +58,9 @@ print('palette après annulation :', pk2)
 # nettoyage : notes de test et étape de la tâche
 msgs = []
 if p1['commande_id']:
-    msgs += x('mail.message', 'search', [['model', '=', 'sale.order'], ['res_id', '=', p1['commande_id']], ['body', 'ilike', r['lot']]])
+    msgs += x('mail.message', 'search', [['model', '=', 'sale.order'], ['res_id', '=', p1['commande_id']], '|', '|', ['body', 'ilike', r['lot']], ['body', 'ilike', 'Livraison le'], ['body', 'ilike', 'Livraison annulée']])
 if tache:
-    msgs += x('mail.message', 'search', [['model', '=', 'project.task'], ['res_id', '=', tache], ['body', 'ilike', r['lot']]])
+    msgs += x('mail.message', 'search', [['model', '=', 'project.task'], ['res_id', '=', tache], '|', ['body', 'ilike', r['lot']], ['body', 'ilike', 'Livré :']])
     st = x('project.task', 'read', [tache], ['stage_id'])[0]['stage_id']
     if stage_avant and st and st[0] != stage_avant[0]:
         x('project.task', 'write', [tache], {'stage_id': stage_avant[0]}); print('étape de la tâche restaurée :', stage_avant[1])

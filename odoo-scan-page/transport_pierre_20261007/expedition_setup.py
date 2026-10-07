@@ -226,17 +226,25 @@ JS_PAGE = r'''
   });
   function chargerLots(){
     var box = document.getElementById('exp-lots'); box.innerHTML = '<div class="exp-empty">Chargement…</div>';
-    web('lots', {jours: 3}).then(function(r){
+    web('lots', {jours: 10}).then(function(r){
       var lots = r.lots || [];
-      if(!lots.length){ box.innerHTML = '<div class="exp-empty">Aucun départ ces 3 derniers jours.</div>'; return; }
+      if(!lots.length){ box.innerHTML = '<div class="exp-empty">Aucun départ ces 10 derniers jours.</div>'; return; }
       box.innerHTML = lots.map(function(l){
-        return '<div class="exp-lot"><b>' + esc(l.lot) + '</b> · ' + esc(l.date) + ' · ' + esc(MODES[l.mode] || l.mode) + (l.qui ? ' · ' + esc(l.qui) : '') + ' · ' + l.n + ' palette(s) · ' + l.ton + ' kg' + (l.clients ? ' · ' + esc(l.clients) : '')
-          + '<div class="pals">' + l.palettes.map(function(p){ return esc(p.name) + ' <button type="button" class="exp-btn red exp-annul" style="padding:3px 8px;font-size:12px;" data-id="' + p.id + '" data-name="' + esc(p.name) + '">↩️ annuler</button>'; }).join(' · ') + '</div>'
-          + '<button type="button" class="exp-btn sec exp-reprint" data-lot="' + esc(l.lot) + '">🖨 Liste de chargement</button></div>';
+        var livrees = (l.livrees || 0), reste = l.palettes.filter(function(p){ return p.statut !== 'livree'; }).length;
+        var etat = livrees === l.n ? '<span style="color:#5eead4;">📍 livré' + (l.palettes[0].livraison ? ' le ' + esc(l.palettes[0].livraison) : '') + '</span>' : (livrees ? '<span style="color:#fbbf24;">📍 ' + livrees + '/' + l.n + ' livrée(s)</span>' : (l.mode === 'client' ? '<span style="color:#5eead4;">🤝 enlevé par le client</span>' : '<span style="color:#fbbf24;">🚚 en cours de livraison</span>'));
+        return '<div class="exp-lot"><b>' + esc(l.lot) + '</b> · ' + esc(l.date) + ' · ' + esc(MODES[l.mode] || l.mode) + (l.qui ? ' · ' + esc(l.qui) : '') + ' · ' + l.n + ' palette(s) · ' + l.ton + ' kg' + (l.clients ? ' · ' + esc(l.clients) : '') + ' · ' + etat
+          + '<div class="pals">' + l.palettes.map(function(p){ return esc(p.name) + (p.statut === 'livree' ? ' ✓' : '') + ' <button type="button" class="exp-btn red exp-annul" style="padding:3px 8px;font-size:12px;" data-id="' + p.id + '" data-name="' + esc(p.name) + '" data-statut="' + esc(p.statut) + '">' + (p.statut === 'livree' ? '↩️ annuler la livraison' : '↩️ annuler le départ') + '</button>'; }).join(' · ') + '</div>'
+          + '<button type="button" class="exp-btn sec exp-reprint" data-lot="' + esc(l.lot) + '">🖨 Liste de chargement</button>'
+          + (reste && l.mode !== 'client' ? '<button type="button" class="exp-btn exp-livrer" style="background:#0e7490;" data-lot="' + esc(l.lot) + '" data-n="' + reste + '">📍 Marquer livré (' + reste + ')</button>' : '') + '</div>';
       }).join('');
       box.querySelectorAll('.exp-reprint').forEach(function(b){ b.onclick = function(){ window.open('/expedition/liste?lot=' + encodeURIComponent(b.getAttribute('data-lot')), '_blank'); }; });
+      box.querySelectorAll('.exp-livrer').forEach(function(b){ b.onclick = function(){
+        if(!confirm('Marquer les ' + b.getAttribute('data-n') + ' palette(s) du chargement ' + b.getAttribute('data-lot') + ' comme livrées aujourd\'hui ?')){ return; }
+        web('livrer', {lot: b.getAttribute('data-lot'), source: 'expedition'}).then(function(r){ setRes(r.msg || '📍 livré', 'ok'); chargerLots(); }).catch(function(e){ setRes('⚠️ ' + (e && e.message ? e.message : e), 'err'); });
+      }; });
       box.querySelectorAll('.exp-annul').forEach(function(b){ b.onclick = function(){
-        if(!confirm('Annuler le départ de ' + b.getAttribute('data-name') + ' ? La palette redevient « en stock ».')){ return; }
+        var livree = b.getAttribute('data-statut') === 'livree';
+        if(!confirm(livree ? ('Annuler la livraison de ' + b.getAttribute('data-name') + ' ? La palette redevient « chargée ».') : ('Annuler le départ de ' + b.getAttribute('data-name') + ' ? La palette redevient « en stock ».'))){ return; }
         web('annuler', {palette_id: parseInt(b.getAttribute('data-id'))}).then(function(r){ setRes(r.msg || '↩️ annulé', 'info'); chargerLots(); }).catch(function(e){ setRes('⚠️ ' + (e && e.message ? e.message : e), 'err'); });
       }; });
     }).catch(function(e){ box.innerHTML = '<div class="exp-empty">Erreur : ' + esc(e && e.message ? e.message : e) + '</div>'; });
@@ -306,7 +314,7 @@ PAGE = '''<t t-name="website.expedition_page">
         <div id="exp-result" style="display:none;"/>
       </div>
       <div class="exp-card">
-        <div class="exp-lbl">Départs des 3 derniers jours <button type="button" id="btn-lots" class="exp-btn sec" style="padding:4px 10px;font-size:13px;">↻</button></div>
+        <div class="exp-lbl">Départs des 10 derniers jours <button type="button" id="btn-lots" class="exp-btn sec" style="padding:4px 10px;font-size:13px;">↻</button></div>
         <div id="exp-lots"/>
       </div>
     </div>

@@ -1597,13 +1597,16 @@ def _exp_lots(call, jours=3):
     import datetime as _dt
     depuis = (_dt.datetime.utcnow() - _dt.timedelta(days=int(jours or 3))).strftime('%Y-%m-%d 00:00:00')
     rows = call('stock.package', 'search_read', [['x_exp_lot', '!=', False], ['x_exp_statut', 'in', list(EXP_PARTIS)], ['x_exp_date', '>=', depuis]],
-                fields=EXP_CHAMPS, order='x_exp_date desc, name')
+                fields=EXP_CHAMPS + ['x_livraison_date'], order='x_exp_date desc, name')
     lots = {}
     for c in rows:
         l = lots.setdefault(c['x_exp_lot'], {'lot': c['x_exp_lot'], 'date': (c['x_exp_date'] or '')[:16], 'mode': c.get('x_exp_mode') or '',
                                               'qui': (c['x_exp_transporteur_id'][1] if c.get('x_exp_transporteur_id') else (c.get('x_exp_camion') or c.get('x_exp_chauffeur') or '')),
                                               'statut': c.get('x_exp_statut') or '', 'n': 0, 'ton': 0, 'palettes': [], 'clients': set()})
-        l['n'] += 1; l['ton'] += round(c['x_studio_tonnage'] or 0); l['palettes'].append({'id': c['id'], 'name': c['name']})
+        l['n'] += 1; l['ton'] += round(c['x_studio_tonnage'] or 0)
+        l['palettes'].append({'id': c['id'], 'name': c['name'], 'statut': c.get('x_exp_statut') or '', 'livraison': (c.get('x_livraison_date') or '')[:16]})
+        if (c.get('x_exp_statut') or '') == 'livree':
+            l['livrees'] = l.get('livrees', 0) + 1
         if c.get('x_studio_client'):
             l['clients'].add(c['x_studio_client'])
     out = []
@@ -1801,6 +1804,12 @@ def _exp_annuler(call, ctx):
     colis = _exp_lire(call, colis_id=int(ctx.get('palette_id') or 0))
     if not colis:
         raise WebErreur('Palette introuvable.')
+    if (colis.get('x_exp_statut') or '') == 'livree':
+        retour = 'enlevee' if colis.get('x_exp_mode') == 'client' else 'chargee'
+        call('stock.package', 'write', [colis['id']], {'x_exp_statut': retour, 'x_livraison_date': False})
+        if colis.get('x_commande_id'):
+            _note(call, 'sale.order', colis['x_commande_id'][0], '↩️ Livraison annulée pour %s : la palette est de nouveau « %s ».' % (colis['name'], 'enlevée' if retour == 'enlevee' else 'chargée'))
+        return {'ok': 1, 'msg': '↩️ Livraison de %s annulée (palette de nouveau %s)' % (colis['name'], 'enlevée' if retour == 'enlevee' else 'chargée')}
     if (colis.get('x_exp_statut') or '') not in ('chargee', 'enlevee'):
         raise WebErreur("%s n'est pas en cours d'expédition (statut : %s)." % (colis['name'], colis.get('x_exp_statut') or 'en stock'))
     lot = colis.get('x_exp_lot') or ''
@@ -1809,6 +1818,75 @@ def _exp_annuler(call, ctx):
     if colis.get('x_commande_id'):
         _note(call, 'sale.order', colis['x_commande_id'][0], '↩️ Départ annulé pour %s (chargement %s) : la palette est de nouveau en stock.' % (colis['name'], lot))
     return {'ok': 1, 'msg': '↩️ %s remise en stock (chargement %s annulé pour cette palette)' % (colis['name'], lot)}
+
+def _exp_livrer(call, ctx):
+    """Palettes livrées : par ids ou par n° de chargement ; statut Livrée + date ; notes commande et tâche."""
+    ids = [int(i) for i in (ctx.get('palettes') or []) if int(i)]
+    lot = (ctx.get('lot') or '').strip()
+    if lot and not ids:
+        ids = call('stock.package', 'search', [['x_exp_lot', '=', lot], ['x_exp_statut', 'in', ['chargee', 'enlevee']]])
+    if not ids:
+        raise WebErreur('Aucune palette à livrer.')
+    qui = (ctx.get('qui') or '').strip()[:80]
+    source = {'tournee': 'par le chauffeur', 'expedition': "depuis l'écran Expédition", 'bureau': 'saisi au bureau'}.get(ctx.get('source') or '', '')
+    local, utc = _exp_maintenant()
+    quand = utc.strftime('%Y-%m-%d %H:%M:%S')
+    if ctx.get('date'):
+        try:
+            import datetime as _dt
+            quand = _dt.datetime.strptime(str(ctx['date'])[:10], '%Y-%m-%d').strftime('%Y-%m-%d 10:00:00')
+        except Exception:  # noqa: BLE001
+            pass
+    palettes = []
+    for i in ids:
+        colis = _exp_lire(call, colis_id=i)
+        if not colis:
+            raise WebErreur('Palette introuvable (%s).' % i)
+        if (colis.get('x_exp_statut') or '') not in ('chargee', 'enlevee'):
+            raise WebErreur("%s n'est pas en cours de livraison (statut : %s)." % (colis['name'], colis.get('x_exp_statut') or 'en stock'))
+        palettes.append(_exp_palette(call, colis))
+    call('stock.package', 'write', [p['id'] for p in palettes], {'x_exp_statut': 'livree', 'x_livraison_date': quand})
+    par_cde = {}
+    for p in palettes:
+        par_cde.setdefault(p['commande_id'], []).append(p)
+    for so_id, grp in par_cde.items():
+        noms = ', '.join(p['name'] for p in grp)
+        if not so_id:
+            continue
+        so = call('sale.order', 'read', [so_id], fields=['name'])[0]
+        reste_of = call('mrp.production', 'search_count', [['origin', '=', so['name']], ['state', 'not in', ['done', 'cancel']]])
+        reste_pal = call('stock.package', 'search_count', [['x_commande_id', '=', so_id], ['x_studio_cloturee', '=', True], '|', ['x_exp_statut', '=', False], ['x_exp_statut', 'not in', ['livree', 'enlevee']]])
+        etat = 'commande entièrement livrée' if (reste_of == 0 and reste_pal == 0) else ('livraison partielle : %d OF en fabrication, %d palette(s) pas encore livrée(s)' % (reste_of, reste_pal))
+        _note(call, 'sale.order', so_id, '📍 Livraison le %s : %s%s%s — %s.' % (local.strftime('%d/%m/%Y %H:%M') if not ctx.get('date') else str(ctx['date'])[:10], noms, (' (chargement %s)' % grp[0]['exp_lot']) if grp[0].get('exp_lot') else '', (' — %s %s' % (source, qui)).rstrip() if (source or qui) else '', etat))
+        tache = next((p['tache_id'] for p in grp if p['tache_id']), 0)
+        if tache:
+            _note(call, 'project.task', tache, '📍 Livré : %s (%s)' % (noms, etat))
+    return {'ok': 1, 'n': len(palettes), 'msg': '📍 %d palette(s) livrée(s) : %s' % (len(palettes), ', '.join(p['name'] for p in palettes))}
+
+
+def _exp_a_livrer(call, ctx):
+    """Palettes chargées sur nos camions (statut Chargée, mode camions) pour les camions donnés, depuis N jours :
+    pour « Ma tournée » (rapprochées des missions par camion et client)."""
+    import datetime as _dt
+    camions = [c for c in (ctx.get('camions') or []) if c]
+    jours = int(ctx.get('jours') or 7)
+    depuis = (_dt.datetime.utcnow() - _dt.timedelta(days=jours)).strftime('%Y-%m-%d 00:00:00')
+    if not camions:
+        return {'palettes': []}
+    rows = call('stock.package', 'search_read', [['x_exp_statut', '=', 'chargee'], ['x_exp_mode', '=', 'camions'], ['x_exp_camion', 'in', camions], ['x_exp_date', '>=', depuis]],
+                fields=EXP_CHAMPS, order='x_exp_date, name')
+    out = []
+    for c in rows:
+        p = _exp_palette(call, c)
+        comm = 0
+        if p['commande_id']:
+            so = call('sale.order', 'read', [p['commande_id']], fields=['partner_id'])[0]
+            if so['partner_id']:
+                comm = call('res.partner', 'read', [so['partner_id'][0]], fields=['commercial_partner_id'])[0]['commercial_partner_id'][0]
+        out.append({'id': p['id'], 'name': p['name'], 'client': p['client'], 'commande': p['commande'], 'adresse': p['adresse'], 'ton': p['ton'],
+                    'camion': c.get('x_exp_camion') or '', 'lot': c.get('x_exp_lot') or '', 'date': (c.get('x_exp_date') or '')[:10], 'partner_commercial_id': comm})
+    return {'palettes': out}
+
 
 
 def _expedition(call, ctx):
@@ -1828,6 +1906,10 @@ def _expedition(call, ctx):
         return _exp_annuler(call, ctx)
     if mode == 'lots':
         return _exp_lots(call, ctx.get('jours') or 3)
+    if mode == 'livrer':
+        return _exp_livrer(call, ctx)
+    if mode == 'a_livrer':
+        return _exp_a_livrer(call, ctx)
     if mode == 'bl_plan':
         # contrôle sans écriture : quantités par ligne et transfert qui serait validé, par commande
         pals = [_exp_palette(call, _exp_lire(call, colis_id=int(i))) for i in (ctx.get('palettes') or [])]
