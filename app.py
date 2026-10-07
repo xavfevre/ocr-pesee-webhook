@@ -1273,7 +1273,8 @@ def _hote_test(valeur):
 
 def _hote_requete():
     donnees = request.get_json(silent=True) or {}
-    return _hote_test(donnees.get("host")) or _hote_test(request.headers.get("Origin")) or _hote_test(request.headers.get("Referer"))
+    return (_hote_test(request.args.get("host")) or _hote_test(donnees.get("host"))
+            or _hote_test(request.headers.get("Origin")) or _hote_test(request.headers.get("Referer")))
 
 
 def _connexion_hote(hote):
@@ -1363,6 +1364,56 @@ def heures_rpc():
             return _heures_cors(jsonify({"error": {"message": message[-400:]}}))
         app.logger.warning(f"heures_rpc: {exc}")
         return _heures_cors(jsonify({"error": {"message": f"Service indisponible : {exc}"}}))
+
+
+# ─── WEBHOOKS ODOO « TRANSPORT DES COMMANDES PIERRE » ───────────────────────
+# Actions serveur 2118 (bouton « Demander un tarif transport »), 2119 (automatisation 102 : achat transport confirmé)
+# et 2122 (automatisation 103 : mode de transport du devis) converties en webhooks natifs le 07/10/2026 : plus aucune
+# ligne de code Python facturée dans Odoo, la logique vit dans transport_webhooks.py. Odoo n'attend la réponse qu'une
+# seconde (timeout=1 dans ir.actions.server) : la route répond tout de suite et le travail part dans un thread.
+# ?host=testmaq….odoo.com (posé par transport_webhooks_setup.py sur une base de test) -> tout se passe sur cette base ;
+# une copie de la production est de toute façon neutralisée par Odoo (webhook_url effacée).
+TRANSPORT_WEBHOOKS = ("tarif", "achat-confirme", "mode-devis")
+
+
+@app.route("/odoo/transport/<quoi>", methods=["POST"])
+@require_secret
+def odoo_transport_webhook(quoi):
+    donnees = request.get_json(silent=True, force=True) or {}
+    if quoi not in TRANSPORT_WEBHOOKS or not donnees.get("_id"):
+        return jsonify({"error": "webhook inconnu ou _id absent"}), 400
+    hote = _hote_requete()
+    app.logger.info(f"webhook transport {quoi} reçu ({hote or 'production'}) : {donnees}")
+    threading.Thread(target=_transport_webhook_traite, args=(quoi, donnees, hote), daemon=True).start()
+    return jsonify({"status": "accepted", "quoi": quoi, "id": donnees["_id"], "base": hote or "production"})
+
+
+def _transport_webhook_traite(quoi, donnees, hote):
+    import transport_webhooks
+    import web_actions
+    call = None
+    try:
+        if hote:
+            # connexion propre au thread (un proxy XML-RPC partagé n'est pas sûr entre threads)
+            db = hote.split(".")[0]
+            uid = xmlrpc.client.ServerProxy(f"https://{hote}/xmlrpc/2/common").authenticate(db, ODOO_USER, ODOO_PASSWORD, {})
+            if not uid:
+                raise ValueError(f"base de test {hote} : authentification refusée")
+            models = xmlrpc.client.ServerProxy(f"https://{hote}/xmlrpc/2/object")
+
+            def call(model, method, *params, **kw):
+                return models.execute_kw(db, uid, ODOO_PASSWORD, model, method, list(params), kw)
+        else:
+            uid, models = odoo_connect()
+
+            def call(model, method, *params, **kw):
+                return x(models, uid, model, method, *params, **kw)
+        res = transport_webhooks.transport_webhook(call, quoi, donnees)
+        app.logger.info(f"webhook transport {quoi} #{donnees.get('_id')} ({hote or 'production'}) : {res}")
+    except Exception as exc:  # noqa: BLE001
+        app.logger.error(f"webhook transport {quoi} #{donnees.get('_id')} ({hote or 'production'}) : {exc}")
+        if call is not None and donnees.get("_model"):
+            web_actions._note(call, donnees["_model"], int(donnees["_id"]), f"❌ Transport (webhook {quoi}) : {str(exc)[-300:]}")
 
 
 def _fab_dash_nightly():
