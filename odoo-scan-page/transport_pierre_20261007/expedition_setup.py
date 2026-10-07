@@ -306,7 +306,7 @@ LISTE = '''<t t-name="website.expedition_liste">
       .lc-h h2{margin:0;color:#01666B;font-size:22px;}
       .lc-box{border:1px solid #cbd5e1;border-radius:8px;padding:10px;margin-bottom:12px;page-break-inside:avoid;}
       .lc-box h3{margin:0 0 6px;font-size:15px;color:#01666B;}
-      table.lc{width:100%%;border-collapse:collapse;margin-top:6px;}
+      table.lc{width:100%;border-collapse:collapse;margin-top:6px;}
       table.lc th, table.lc td{border:1px solid #cbd5e1;padding:5px 6px;text-align:left;vertical-align:top;}
       table.lc th{background:#eaf4f4;}
       .lc-tot{font-weight:800;text-align:right;margin-top:6px;}
@@ -348,14 +348,14 @@ LISTE = '''<t t-name="website.expedition_liste">
               <t t-foreach="g[1]" t-as="pp">
                 <t t-set="reps" t-value="request.env['x_repartition_palette'].sudo().search([('x_studio_colis_id', '=', pp.id)])"/>
                 <tr><td><b><t t-esc="pp.name"/></b></td><td><t t-esc="pp.x_studio_zone or ''"/></td>
-                  <td><t t-esc="', '.join(pp.x_studio_one2many_field_55p_1jh99tbrr.mapped('name') + ['%%s x%%d' %% (rr.x_studio_of_id.name, int(rr.x_studio_qte or 0)) for rr in reps if rr.x_studio_of_id])"/></td>
-                  <td style="text-align:right;"><t t-esc="'%%.0f kg' %% (pp.x_studio_tonnage or 0)"/></td><td style="text-align:right;"><t t-esc="'%%.3f m³' %% (pp.x_studio_cubage or 0)"/></td></tr>
+                  <td><t t-esc="', '.join(pp.x_studio_one2many_field_55p_1jh99tbrr.mapped('name') + ['%s x%d' % (rr.x_studio_of_id.name, int(rr.x_studio_qte or 0)) for rr in reps if rr.x_studio_of_id])"/></td>
+                  <td style="text-align:right;"><t t-esc="'%.0f kg' % (pp.x_studio_tonnage or 0)"/></td><td style="text-align:right;"><t t-esc="'%.3f m³' % (pp.x_studio_cubage or 0)"/></td></tr>
               </t>
             </table>
-            <div class="lc-tot"><t t-esc="len(g[1])"/> palette(s) · <t t-esc="'%%.0f' %% sum([(pp.x_studio_tonnage or 0) for pp in g[1]])"/> kg · <t t-esc="'%%.3f' %% sum([(pp.x_studio_cubage or 0) for pp in g[1]])"/> m³</div>
+            <div class="lc-tot"><t t-esc="len(g[1])"/> palette(s) · <t t-esc="'%.0f' % sum([(pp.x_studio_tonnage or 0) for pp in g[1]])"/> kg · <t t-esc="'%.3f' % sum([(pp.x_studio_cubage or 0) for pp in g[1]])"/> m³</div>
           </div>
         </t>
-        <div class="lc-tot" style="font-size:15px;">TOTAL : <t t-esc="len(pals)"/> palette(s) · <t t-esc="'%%.0f' %% sum([(pp.x_studio_tonnage or 0) for pp in pals])"/> kg · <t t-esc="'%%.3f' %% sum([(pp.x_studio_cubage or 0) for pp in pals])"/> m³</div>
+        <div class="lc-tot" style="font-size:15px;">TOTAL : <t t-esc="len(pals)"/> palette(s) · <t t-esc="'%.0f' % sum([(pp.x_studio_tonnage or 0) for pp in pals])"/> kg · <t t-esc="'%.3f' % sum([(pp.x_studio_cubage or 0) for pp in pals])"/> m³</div>
         <div class="lc-sign"><div>Chargeur (Maquignon)</div><div><t t-esc="'Client (enlèvement)' if p0.x_exp_mode == 'client' else 'Chauffeur / transporteur'"/></div><div>Réserves</div></div>
       </t>
     </div>
