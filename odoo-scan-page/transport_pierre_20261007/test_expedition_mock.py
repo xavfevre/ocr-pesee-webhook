@@ -26,7 +26,7 @@ class Faux:
                                    'x_mode_transport': 'exterieur', 'x_transporteur_id': [18880, 'GENDRON TRANSPORTS'], 'state': 'sale'}},
             'res.partner': {15897: {'id': 15897, 'name': "LEZ'ARTS DECO & PIERRE", 'street': '12 rue des Pierres', 'street2': False, 'zip': '86000', 'city': 'POITIERS'},
                             18880: {'id': 18880, 'name': 'GENDRON TRANSPORTS'}},
-            'project.task.type': {99: {'id': 99, 'name': 'Expédié', 'project_ids': [13]}},
+            'project.task.type': {99: {'id': 99, 'name': 'Expédié', 'project_ids': [13], 'sequence': 60}, 50: {'id': 50, 'name': 'Prêt à expédier', 'project_ids': [13], 'sequence': 50}},
             'project.task': {6531: {'id': 6531, 'name': 'LEZART - 31/08/26 socles', 'stage_id': [50, 'Prêt à expédier']}},
             'hr.employee': {478: {'id': 478, 'name': 'DESPUJOLS Loïc'}},
             'res.company': {1: {'id': 1, 'email': 'contact@maquignon.com'}},

@@ -1664,7 +1664,14 @@ def _exp_valider(call, ctx):
         tache = next((p['tache_id'] for p in grp if p['tache_id']), 0)
         if tache:
             if complet and stage_exp:
-                _sur(lambda: call('project.task', 'write', [tache], {'stage_id': stage_exp[0]}))
+                # on n'avance la tâche en « Expédié » que si elle est encore avant (jamais de retour depuis Facturé)
+                try:
+                    st_cur = call('project.task', 'read', [tache], fields=['stage_id'])[0]['stage_id']
+                    seqs = {t['id']: t['sequence'] for t in call('project.task.type', 'read', [st_cur[0], stage_exp[0]], fields=['sequence'])} if st_cur else {}
+                    if not st_cur or seqs.get(st_cur[0], 0) < seqs.get(stage_exp[0], 0):
+                        _sur(lambda: call('project.task', 'write', [tache], {'stage_id': stage_exp[0]}))
+                except Exception:  # noqa: BLE001
+                    pass
             _note(call, 'project.task', tache, '🚚 %s : %s partie(s) — %s (%s)' % (lot, noms, qui, etat))
         details.append((so['name'], grp[0]['client'], noms, ton, etat))
     # mail au bureau
