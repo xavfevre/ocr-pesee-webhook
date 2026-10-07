@@ -19,7 +19,7 @@ try:
     pdfmetrics.registerFont(TTFont("SegoeEmoji", "C:/Windows/Fonts/seguiemj.ttf")); EMOJI = True
 except Exception:  # noqa: BLE001
     EMOJI = False
-RX = re.compile("([🌀-🫿☀-➿⬀-⯿]️?)")
+RX = re.compile("([🌀-🫿☀-➿⬀-⯿🄀-🉿←-⇿]️?)")
 
 
 def emo(t):
