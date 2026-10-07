@@ -136,7 +136,9 @@ def tarif(call, so_id):
         crees.append((po_id, t['name']))
         if t['email']:
             _sans_retour(lambda: call('mail.template', 'send_mail', [TR_TPL_RFQ], po_id, force_send=True, email_values={'email_cc': ', '.join(cc)}))
-            call('purchase.order', 'write', [po_id], {'state': 'sent'})
+            # l'envoi prend quelques secondes : on ne repasse en « envoyé » que si personne n'a touché la demande entre-temps
+            if call('purchase.order', 'read', [po_id], ['state'])[0]['state'] == 'draft':
+                call('purchase.order', 'write', [po_id], {'state': 'sent'})
             envoyes.append(t['name'])
         else:
             sans_mail.append(t['name'])

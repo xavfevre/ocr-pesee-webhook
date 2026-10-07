@@ -83,6 +83,9 @@ def etat():
         print('%s (%d) : type %s | %d ligne(s) de code | webhook %s' % (a['name'], aid, a['state'], loc(a['code']), masque(a['webhook_url'])))
         for c in (x('ir.actions.server', 'read', a['child_ids'], ['name', 'state', 'sequence', 'webhook_url', 'template_id', 'mail_post_method']) if a['child_ids'] else []):
             print('     enfant %d (%s) : %s | %s%s' % (c['id'], c['sequence'], c['state'], masque(c['webhook_url']) or '', (c['template_id'] and ('modèle %s, %s' % (c['template_id'][1], c['mail_post_method']))) or ''))
+            if c['template_id']:
+                t = x('mail.template', 'read', [c['template_id'][0]], ['use_default_to', 'partner_to', 'email_to'])[0]
+                print('       destinataires du modèle : use_default_to=%s partner_to=%s email_to=%s%s' % (t['use_default_to'], t['partner_to'], t['email_to'], '  <-- DANGER : la note partirait au client' if (t['use_default_to'] or t['partner_to'] or t['email_to']) else '  (aucun : note silencieuse)'))
     for b in x('base.automation', 'read', [102, 103], ['name', 'active', 'filter_domain', 'trigger_field_ids']):
         print('automatisation %d : %s | filtre %s' % (b['id'], 'active' if b['active'] else 'INACTIVE', b['filter_domain']))
     print('lignes de code Python restantes dans ces 3 actions : %d' % tot)
@@ -113,10 +116,12 @@ def appliquer():
             nom_tpl = 'Transport pierre : note automatique (%s)' % d['quoi']
             tpl = x('mail.template', 'search', [['name', '=', nom_tpl]])
             corps = '<p>%s</p>' % d['texte']
+            # use_default_to=False impérativement : à True (défaut d'Odoo) la note serait envoyée par mail AU CLIENT du devis
+            vals_tpl = {'body_html': corps, 'model_id': model_id, 'use_default_to': False, 'partner_to': False, 'email_to': False}
             if tpl:
-                x('mail.template', 'write', tpl, {'body_html': corps, 'model_id': model_id})
+                x('mail.template', 'write', tpl, vals_tpl)
             else:
-                tpl = [one(x('mail.template', 'create', [{'name': nom_tpl, 'model_id': model_id, 'subject': 'Transport (suivi automatique)', 'body_html': corps}]))]
+                tpl = [one(x('mail.template', 'create', [dict(vals_tpl, name=nom_tpl, subject='Transport (suivi automatique)')]))]
             note_id = enfant(aid, a['name'] + ' : note', model_id,
                              {'state': 'mail_post', 'template_id': tpl[0], 'mail_post_method': 'note', 'mail_post_autofollow': False, 'sequence': 1})
             hook_id = enfant(aid, a['name'] + ' : webhook', model_id,

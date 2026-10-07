@@ -46,3 +46,43 @@ Phases suivantes : champs de suivi sur la palette, écran Expédition (scan du b
   avec alerte si le choix diffère du devis ou si le devis ne dit rien. Au départ, un devis sans mode reçoit le mode (et le transporteur) choisis.
 - Constat : sur 65 commandes pierre confirmées depuis juillet, aucune n'a de méthode de livraison et une seule a une ligne transport ;
   la seule source fiable est le champ « Mode de transport » du devis, à renseigner par Céline (phase 1).
+
+## Phase 4 (07/10/2026) : suivi livraison
+
+- Relais 2104 : `livrer` (palettes ou n° de chargement → statut Livrée + `x_livraison_date`, notes commande « 📍 Livraison le … »
+  et tâche, « commande entièrement livrée » quand plus rien n'est en fabrication ni en stock), `a_livrer` (palettes chargées sur nos
+  camions, pour la tournée), `lots` enrichi (statut par palette, livrées), `annuler` sur une palette livrée = retour « chargée ».
+- « Ma tournée » (app.py) : bloc « 📦 Palettes à livrer » sur chaque mission du même camion et du même client (palettes d'un autre
+  client sur le même camion affichées une fois avec la mention), bouton « 📍 Palettes livrées » → POST `/tournee/livraison`
+  (jeton de la mission, type livr) → mode `livrer` avec le nom du chauffeur.
+- Écran /expedition : départs sur 10 jours, état par chargement (en cours / x livrées / livré le …), bouton « 📍 Marquer livré (n) »
+  (transporteur extérieur ou nos camions), annulation d'une livraison ou d'un départ par palette.
+- Page Suivi devis/commande (vue 7884) : ligne « 📦 N palette(s) : x en stock · y partie(s) · z livrée(s) · dernier départ … (transporteur ou camion) »
+  sur chaque carte de commande ; sauvegarde `vue_7884.BEFORE_livraison.xml` / `AFTER_livraison.xml`.
+- Enlèvement client : la palette est « Enlevée » au départ, pas d'étape livraison. Affrètement : Céline marque livré depuis
+  l'écran Expédition (ou le statut sur la fiche Colis) quand le transporteur confirme.
+
+## Sans code Python dans Odoo (07/10/2026, fin de journée)
+
+Xavier : « tu as ajouté du code payant » (module « Maintenance par 100 lignes » de l'abonnement Odoo Online, 34,71 € HT
+par tranche de 100 lignes et par mois). Les trois actions serveur Python du jour (2118 : 48 lignes, 2119 : 17, 2122 : 23)
+n'ont plus de code : `transport_webhooks_setup.py apply` (env `WEBHOOK_TOKEN` = token du relais, `ODOO_URL`/`ODOO_DB`
+pour une base de test) les convertit, `retour` remet le code archivé (`action_<id>_code.py`), `etat` contrôle.
+
+- 2118 (bouton « Demander un tarif transport ») et 2122 (automatisation 103, mode de transport) = « Exécuter plusieurs
+  actions » : note instantanée dans le fil (« Envoyer un e-mail » en mode Note, modèles de mail statiques « Transport
+  pierre : note automatique (…) ») puis « Webhook » vers le relais ; 2119 (automatisation 102, demande de prix confirmée)
+  = webhook seul. Filtres resserrés : 102 = état achat + article Transport affrété ; 103 = mode renseigné + société 1.
+- Relais : route `/odoo/transport/<tarif|achat-confirme|mode-devis>?token=…` (`patch_relais_webhooks_transport.py`),
+  réponse immédiate (Odoo n'attend qu'une seconde, `timeout=1`), traitement dans un thread, logique dans
+  `transport_webhooks.py` (XML-RPC, mêmes notes qu'avant, liens vers les demandes de prix, copie au vendeur du devis
+  en plus de Céline). `&host=<base de test>` dans l'URL = tout se passe sur cette base.
+- Différences visibles : la liste des demandes ne s'ouvre plus (le fil du devis les liste avec des liens) ; la ligne
+  « Transport de pierres » apparaît quelques secondes après l'enregistrement (recharger le devis) ; la copie au
+  « cliqueur » devient la copie au vendeur du devis (le webhook ne connaît pas l'utilisateur).
+- Sécurité : une copie de la production est neutralisée par Odoo (`webhook_url` effacée sur toutes les actions webhook),
+  donc aucune action sur une base de test ne touche la production ; sur une base de test voulue, relancer
+  `transport_webhooks_setup.py apply` avec `ODOO_URL` de cette base (URL avec `&host=`).
+- Tests : `test_transport_webhooks_mock.py` (faux Odoo, 12 cas) ; `test_webhooks_base_test.py <hôte> <S…>` (copie du
+  devis, mode camions -> ligne à 0, demande de tarif -> P… + mail en attente, confirmation à 410 -> 574 sur le devis).
+- Reste dans la base : 3 720 lignes dans 423 autres actions serveur (+ 320 dans 37 champs calculés), hors périmètre.

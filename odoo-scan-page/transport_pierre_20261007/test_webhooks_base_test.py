@@ -7,7 +7,7 @@ Copie le devis (brouillon), enlève sa ligne transport, puis :
                                       -> demande de prix + mail en attente (copie Céline) ;
   3. prix saisi et demande confirmée  -> transporteur retenu, prix d'achat, ligne valorisée + marge (automatisation 102).
 Les webhooks passent par le relais Render (URL avec &host=<hôte>) ; chaque étape attend le résultat jusqu'à 60 s."""
-import os, re, sys, time, xmlrpc.client
+import os, re, sys, time, datetime, xmlrpc.client
 sys.stdout.reconfigure(encoding='utf-8')
 hote, modele = sys.argv[1], sys.argv[2]
 assert 'maquignon.odoo.com' not in hote and re.fullmatch(r'(testmaq|maquignon-)[a-z0-9-]*\.odoo\.com', hote), 'base de test seulement'
@@ -56,6 +56,7 @@ def attendre(libelle, cond, secondes=60):
 
 
 print('=== base %s (db %s), uid %s ===' % (hote, D, uid))
+T_DEBUT = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 src = x('sale.order', 'search_read', [['name', '=', modele]], fields=['id', 'state', 'company_id'], limit=1)
 assert src and src[0]['company_id'][0] == 1, 'devis modèle introuvable ou pas SARL MAQUIGNON'
 so_id = x('sale.order', 'copy', [src[0]['id']])
@@ -82,8 +83,11 @@ x('sale.order', 'write', [so_id], {'x_mode_transport': 'exterieur', 'x_transport
 time.sleep(5)
 x('ir.actions.server', 'run', [2118], context={'active_model': 'sale.order', 'active_id': so_id, 'active_ids': [so_id]})
 pos = attendre('demande de prix', lambda: x('purchase.order', 'search_read', [['origin', '=', so['name']]], fields=['name', 'state', 'partner_id', 'order_line']))
-print('   demandes :', [(q['name'], q['partner_id'][1], q['state']) for q in pos])
 po = pos[0]
+attendre('demande envoyée (état « envoyé ») et compte rendu dans le fil', lambda: x('purchase.order', 'read', [po['id']], ['state'])[0]['state'] == 'sent'
+         and any('Demandes de tarif transport créées' in n for n in notes('sale.order', so_id, 3)))
+pos = x('purchase.order', 'search_read', [['origin', '=', so['name']]], fields=['name', 'state', 'partner_id', 'order_line'])
+print('   demandes :', [(q['name'], q['partner_id'][1], q['state']) for q in pos])
 mails = x('mail.mail', 'search_read', [['mail_message_id.model', '=', 'purchase.order'], ['mail_message_id.res_id', '=', po['id']]], fields=['subject', 'state', 'email_to', 'email_cc'])
 print('   mail(s) :', mails)
 print('   notes devis :', notes('sale.order', so_id, 3))
@@ -99,5 +103,8 @@ print('   ligne :', [(q['sequence'], q['name'], q['price_unit']) for q in l])
 print('   notes devis :', notes('sale.order', so_id, 3))
 print('   notes demande :', notes('purchase.order', po['id'], 2))
 assert len(transport(so_id)) == 1 and abs(l[0]['price_unit'] - 574.0) < 0.01, 'prix attendu 410 + 40 % = 574'
+fuites = x('mail.mail', 'search_read', [['subject', '=', 'Transport (suivi automatique)'], ['create_date', '>=', T_DEBUT]], fields=['recipient_ids', 'state'])
+print('   mails générés par les notes instantanées depuis le début du test :', fuites or 'aucun (attendu)')
+assert not fuites, 'les notes instantanées ne doivent envoyer aucun mail'
 print()
 print('TEST BASE DE TEST TERMINÉ : devis %s (id %s) laissé en place' % (so['name'], so_id))
