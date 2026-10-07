@@ -112,6 +112,7 @@
     } else { box.style.display = 'none'; itemsBox.innerHTML = ''; }
     if(r.msg){ setRes(r.msg); }
     if(r.demande_qte){ openPop(r.demande_qte); }
+    if(r.demande_autre){ openAutre(r.demande_autre); }
     if(r.print_id){ window.open('/report/pdf/maquignon.report_bon_colisage/' + r.print_id, '_blank'); }
   }
   function bindItems(box){
@@ -162,7 +163,7 @@
   }
   function placer(p, qty){
     if(qty < 1){ qty = 1; } if(qty > p.remaining){ qty = p.remaining; }
-    return act('placer', {of_id: p.of_id, qte: qty}).then(function(){ input.focus(); });
+    return act('placer', {of_id: p.of_id, qte: qty, autre_ok: p.autre_ok || 0}).then(function(){ input.focus(); });
   }
   function confirmPop(useMax){
     if(!pending){ return; }
@@ -170,10 +171,27 @@
     closePop(); placer(p, qty);
   }
 
+  // ── pop-up « palette d'un autre opérateur » : pose seulement sur confirmation explicite (07/10/2026) ──
+  var autrePop = document.getElementById('autre-pop'), autreTxt = document.getElementById('autre-txt'), pendingAutre = null;
+  function openAutre(p){
+    pendingAutre = p;
+    autreTxt.textContent = p.colis + ' est la palette de ' + p.proprietaire + '. Poser quand même ' + p.name + (p.pour ? ' (pierre de ' + p.pour + ')' : '') + ' dessus ?';
+    autrePop.style.display = 'flex'; input.focus();
+  }
+  function closeAutre(){ autrePop.style.display = 'none'; pendingAutre = null; }
+  autrePop.addEventListener('mousedown', function(e){ if(e.target.tagName === 'BUTTON'){ e.preventDefault(); } });
+  document.getElementById('autre-ok').addEventListener('click', function(){
+    if(!pendingAutre){ return; }
+    var p = pendingAutre; closeAutre();
+    act('placer_autre', {of_id: p.of_id, qte: p.qte || 0}).then(function(){ input.focus(); });
+  });
+  document.getElementById('autre-cancel').addEventListener('click', function(){ closeAutre(); setRes('↩️ Pose annulée — scannez une autre palette'); input.focus(); });
+
   // ── entrée principale : douchette, caméra, clavier ──
   function doScan(val){
     input.value = '';
     val = (val || '').trim(); if(!val){ return; }
+    if(pendingAutre){ closeAutre(); }
     if(pending){
       var p = pending; closePop();
       if(/^[0-9]+$/.test(val)){ placer(p, parseInt(val)); return; }

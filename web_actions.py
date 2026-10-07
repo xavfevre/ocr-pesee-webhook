@@ -640,8 +640,10 @@ def _boutons_transport(call, ctx):
 # ─── Palettes par opérateur : 2101 (tablette) et 2102 (poste de scan) ────────
 # Règle « une palette = un opérateur » (16/09/2026) :
 #  · stock.package.x_operateur_id = opérateur responsable de la palette (celui
-#    qui y a posé la première pierre ou l'a scannée vierge) ; personne d'autre
-#    ne peut y poser, en retirer ou la clôturer depuis les pages atelier ;
+#    qui y a posé la première pierre ou l'a scannée vierge) ; un autre opérateur
+#    peut y poser une pierre seulement après confirmation explicite (07/10/2026),
+#    il devient alors co-opérateur (x_operateur_ids) ; retirer et clôturer
+#    restent au responsable / au bureau ;
 #  · hr.employee.x_palette_scan_id = palette active de l'opérateur, commune à
 #    la tablette (bouton ⚡ « ma palette ») et au poste de scan ;
 #  · une palette sans opérateur (vierge, ou ancienne) est libre : le premier
@@ -746,6 +748,14 @@ def _colis_prendre(call, colis, emp):
         call('hr.employee', 'write', [emp['id']], {'x_palette_scan_id': colis['id']})
         emp['x_palette_scan_id'] = [colis['id'], colis['name']]
     return not prop
+
+
+def _colis_co_operateur(call, colis, emp):
+    """Pose confirmée sur la palette d'un autre opérateur : il devient co-opérateur de la palette
+    (x_operateur_ids) ; le responsable (x_operateur_id) et la palette active de chacun ne changent pas."""
+    if emp['id'] not in (colis['x_operateur_ids'] or []):
+        call('stock.package', 'write', [colis['id']], {'x_operateur_ids': [[4, emp['id']]]})
+        colis['x_operateur_ids'] = (colis['x_operateur_ids'] or []) + [emp['id']]
 
 
 def _colis_active(call, emp):
@@ -931,8 +941,30 @@ def _palettiser(call, ctx):
     if not colis:
         raise WebErreur('Palette introuvable : %s' % (ctx.get('colis_name') or ctx.get('colis_id') or '?'))
     _verif_of(of, colis)
-    _colis_prendre(call, colis, emp)
+    prop = colis['x_operateur_id']
+    autre = bool(prop and prop[0] != emp['id'])
+    if autre and colis['x_studio_cloturee']:
+        raise WebErreur('🔒 %s est clôturée : prenez une autre palette.' % colis['name'])
+    if autre and not int(ctx.get('confirme_autre') or 0):
+        # Palette d'un autre opérateur (Xavier, 07/10/2026) : plus de refus sec, on demande à l'opérateur de
+        # confirmer sur la tablette ; rien n'est écrit tant qu'il n'a pas répondu « Oui, poser ».
+        total, lignes, place, dispo = _disponible(call, of)
+        q = max(1, min(int(ctx.get('qte') or 0) or dispo, dispo))
+        return {'confirmer': 1, 'colis_id': colis['id'], 'colis': colis['name'], 'proprietaire': prop[1],
+                'of': of['name'], 'qte': q, 'total': total,
+                'msg': '⚠️ %s est la palette de %s — confirmation demandée' % (colis['name'], prop[1])}
+    if autre:
+        _colis_co_operateur(call, colis, emp)
+    else:
+        _colis_prendre(call, colis, emp)
     msg, res = _poser(call, of, colis, int(ctx.get('qte') or 0))
+    if autre:
+        msg += ' — palette de %s (posé par %s, confirmé)' % (prop[1], emp['name'])
+        res['autre'] = 1
+        res['proprietaire'] = prop[1]
+        _sur(lambda: call('stock.package', 'message_post', [colis['id']],
+                          body='🤝 %d pcs de %s posées par %s sur la palette de %s (confirmé sur la tablette)'
+                               % (res['qte'], of['name'], emp['name'], prop[1])))
     res['msg'] = msg
     try:
         res['colis_ton'] = round(call('stock.package', 'read', [colis['id']], fields=['x_studio_tonnage'])[0]['x_studio_tonnage'] or 0)
@@ -970,8 +1002,9 @@ def _transferer(call, ctx):
 # Au poste de scan on ne choisit pas de nom (Xavier, 16/09/2026) : la palette
 # active est celle du poste (mémorisée par la page, contrôlée à chaque appel),
 # et c'est l'OF scanné qui dit à qui est la pierre (opérateurs de sa dernière
-# opération renseignée). Une palette libre devient celle de cet opérateur, la
-# palette d'un autre opérateur est refusée. La tablette (2101) garde le nom.
+# opération renseignée). Une palette libre devient celle de cet opérateur ; la
+# palette d'un autre opérateur n'est posée que sur confirmation explicite
+# (« Poser quand même », depuis le 07/10/2026). La tablette (2101) garde le nom.
 
 def _meta(o):
     return {k: (o.get(k) or '') for k in META_CHAMPS}
@@ -1100,7 +1133,7 @@ def _scan_palette(call, colis):
     return _scan_etat(call, colis['id'])   # clôturée : lecture seule (message par défaut)
 
 
-def _scan_of(call, colis_id, of, qte, force):
+def _scan_of(call, colis_id, of, qte, force, autre_ok=False):
     colis = _colis_poste(call, colis_id)
     if not colis:
         return _scan_etat(call, 0, "⚠️ Scannez d'abord une palette (PACK…)", False)
@@ -1108,10 +1141,17 @@ def _scan_of(call, colis_id, of, qte, force):
         return _scan_etat(call, colis['id'], '🔒 %s est clôturée : scannez une palette ouverte ou vierge pour poser %s' % (colis['name'], of['name']), False)
     ops = _of_operateurs(call, of)
     prop = colis['x_operateur_id']
-    if prop and ops and prop[0] not in ops:
+    autre = bool(prop and ops and prop[0] not in ops)
+    noms = ''
+    if autre:
         noms = ', '.join(e['name'] for e in call('hr.employee', 'read', ops, fields=['name']))
-        return _scan_etat(call, colis['id'], '⛔ %s est la palette de %s — cette pierre est de %s : scannez sa palette ou une palette vierge'
-                          % (colis['name'], prop[1], noms), False)
+        if not autre_ok:
+            # Palette d'un autre opérateur (Xavier, 07/10/2026) : la pose reste possible, mais sur confirmation
+            # explicite (bouton « Poser quand même ») ; rien n'est écrit avant.
+            return _scan_etat(call, colis['id'], '⛔ %s est la palette de %s — cette pierre est de %s : scannez sa palette ou une palette vierge, ou confirmez « Poser quand même »'
+                              % (colis['name'], prop[1], noms), False,
+                              {'demande_autre': {'of_id': of['id'], 'name': of['name'], 'qte': int(qte or 0),
+                                                 'colis': colis['name'], 'proprietaire': prop[1], 'pour': noms}})
     total = int(of['x_studio_nbr'] or 1)
     if not force and not qte and total > 1:
         try:
@@ -1121,12 +1161,21 @@ def _scan_of(call, colis_id, of, qte, force):
             return _scan_etat(call, colis['id'], str(e), False)
         return _scan_etat(call, colis['id'], '✂️ %s : combien de pièces sur %s ?' % (of['name'], colis['name']), True,
                           {'demande_qte': {'of_id': of['id'], 'name': of['name'], 'total': total,
-                                           'remaining': dispo, 'placed': place, 'note': of['x_note_atelier'] or ''}})
+                                           'remaining': dispo, 'placed': place, 'note': of['x_note_atelier'] or '',
+                                           'autre_ok': 1 if autre_ok else 0}})
     try:
         msg, res = _poser(call, of, colis, qte)
     except WebErreur as e:
         return _scan_etat(call, colis['id'], str(e), False)
-    if ops:
+    if autre:
+        nouveaux = [[4, e] for e in ops if e not in (colis['x_operateur_ids'] or [])]
+        if nouveaux:
+            call('stock.package', 'write', [colis['id']], {'x_operateur_ids': nouveaux})
+        msg += ' — palette de %s, pierre de %s (confirmé)' % (prop[1], noms)
+        _sur(lambda: call('stock.package', 'message_post', [colis['id']],
+                          body='🤝 %d pcs de %s (pierre de %s) posées sur la palette de %s (confirmé au poste de scan)'
+                               % (res['qte'], of['name'], noms, prop[1])))
+    elif ops:
         emp_id = prop[0] if prop else ops[0]
         vals = {}
         if not prop:
@@ -1438,7 +1487,13 @@ def _scan(call, ctx):
         of = _of_lire(call, int(ctx.get('of_id') or 0))
         if not of:
             return _scan_etat(call, colis_id, '❌ OF introuvable', False)
-        return _scan_of(call, colis_id, of, int(ctx.get('qte') or 0), True)
+        return _scan_of(call, colis_id, of, int(ctx.get('qte') or 0), True, bool(int(ctx.get('autre_ok') or 0)))
+    if mode == 'placer_autre':
+        # confirmation « Poser quand même » sur la palette d'un autre opérateur (quantité demandée ensuite si besoin)
+        of = _of_lire(call, int(ctx.get('of_id') or 0))
+        if not of:
+            return _scan_etat(call, colis_id, '❌ OF introuvable', False)
+        return _scan_of(call, colis_id, of, int(ctx.get('qte') or 0), False, True)
     if mode == 'retirer_dernier':
         return _scan_retirer(call, colis_id, 0, 0)
     if mode == 'retirer_of':

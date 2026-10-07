@@ -110,6 +110,17 @@
       </div>
     </div>
 
+    <div id="autre-pop" class="qte-pop">
+      <div class="qte-card" style="border-color:#f59e0b;">
+        <h4>🤝 Palette d'un autre opérateur</h4>
+        <div id="autre-txt" style="color:#fde68a;text-align:center;font-weight:800;font-size:17px;margin:6px 0 10px;line-height:1.35;">—</div>
+        <div style="color:#94a3b8;text-align:center;font-size:13px;margin-bottom:12px;">La palette reste celle de son opérateur, la pose sera notée dessus. Scannez une autre palette pour annuler.</div>
+        <div style="display:flex;gap:8px;">
+          <button id="autre-ok" class="qte-ok" style="background:#d97706;">✅ Poser quand même</button>
+          <button id="autre-cancel" class="qte-cancel">✖ Non</button>
+        </div>
+      </div>
+    </div>
     <div id="qte-pop" class="qte-pop">
       <div class="qte-card">
         <h4>✂️ Combien sur cette palette ?</h4>
@@ -270,6 +281,7 @@
     } else { box.style.display = 'none'; itemsBox.innerHTML = ''; }
     if(r.msg){ setRes(r.msg); }
     if(r.demande_qte){ openPop(r.demande_qte); }
+    if(r.demande_autre){ openAutre(r.demande_autre); }
     if(r.print_id){ window.open('/report/pdf/maquignon.report_bon_colisage/' + r.print_id, '_blank'); }
   }
   function bindItems(box){
@@ -320,7 +332,7 @@
   }
   function placer(p, qty){
     if(qty &lt; 1){ qty = 1; } if(qty &gt; p.remaining){ qty = p.remaining; }
-    return act('placer', {of_id: p.of_id, qte: qty}).then(function(){ input.focus(); });
+    return act('placer', {of_id: p.of_id, qte: qty, autre_ok: p.autre_ok || 0}).then(function(){ input.focus(); });
   }
   function confirmPop(useMax){
     if(!pending){ return; }
@@ -328,10 +340,27 @@
     closePop(); placer(p, qty);
   }
 
+  // ── pop-up « palette d'un autre opérateur » : pose seulement sur confirmation explicite (07/10/2026) ──
+  var autrePop = document.getElementById('autre-pop'), autreTxt = document.getElementById('autre-txt'), pendingAutre = null;
+  function openAutre(p){
+    pendingAutre = p;
+    autreTxt.textContent = p.colis + ' est la palette de ' + p.proprietaire + '. Poser quand même ' + p.name + (p.pour ? ' (pierre de ' + p.pour + ')' : '') + ' dessus ?';
+    autrePop.style.display = 'flex'; input.focus();
+  }
+  function closeAutre(){ autrePop.style.display = 'none'; pendingAutre = null; }
+  autrePop.addEventListener('mousedown', function(e){ if(e.target.tagName === 'BUTTON'){ e.preventDefault(); } });
+  document.getElementById('autre-ok').addEventListener('click', function(){
+    if(!pendingAutre){ return; }
+    var p = pendingAutre; closeAutre();
+    act('placer_autre', {of_id: p.of_id, qte: p.qte || 0}).then(function(){ input.focus(); });
+  });
+  document.getElementById('autre-cancel').addEventListener('click', function(){ closeAutre(); setRes('↩️ Pose annulée — scannez une autre palette'); input.focus(); });
+
   // ── entrée principale : douchette, caméra, clavier ──
   function doScan(val){
     input.value = '';
     val = (val || '').trim(); if(!val){ return; }
+    if(pendingAutre){ closeAutre(); }
     if(pending){
       var p = pending; closePop();
       if(/^[0-9]+$/.test(val)){ placer(p, parseInt(val)); return; }

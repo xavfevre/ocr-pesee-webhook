@@ -728,22 +728,6 @@
           var blocks = Array.prototype.slice.call(document.querySelectorAll('.vo-dayblock'));
           var pop=document.getElementById('vo-colis-pop'); var curOf=0; var curBtn=null;
           var lastColis=null; try{ var _pa=document.getElementById('vo-pal-act'); if(_pa &amp;&amp; _pa.getAttribute('data-id')){ lastColis={id:parseInt(_pa.getAttribute('data-id')), name:_pa.getAttribute('data-name'), ton:parseFloat(_pa.getAttribute('data-ton'))||0}; } }catch(e){}
-          // pose sur la palette d'un autre opérateur : confirmation explicite de l'opérateur (Xavier, 07/10/2026)
-          window.voConfirmAutre = function(r, onYes){
-            function h(t){ var d=document.createElement('div'); d.textContent=(t==null?'':String(t)); return d.innerHTML; }
-            var old=document.getElementById('vo-autre-pop'); if(old){ old.remove(); }
-            var ov=document.createElement('div'); ov.id='vo-autre-pop';
-            ov.style.cssText='position:fixed;inset:0;background:rgba(2,6,23,.82);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;';
-            ov.innerHTML='&lt;div style="background:#fff;border:3px solid #f59e0b;border-radius:18px;padding:20px;width:460px;max-width:96vw;box-shadow:0 20px 60px rgba(0,0,0,.5);"&gt;'
-              +'&lt;div style="font-size:22px;font-weight:900;color:#b45309;text-align:center;margin-bottom:10px;"&gt;🤝 Palette d\'un autre opérateur&lt;/div&gt;'
-              +'&lt;div style="font-size:18px;font-weight:800;color:#0f172a;text-align:center;line-height:1.4;"&gt;'+h(r.colis)+' est la palette de &lt;span style="color:#b45309;"&gt;'+h(r.proprietaire)+'&lt;/span&gt;.&lt;br/&gt;Poser quand même &lt;b&gt;'+h(r.qte||'')+' pièce'+((r.qte||0)&gt;1?'s':'')+'&lt;/b&gt; de '+h(r.of)+' dessus ?&lt;/div&gt;'
-              +'&lt;div style="font-size:13px;color:#64748b;text-align:center;margin:10px 0 14px;"&gt;La palette reste celle de '+h(r.proprietaire)+'. Votre pose sera notée sur la palette.&lt;/div&gt;'
-              +'&lt;div style="display:flex;gap:10px;"&gt;&lt;button type="button" id="vo-autre-oui" style="flex:2;background:#d97706;color:#fff;border:none;border-radius:12px;padding:16px;font-size:18px;font-weight:900;"&gt;✅ Oui, poser&lt;/button&gt;'
-              +'&lt;button type="button" id="vo-autre-non" style="flex:1;background:#e2e8f0;color:#0f172a;border:none;border-radius:12px;padding:16px;font-size:18px;font-weight:800;"&gt;✖ Non&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;';
-            document.body.appendChild(ov);
-            ov.querySelector('#vo-autre-non').onclick=function(){ ov.remove(); };
-            ov.querySelector('#vo-autre-oui').onclick=function(){ ov.remove(); onYes(); };
-          };
           function saveLast(cid,cname,ton){ lastColis={id:cid,name:cname,ton:ton||0}; }
           function voLastLbl(){ return '⚡ '+lastColis.name+(lastColis.ton?' · '+Math.round(lastColis.ton)+' kg':''); }
           function markDone(btn,cname){ if(!btn){ return; } var wrap=btn.parentNode; var s=document.createElement('span'); s.className='vo-pal'; s.textContent='📦 '+cname; wrap.innerHTML=''; wrap.appendChild(s); }
@@ -757,8 +741,8 @@
             if(e.target.closest('#vo-qte-all')){ var f=qPendH.ok; var mx=qPendH.max; qCloseH(); f(mx); return; }
             if(e.target.closest('#vo-qte-ok')){ var q=(qStrH===''?qPendH.max:parseInt(qStrH)); if(!(q&gt;0)){ return; } var f2=qPendH.ok; qCloseH(); f2(q); return; }
           }); }
-          function assign(ofid, cid, cname, btn, after, okAutre){
-            var ctx={of_id:ofid, qte:(voQteH||0), op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; } if(okAutre){ ctx.confirme_autre=1; }
+          function assign(ofid, cid, cname, btn, after){
+            var ctx={of_id:ofid, qte:(voQteH||0), op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
             fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({action_id:2101, ctx:ctx})
             }).then(function(r){return r.json();}).then(function(d){
@@ -767,10 +751,9 @@
               if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; (_m.indexOf('cl\u00f4tur')!==-1 || _m.indexOf('\u26d4')!==-1)){ lastColis=null; document.querySelectorAll('.vo-lastq,.vo-lastcolis2,.vo-palpartq').forEach(function(x){ x.remove(); }); }
               voToast('\u00c9chec : '+_m); return; }
               var r=d.result||{};
-              if(r.confirmer){ voConfirmAutre(r, function(){ assign(ofid, cid, cname, btn, after, 1); }); return; }
               voQteH=null;
               voToast((r.msg||('✅ Posé sur '+(r.colis||cname)))+(r.colis_ton?' · '+r.colis_ton+' / '+Math.round(r.max_kg||1500)+' kg':''), 'ok');
-              if(!r.autre){ saveLast(r.colis_id||cid, r.colis||cname, r.colis_ton); }
+              saveLast(r.colis_id||cid, r.colis||cname, r.colis_ton);
               if(r.entier || !(r.reste&gt;0)){ markDone(btn,(r.colis||cname)+(r.entier?'':' (réparti)')); }
               else if(btn){ var nd=Math.max(0,(parseInt(btn.getAttribute('data-dispo'))||0)-(r.qte||0)); btn.setAttribute('data-dispo', String(nd)); btn.textContent='📦 Palettiser ('+nd+' faite'+(nd&gt;1?'s':'')+')'; if(!nd){ btn.disabled=true; } }
               if(pop){ pop.style.display='none'; }
@@ -915,8 +898,8 @@ var dataC=document.getElementById('vo-colis-data');
         function voLastLbl(){ return '⚡ '+lastColis.name+(lastColis.ton?' · '+Math.round(lastColis.ton)+' kg':''); }
         // ── palettisation (partielle ou entière) via le relais Render 2101 ──
         var voQte=null;   // quantité choisie au pavé (null = tout ce qui est disponible)
-        function assignC(ofid, cid, cname, card, after, okAutre){
-          var ctx={of_id:ofid, qte:(voQte||0), op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; } if(okAutre){ ctx.confirme_autre=1; }
+        function assignC(ofid, cid, cname, card, after){
+          var ctx={of_id:ofid, qte:(voQte||0), op:(parseInt(op)||0)}; if(cid){ ctx.colis_id=cid; } else { ctx.colis_name=cname; }
           fetch('https://ocr-pesee-webhook.onrender.com/heures/rpc',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({action_id:2101, ctx:ctx})
           }).then(function(r){return r.json();}).then(function(d){
@@ -925,9 +908,8 @@ var dataC=document.getElementById('vo-colis-data');
               if(cid &amp;&amp; lastColis &amp;&amp; lastColis.id===cid &amp;&amp; (_m.indexOf('cl\u00f4tur')!==-1 || _m.indexOf('\u26d4')!==-1)){ lastColis=null; document.querySelectorAll('.vo-lastq,.vo-lastcolis2,.vo-palpartq').forEach(function(x){ x.remove(); }); }
               voToast('\u00c9chec : '+_m); return; }
             var r=d.result||{};
-            if(r.confirmer){ voConfirmAutre(r, function(){ assignC(ofid, cid, cname, card, after, 1); }); return; }
             voToast((r.msg||('✅ Posé sur '+(r.colis||cname)))+(r.colis_ton?' · '+r.colis_ton+' / '+Math.round(r.max_kg||1500)+' kg':''), 'ok');
-            if(r.colis_id &amp;&amp; !r.autre){ saveLastC(r.colis_id, r.colis||cname, r.colis_ton); }
+            if(r.colis_id){ saveLastC(r.colis_id, r.colis||cname, r.colis_ton); }
             if(popC){ popC.style.display='none'; }
             voQte=null;
             if(card){
