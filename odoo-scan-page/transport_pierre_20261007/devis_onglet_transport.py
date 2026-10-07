@@ -83,9 +83,6 @@ ARCH_COMPACT = '''<data>
   <xpath expr="//group[@name='studio_group_5s9_1iulplco5']" position="after">
     %(groupe)s
   </xpath>
-  <xpath expr="//field[@name='sale_order_template_id']" position="after">
-    <field name="x_transport_resume" string="Transport" readonly="1" invisible="company_id not in [1]"/>
-  </xpath>
 </data>'''
 
 params = {'cat': CAT, 'action': ACT}
@@ -97,16 +94,14 @@ if mode == 'retour':
     x('ir.ui.view', 'write', [VUE], {'arch_db': ARCH_ORIGINE % {'groupe': GROUPE % params}})
     print('vue 8042 remise à l origine (cadre sous l en-tête, pas d onglet)'); sys.exit(0)
 if mode == 'compact':
-    if not champ:
-        champ = [one(x('ir.model.fields', 'create', [{'name': 'x_transport_resume', 'model_id': MODEL_SO, 'field_description': 'Transport (résumé)', 'ttype': 'char', 'state': 'manual',
-                                                      'store': False, 'readonly': True, 'compute': COMPUTE,
-                                                      'depends': 'x_mode_transport,x_transporteur_id,x_transport_achat,x_ordre_transport_id'}]))]
-        print('champ résumé créé :', champ)
+    # version retenue par Xavier (07/10/2026) : pas d'onglet, pas de ligne résumé ; le champ résumé est retiré s'il existe
     x('ir.ui.view', 'write', [VUE], {'arch_db': ARCH_COMPACT % {'groupe': GROUPE % params}})
+    if champ:
+        x('ir.model.fields', 'unlink', champ); print('champ résumé supprimé :', champ)
     arch = x('sale.order', 'get_view', view_id=2614, view_type='form')['arch']
     i = arch.find('name="studio_group_5s9_1iulplco5"'); j = arch.find('name="maq_transport_pierre"')
-    print('vue 8042 compacte : pas d onglet : %s | cadre Demande de transport Maquignon invisible=%r | cadre pierre présent %s | résumé en-tête %s' % (
-        'maq_transport_fab' not in arch, __import__('re').search(r'invisible="([^"]*)"', arch[i:i + 400]) and __import__('re').search(r'invisible="([^"]*)"', arch[i:i + 400]).group(1), j > 0, 'x_transport_resume' in arch))
+    print('vue 8042 compacte : pas d onglet : %s | cadre Demande de transport Maquignon invisible=%r | cadre pierre présent %s | résumé en-tête retiré %s' % (
+        'maq_transport_fab' not in arch, __import__('re').search(r'invisible="([^"]*)"', arch[i:i + 400]) and __import__('re').search(r'invisible="([^"]*)"', arch[i:i + 400]).group(1), j > 0, 'x_transport_resume' not in arch))
     sys.exit(0)
 if not champ:
     champ = [one(x('ir.model.fields', 'create', [{'name': 'x_transport_resume', 'model_id': MODEL_SO, 'field_description': 'Transport (résumé)', 'ttype': 'char', 'state': 'manual',
