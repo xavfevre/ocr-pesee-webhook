@@ -102,7 +102,7 @@ def tableau(entetes, lignes, largeurs):
 # ───────────── PAGE 0 — LE FLUX EN UN COUP D'ŒIL ─────────────
 sect("LE FLUX EN UN COUP D'ŒIL — qui fait quoi, et ce qu'Odoo fait tout seul", GREEN)
 tableau(["Étape", "Qui", "Où", "Ce qui se passe"], [
-    ["1. Devis", "Céline", "Odoo, devis, cadre « Transport de la commande (pierre) »", "Choix du <b>mode de transport</b> (nos camions / transporteur extérieur / enlèvement par le client). Transporteur extérieur : demande de tarif, choix, prix d'achat. La ligne « Transport de pierres » reste chiffrée par Céline."],
+    ["1. Devis", "Céline", "Odoo, devis, cadre « Transport de la commande (pierre) »", "Choix du <b>mode de transport</b> (nos camions / transporteur extérieur / enlèvement par le client). Transporteur extérieur : demande de tarif, choix, prix d'achat. La ligne « Transport de pierres » s'ajoute toute seule en fin de devis (prix d'achat + 40 %), Céline peut l'ajuster."],
     ["2. Fabrication", "Atelier", "Tablette, poste de scan", "Pierres faites, mises en palette, palettes <b>clôturées</b> avec emplacement (bon de colisage imprimé, mail à Céline)."],
     ["3. Départ", "Chargeur", "Écran <b>Expédition</b> (onglet 🚚 de la tablette et du poste de scan)", "Scan des bons de colisage, transport prérempli depuis le devis, validation du départ : liste de chargement à imprimer et signer, mail au bureau."],
     ["4. Automatique", "Odoo", "Commande, BL, tâche Commande Pierres", "<b>BL validé</b> pour les pièces parties (reliquat pour le reste), transporteur et suivi sur le BL, notes 🚚 📦 sur la commande, tâche en « Expédié » quand tout est parti."],
@@ -118,8 +118,8 @@ sect("FICHE 1 — CÉLINE : décider et chiffrer le transport sur le devis")
 story.append(Paragraph("Sur chaque devis pierre, sous « Demande de transport Maquignon », le cadre <b>« Transport de la commande (pierre) »</b> porte le mode de transport. C'est lui que l'écran Expédition reprend au départ.", st_txt))
 story.append(Paragraph("Choisir le mode de transport", st_h2))
 steps([
-    "<b>Nos camions</b> : rien d'autre à saisir ; la ligne « Transport de pierres » est chiffrée comme d'habitude.",
-    "<b>Enlèvement par le client</b> : pas de ligne transport (ou ligne à 0). Au départ, le chargeur saisira le nom de la personne et l'immatriculation.",
+    "<b>Nos camions</b> : la ligne « Transport de pierres (Forfait Palettes) » s'ajoute toute seule en fin de devis, à 0 : la chiffrer (et changer la variante si besoin).",
+    "<b>Enlèvement par le client</b> : pas de ligne transport (une ligne transport encore vide est retirée). Au départ, le chargeur saisira le nom de la personne et l'immatriculation.",
     "<b>Transporteur extérieur</b> : suivre les étapes ci-dessous pour obtenir et retenir un tarif.",
 ])
 story.append(Paragraph("Transporteur extérieur : demander un tarif", st_h2))
@@ -128,7 +128,7 @@ steps([
     "Cliquer <b>« Demander un tarif transport »</b> : Odoo crée une <b>demande de prix</b> (Achats) par transporteur, pré-remplie avec la commande, l'enlèvement à Usseau, l'adresse de livraison, le nombre de palettes (ou une estimation sur 1 500 kg par palette), le poids et le volume des lignes, la date souhaitée. Si la fiche du transporteur a un e-mail, la demande part aussitôt par mail ; sinon elle est créée sans envoi (le fil du devis le dit).",
     "La liste des demandes de la commande s'ouvre : saisir sur chacune le <b>prix HT reçu</b> (ligne « Transport affrété ») et, en note, le délai.",
     "<b>Confirmer</b> la demande retenue : elle devient l'ordre de transport ; le devis reçoit <b>Transporteur retenu, Prix d'achat transport HT, Ordre de transport</b> ; les autres demandes sont annulées ; une note le dit dans le fil.",
-    "Chiffrer la ligne <b>« Transport de pierres »</b> du devis (prix de vente au client), comme avant.",
+    "La ligne <b>« Transport de pierres »</b> du devis prend automatiquement le <b>prix d'achat + 40 %</b> (marge réglable par Xavier) et le nom du transporteur ; l'ajuster si besoin.",
 ])
 note("La facture du transporteur se rapproche ensuite de l'ordre de transport dans Achats (compte 624200). Si le poids réel à la clôture des palettes s'éloigne de l'estimation, reconfirmer le tarif avec le transporteur.")
 story.append(Paragraph("Après le départ", st_h2))
