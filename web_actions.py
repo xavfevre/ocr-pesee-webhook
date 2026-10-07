@@ -1713,6 +1713,7 @@ def _exp_valider(call, ctx):
             'msg': '🚚 Départ enregistré : %d palette(s), %d kg — chargement %s (%s)' % (len(palettes), ton_tot, lot, qui)}
 
 EXP_BL_PARAM = 'maquignon.expedition_bl'      # '1' (défaut) : valider le BL au départ ; '0' : seulement transporteur et suivi
+EXP_TRANSPORT_PRODUITS = [5897, 5898, 5899, 5900]   # variantes « Transport de pierres » (forfaits) : livrées avec le premier chargement
 
 
 def _exp_lignes_livrees(call, grp):
@@ -1774,6 +1775,10 @@ def _exp_bl(call, so_id, lignes, mode, qui, camion, lot, lettre, noms, simulatio
             a_faire.append((mv['id'], q)); restant[lid] = round(restant[lid] - q, 6)
         if not a_faire:
             infos.append('%s : rien à valider' % pk['name']); break
+        # la ligne « Transport de pierres » (article consommable, donc un mouvement sur le BL) part avec le premier chargement
+        for mv in call('stock.move', 'search_read', [['picking_id', '=', pk['id']], ['product_id', 'in', EXP_TRANSPORT_PRODUITS], ['state', 'not in', ['done', 'cancel']]],
+                       fields=['id', 'product_uom_qty']):
+            a_faire.append((mv['id'], mv['product_uom_qty'] or 1.0))
         if simulation:
             infos.append('%s : %d mouvement(s) à valider sur %d (%s)' % (pk['name'], len(a_faire), len(pk['move_ids']), ', '.join('%.3f' % q for _, q in a_faire[:8])))
             break
