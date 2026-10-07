@@ -750,6 +750,15 @@ def _colis_prendre(call, colis, emp):
     return not prop
 
 
+def _note(call, model, res_id, body):
+    """Note de traçabilité dans le fil d'un enregistrement ; ne fait jamais échouer l'opération (stock.package n'a
+    pas de fil de discussion en Odoo 19 : message_post n'existe pas sur ce modèle)."""
+    try:
+        call(model, 'message_post', [res_id], body=body, message_type='comment')
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _colis_co_operateur(call, colis, emp):
     """Pose confirmée sur la palette d'un autre opérateur : il devient co-opérateur de la palette
     (x_operateur_ids) ; le responsable (x_operateur_id) et la palette active de chacun ne changent pas."""
@@ -962,9 +971,8 @@ def _palettiser(call, ctx):
         msg += ' — palette de %s (posé par %s, confirmé)' % (prop[1], emp['name'])
         res['autre'] = 1
         res['proprietaire'] = prop[1]
-        _sur(lambda: call('stock.package', 'message_post', [colis['id']],
-                          body='🤝 %d pcs de %s posées par %s sur la palette de %s (confirmé sur la tablette)'
-                               % (res['qte'], of['name'], emp['name'], prop[1])))
+        _note(call, 'mrp.production', of['id'], '🤝 %d pcs posées sur %s (palette de %s) par %s, confirmé sur la tablette'
+              % (res['qte'], colis['name'], prop[1], emp['name']))
     res['msg'] = msg
     try:
         res['colis_ton'] = round(call('stock.package', 'read', [colis['id']], fields=['x_studio_tonnage'])[0]['x_studio_tonnage'] or 0)
@@ -992,8 +1000,7 @@ def _transferer(call, ctx):
         vals['x_operateur_ids'] = [[4, emp['id']]]
     call('stock.package', 'write', [colis['id']], vals)
     call('hr.employee', 'write', [emp['id']], {'x_palette_scan_id': colis['id']})
-    _sur(lambda: call('stock.package', 'message_post', [colis['id']],
-                      body='🔑 Palette transférée de %s à %s (mode responsable, tablette)' % (avant, emp['name'])))
+    _note(call, 'stock.package', colis['id'], '🔑 Palette transférée de %s à %s (mode responsable, tablette)' % (avant, emp['name']))
     return {'ok': 1, 'colis': colis['name'], 'colis_id': colis['id'], 'avant': avant, 'apres': emp['name'],
             'msg': '🔑 %s transférée de %s à %s' % (colis['name'], avant, emp['name'])}
 
@@ -1172,9 +1179,8 @@ def _scan_of(call, colis_id, of, qte, force, autre_ok=False):
         if nouveaux:
             call('stock.package', 'write', [colis['id']], {'x_operateur_ids': nouveaux})
         msg += ' — palette de %s, pierre de %s (confirmé)' % (prop[1], noms)
-        _sur(lambda: call('stock.package', 'message_post', [colis['id']],
-                          body='🤝 %d pcs de %s (pierre de %s) posées sur la palette de %s (confirmé au poste de scan)'
-                               % (res['qte'], of['name'], noms, prop[1])))
+        _note(call, 'mrp.production', of['id'], '🤝 %d pcs posées sur %s (palette de %s), pierre de %s, confirmé au poste de scan'
+              % (res['qte'], colis['name'], prop[1], noms))
     elif ops:
         emp_id = prop[0] if prop else ops[0]
         vals = {}
@@ -1275,8 +1281,7 @@ def _scan_decloturer(call, colis_id):
     call('stock.package', 'write', [colis['id']], {'x_studio_cloturee': False})
     if colis['x_operateur_id']:
         _sur(lambda: call('hr.employee', 'write', [colis['x_operateur_id'][0]], {'x_palette_scan_id': colis['id']}))
-    _sur(lambda: call('stock.package', 'message_post', [colis['id']],
-                      body='🔓 Palette déclôturée depuis le poste de scan (elle était clôturée → %s)' % (colis['x_studio_zone'] or '?')))
+    _note(call, 'stock.package', colis['id'], '🔓 Palette déclôturée depuis le poste de scan (elle était clôturée → %s)' % (colis['x_studio_zone'] or '?'))
     dest = _param(call, 'maquignon.palettes_alerte_email', '')
     if dest:
         try:

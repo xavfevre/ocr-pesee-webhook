@@ -82,6 +82,8 @@ class FauxOdoo:
             store[self.seq] = rec
             return self.seq
         if method == 'message_post':
+            if model == 'stock.package':
+                raise Exception("The method 'stock.package.message_post' does not exist")
             return 1
         raise Exception('méthode non simulée : %s.%s' % (model, method))
 
@@ -108,7 +110,7 @@ pk = o.data['stock.package'][10]
 check(pk['x_operateur_id'][0] == 479 and 628 in pk['x_operateur_ids'], 'responsable inchangé (Mickaël), Frédéric ajouté comme co-opérateur')
 check(o.data['mrp.production'][500]['x_studio_colis'][0] == 10, 'OF lié à la palette PACK0000010')
 check(o.data['hr.employee'][628]['x_palette_scan_id'] is False and o.data['hr.employee'][479]['x_palette_scan_id'] is False, 'palette active de personne modifiée')
-check(any(m == 'stock.package' and me == 'message_post' for m, me, *_ in o.ecritures()), 'note postée dans le fil de la palette')
+check(any(m == 'mrp.production' and me == 'message_post' for m, me, *_ in o.ecritures()), 'note postée dans le fil de l OF (stock.package n a pas de fil en Odoo 19)')
 
 print('=== Tablette 2101 : sa propre palette (chemin normal inchangé) ===')
 o = FauxOdoo()
