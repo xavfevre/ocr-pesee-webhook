@@ -39,3 +39,10 @@ Phases suivantes : champs de suivi sur la palette, écran Expédition (scan du b
 - Les quantités livrées suivent la réalité : la facturation « sur quantités livrées » de Céline se base dessus.
 - Paramètre système `maquignon.expedition_bl` = 0 pour désactiver ; mode relais `bl_plan` (lecture seule) pour contrôler.
 - En cas d'erreur Odoo sur le BL, le départ reste enregistré et une note « BL non validé automatiquement : … » est posée sur la commande.
+
+## Ajustement (07/10/2026) : le mode de transport vient du devis
+- Page /expedition : on scanne d'abord ; le cadre « Transport (prérempli depuis le devis) » affiche « Prévu au devis S… : … »
+  (mode `x_mode_transport`, transporteur, ou méthode de livraison → camion) et se préremplit ; les boutons ne servent qu'à corriger,
+  avec alerte si le choix diffère du devis ou si le devis ne dit rien. Au départ, un devis sans mode reçoit le mode (et le transporteur) choisis.
+- Constat : sur 65 commandes pierre confirmées depuis juillet, aucune n'a de méthode de livraison et une seule a une ligne transport ;
+  la seule source fiable est le champ « Mode de transport » du devis, à renseigner par Céline (phase 1).
