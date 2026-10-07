@@ -33,7 +33,8 @@ NOM_AUTO = 'Devis : ligne Transport de pierres automatique'
 MODEL_SO = x('ir.model', 'search', [['model', '=', 'sale.order']])[0]
 F_MODE = x('ir.model.fields', 'search', [['model', '=', 'sale.order'], ['name', '=', 'x_mode_transport']])[0]
 VARIANTES = x('product.product', 'search', [['product_tmpl_id.name', '=', 'Transport de pierres']])
-DEFAUT = x('product.product', 'search', [['product_tmpl_id.name', '=', 'Transport de pierres'], ['display_name', 'ilike', 'Forfait Palettes']], limit=1)[0]
+_noms = {q['id']: q['display_name'] for q in x('product.product', 'read', VARIANTES, ['display_name'])}
+DEFAUT = next((i for i, n in _noms.items() if 'Forfait Palettes' in n), VARIANTES[0])
 PRODUIT_ACHAT = x('product.product', 'search', [['name', '=', 'Transport affrété (achat transporteur)']], limit=1)[0]
 print('base %s | variantes transport %s (défaut %s) | article achat %s' % (U, VARIANTES, DEFAUT, PRODUIT_ACHAT))
 
@@ -45,7 +46,11 @@ for so in records:
         continue
     existantes = so.order_line.filtered(lambda l: not l.display_type and l.product_id.id in VARIANTES)
     if so.x_mode_transport in ('camions', 'exterieur') and not existantes:
-        seq = max(so.order_line.mapped('sequence') or [10]) + 1
+        # juste après la dernière ligne produit ; l'éco-contribution et les notes de fin (prix départ, acompte) sont décalées après
+        produits = so.order_line.filtered(lambda l: not l.display_type and 'Eco-contribution' not in (l.name or ''))
+        seq = max(produits.mapped('sequence') or [10]) + 1
+        for l in so.order_line.filtered(lambda l: l.sequence >= seq):
+            l.write({'sequence': l.sequence + 1})
         prix = so.x_transport_achat if (so.x_mode_transport == 'exterieur' and so.x_transport_achat) else 0.0
         nom = 'Transport de pierres (Forfait Palettes)' + ((' - ' + so.x_transporteur_id.name) if (so.x_mode_transport == 'exterieur' and so.x_transporteur_id) else '')
         so.write({'order_line': [(0, 0, {'product_id': DEFAUT, 'name': nom, 'product_uom_qty': 1.0, 'price_unit': prix, 'sequence': seq})]})
@@ -67,7 +72,10 @@ CODE_102_AJOUT = '''
         vides.write({'price_unit': po.amount_untaxed, 'name': 'Transport de pierres (Forfait Palettes) - ' + po.partner_id.name})
         so.message_post(body="Ligne « Transport de pierres » : prix d achat %%.2f EUR HT reporté, prix de vente à ajuster." %% po.amount_untaxed)
     elif not existantes:
-        seq = max(so.order_line.mapped('sequence') or [10]) + 1
+        produits = so.order_line.filtered(lambda l: not l.display_type and 'Eco-contribution' not in (l.name or ''))
+        seq = max(produits.mapped('sequence') or [10]) + 1
+        for l in so.order_line.filtered(lambda l: l.sequence >= seq):
+            l.write({'sequence': l.sequence + 1})
         so.write({'order_line': [(0, 0, {'product_id': DEFAUT, 'name': 'Transport de pierres (Forfait Palettes) - ' + po.partner_id.name,
                                          'product_uom_qty': 1.0, 'price_unit': po.amount_untaxed, 'sequence': seq})]})
         so.message_post(body="Ligne « Transport de pierres » ajoutée en fin de devis au prix d achat %%.2f EUR HT : prix de vente à ajuster." %% po.amount_untaxed)
@@ -89,12 +97,16 @@ if mode == 'apply':
         auto_id = one(x('base.automation', 'create', [{'name': NOM_AUTO, 'model_id': MODEL_SO, 'trigger': 'on_create_or_write', 'trigger_field_ids': [[6, 0, [F_MODE]]], 'active': True,
                                                         'action_server_ids': [[0, 0, {'name': NOM_AUTO, 'model_id': MODEL_SO, 'state': 'code', 'code': CODE_LIGNE % params, 'usage': 'base_automation'}]]}]))
     print('automatisation ligne transport :', auto_id)
-    if act102 and 'VARIANTES' not in code102:
+    if act102:
         anchor = "    so.message_post(body=\"Transporteur retenu"
-        assert anchor in code102, 'ancre introuvable dans l action 102'
-        nouveau = code102.replace(anchor, (CODE_102_AJOUT % params) + anchor, 1)
+        base102 = code102.split("\n    # ligne « Transport de pierres » du devis")[0] if 'VARIANTES' in code102 else code102
+        if 'VARIANTES' in code102:
+            # réinstallation : on repart du code sans le bloc ligne transport (le reste de l'action est après l'ancre)
+            base102 = base102 + "\n" + code102[code102.index(anchor):]
+        assert anchor in base102, 'ancre introuvable dans l action 102'
+        nouveau = base102.replace(anchor, (CODE_102_AJOUT % params) + anchor, 1)
         x('ir.actions.server', 'write', act102, {'code': nouveau})
-        print('action 102 étendue (ligne transport au prix d achat)')
+        print('action 102 : bloc ligne transport (ré)installé')
     sys.exit(0)
 
 if mode == 'test':
