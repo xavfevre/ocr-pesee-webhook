@@ -414,7 +414,7 @@
   $('client').addEventListener('input', () => { $('partner_id').value = ''; clearTimeout(tRech); tRech = setTimeout(async () => {
     const q = $('client').value.trim(); const ul = $('client-liste');
     if (q.length < 2) { ul.style.display = 'none'; return; }
-    try { const rows = await api('clients?q=' + encodeURIComponent(q)); ul.innerHTML = rows.map(r => '<li data-id="' + r.id + '" data-nom="' + r.nom.replace(/"/g, '&quot;') + '">' + r.nom + (r.ville ? ' <small>' + r.ville + '</small>' : '') + '</li>').join(''); ul.style.display = rows.length ? '' : 'none';
+    try { const rows = await api('clients?q=' + encodeURIComponent(q)); ul.innerHTML = rows.map(r => '<li data-id="' + r.id + '" data-nom="' + r.nom.replace(/"/g, '&quot;') + '">' + r.nom + (r.ville ? ' <small>' + r.ville + '</small>' : '') + '</li>').join(''); ul.style.display = rows.length ? 'block' : 'none';
       ul.querySelectorAll('li').forEach(li => li.addEventListener('click', () => { $('client').value = li.dataset.nom; $('partner_id').value = li.dataset.id; ul.style.display = 'none'; })); } catch (e) { ul.style.display = 'none'; }
   }, 250); });
   document.addEventListener('click', e => { if (!e.target.closest('.suggest')) $('client-liste').style.display = 'none'; });
