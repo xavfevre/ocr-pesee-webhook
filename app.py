@@ -1524,6 +1524,14 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module export_compta non chargé: {_e}")
 
+# ─── PONT-BASCULE : page Chrome (Web Serial) + services Odoo (bascule_web.py) ─
+# /bascule/?site=chatel&k=<maquignon.bascule_key> ; modèle x_pesee, menu Logistiques > Pesées pont-bascule.
+try:
+    from bascule_web import bp as bascule_bp
+    app.register_blueprint(bascule_bp, url_prefix="/bascule")
+except Exception as _e:
+    app.logger.warning(f"Module bascule_web non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

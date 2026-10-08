@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pont-bascule</title>
+<style>
+  :root { --ink:#0f172a; --grey:#64748b; --line:#e2e8f0; --blue:#1d4ed8; --green:#15803d; --red:#b91c1c; --amber:#b45309; --bg:#f8fafc; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: system-ui, Segoe UI, Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  .etat { font-size:13px; color:var(--grey); }
+  .pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#cbd5e1; margin-right:6px; vertical-align:middle; }
+  .pastille.ok { background:var(--green); } .pastille.ko { background:var(--red); }
+  main { display:grid; grid-template-columns: 1.1fr 1fr; gap:16px; padding:16px; max-width:1200px; margin:0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; } }
+  .carte { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .carte h2 { font-size:15px; margin:0 0 10px; color:var(--grey); text-transform:uppercase; letter-spacing:.04em; }
+  #poids { font-size:64px; font-weight:800; text-align:center; font-variant-numeric: tabular-nums; line-height:1.1; }
+  #poids small { font-size:22px; color:var(--grey); font-weight:600; }
+  #stable { text-align:center; font-weight:700; height:24px; }
+  #stable.ok { color:var(--green); } #stable.mvt { color:var(--amber); }
+  label { display:block; font-size:13px; color:var(--grey); margin:10px 0 4px; }
+  input, select, textarea { width:100%; font-size:16px; padding:9px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; }
+  .sens { display:flex; gap:8px; flex-wrap:wrap; }
+  .sens label { flex:1; margin:0; border:1px solid #cbd5e1; border-radius:8px; padding:8px; text-align:center; cursor:pointer; color:var(--ink); font-size:14px; }
+  .sens input { display:none; } .sens label.on { border-color:var(--blue); background:#eff6ff; font-weight:700; }
+  .btn { display:inline-block; font-size:16px; font-weight:700; padding:12px 16px; border-radius:10px; border:0; cursor:pointer; color:#fff; background:var(--blue); width:100%; margin-top:12px; }
+  .btn.vert { background:var(--green); } .btn.gris { background:#475569; } .btn.petit { width:auto; padding:6px 10px; font-size:13px; margin:0; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:6px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--grey); font-weight:600; font-size:12px; }
+  tr.sel { background:#eff6ff; }
+  tr.clic { cursor:pointer; }
+  .num { text-align:right; font-variant-numeric: tabular-nums; }
+  #message { margin:0 16px; padding:10px 14px; border-radius:10px; display:none; font-weight:600; }
+  #message.ok { display:block; background:#dcfce7; color:#166534; } #message.ko { display:block; background:#fee2e2; color:#991b1b; } #message.info { display:block; background:#dbeafe; color:#1e40af; }
+  .ligne { display:flex; gap:8px; align-items:center; }
+  .suggest { position:relative; }
+  .suggest ul { position:absolute; left:0; right:0; top:100%; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin:0; padding:0; list-style:none; z-index:5; max-height:220px; overflow:auto; display:none; }
+  .suggest li { padding:8px 10px; cursor:pointer; } .suggest li:hover { background:#eff6ff; }
+  details { margin-top:10px; font-size:13px; color:var(--grey); }
+  code { background:#f1f5f9; padding:1px 4px; border-radius:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titre">Pont-bascule</h1>
+  <span class="etat"><span id="p-serie" class="pastille"></span><span id="t-serie">bascule non connectée</span></span>
+  <span class="etat"><span id="p-odoo" class="pastille"></span><span id="t-odoo">Odoo</span></span>
+  <span style="flex:1"></span>
+  <button class="btn petit" id="b-connecter">Connecter la bascule</button>
+  <button class="btn petit gris" id="b-reglages">Réglages</button>
+</header>
+<div id="message"></div>
+<main>
+  <section>
+    <div class="carte">
+      <h2>Poids sur le pont</h2>
+      <div id="poids">— <small>kg</small></div>
+      <div id="stable"></div>
+    </div>
+    <div class="carte" style="margin-top:16px">
+      <h2>Pesée</h2>
+      <div class="sens" id="sens">
+        <label class="on"><input type="radio" name="sens" value="vente" checked>Vente<br><small>vide puis plein</small></label>
+        <label><input type="radio" name="sens" value="reception">Réception<br><small>plein puis vide</small></label>
+        <label><input type="radio" name="sens" value="simple">Pesée simple<br><small>une seule pesée</small></label>
+      </div>
+      <label>Immatriculation</label>
+      <input id="immat" placeholder="AB-123-CD" autocomplete="off" style="text-transform:uppercase">
+      <label>Client ou fournisseur</label>
+      <div class="suggest"><input id="client" placeholder="Nom (recherche dans Odoo à partir de 2 lettres)" autocomplete="off"><ul id="client-liste"></ul></div>
+      <input type="hidden" id="partner_id">
+      <label>Produit</label>
+      <select id="produit"></select>
+      <input id="produit-libre" placeholder="Ou produit en texte libre" style="margin-top:6px">
+      <label>Note (facultatif)</label>
+      <input id="note" placeholder="Bon de commande, chantier…">
+      <div id="selection" style="margin-top:10px; font-size:14px; color:var(--grey)"></div>
+      <button class="btn" id="b-p1">Pesée 1 : enregistrer le poids</button>
+      <button class="btn vert" id="b-p2" style="display:none">Pesée 2 : terminer et imprimer le ticket</button>
+      <button class="btn gris" id="b-annuler-sel" style="display:none">Désélectionner</button>
+    </div>
+  </section>
+  <section>
+    <div class="carte">
+      <h2>Camions en attente de 2<sup>e</sup> pesée</h2>
+      <table id="ouvertes"><thead><tr><th>N°</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Pesée 1</th><th></th></tr></thead><tbody></tbody></table>
+      <div id="ouvertes-vide" style="color:var(--grey); font-size:14px">Aucun camion en attente.</div>
+    </div>
+    <div class="carte" style="margin-top:16px">
+      <h2>Pesées du jour</h2>
+      <table id="jour"><thead><tr><th>N°</th><th>Heure</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Net kg</th><th></th></tr></thead><tbody></tbody></table>
+      <div id="jour-vide" style="color:var(--grey); font-size:14px">Aucune pesée aujourd'hui.</div>
+    </div>
+    <div class="carte" id="reglages" style="margin-top:16px; display:none">
+      <h2>Réglages de ce poste</h2>
+      <label>Nom du poste</label><input id="r-poste">
+      <label>Adresse IP de l'imprimante Epson</label><input id="r-imprimante">
+      <label>Clé d'accès</label><input id="r-cle">
+      <div class="ligne" style="margin-top:10px"><button class="btn petit" id="b-sauver">Enregistrer</button><button class="btn petit gris" id="b-test-imp">Ticket de test</button><button class="btn petit gris" id="b-lire">Lire le poids une fois</button></div>
+      <details><summary>Aide</summary>
+        Chrome ou Edge sont nécessaires. « Connecter la bascule » ouvre la liste des ports : choisir le câble USB-série (Prolific). L'autorisation est mémorisée.
+        Le ticket est envoyé à l'imprimante par le réseau (ePOS) : l'adresse <code>https://IP</code> de l'imprimante doit être acceptée une fois dans ce navigateur.
+        Les pesées sont enregistrées dans Odoo, menu Logistiques, Pesées pont-bascule.
+      </details>
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const SITE = (qs.get('site') || localStorage.getItem('bascule.site') || 'chatel').toLowerCase();
+  localStorage.setItem('bascule.site', SITE);
+  const LS = k => localStorage.getItem('bascule.' + SITE + '.' + k) || '';
+  const LSset = (k, v) => localStorage.setItem('bascule.' + SITE + '.' + k, v);
+  if (qs.get('k')) { LSset('cle', qs.get('k')); history.replaceState(null, '', location.pathname + '?site=' + SITE); }
+  const $ = id => document.getElementById(id);
+  let CFG = null, pesees = { ouvertes: [], jour: [] }, selection = null, derniereTerminee = null;
+  let port = null, writer = null, lecteur = null, tampon = '', attente = null, file = Promise.resolve(), poll = null;
+  let derniers = [], poidsCourant = null, stable = false;
+
+  const message = (txt, type) => { const m = $('message'); m.textContent = txt; m.className = type || 'info'; if (type === 'ok') setTimeout(() => { if (m.textContent === txt) m.className = ''; }, 6000); };
+  const api = async (chemin, options) => {
+    const url = '/bascule/api/' + chemin + (chemin.includes('?') ? '&' : '?') + 'site=' + SITE + '&k=' + encodeURIComponent(LS('cle'));
+    const r = await fetch(url, options);
+    const j = await r.json().catch(() => ({ error: 'réponse illisible' }));
+    if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  };
+  const post = (donnees) => api('pesee', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ site: SITE, k: LS('cle') }, donnees)) });
+  const fmtKg = v => (v == null ? '—' : Math.round(v).toLocaleString('fr-FR'));
+  const heure = iso => { if (!iso) return ''; const d = new Date(iso.replace(' ', 'T') + 'Z'); return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
+  const dateFr = iso => { if (!iso) return ''; const d = new Date(iso.replace(' ', 'T') + 'Z'); return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
+  const sens = () => document.querySelector('input[name=sens]:checked').value;
+  const sansAccent = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '?');
+
+  // ─── Bascule : Web Serial, protocole Bilanciai DD700 (commandes texte + CR, réponses CR LF) ───
+  const PILOTES = {
+    bilanciai_dd700: {
+      brut: 'XB', net: 'XN', tare: 'XT',
+      lire(ligne) { const m = /^\s*(-?\d+)\s*(kg|t)\s*([A-Z]*)/i.exec(ligne); return m ? { poids: parseInt(m[1], 10) * (m[2].toLowerCase() === 't' ? 1000 : 1), etat: m[3] } : null; },
+    },
+  };
+  const pilote = () => PILOTES[(CFG && CFG.protocole) || 'bilanciai_dd700'];
+
+  async function ouvrirPort(p) {
+    await p.open({ baudRate: (CFG && CFG.bauds) || 9600, dataBits: 8, stopBits: 1, parity: 'none' });
+    port = p; writer = p.writable.getWriter();
+    const dec = new TextDecoderStream();
+    p.readable.pipeTo(dec.writable).catch(() => {});
+    lecteur = dec.readable.getReader();
+    (async () => {
+      try {
+        while (true) {
+          const { value, done } = await lecteur.read();
+          if (done) break;
+          tampon += value;
+          let i;
+          while ((i = tampon.indexOf('\n')) >= 0) {
+            const ligne = tampon.slice(0, i).replace(/\r$/, ''); tampon = tampon.slice(i + 1);
+            if (attente) { const a = attente; attente = null; a.resolve(ligne); }
+          }
+        }
+      } catch (e) { /* port fermé */ }
+      serieEtat(false, 'bascule déconnectée');
+    })();
+    serieEtat(true, 'bascule connectée');
+    if (poll) clearInterval(poll);
+    poll = setInterval(lirePoids, 600);
+  }
+  function commande(c, delai) {
+    return (file = file.then(() => new Promise(async (resolve) => {
+      if (!writer) return resolve(null);
+      tampon = '';
+      const t = setTimeout(() => { if (attente) { attente = null; resolve(null); } }, delai || 900);
+      attente = { resolve: v => { clearTimeout(t); resolve(v); } };
+      try { await writer.write(new TextEncoder().encode(c + '\r')); } catch (e) { clearTimeout(t); attente = null; resolve(null); }
+    })));
+  }
+  async function lirePoids() {
+    const rep = await commande(pilote().brut);
+    const v = rep ? pilote().lire(rep) : null;
+    if (!v) { if (rep && rep.trim() === '??') message('La bascule ne comprend pas la commande : protocole à vérifier', 'ko'); return; }
+    poidsCourant = v.poids;
+    derniers.push(v.poids); if (derniers.length > 3) derniers.shift();
+    stable = derniers.length === 3 && derniers.every(x => x === derniers[0]);
+    $('poids').innerHTML = fmtKg(v.poids) + ' <small>kg</small>';
+    $('stable').textContent = stable ? 'STABLE' : 'en mouvement…'; $('stable').className = stable ? 'ok' : 'mvt';
+    majBoutons();
+  }
+  function serieEtat(ok, txt) { $('p-serie').className = 'pastille ' + (ok ? 'ok' : 'ko'); $('t-serie').textContent = txt; if (!ok) { $('poids').innerHTML = '— <small>kg</small>'; $('stable').textContent = ''; stable = false; poidsCourant = null; majBoutons(); } }
+  async function connecter(silencieux) {
+    if (!('serial' in navigator)) { message('Ce navigateur ne sait pas lire un port série : utiliser Chrome ou Edge.', 'ko'); return; }
+    try {
+      let p = null;
+      const connus = await navigator.serial.getPorts();
+      if (connus.length === 1) p = connus[0];
+      if (!p && !silencieux) p = await navigator.serial.requestPort();
+      if (!p) return;
+      await ouvrirPort(p);
+    } catch (e) { if (!silencieux) message('Connexion à la bascule impossible : ' + e.message, 'ko'); }
+  }
+
+  // ─── Impression ePOS (Epson TM-m30III) ───
+  function xmlEsc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function ligneLR(g, d, largeur) { g = sansAccent(g); d = sansAccent(d); const esp = Math.max(1, largeur - g.length - d.length); return g + ' '.repeat(esp) + d; }
+  function ticketXml(p) {
+    const L = 42; const lignes = [];
+    const t = (s, o) => lignes.push({ s: sansAccent(s), o: o || {} });
+    (CFG.entete || []).forEach((e, i) => t(e, { align: 'center', dw: i === 0, dh: i === 0 }));
+    t('');
+    t('BON DE PESEE N° ' + p.x_name, { align: 'center', dw: true });
+    t('');
+    const sensTxt = { vente: 'Vente (vide puis plein)', reception: 'Reception (plein puis vide)', simple: 'Pesee simple' }[p.x_sens] || p.x_sens;
+    t(ligneLR('Date', dateFr(p.x_p2_date || p.x_p1_date), L));
+    t(ligneLR('Immatriculation', p.x_immat || '-', L));
+    t(ligneLR('Client', (p.x_client || '-').slice(0, 26), L));
+    t(ligneLR('Produit', (p.x_produit || '-').slice(0, 26), L));
+    t(ligneLR('Type', sensTxt, L));
+    t('-'.repeat(L));
+    if (p.x_sens === 'simple') { t(ligneLR('Pesee', fmtKg(p.x_p1) + ' kg', L)); }
+    else {
+      t(ligneLR('Pesee 1  ' + dateFr(p.x_p1_date), fmtKg(p.x_p1) + ' kg', L));
+      t(ligneLR('Pesee 2  ' + dateFr(p.x_p2_date), fmtKg(p.x_p2) + ' kg', L));
+    }
+    t('-'.repeat(L));
+    t('NET  ' + fmtKg(p.x_net) + ' kg  =  ' + (p.x_net_t || 0).toLocaleString('fr-FR', { minimumFractionDigits: 3 }) + ' t', { align: 'center', dw: true, dh: true });
+    t('');
+    if (p.x_note) t('Note : ' + p.x_note);
+    t('Instrument : ' + (CFG.instrument || ''), { align: 'center', petit: true });
+    t('Poids tels que lus sur l instrument approuve', { align: 'center', petit: true });
+    t(''); t(''); t('Signature :'); t('');
+    let xml = '';
+    for (const l of lignes) {
+      xml += '<text align="' + (l.o.align || 'left') + '"/>';
+      xml += '<text dw="' + (!!l.o.dw) + '" dh="' + (!!l.o.dh) + '"/>';
+      xml += '<text>' + xmlEsc(l.s) + '&#10;</text>';
+    }
+    return '<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">'
+      + xml + '<feed line="3"/><cut type="feed"/></epos-print></s:Body></s:Envelope>';
+  }
+  async function imprimer(xml) {
+    const ip = LS('imprimante') || CFG.imprimante;
+    const url = 'https://' + ip + '/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000';
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' }, body: xml });
+      const txt = await r.text();
+      if (!/success="true"/.test(txt)) throw new Error('réponse imprimante : ' + txt.slice(0, 120));
+      return true;
+    } catch (e) {
+      try { await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/xml' }, body: xml }); return true; }
+      catch (e2) { message('Impression impossible (' + ip + ') : ' + e.message + '. Ouvrir https://' + ip + ' dans un onglet et accepter le certificat.', 'ko'); return false; }
+    }
+  }
+
+  // ─── Données Odoo ───
+  async function chargerConfig() {
+    CFG = await api('config');
+    $('titre').textContent = 'Pont-bascule ' + CFG.nom; document.title = 'Pont-bascule ' + CFG.nom;
+    const sel = $('produit'); sel.innerHTML = '<option value="">— choisir un produit —</option>' + CFG.produits.map(p => '<option value="' + p.id + '">' + p.nom.replace(/</g, '&lt;') + '</option>').join('');
+    const dernierProduit = LS('produit'); if (dernierProduit) sel.value = dernierProduit;
+    $('p-odoo').className = 'pastille ok'; $('t-odoo').textContent = 'Odoo connecté';
+  }
+  async function chargerPesees() {
+    pesees = await api('pesees');
+    const tb = $('ouvertes').querySelector('tbody'); tb.innerHTML = '';
+    for (const p of pesees.ouvertes) {
+      const tr = document.createElement('tr'); tr.className = 'clic' + (selection && selection.id === p.id ? ' sel' : '');
+      tr.innerHTML = '<td>' + p.x_name + '</td><td><b>' + (p.x_immat || '') + '</b></td><td>' + (p.x_client || '') + '</td><td>' + (p.x_produit || '') + '</td><td class="num">' + fmtKg(p.x_p1) + ' kg<br><small>' + heure(p.x_p1_date) + '</small></td><td><button class="btn petit gris" data-annule="' + p.id + '">✕</button></td>';
+      tr.addEventListener('click', e => { if (e.target.dataset.annule) return; selectionner(p); });
+      tb.appendChild(tr);
+    }
+    $('ouvertes-vide').style.display = pesees.ouvertes.length ? 'none' : '';
+    const tj = $('jour').querySelector('tbody'); tj.innerHTML = '';
+    for (const p of pesees.jour) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + p.x_name + (p.x_etat === 'annulee' ? ' <small>(annulée)</small>' : '') + '</td><td>' + heure(p.x_p2_date || p.x_p1_date) + '</td><td>' + (p.x_immat || '') + '</td><td>' + (p.x_client || '') + '</td><td>' + (p.x_produit || '') + '</td><td class="num"><b>' + (p.x_etat === 'annulee' ? '—' : fmtKg(p.x_net)) + '</b></td><td>' + (p.x_etat === 'terminee' ? '<button class="btn petit gris" data-reimp="' + p.id + '">🖨</button>' : '') + '</td>';
+      tj.appendChild(tr);
+    }
+    $('jour-vide').style.display = pesees.jour.length ? 'none' : '';
+    tb.querySelectorAll('[data-annule]').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = +b.dataset.annule; if (!confirm('Annuler cette pesée en attente ?')) return; try { await post({ action: 'annuler', id }); if (selection && selection.id === id) selectionner(null); await chargerPesees(); } catch (err) { message(err.message, 'ko'); } }));
+    tj.querySelectorAll('[data-reimp]').forEach(b => b.addEventListener('click', async () => { const p = pesees.jour.find(q => q.id === +b.dataset.reimp); if (p && await imprimer(ticketXml(p))) message('Ticket ' + p.x_name + ' réimprimé', 'ok'); }));
+  }
+  function selectionner(p) {
+    selection = p;
+    if (p) {
+      $('immat').value = p.x_immat || ''; $('client').value = p.x_client || ''; $('partner_id').value = p.x_partner_id || '';
+      if (p.x_product_id) $('produit').value = p.x_product_id; $('produit-libre').value = p.x_product_id ? '' : (p.x_produit || '');
+      $('note').value = p.x_note || '';
+      document.querySelectorAll('input[name=sens]').forEach(r => { r.checked = r.value === p.x_sens; r.parentElement.classList.toggle('on', r.checked); });
+      $('selection').innerHTML = 'Camion sélectionné : <b>' + p.x_name + '</b>, pesée 1 = <b>' + fmtKg(p.x_p1) + ' kg</b> à ' + heure(p.x_p1_date) + '.';
+    } else { $('selection').textContent = ''; }
+    majBoutons(); chargerPesees();
+  }
+  function majBoutons() {
+    const simple = sens() === 'simple';
+    $('b-p1').style.display = selection ? 'none' : ''; $('b-p2').style.display = selection ? '' : 'none'; $('b-annuler-sel').style.display = selection ? '' : 'none';
+    $('b-p1').textContent = simple ? 'Pesée simple : enregistrer et imprimer' : 'Pesée 1 : enregistrer le poids';
+    const pret = poidsCourant != null && poidsCourant > 0 && stable;
+    $('b-p1').disabled = !pret; $('b-p2').disabled = !pret;
+  }
+  function formulaire() {
+    const sel = $('produit'); const nomProduit = sel.value ? sel.options[sel.selectedIndex].text : $('produit-libre').value.trim();
+    if (sel.value) LSset('produit', sel.value);
+    return { immat: $('immat').value.trim().toUpperCase(), client: $('client').value.trim(), partner_id: +$('partner_id').value || null,
+             produit: nomProduit, product_id: +sel.value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse') };
+  }
+  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; $('produit-libre').value = ''; }
+  async function pesee1() {
+    const f = formulaire();
+    if (!f.immat && f.sens !== 'simple') { message('Saisir l immatriculation du camion.', 'ko'); $('immat').focus(); return; }
+    $('b-p1').disabled = true;
+    try {
+      const r = await post(Object.assign({ action: f.sens === 'simple' ? 'simple' : 'p1', poids: poidsCourant }, f));
+      if (f.sens === 'simple') { derniereTerminee = r.pesee; if (await imprimer(ticketXml(r.pesee))) { await post({ action: 'imprime', id: r.pesee.id }); } message('Pesée ' + r.pesee.x_name + ' enregistrée : ' + fmtKg(r.pesee.x_net) + ' kg', 'ok'); }
+      else message('Pesée 1 enregistrée pour ' + r.pesee.x_immat + ' : ' + fmtKg(r.pesee.x_p1) + ' kg (' + r.pesee.x_name + '). Au retour du camion, le sélectionner dans la liste.', 'ok');
+      viderFormulaire(); await chargerPesees();
+    } catch (e) { message(e.message, 'ko'); }
+    majBoutons();
+  }
+  async function pesee2() {
+    if (!selection) return;
+    const f = formulaire(); $('b-p2').disabled = true;
+    try {
+      const r = await post(Object.assign({ action: 'p2', id: selection.id, poids: poidsCourant }, f));
+      derniereTerminee = r.pesee;
+      const ok = await imprimer(ticketXml(r.pesee));
+      if (ok) await post({ action: 'imprime', id: r.pesee.id });
+      message('Pesée ' + r.pesee.x_name + ' terminée : net ' + fmtKg(r.pesee.x_net) + ' kg' + (ok ? ', ticket imprimé' : ''), ok ? 'ok' : 'ko');
+      selectionner(null); viderFormulaire(); await chargerPesees();
+    } catch (e) { message(e.message, 'ko'); }
+    majBoutons();
+  }
+
+  // ─── Recherche client ───
+  let tRech = null;
+  $('client').addEventListener('input', () => { $('partner_id').value = ''; clearTimeout(tRech); tRech = setTimeout(async () => {
+    const q = $('client').value.trim(); const ul = $('client-liste');
+    if (q.length < 2) { ul.style.display = 'none'; return; }
+    try { const rows = await api('clients?q=' + encodeURIComponent(q)); ul.innerHTML = rows.map(r => '<li data-id="' + r.id + '" data-nom="' + r.nom.replace(/"/g, '&quot;') + '">' + r.nom + (r.ville ? ' <small>' + r.ville + '</small>' : '') + '</li>').join(''); ul.style.display = rows.length ? '' : 'none';
+      ul.querySelectorAll('li').forEach(li => li.addEventListener('click', () => { $('client').value = li.dataset.nom; $('partner_id').value = li.dataset.id; ul.style.display = 'none'; })); } catch (e) { ul.style.display = 'none'; }
+  }, 250); });
+  document.addEventListener('click', e => { if (!e.target.closest('.suggest')) $('client-liste').style.display = 'none'; });
+
+  // ─── Branchements ───
+  document.querySelectorAll('#sens label').forEach(l => l.addEventListener('click', () => { document.querySelectorAll('#sens label').forEach(x => x.classList.remove('on')); l.classList.add('on'); l.querySelector('input').checked = true; majBoutons(); }));
+  $('b-connecter').addEventListener('click', () => connecter(false));
+  $('b-p1').addEventListener('click', pesee1);
+  $('b-p2').addEventListener('click', pesee2);
+  $('b-annuler-sel').addEventListener('click', () => { selectionner(null); viderFormulaire(); });
+  $('b-reglages').addEventListener('click', () => { const r = $('reglages'); r.style.display = r.style.display === 'none' ? '' : 'none'; $('r-poste').value = LS('poste'); $('r-imprimante').value = LS('imprimante') || (CFG ? CFG.imprimante : ''); $('r-cle').value = LS('cle'); });
+  $('b-sauver').addEventListener('click', () => { LSset('poste', $('r-poste').value.trim()); LSset('imprimante', $('r-imprimante').value.trim()); LSset('cle', $('r-cle').value.trim()); message('Réglages enregistrés', 'ok'); demarrer(); });
+  $('b-test-imp').addEventListener('click', async () => { const p = { x_name: 'TEST', x_sens: 'vente', x_p1: 12340, x_p1_date: new Date().toISOString().slice(0, 19).replace('T', ' '), x_p2: 27860, x_p2_date: new Date().toISOString().slice(0, 19).replace('T', ' '), x_net: 15520, x_net_t: 15.52, x_immat: 'AB-123-CD', x_client: 'Client de test', x_produit: 'Calcaire 0/10' }; if (await imprimer(ticketXml(p))) message('Ticket de test envoyé', 'ok'); });
+  $('b-lire').addEventListener('click', async () => { const r = await commande(pilote().brut); message(r == null ? 'Pas de réponse de la bascule' : 'Réponse brute : ' + r, r == null ? 'ko' : 'info'); });
+  $('immat').addEventListener('input', () => { const v = $('immat').value.trim().toUpperCase(); const p = pesees.ouvertes.find(q => q.x_immat === v); if (p && (!selection || selection.id !== p.id)) selectionner(p); });
+
+  async function demarrer() {
+    if (!LS('cle')) { message('Clé d accès manquante : ouvrir la page avec ?site=' + SITE + '&k=… ou la saisir dans Réglages.', 'ko'); $('reglages').style.display = ''; return; }
+    try { await chargerConfig(); await chargerPesees(); } catch (e) { $('p-odoo').className = 'pastille ko'; $('t-odoo').textContent = 'Odoo : ' + e.message; message('Odoo : ' + e.message, 'ko'); return; }
+    connecter(true);
+    setInterval(() => chargerPesees().catch(() => {}), 60000);
+  }
+  majBoutons();
+  demarrer();
+})();
+</script>
+</body>
+</html>
