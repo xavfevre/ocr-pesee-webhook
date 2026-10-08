@@ -55,3 +55,19 @@ déclencheur (bouton côté PC ou validation sur l'indicateur), article et clien
   note ; « Pesée 1 » ouvre une pesée, le camion apparaît dans « en attente », « Pesée 2 » termine, net = |P2 - P1|,
   ticket ePOS sur l'Epson du site (`https://IP/cgi-bin/epos/service.cgi`, certificat à accepter une fois par navigateur),
   réimpression depuis la liste du jour. Réglages par poste dans le navigateur : nom du poste, IP imprimante, clé.
+
+## Version 2 (08/10/2026, soirée)
+
+- Saisie manuelle du poids (case sur la page, `x_manuel`, mention sur le ticket).
+- Véhicules (`x_vehicule`, menu Logistiques > Véhicules (tares)) : tare mémorisée par immatriculation normalisée
+  (lettres/chiffres), type client / entreprise avec rapprochement automatique sur le parc Odoo (`fleet.vehicle`,
+  plaque normalisée), pesée en un passage « avec la tare mémorisée » (action `tare`, net = poids - tare).
+- Destination Odoo au choix à chaque pesée : **bon de commande journalier** (devis du client du jour sur le site,
+  `origin = BASCULE-<SITE>-<AAAA-MM-JJ>`, une ligne par pesée, quantité en tonnes, prix de la liste de prix du
+  client, à confirmer/facturer par le bureau), **ticket de caisse direct** (un devis par pesée, `origin =
+  BASCULE-<SITE>-TICKET`, `client_order_ref` = n° de pesée, client de passage « Comptoir Chatel Granulats » 35137
+  si pas de fiche, à régler dans la caisse Odoo par le bouton Commandes du point de vente, module pos_sale),
+  ou **pesée seule**. Commande créable après coup depuis la liste du jour (action `commande`). Champs `x_destination`,
+  `x_sale_order_id`, `x_sale_line_id` ; numéro de commande imprimé sur le ticket.
+- Ticket ePOS : caractères hors police remplacés (« ° » -> « o », espaces de milliers normaux), lignes simples
+  « libellé : valeur », net sur deux lignes (kg puis tonnes). Menu Ventes > Pont-bascule (1070, act_url 2141).
