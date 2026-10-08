@@ -51,7 +51,15 @@ CHAMPS = [
     ('x_tare_memo', {'field_description': 'Tare mémorisée du véhicule', 'ttype': 'boolean'}),
     ('x_vehicule_id', {'field_description': 'Véhicule', 'ttype': 'many2one', 'relation': 'x_vehicule'}),
     ('x_vehicule_type', {'field_description': 'Type de véhicule', 'ttype': 'selection', 'selection': "[('client', 'Véhicule client / transporteur'), ('entreprise', 'Véhicule de l entreprise')]"}),
+    ('x_destination', {'field_description': 'Destination Odoo', 'ttype': 'selection', 'selection': "[('aucune', 'Pesée seule'), ('journalier', 'Bon de commande journalier'), ('ticket', 'Ticket de caisse direct')]"}),
+    ('x_sale_order_id', {'field_description': 'Commande Odoo', 'ttype': 'many2one', 'relation': 'sale.order'}),
+    ('x_sale_line_id', {'field_description': 'Ligne de commande', 'ttype': 'many2one', 'relation': 'sale.order.line'}),
 ]
+ARCH_LISTE = ('<list string="Pesées" default_order="id desc">'
+              '<field name="x_name"/><field name="x_site" optional="hide"/><field name="x_company_id" optional="hide"/><field name="x_etat" widget="badge"/><field name="x_sens"/>'
+              '<field name="x_immat"/><field name="x_vehicule_type" optional="hide"/><field name="x_client"/><field name="x_produit"/><field name="x_p1_date"/><field name="x_p1" sum="P1"/>'
+              '<field name="x_p2_date"/><field name="x_p2"/><field name="x_net" sum="Net kg"/><field name="x_net_t" sum="Net t"/>'
+              '<field name="x_destination"/><field name="x_sale_order_id"/><field name="x_manuel" optional="hide"/><field name="x_tare_memo" optional="hide"/><field name="x_imprime" optional="hide"/></list>')
 MODELE_V = 'x_vehicule'
 NOM_MODELE_V = 'Véhicule pont-bascule'
 NOM_MENU_V = 'Véhicules (tares)'
@@ -107,19 +115,17 @@ def appliquer():
         x('ir.model.access', 'create', [{'name': MODELE + ' utilisateurs', 'model_id': mid, 'group_id': ref('base.group_user'), 'perm_read': True, 'perm_write': True, 'perm_create': True, 'perm_unlink': False}])
         x('ir.model.access', 'create', [{'name': MODELE + ' administrateurs', 'model_id': mid, 'group_id': ref('base.group_system'), 'perm_read': True, 'perm_write': True, 'perm_create': True, 'perm_unlink': True}])
         print('   droits créés')
-    # vue liste lisible (sinon Odoo n'affiche que le nom)
-    if not x('ir.ui.view', 'search', [['model', '=', MODELE], ['type', '=', 'list']]):
-        arch = ('<list string="Pesées" default_order="id desc">'
-                '<field name="x_name"/><field name="x_site"/><field name="x_company_id"/><field name="x_etat" widget="badge"/><field name="x_sens"/>'
-                '<field name="x_immat"/><field name="x_client"/><field name="x_produit"/><field name="x_p1_date"/><field name="x_p1" sum="P1"/>'
-                '<field name="x_p2_date"/><field name="x_p2"/><field name="x_net" sum="Net kg"/><field name="x_net_t" sum="Net t"/><field name="x_imprime"/></list>')
-        x('ir.ui.view', 'create', [{'name': 'x_pesee.list', 'model': MODELE, 'type': 'list', 'arch_db': arch}])
-        print('   vue liste créée')
+    # vue liste lisible (sinon Odoo n'affiche que le nom), réécrite à chaque passage
+    vue = x('ir.ui.view', 'search', [['model', '=', MODELE], ['type', '=', 'list']])
+    if vue:
+        x('ir.ui.view', 'write', vue, {'arch_db': ARCH_LISTE}); print('   vue liste mise à jour')
+    else:
+        x('ir.ui.view', 'create', [{'name': 'x_pesee.list', 'model': MODELE, 'type': 'list', 'arch_db': ARCH_LISTE}]); print('   vue liste créée')
     if not x('ir.ui.view', 'search', [['model', '=', MODELE], ['type', '=', 'form']]):
         arch = ('<form string="Pesée"><sheet><group><group><field name="x_name"/><field name="x_site"/><field name="x_company_id"/><field name="x_etat"/><field name="x_sens"/><field name="x_poste"/></group>'
                 '<group><field name="x_immat"/><field name="x_client"/><field name="x_partner_id"/><field name="x_produit"/><field name="x_product_id"/></group></group>'
                 '<group><group string="Pesées"><field name="x_p1_date"/><field name="x_p1"/><field name="x_p2_date"/><field name="x_p2"/></group>'
-                '<group string="Résultat"><field name="x_net"/><field name="x_net_t"/><field name="x_imprime"/></group></group><field name="x_note" placeholder="Note"/></sheet></form>')
+                '<group string="Résultat"><field name="x_net"/><field name="x_net_t"/><field name="x_imprime"/><field name="x_destination"/><field name="x_sale_order_id"/></group></group><field name="x_note" placeholder="Note"/></sheet></form>')
         x('ir.ui.view', 'create', [{'name': 'x_pesee.form', 'model': MODELE, 'type': 'form', 'arch_db': arch}])
         print('   vue formulaire créée')
     if not x('ir.ui.menu', 'search', [['name', '=', NOM_MENU]]):

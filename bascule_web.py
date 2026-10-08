@@ -25,6 +25,7 @@ SITES = {
         'imprimante': '192.168.1.20',
         'entete': ["CHATEL'GRANULATS", 'Le Pautron - 86100 Châtellerault', 'Tél. 05 49 90 57 62'],
         'instrument': 'Bilanciai DD700 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,
+        'client_comptoir_id': 35137,   # « Comptoir Chatel Granulats » : client de passage pour les tickets de caisse sans fiche
     },
 }
 
@@ -86,7 +87,49 @@ def _maintenant():
 
 CHAMPS = ['x_name', 'x_site', 'x_etat', 'x_sens', 'x_immat', 'x_client', 'x_partner_id', 'x_produit', 'x_product_id',
           'x_p1', 'x_p1_date', 'x_p2', 'x_p2_date', 'x_net', 'x_net_t', 'x_poste', 'x_imprime', 'x_note', 'x_manuel', 'x_tare_memo',
-          'x_vehicule_id', 'x_vehicule_type', 'create_date']
+          'x_vehicule_id', 'x_vehicule_type', 'x_destination', 'x_sale_order_id', 'x_sale_line_id', 'create_date']
+
+
+def _commande(site, pesee_id, destination):
+    """Après une pesée terminée : ligne de commande Odoo selon la destination.
+    journalier = devis du jour du client sur ce site (créé s'il n'existe pas), une ligne par pesée, à confirmer/facturer
+    par le bureau ; ticket = un devis par pesée à régler tout de suite en caisse (bouton Commandes du point de vente),
+    client de passage du site si la pesée n'a pas de client Odoo. Renvoie un avertissement texte si rien n'a pu être fait."""
+    if destination not in ('journalier', 'ticket'):
+        return None
+    p = _lire(site, [pesee_id])[0]
+    if p['x_etat'] != 'terminee' or p['x_sale_order_id']:
+        return None
+    cfg = SITES[site]
+    partner = p['x_partner_id'] or (cfg.get('client_comptoir_id') if destination == 'ticket' else None)
+    if not partner:
+        return "pesée enregistrée sans commande : choisir un client Odoo (liste déroulante) pour le bon de commande journalier"
+    if not p['x_product_id']:
+        return "pesée enregistrée sans commande : choisir un article Odoo dans la liste des produits"
+    if not p['x_net_t']:
+        return "pesée enregistrée sans commande : net nul"
+    jour = datetime.utcnow().strftime('%Y-%m-%d')
+    ctx = _ctx(site)
+    if destination == 'journalier':
+        origine = 'BASCULE-%s-%s' % (site.upper(), jour)
+        so = _call('sale.order', 'search', [['partner_id', '=', partner], ['company_id', '=', cfg['company_id']], ['origin', '=', origine], ['state', 'in', ['draft', 'sent']]], limit=1, order='id desc', **ctx)
+        so_id = so[0] if so else None
+    else:
+        origine = 'BASCULE-%s-TICKET' % site.upper()
+        so_id = None
+    if not so_id:
+        vals = {'partner_id': partner, 'company_id': cfg['company_id'], 'origin': origine,
+                'note': 'Pesées pont-bascule %s du %s' % (cfg['nom'], jour) if destination == 'journalier' else 'Pesée pont-bascule %s, à régler en caisse' % p['x_name']}
+        if destination == 'ticket':
+            vals['client_order_ref'] = p['x_name']
+        so_id = _call('sale.order', 'create', vals, **ctx)
+        so_id = so_id[0] if isinstance(so_id, list) else so_id
+    prod = _call('product.product', 'read', [p['x_product_id']], ['display_name'], **ctx)[0]['display_name']
+    libelle = '%s - Pesée %s - %s - %s' % (prod, p['x_name'], p['x_immat'] or 'sans immat.', (p['x_p2_date'] or p['x_p1_date'] or '')[11:16])
+    line_id = _call('sale.order.line', 'create', {'order_id': so_id, 'product_id': p['x_product_id'], 'product_uom_qty': p['x_net_t'], 'name': libelle}, **ctx)
+    line_id = line_id[0] if isinstance(line_id, list) else line_id
+    _call('x_pesee', 'write', [pesee_id], {'x_destination': destination, 'x_sale_order_id': so_id, 'x_sale_line_id': line_id}, **ctx)
+    return None
 CHAMPS_V = ['x_name', 'x_type', 'x_fleet_id', 'x_tare', 'x_tare_date', 'x_client', 'x_partner_id', 'x_produit', 'x_product_id', 'x_site', 'x_note', 'write_date']
 
 
@@ -272,7 +315,8 @@ def api_pesee():
         vals['x_name'] = _call('ir.sequence', 'next_by_code', SITES[site]['sequence'])
         rid = _call('x_pesee', 'create', vals, **_ctx(site))
         rid = rid[0] if isinstance(rid, list) else rid
-        return jsonify({'pesee': _lire(site, [rid])[0]})
+        avert = _commande(site, rid, d.get('destination')) if action in ('tare', 'simple') else None
+        return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
     rid = int(d.get('id') or 0)
     if not rid:
         return jsonify({'error': 'id manquant'}), 400
@@ -293,6 +337,12 @@ def api_pesee():
             if d.get(cle):
                 vals[champ] = d[cle]
         _call('x_pesee', 'write', [rid], vals, **_ctx(site))
+        avert = _commande(site, rid, d.get('destination'))
+        return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
+    elif action == 'commande':
+        # commande créée après coup depuis la liste du jour (pesée terminée sans commande)
+        avert = _commande(site, rid, d.get('destination'))
+        return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
     elif action == 'annuler':
         _call('x_pesee', 'write', [rid], {'x_etat': 'annulee'}, **_ctx(site))
     elif action == 'imprime':
