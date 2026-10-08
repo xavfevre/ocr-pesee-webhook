@@ -169,6 +169,7 @@
       serieEtat(false, 'bascule déconnectée');
     })();
     serieEtat(true, 'bascule connectée');
+    message('Bascule connectée', 'ok');
     if (poll) clearInterval(poll);
     poll = setInterval(lirePoids, 600);
   }
@@ -253,7 +254,11 @@
       return true;
     } catch (e) {
       try { await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/xml' }, body: xml }); return true; }
-      catch (e2) { message('Impression impossible (' + ip + ') : ' + e.message + '. Ouvrir https://' + ip + ' dans un onglet et accepter le certificat.', 'ko'); return false; }
+      catch (e2) {
+        message('Impression impossible (' + ip + ') : ' + e.message + '. Un onglet vient de s ouvrir sur l imprimante : cliquer « Paramètres avancés » puis « Continuer vers le site », puis réimprimer.', 'ko');
+        try { window.open('https://' + ip + '/', '_blank'); } catch (e3) { /* bloqué */ }
+        return false;
+      }
     }
   }
 
