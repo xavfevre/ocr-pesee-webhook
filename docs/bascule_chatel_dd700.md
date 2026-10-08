@@ -37,3 +37,21 @@ une commande prête (client ou immatriculation, article, net en tonnes) réglée
 Questions ouvertes : qui gère la logique pesée 1 / pesée 2 par véhicule (l'indicateur avec son clavier, ou le programme),
 déclencheur (bouton côté PC ou validation sur l'indicateur), article et client à rattacher, et la box IoT Odoo écartée
 (balance de comptoir en kg, pas de vente à la tonne).
+
+## Page web /bascule (relais Render, 08/10/2026 soir)
+
+- URL : `https://ocr-pesee-webhook.onrender.com/bascule/?site=chatel&k=<clé>` ; la clé est `maquignon.bascule_key`
+  (paramètre système Odoo, créée par `odoo-scan-page/bascule_20261008/bascule_setup.py apply`) et se mémorise dans le
+  navigateur après la première ouverture. Chrome ou Edge obligatoires (Web Serial). « Connecter la bascule » = choisir le
+  câble Prolific dans la liste de Chrome, une fois ; ensuite la page se reconnecte seule.
+- Services (`bascule_web.py`, blueprint `/bascule`) : `api/config` (société, imprimante, en-tête, articles à la tonne
+  vendables en caisse), `api/clients?q=` (recherche de contacts), `api/pesees` (en attente + du jour), `api/pesee`
+  (POST : p1, p2, simple, annuler, imprime, note). Multi-sites : bloc `SITES` dans `bascule_web.py` + séquence
+  `x_pesee.<site>` dans Odoo + en-tête de ticket.
+- Odoo : modèle manuel `x_pesee` (2716) « Pesée pont-bascule », vues liste/formulaire, menu Logistiques > Pesées
+  pont-bascule (1069), numéros `CHA-AAAA-00001`. Zéro ligne de code.
+- Page (`bascule_page.html`) : poids en direct (XB toutes les 600 ms, stable = 3 lectures identiques), sens
+  vente / réception / pesée simple, immatriculation, client (autocomplétion Odoo), produit (liste ou texte libre),
+  note ; « Pesée 1 » ouvre une pesée, le camion apparaît dans « en attente », « Pesée 2 » termine, net = |P2 - P1|,
+  ticket ePOS sur l'Epson du site (`https://IP/cgi-bin/epos/service.cgi`, certificat à accepter une fois par navigateur),
+  réimpression depuis la liste du jour. Réglages par poste dans le navigateur : nom du poste, IP imprimante, clé.
