@@ -24,7 +24,7 @@ SITES = {
         'nom': "Chatel'Granulats", 'company_id': 3, 'sequence': 'x_pesee.chatel',
         'imprimante': '192.168.1.20',
         'entete': ["CHATEL'GRANULATS", 'Le Pautron - 86100 Châtellerault', 'Tél. 05 49 90 57 62'],
-        'instrument': 'Bilanciai DD700 - pont 48 t - échelon 20 kg', 'protocole': 'bilanciai_dd700', 'bauds': 9600,
+        'instrument': 'Bilanciai DD700 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,
     },
 }
 

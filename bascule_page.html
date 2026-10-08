@@ -149,7 +149,8 @@
   const heure = iso => { if (!iso) return ''; const d = new Date(iso.replace(' ', 'T') + 'Z'); return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
   const dateFr = iso => { if (!iso) return ''; const d = new Date(iso.replace(' ', 'T') + 'Z'); return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
   const sens = () => document.querySelector('input[name=sens]:checked').value;
-  const sansAccent = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '?');
+  const sansAccent = s => (s || '').replace(/[  ]/g, ' ').replace(/°/g, 'o').replace(/[€]/g, 'EUR').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '?');
+  const kgTicket = v => String(Math.round(v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
   // ─── Bascule : Web Serial, protocole Bilanciai DD700 (commandes texte + CR, réponses CR LF) ───
   const PILOTES = {
@@ -227,25 +228,26 @@
     const t = (s, o) => lignes.push({ s: sansAccent(s), o: o || {} });
     (CFG.entete || []).forEach((e, i) => t(e, { align: 'center', dw: i === 0, dh: i === 0 }));
     t('');
-    t('BON DE PESEE N° ' + p.x_name, { align: 'center', dw: true });
+    t('BON DE PESEE No ' + p.x_name, { align: 'center', dw: true });
     t('');
     const sensTxt = { vente: 'Vente (vide puis plein)', reception: 'Reception (plein puis vide)', simple: 'Pesee simple' }[p.x_sens] || p.x_sens;
-    t(ligneLR('Date', dateFr(p.x_p2_date || p.x_p1_date), L));
-    t(ligneLR('Immatriculation', p.x_immat || '-', L));
-    t(ligneLR('Client', (p.x_client || '-').slice(0, 26), L));
-    t(ligneLR('Produit', (p.x_produit || '-').slice(0, 26), L));
-    t(ligneLR('Type', sensTxt, L));
+    t('Date : ' + dateFr(p.x_p2_date || p.x_p1_date));
+    t('Immatriculation : ' + (p.x_immat || '-'));
+    t('Client : ' + (p.x_client || '-').slice(0, 32));
+    t('Produit : ' + (p.x_produit || '-').slice(0, 32));
+    t('Type : ' + sensTxt);
     t('-'.repeat(L));
-    if (p.x_sens === 'simple') { t(ligneLR('Pesee', fmtKg(p.x_p1) + ' kg', L)); }
+    if (p.x_sens === 'simple') { t('Pesee   ' + dateFr(p.x_p1_date) + '   ' + kgTicket(p.x_p1) + ' kg'); }
     else if (p.x_tare_memo) {
-      t(ligneLR('Tare memorisee le ' + dateFr(p.x_p1_date).slice(0, 10), fmtKg(p.x_p1) + ' kg', L));
-      t(ligneLR('Pesee ' + dateFr(p.x_p2_date), fmtKg(p.x_p2) + ' kg', L));
+      t('Tare memorisee le ' + dateFr(p.x_p1_date).slice(0, 10) + '   ' + kgTicket(p.x_p1) + ' kg');
+      t('Pesee ' + dateFr(p.x_p2_date) + '   ' + kgTicket(p.x_p2) + ' kg');
     } else {
-      t(ligneLR('Pesee 1  ' + dateFr(p.x_p1_date), fmtKg(p.x_p1) + ' kg', L));
-      t(ligneLR('Pesee 2  ' + dateFr(p.x_p2_date), fmtKg(p.x_p2) + ' kg', L));
+      t('Pesee 1  ' + dateFr(p.x_p1_date) + '   ' + kgTicket(p.x_p1) + ' kg');
+      t('Pesee 2  ' + dateFr(p.x_p2_date) + '   ' + kgTicket(p.x_p2) + ' kg');
     }
     t('-'.repeat(L));
-    t('NET  ' + fmtKg(p.x_net) + ' kg  =  ' + (p.x_net_t || 0).toLocaleString('fr-FR', { minimumFractionDigits: 3 }) + ' t', { align: 'center', dw: true, dh: true });
+    t('NET  ' + kgTicket(p.x_net) + ' kg', { align: 'center', dw: true, dh: true });
+    t('soit ' + (p.x_net_t || 0).toFixed(3).replace('.', ',') + ' tonnes', { align: 'center', dw: true });
     t('');
     if (p.x_manuel) t('Poids saisi a la main', { align: 'center' });
     if (p.x_vehicule_type === 'entreprise') t('Vehicule de l entreprise', { align: 'center' });
