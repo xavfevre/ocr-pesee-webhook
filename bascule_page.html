@@ -70,7 +70,9 @@
         <label><input type="radio" name="sens" value="simple">Pesée simple<br><small>une seule pesée</small></label>
       </div>
       <label>Immatriculation</label>
-      <input id="immat" placeholder="AB-123-CD" autocomplete="off" style="text-transform:uppercase">
+      <input id="immat" placeholder="AB-123-CD" autocomplete="off" list="immat-liste" style="text-transform:uppercase">
+      <datalist id="immat-liste"></datalist>
+      <div id="vehicule-info" style="margin-top:6px; font-size:14px; color:var(--green)"></div>
       <label>Client ou fournisseur</label>
       <div class="suggest"><input id="client" placeholder="Nom (recherche dans Odoo à partir de 2 lettres)" autocomplete="off"><ul id="client-liste"></ul></div>
       <input type="hidden" id="partner_id">
@@ -79,9 +81,17 @@
       <input id="produit-libre" placeholder="Ou produit en texte libre" style="margin-top:6px">
       <label>Note (facultatif)</label>
       <input id="note" placeholder="Bon de commande, chantier…">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer"><input type="checkbox" id="manuel-on" style="width:auto; margin:0"> Saisir le poids à la main (bascule hors service ou pesée à reprendre)</label>
+      <input type="number" id="manuel-kg" placeholder="Poids en kg" min="0" step="20" style="display:none">
       <div id="selection" style="margin-top:10px; font-size:14px; color:var(--grey)"></div>
       <button class="btn" id="b-p1">Pesée 1 : enregistrer le poids</button>
       <button class="btn vert" id="b-p2" style="display:none">Pesée 2 : terminer et imprimer le ticket</button>
+      <button class="btn vert" id="b-tare-pesee" style="display:none">Pesée avec la tare mémorisée : terminer et imprimer</button>
+      <div id="veh-type-bloc" style="display:none; margin-top:10px">
+        <label>Type de véhicule pour la tare mémorisée</label>
+        <select id="veh-type"><option value="client">Véhicule client ou transporteur</option><option value="entreprise">Véhicule de l'entreprise (parc)</option></select>
+      </div>
+      <button class="btn gris" id="b-tare-memo" style="display:none">Mémoriser ce poids comme tare du véhicule</button>
       <button class="btn gris" id="b-annuler-sel" style="display:none">Désélectionner</button>
     </div>
   </section>
@@ -119,7 +129,10 @@
   const LSset = (k, v) => localStorage.setItem('bascule.' + SITE + '.' + k, v);
   if (qs.get('k')) { LSset('cle', qs.get('k')); history.replaceState(null, '', location.pathname + '?site=' + SITE); }
   const $ = id => document.getElementById(id);
-  let CFG = null, pesees = { ouvertes: [], jour: [] }, selection = null, derniereTerminee = null;
+  let CFG = null, pesees = { ouvertes: [], jour: [] }, selection = null, derniereTerminee = null, vehicule = null;
+  const normImmat = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const manuelActif = () => $('manuel-on').checked;
+  const effectif = () => manuelActif() ? { poids: parseInt($('manuel-kg').value, 10) || 0, stable: true } : { poids: poidsCourant, stable };
   let port = null, writer = null, lecteur = null, tampon = '', attente = null, file = Promise.resolve(), poll = null;
   let derniers = [], poidsCourant = null, stable = false;
 
@@ -224,13 +237,18 @@
     t(ligneLR('Type', sensTxt, L));
     t('-'.repeat(L));
     if (p.x_sens === 'simple') { t(ligneLR('Pesee', fmtKg(p.x_p1) + ' kg', L)); }
-    else {
+    else if (p.x_tare_memo) {
+      t(ligneLR('Tare memorisee le ' + dateFr(p.x_p1_date).slice(0, 10), fmtKg(p.x_p1) + ' kg', L));
+      t(ligneLR('Pesee ' + dateFr(p.x_p2_date), fmtKg(p.x_p2) + ' kg', L));
+    } else {
       t(ligneLR('Pesee 1  ' + dateFr(p.x_p1_date), fmtKg(p.x_p1) + ' kg', L));
       t(ligneLR('Pesee 2  ' + dateFr(p.x_p2_date), fmtKg(p.x_p2) + ' kg', L));
     }
     t('-'.repeat(L));
     t('NET  ' + fmtKg(p.x_net) + ' kg  =  ' + (p.x_net_t || 0).toLocaleString('fr-FR', { minimumFractionDigits: 3 }) + ' t', { align: 'center', dw: true, dh: true });
     t('');
+    if (p.x_manuel) t('Poids saisi a la main', { align: 'center' });
+    if (p.x_vehicule_type === 'entreprise') t('Vehicule de l entreprise', { align: 'center' });
     if (p.x_note) t('Note : ' + p.x_note);
     t('Instrument : ' + (CFG.instrument || ''), { align: 'center', petit: true });
     t('Poids tels que lus sur l instrument approuve', { align: 'center', petit: true });
@@ -303,16 +321,64 @@
   }
   function majBoutons() {
     const simple = sens() === 'simple';
+    const e = effectif(); const pret = e.poids != null && e.poids > 0 && e.stable;
+    const tareConnue = !!(vehicule && vehicule.tare > 0) && !selection && !simple;
     $('b-p1').style.display = selection ? 'none' : ''; $('b-p2').style.display = selection ? '' : 'none'; $('b-annuler-sel').style.display = selection ? '' : 'none';
-    $('b-p1').textContent = simple ? 'Pesée simple : enregistrer et imprimer' : 'Pesée 1 : enregistrer le poids';
-    const pret = poidsCourant != null && poidsCourant > 0 && stable;
-    $('b-p1').disabled = !pret; $('b-p2').disabled = !pret;
+    $('b-tare-pesee').style.display = tareConnue ? '' : 'none';
+    const memoVisible = !selection && !simple && normImmat($('immat').value).length >= 4;
+    $('b-tare-memo').style.display = memoVisible ? '' : 'none'; $('veh-type-bloc').style.display = memoVisible ? '' : 'none';
+    $('b-tare-memo').textContent = (vehicule ? 'Mettre à jour la tare mémorisée' : 'Mémoriser ce poids comme tare du véhicule') + (pret ? ' : ' + fmtKg(e.poids) + ' kg' : '');
+    $('b-p1').textContent = simple ? 'Pesée simple : enregistrer et imprimer' : (tareConnue ? 'Pesée 1 classique (sans la tare mémorisée)' : 'Pesée 1 : enregistrer le poids');
+    $('b-p1').disabled = !pret; $('b-p2').disabled = !pret; $('b-tare-pesee').disabled = !pret; $('b-tare-memo').disabled = !pret;
+    $('manuel-kg').style.display = manuelActif() ? '' : 'none';
+    if (manuelActif()) { $('stable').textContent = e.poids > 0 ? 'SAISIE MANUELLE : ' + fmtKg(e.poids) + ' kg' : 'saisie manuelle : taper le poids'; $('stable').className = 'mvt'; }
   }
   function formulaire() {
     const sel = $('produit'); const nomProduit = sel.value ? sel.options[sel.selectedIndex].text : $('produit-libre').value.trim();
     if (sel.value) LSset('produit', sel.value);
     return { immat: $('immat').value.trim().toUpperCase(), client: $('client').value.trim(), partner_id: +$('partner_id').value || null,
-             produit: nomProduit, product_id: +sel.value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse') };
+             produit: nomProduit, product_id: +sel.value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse'),
+             manuel: manuelActif(), poids: effectif().poids };
+  }
+  async function chercherVehicule() {
+    const n = normImmat($('immat').value);
+    vehicule = null; $('vehicule-info').textContent = '';
+    if (n.length < 2) { majBoutons(); return; }
+    try {
+      const rows = await api('vehicules?q=' + encodeURIComponent(n));
+      $('immat-liste').innerHTML = rows.map(v => '<option value="' + v.immat + '">tare ' + fmtKg(v.tare) + ' kg' + (v.client ? ' - ' + v.client : '') + '</option>').join('');
+      const exact = rows.find(v => v.immat === n);
+      if (exact) {
+        vehicule = exact;
+        const typ = exact.type === 'entreprise' ? 'Véhicule de l entreprise' + (exact.parc ? ' (' + exact.parc + ')' : '') : 'Véhicule client';
+        $('vehicule-info').textContent = typ + (exact.tare > 0 ? ' : tare mémorisée ' + fmtKg(exact.tare) + ' kg le ' + dateFr(exact.tare_date).slice(0, 10) : ' : pas encore de tare mémorisée') + (exact.client ? ' - ' + exact.client : '') + '.';
+        $('veh-type').value = exact.type || 'client';
+        if (!$('client').value && exact.client) { $('client').value = exact.client; $('partner_id').value = exact.partner_id || ''; }
+        if (!$('produit').value && exact.product_id) $('produit').value = exact.product_id;
+      } else { $('veh-type').value = 'client'; }
+    } catch (e) { /* hors ligne */ }
+    majBoutons();
+  }
+  async function tarePesee() {
+    const f = formulaire(); $('b-tare-pesee').disabled = true;
+    try {
+      const r = await post(Object.assign({ action: 'tare' }, f));
+      derniereTerminee = r.pesee;
+      const ok = await imprimer(ticketXml(r.pesee));
+      if (ok) await post({ action: 'imprime', id: r.pesee.id });
+      message('Pesée ' + r.pesee.x_name + ' terminée avec la tare mémorisée : net ' + fmtKg(r.pesee.x_net) + ' kg' + (ok ? ', ticket imprimé' : ''), ok ? 'ok' : 'ko');
+      viderFormulaire(); vehicule = null; $('vehicule-info').textContent = ''; await chargerPesees();
+    } catch (e) { message(e.message, 'ko'); }
+    majBoutons();
+  }
+  async function tareMemo() {
+    const f = formulaire(); $('b-tare-memo').disabled = true;
+    try {
+      const r = await api('vehicule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: SITE, k: LS('cle'), immat: f.immat, tare: f.poids, client: f.client, partner_id: f.partner_id, produit: f.produit, product_id: f.product_id, type: $('veh-type').value, fleet_id: vehicule && vehicule.fleet_id }) });
+      message('Tare mémorisée pour ' + r.vehicule.x_name + ' (' + (r.vehicule.x_type === 'entreprise' ? 'véhicule de l entreprise' : 'véhicule client') + ') : ' + fmtKg(r.vehicule.x_tare) + ' kg. Prochaine fois, une seule pesée suffira.', 'ok');
+      await chercherVehicule();
+    } catch (e) { message(e.message, 'ko'); }
+    majBoutons();
   }
   function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; $('produit-libre').value = ''; }
   async function pesee1() {
@@ -361,7 +427,16 @@
   $('b-sauver').addEventListener('click', () => { LSset('poste', $('r-poste').value.trim()); LSset('imprimante', $('r-imprimante').value.trim()); LSset('cle', $('r-cle').value.trim()); message('Réglages enregistrés', 'ok'); demarrer(); });
   $('b-test-imp').addEventListener('click', async () => { const p = { x_name: 'TEST', x_sens: 'vente', x_p1: 12340, x_p1_date: new Date().toISOString().slice(0, 19).replace('T', ' '), x_p2: 27860, x_p2_date: new Date().toISOString().slice(0, 19).replace('T', ' '), x_net: 15520, x_net_t: 15.52, x_immat: 'AB-123-CD', x_client: 'Client de test', x_produit: 'Calcaire 0/10' }; if (await imprimer(ticketXml(p))) message('Ticket de test envoyé', 'ok'); });
   $('b-lire').addEventListener('click', async () => { const r = await commande(pilote().brut); message(r == null ? 'Pas de réponse de la bascule' : 'Réponse brute : ' + r, r == null ? 'ko' : 'info'); });
-  $('immat').addEventListener('input', () => { const v = $('immat').value.trim().toUpperCase(); const p = pesees.ouvertes.find(q => q.x_immat === v); if (p && (!selection || selection.id !== p.id)) selectionner(p); });
+  let tVeh = null;
+  $('immat').addEventListener('input', () => {
+    const v = normImmat($('immat').value); const p = pesees.ouvertes.find(q => normImmat(q.x_immat) === v);
+    if (p && (!selection || selection.id !== p.id)) selectionner(p);
+    clearTimeout(tVeh); tVeh = setTimeout(chercherVehicule, 300); majBoutons();
+  });
+  $('manuel-on').addEventListener('change', () => { if (manuelActif()) { $('manuel-kg').style.display = ''; $('manuel-kg').focus(); } majBoutons(); });
+  $('manuel-kg').addEventListener('input', majBoutons);
+  $('b-tare-pesee').addEventListener('click', tarePesee);
+  $('b-tare-memo').addEventListener('click', tareMemo);
 
   async function demarrer() {
     if (!LS('cle')) { message('Clé d accès manquante : ouvrir la page avec ?site=' + SITE + '&k=… ou la saisir dans Réglages.', 'ko'); $('reglages').style.display = ''; return; }

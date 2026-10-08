@@ -85,7 +85,92 @@ def _maintenant():
 
 
 CHAMPS = ['x_name', 'x_site', 'x_etat', 'x_sens', 'x_immat', 'x_client', 'x_partner_id', 'x_produit', 'x_product_id',
-          'x_p1', 'x_p1_date', 'x_p2', 'x_p2_date', 'x_net', 'x_net_t', 'x_poste', 'x_imprime', 'x_note', 'create_date']
+          'x_p1', 'x_p1_date', 'x_p2', 'x_p2_date', 'x_net', 'x_net_t', 'x_poste', 'x_imprime', 'x_note', 'x_manuel', 'x_tare_memo',
+          'x_vehicule_id', 'x_vehicule_type', 'create_date']
+CHAMPS_V = ['x_name', 'x_type', 'x_fleet_id', 'x_tare', 'x_tare_date', 'x_client', 'x_partner_id', 'x_produit', 'x_product_id', 'x_site', 'x_note', 'write_date']
+
+
+def _immat(s):
+    """Immatriculation normalisée : majuscules, lettres et chiffres seulement (AB-123-CD -> AB123CD)."""
+    return re.sub(r'[^A-Z0-9]', '', (s or '').upper())
+
+
+def _parc(site, q):
+    """Véhicules du parc Odoo (module Parc automobile) dont la plaque contient q : {immat normalisée: (id, nom)}."""
+    rows = _call('fleet.vehicle', 'search_read', [['license_plate', '!=', False]], fields=['license_plate', 'name'], limit=400,
+                 context={'active_test': True, 'allowed_company_ids': [1, 2, 3, 4, 13]})
+    return {_immat(r['license_plate']): (r['id'], r['name']) for r in rows if q in _immat(r['license_plate'])}
+
+
+def _vehicule(site, immat):
+    n = _immat(immat)
+    if not n:
+        return None
+    rows = _call('x_vehicule', 'search_read', [['x_name', '=', n]], fields=CHAMPS_V, limit=1, **_ctx(site))
+    if not rows:
+        return None
+    v = rows[0]
+    for f in ('x_partner_id', 'x_product_id', 'x_fleet_id'):
+        v[f] = v[f][0] if v[f] else None
+    return v
+
+
+def _vehicule_json(r):
+    return {'immat': r['x_name'], 'type': r['x_type'] or 'client', 'fleet_id': r['x_fleet_id'] and (r['x_fleet_id'][0] if isinstance(r['x_fleet_id'], list) else r['x_fleet_id']),
+            'tare': r['x_tare'], 'tare_date': r['x_tare_date'], 'client': r['x_client'] or '',
+            'partner_id': r['x_partner_id'] and (r['x_partner_id'][0] if isinstance(r['x_partner_id'], list) else r['x_partner_id']),
+            'produit': r['x_produit'] or '', 'product_id': r['x_product_id'] and (r['x_product_id'][0] if isinstance(r['x_product_id'], list) else r['x_product_id'])}
+
+
+@bp.route('/api/vehicules')
+def api_vehicules():
+    """Recherche par début d'immatriculation : véhicules connus (tare mémorisée) + véhicules du parc de l'entreprise."""
+    g = _garde()
+    if g:
+        return g
+    q = _immat(request.args.get('q'))
+    if len(q) < 2:
+        return jsonify([])
+    rows = _call('x_vehicule', 'search_read', [['x_name', 'ilike', q]], fields=CHAMPS_V, limit=10, order='x_name', **_ctx(_site()))
+    res = [_vehicule_json(r) for r in rows]
+    connus = {r['immat'] for r in res}
+    for n, (fid, nom) in _parc(_site(), q).items():
+        if n not in connus:
+            res.append({'immat': n, 'type': 'entreprise', 'fleet_id': fid, 'tare': 0, 'tare_date': None, 'client': '', 'partner_id': None, 'produit': '', 'product_id': None, 'parc': nom})
+    return jsonify(res[:12])
+
+
+@bp.route('/api/vehicule', methods=['POST'])
+def api_vehicule():
+    """Mémorise (ou met à jour) la tare d'un véhicule : {immat, tare, client, partner_id, produit, product_id, note}."""
+    g = _garde()
+    if g:
+        return g
+    site = _site(); d = request.get_json(silent=True) or {}
+    n = _immat(d.get('immat'))
+    try:
+        tare = float(d.get('tare') or 0)
+    except (TypeError, ValueError):
+        tare = 0.0
+    if not n or tare <= 0:
+        return jsonify({'error': 'immatriculation et tare (> 0) obligatoires'}), 400
+    vals = {'x_name': n, 'x_tare': tare, 'x_tare_date': _maintenant(), 'x_site': site}
+    parc = _parc(site, n).get(n)
+    typ = d.get('type') if d.get('type') in ('client', 'entreprise') else ('entreprise' if parc else 'client')
+    vals['x_type'] = typ
+    vals['x_fleet_id'] = (d.get('fleet_id') or (parc and parc[0]) or False) if typ == 'entreprise' else False
+    for champ, cle in (('x_client', 'client'), ('x_produit', 'produit'), ('x_note', 'note')):
+        if d.get(cle):
+            vals[champ] = d[cle].strip()
+    for champ, cle in (('x_partner_id', 'partner_id'), ('x_product_id', 'product_id')):
+        if d.get(cle):
+            vals[champ] = d[cle]
+    v = _vehicule(site, n)
+    if v:
+        _call('x_vehicule', 'write', [v['id']], vals, **_ctx(site))
+    else:
+        _call('x_vehicule', 'create', vals, **_ctx(site))
+    return jsonify({'vehicule': _vehicule(site, n)})
 
 
 def _lire(site, ids):
@@ -153,18 +238,38 @@ def api_pesee():
         poids = float(d.get('poids') or 0)
     except (TypeError, ValueError):
         poids = 0.0
-    if action in ('p1', 'simple'):
+    if action in ('p1', 'simple', 'tare'):
         if poids <= 0:
             return jsonify({'error': 'poids nul : attendre que la pesée soit stable'}), 400
-        numero = _call('ir.sequence', 'next_by_code', SITES[site]['sequence'])
-        vals = {'x_name': numero, 'x_site': site, 'x_company_id': SITES[site]['company_id'], 'x_sens': d.get('sens') or 'vente',
+        vals = {'x_site': site, 'x_company_id': SITES[site]['company_id'], 'x_sens': d.get('sens') or 'vente',
                 'x_immat': (d.get('immat') or '').strip().upper(), 'x_client': (d.get('client') or '').strip(), 'x_partner_id': d.get('partner_id') or False,
                 'x_produit': (d.get('produit') or '').strip(), 'x_product_id': d.get('product_id') or False,
-                'x_p1': poids, 'x_p1_date': _maintenant(), 'x_poste': (d.get('poste') or '')[:60], 'x_note': d.get('note') or False}
-        if action == 'simple':
-            vals.update(x_etat='terminee', x_sens='simple', x_net=poids, x_net_t=round(poids / 1000.0, 3))
+                'x_poste': (d.get('poste') or '')[:60], 'x_note': d.get('note') or False, 'x_manuel': bool(d.get('manuel'))}
+        v = _vehicule(site, d.get('immat'))
+        if v:
+            vals.update(x_vehicule_id=v['id'], x_vehicule_type=v['x_type'] or 'client')
+        elif vals['x_immat'] and _parc(site, _immat(vals['x_immat'])).get(_immat(vals['x_immat'])):
+            vals['x_vehicule_type'] = 'entreprise'
+        elif vals['x_immat']:
+            vals['x_vehicule_type'] = 'client'
+        if action == 'tare':
+            # une seule pesée : la tare mémorisée du véhicule tient lieu de pesée 1
+            if not v or not v['x_tare']:
+                return jsonify({'error': 'aucune tare mémorisée pour ce véhicule'}), 400
+            if poids <= v['x_tare']:
+                return jsonify({'error': 'poids (%d kg) inférieur ou égal à la tare mémorisée (%d kg)' % (poids, v['x_tare'])}), 400
+            net = round(poids - v['x_tare'], 0)
+            vals.update(x_p1=v['x_tare'], x_p1_date=v['x_tare_date'] or _maintenant(), x_p2=poids, x_p2_date=_maintenant(),
+                        x_net=net, x_net_t=round(net / 1000.0, 3), x_etat='terminee', x_tare_memo=True)
+            if not vals['x_client'] and v['x_client']:
+                vals['x_client'] = v['x_client']; vals['x_partner_id'] = v['x_partner_id'] or False
+            if not vals['x_produit'] and v['x_produit']:
+                vals['x_produit'] = v['x_produit']; vals['x_product_id'] = v['x_product_id'] or False
+        elif action == 'simple':
+            vals.update(x_p1=poids, x_p1_date=_maintenant(), x_etat='terminee', x_sens='simple', x_net=poids, x_net_t=round(poids / 1000.0, 3))
         else:
-            vals.update(x_etat='ouverte')
+            vals.update(x_p1=poids, x_p1_date=_maintenant(), x_etat='ouverte')
+        vals['x_name'] = _call('ir.sequence', 'next_by_code', SITES[site]['sequence'])
         rid = _call('x_pesee', 'create', vals, **_ctx(site))
         rid = rid[0] if isinstance(rid, list) else rid
         return jsonify({'pesee': _lire(site, [rid])[0]})
@@ -179,6 +284,8 @@ def api_pesee():
             return jsonify({'error': 'cette pesée n est plus ouverte'}), 400
         net = round(abs(poids - cur['x_p1']), 0)
         vals = {'x_p2': poids, 'x_p2_date': _maintenant(), 'x_net': net, 'x_net_t': round(net / 1000.0, 3), 'x_etat': 'terminee'}
+        if d.get('manuel'):
+            vals['x_manuel'] = True
         for champ, cle in (('x_client', 'client'), ('x_produit', 'produit'), ('x_immat', 'immat')):
             if d.get(cle):
                 vals[champ] = d[cle].strip().upper() if cle == 'immat' else d[cle].strip()

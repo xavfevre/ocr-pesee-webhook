@@ -47,6 +47,26 @@ CHAMPS = [
     ('x_poste', {'field_description': 'Poste', 'ttype': 'char'}),
     ('x_imprime', {'field_description': 'Ticket imprimé', 'ttype': 'boolean'}),
     ('x_note', {'field_description': 'Note', 'ttype': 'text'}),
+    ('x_manuel', {'field_description': 'Poids saisi à la main', 'ttype': 'boolean'}),
+    ('x_tare_memo', {'field_description': 'Tare mémorisée du véhicule', 'ttype': 'boolean'}),
+    ('x_vehicule_id', {'field_description': 'Véhicule', 'ttype': 'many2one', 'relation': 'x_vehicule'}),
+    ('x_vehicule_type', {'field_description': 'Type de véhicule', 'ttype': 'selection', 'selection': "[('client', 'Véhicule client / transporteur'), ('entreprise', 'Véhicule de l entreprise')]"}),
+]
+MODELE_V = 'x_vehicule'
+NOM_MODELE_V = 'Véhicule pont-bascule'
+NOM_MENU_V = 'Véhicules (tares)'
+CHAMPS_V = [
+    ('x_name', {'field_description': 'Immatriculation', 'ttype': 'char', 'required': True}),
+    ('x_type', {'field_description': 'Type', 'ttype': 'selection', 'selection': "[('client', 'Véhicule client / transporteur'), ('entreprise', 'Véhicule de l entreprise')]"}),
+    ('x_fleet_id', {'field_description': 'Véhicule du parc', 'ttype': 'many2one', 'relation': 'fleet.vehicle'}),
+    ('x_tare', {'field_description': 'Tare (kg)', 'ttype': 'float'}),
+    ('x_tare_date', {'field_description': 'Tare pesée le', 'ttype': 'datetime'}),
+    ('x_client', {'field_description': 'Client / transporteur', 'ttype': 'char'}),
+    ('x_partner_id', {'field_description': 'Contact Odoo', 'ttype': 'many2one', 'relation': 'res.partner'}),
+    ('x_produit', {'field_description': 'Produit habituel', 'ttype': 'char'}),
+    ('x_product_id', {'field_description': 'Article Odoo habituel', 'ttype': 'many2one', 'relation': 'product.product'}),
+    ('x_site', {'field_description': 'Site de la dernière tare', 'ttype': 'char'}),
+    ('x_note', {'field_description': 'Note', 'ttype': 'text'}),
 ]
 
 
@@ -107,6 +127,31 @@ def appliquer():
         parent = x('ir.ui.menu', 'read', [1066], ['parent_id'])[0]['parent_id']   # même parent que « Expédition palettes » (Logistiques)
         mn = one(x('ir.ui.menu', 'create', [{'name': NOM_MENU, 'parent_id': parent and parent[0], 'action': 'ir.actions.act_window,%d' % act, 'sequence': 60}]))
         print('   menu créé :', mn, 'sous', parent and parent[1])
+    # véhicules : tare mémorisée par immatriculation (une seule pesée ensuite)
+    r = x('ir.model', 'search', [['model', '=', MODELE_V]])
+    mv = r[0] if r else one(x('ir.model', 'create', [{'name': NOM_MODELE_V, 'model': MODELE_V, 'state': 'manual', 'order': 'x_name'}]))
+    if not r:
+        print('modèle véhicules créé :', mv)
+    existants = {f['name'] for f in x('ir.model.fields', 'search_read', [['model_id', '=', mv]], fields=['name'])}
+    for nom, vals in CHAMPS_V:
+        if nom not in existants:
+            x('ir.model.fields', 'create', [dict(vals, name=nom, model_id=mv, state='manual')])
+            print('   champ véhicule %s créé' % nom)
+    if not x('ir.model.access', 'search', [['model_id', '=', mv]]):
+        x('ir.model.access', 'create', [{'name': MODELE_V + ' utilisateurs', 'model_id': mv, 'group_id': ref('base.group_user'), 'perm_read': True, 'perm_write': True, 'perm_create': True, 'perm_unlink': False}])
+        x('ir.model.access', 'create', [{'name': MODELE_V + ' administrateurs', 'model_id': mv, 'group_id': ref('base.group_system'), 'perm_read': True, 'perm_write': True, 'perm_create': True, 'perm_unlink': True}])
+        print('   droits véhicules créés')
+    arch_v = '<list string="Véhicules" editable="bottom"><field name="x_name"/><field name="x_type" widget="badge"/><field name="x_fleet_id"/><field name="x_tare"/><field name="x_tare_date"/><field name="x_client"/><field name="x_partner_id"/><field name="x_produit"/><field name="x_product_id"/><field name="x_site"/><field name="x_note"/></list>'
+    vue_v = x('ir.ui.view', 'search', [['model', '=', MODELE_V], ['type', '=', 'list']])
+    if vue_v:
+        x('ir.ui.view', 'write', vue_v, {'arch_db': arch_v}); print('   vue liste véhicules mise à jour')
+    else:
+        x('ir.ui.view', 'create', [{'name': 'x_vehicule.list', 'model': MODELE_V, 'type': 'list', 'arch_db': arch_v}]); print('   vue liste véhicules créée')
+    if not x('ir.ui.menu', 'search', [['name', '=', NOM_MENU_V]]):
+        act = one(x('ir.actions.act_window', 'create', [{'name': NOM_MENU_V, 'res_model': MODELE_V, 'view_mode': 'list,form'}]))
+        parent = x('ir.ui.menu', 'read', [1066], ['parent_id'])[0]['parent_id']
+        mn = one(x('ir.ui.menu', 'create', [{'name': NOM_MENU_V, 'parent_id': parent and parent[0], 'action': 'ir.actions.act_window,%d' % act, 'sequence': 61}]))
+        print('   menu véhicules créé :', mn)
     for code, (prefixe, libelle) in SITES.items():
         if not x('ir.sequence', 'search', [['code', '=', 'x_pesee.' + code]]):
             x('ir.sequence', 'create', [{'name': 'Pesées ' + libelle, 'code': 'x_pesee.' + code, 'prefix': prefixe + '-%(year)s-', 'padding': 5, 'company_id': False}])
