@@ -75,7 +75,7 @@ def _poste(src=None):
     return re.sub(r'[^a-z0-9_-]', '', p)[:30] or 'poste'
 
 
-RE_PLAQUE = re.compile(r'^([A-Z]{2}-?\d{3}-?[A-Z]{2}|\d{1,4}\s?[A-Z]{1,3}\s?\d{2})$')
+RE_PLAQUE = re.compile(r'^([A-Z]{2}-?\d{3}-?[A-Z]{2}|\d{1,4}[\s-]?[A-Z]{1,3}[\s-]?\d{2})$')   # SIV AA-123-AA ou ancien 1234-AB-86
 
 
 def _libelle(nom, plaque):
