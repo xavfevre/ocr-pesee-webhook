@@ -233,13 +233,13 @@ def _declaration(periodicite, annee, prorata, archives, societes=None, eligibles
 
 
 def _params():
-    periodicite = request.args.get('periodicite') or 'trimestriel'
+    periodicite = request.args.get('periodicite') or 'annuel'          # défauts = dossier de remboursement : par année, année civile précédente
     if periodicite not in ('mensuel', 'trimestriel', 'semestriel', 'annuel'):
-        periodicite = 'trimestriel'
+        periodicite = 'annuel'
     try:
-        annee = int(request.args.get('annee') or date.today().year)
+        annee = int(request.args.get('annee') or (date.today().year - 1))
     except ValueError:
-        annee = date.today().year
+        annee = date.today().year - 1
     societes = [int(x) for x in re.findall(r'\d+', request.args.get('societes') or '')]
     return periodicite, annee, request.args.get('prorata') in ('1', 'true', 'oui'), request.args.get('archives') in ('1', 'true', 'oui'), societes, request.args.get('eligibles') in ('1', 'true', 'oui')
 

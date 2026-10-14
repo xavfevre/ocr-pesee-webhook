@@ -97,8 +97,10 @@
   if(P.get('k')){ localStorage.setItem('engins_k', P.get('k')); }
   var $ = function(id){ return document.getElementById(id); };
   var today = new Date(); var an = today.getFullYear();
-  var sel = {periodicite: P.get('periodicite') || localStorage.getItem('engins_per') || 'trimestriel', annee: parseInt(P.get('annee') || an, 10),
-             socs: (P.get('societes') || localStorage.getItem('engins_socs') || '').split(',').filter(Boolean).map(Number), prorata: (P.get('prorata') || localStorage.getItem('engins_prorata')) === '1'};
+  /* Réglages par défaut = dossier de remboursement de l'accise GNR : par année, année civile précédente, engins éligibles seulement, relevés exacts. */
+  var sel = {periodicite: P.get('periodicite') || localStorage.getItem('gnr_per') || 'annuel', annee: parseInt(P.get('annee') || localStorage.getItem('gnr_annee') || (an - 1), 10),
+             socs: (P.get('societes') || localStorage.getItem('engins_socs') || '').split(',').filter(Boolean).map(Number), prorata: (P.get('prorata') || localStorage.getItem('gnr_prorata') || '0') === '1',
+             eligibles: (P.get('eligibles') || localStorage.getItem('gnr_elig') || '1') === '1'};
   var dispo = null;
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   function nb(n){ return n == null ? '' : Math.round(n).toLocaleString('fr-FR'); }
@@ -107,7 +109,7 @@
   function options(){
     var a = $('annee'); a.innerHTML = '';
     for(var y = an; y >= an - 6; y--){ var o = document.createElement('option'); o.value = y; o.textContent = y; a.appendChild(o); }
-    a.value = sel.annee; $('periodicite').value = sel.periodicite; $('prorata').checked = sel.prorata;
+    a.value = sel.annee; $('periodicite').value = sel.periodicite; $('prorata').checked = sel.prorata; $('eligibles').checked = sel.eligibles;
   }
   function peintSocs(){
     var l = $('socs'); l.innerHTML = '';
@@ -154,11 +156,11 @@
       if(Object.keys(d.totaux).length !== 1){ var tt = document.createElement('tr'); tt.className = 'tt'; tt.innerHTML = totLigne('TOTAL engins', d.general, d.general_elig); tb.appendChild(tt); }
     }).catch(function(){ msg('bad', '❌ Relais injoignable'); });
   }
-  $('periodicite').onchange = function(){ sel.periodicite = this.value; localStorage.setItem('engins_per', sel.periodicite); charge(); };
-  $('annee').onchange = function(){ sel.annee = parseInt(this.value, 10); charge(); };
-  $('prorata').onchange = function(){ sel.prorata = this.checked; localStorage.setItem('engins_prorata', sel.prorata ? '1' : '0'); charge(); };
+  $('periodicite').onchange = function(){ sel.periodicite = this.value; localStorage.setItem('gnr_per', sel.periodicite); charge(); };
+  $('annee').onchange = function(){ sel.annee = parseInt(this.value, 10); localStorage.setItem('gnr_annee', sel.annee); charge(); };
+  $('prorata').onchange = function(){ sel.prorata = this.checked; localStorage.setItem('gnr_prorata', sel.prorata ? '1' : '0'); charge(); };
   $('archives').onchange = charge;
-  $('eligibles').onchange = charge;
+  $('eligibles').onchange = function(){ sel.eligibles = this.checked; localStorage.setItem('gnr_elig', sel.eligibles ? '1' : '0'); charge(); };
   var gnrTimer = {};
   function envoieGnr(id){
     clearTimeout(gnrTimer[id]);
