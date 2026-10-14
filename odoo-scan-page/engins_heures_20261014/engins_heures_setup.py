@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Page « Heures engins » du relais : objets Odoo (14/10/2026).
+"""Page « Rbt taxes GNR » (heures des engins non routiers) du relais : objets Odoo (14/10/2026).
   - paramètre système `maquignon.engins_key` (clé d'accès de la page), créé s'il n'existe pas ;
-  - action URL + menu « ⏱ Heures engins » dans l'application Parc automobile (zéro code).
+  - action URL + menu « 💶 Rbt taxes GNR » dans l'application Parc automobile (zéro code).
+  Les réglages GNR par engin (éligible, type, %) vivent dans le paramètre `maquignon.gnr_engins` (JSON écrit par
+  la page), pas sur les fiches véhicules : ils restent modifiables à tout moment depuis la page.
    python engins_heures_setup.py dry | apply | etat | retour
 Identifiants attendus dans l'environnement : ODOO_USER, ODOO_PWD."""
 import os, sys, secrets, xmlrpc.client
@@ -25,14 +27,15 @@ def x(mo, me, *a, **k):
 
 one = lambda v: v[0] if isinstance(v, list) else v
 RELAIS = 'https://ocr-pesee-webhook.onrender.com/heures-engins/'
-NOM = '⏱ Heures engins'
+NOM = '💶 Rbt taxes GNR'
 cle = x('ir.config_parameter', 'get_param', 'maquignon.engins_key', '') or ''
 racine = x('ir.model.data', 'search_read', [['module', '=', 'fleet'], ['name', '=', 'menu_root']], fields=['res_id'])
 racine = racine[0]['res_id'] if racine else None
-menus = x('ir.ui.menu', 'search_read', [['name', 'ilike', 'Heures engins']], fields=['id', 'parent_id', 'action', 'name'])
+menus = x('ir.ui.menu', 'search_read', ['|', ['name', 'ilike', 'Heures engins'], ['name', 'ilike', 'Rbt taxes GNR']], fields=['id', 'parent_id', 'action', 'name'])
 print('clé :', 'présente' if cle else 'ABSENTE', '| menu racine Parc automobile :', racine, '| menu :', menus or 'absent')
 if MODE == 'etat':
-    print('URL :', RELAIS + '?k=' + cle); sys.exit()
+    print('URL :', RELAIS + '?k=' + cle)
+    print('réglages GNR (maquignon.gnr_engins) :', (x('ir.config_parameter', 'get_param', 'maquignon.gnr_engins', '') or '')[:400]); sys.exit()
 if MODE == 'retour':
     for mn in menus:
         x('ir.ui.menu', 'unlink', [mn['id']])
@@ -50,7 +53,7 @@ if menus and menus[0]['action'] and menus[0]['action'].startswith('ir.actions.ac
 else:
     aid = one(x('ir.actions.act_url', 'create', [{'name': NOM, 'url': url, 'target': 'new'}])); print('action URL créée :', aid)
     if menus:
-        x('ir.ui.menu', 'write', [menus[0]['id']], {'action': 'ir.actions.act_url,%d' % aid, 'parent_id': racine, 'sequence': 60}); print('menu %d relié' % menus[0]['id'])
+        x('ir.ui.menu', 'write', [menus[0]['id']], {'name': NOM, 'action': 'ir.actions.act_url,%d' % aid, 'parent_id': racine, 'sequence': 60}); print('menu %d relié' % menus[0]['id'])
     else:
         print('menu créé :', one(x('ir.ui.menu', 'create', [{'name': NOM, 'parent_id': racine, 'sequence': 60, 'action': 'ir.actions.act_url,%d' % aid}])))
 print('URL de la page :', url)

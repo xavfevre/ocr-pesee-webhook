@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Heures engins</title>
+<title>Rbt taxes GNR</title>
 <style>
   :root{--ink:#0f172a;--grey:#64748b;--line:#cbd5e1;--blue:#1d4ed8;--green:#16a34a;--amber:#b45309;--red:#dc2626;}
   *{box-sizing:border-box;}
@@ -46,6 +46,13 @@
   td.rem{white-space:normal;text-align:left;color:var(--amber);font-size:11.5px;font-weight:600;max-width:300px;}
   tr.soc td{background:#eef2ff;font-weight:900;color:var(--blue);}
   tr.tt td{background:#0f172a;color:#fff;font-weight:900;font-size:14px;}
+  td.gnr{white-space:nowrap;text-align:left;}
+  td.gnr select,td.gnr input[type=number]{border:1.5px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;font-weight:700;}
+  td.gnr input[type=number]{width:62px;}
+  td.gnr select{max-width:200px;}
+  td.gnr input[type=checkbox]{width:17px;height:17px;vertical-align:middle;}
+  td.gnr .def{display:block;color:#94a3b8;font-size:10.5px;font-weight:600;}
+  td.he{font-weight:900;font-size:14px;color:#1d4ed8;}
   td.saisie{white-space:nowrap;}
   td.saisie input{border:1.5px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;font-weight:700;width:78px;}
   td.saisie input[type=date]{width:128px;}
@@ -58,14 +65,15 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>⏱ Heures de fonctionnement des engins non routiers</h1>
-  <div class="sous">Heures consommées dans chaque mois, trimestre, semestre ou année, d'après les relevés d'horamètre du Parc automobile Odoo.</div>
+  <h1>💶 Rbt taxes GNR · heures de fonctionnement des engins non routiers</h1>
+  <div class="sous">Heures consommées par mois, trimestre, semestre ou année d'après les relevés d'horamètre du Parc automobile Odoo, et heures éligibles au remboursement de l'accise GNR (extraction, circulaire du 11 avril 2025).</div>
   <div class="card">
     <div class="ctrl">
       <label class="f">Périodicité<select id="periodicite"><option value="mensuel">Par mois</option><option value="trimestriel">Par trimestre</option><option value="semestriel">Par semestre</option><option value="annuel">Par année</option></select></label>
       <label class="f">Année<select id="annee"></select></label>
       <div class="socs"><span class="t">Sociétés</span><div class="l" id="socs"></div></div>
       <label class="chk" title="Quand un relevé manque, les heures entre deux relevés sont réparties sur les sous-périodes au prorata des jours (valeurs estimées, en bleu)"><input type="checkbox" id="prorata"/> répartir au prorata des jours</label>
+      <label class="chk"><input type="checkbox" id="eligibles"/> engins éligibles GNR seulement</label>
       <label class="chk"><input type="checkbox" id="archives"/> engins archivés aussi</label>
       <a class="b b-x" id="export" href="#">⬇ Exporter en Excel</a>
     </div>
@@ -78,7 +86,8 @@
   <div class="aide">
     <b>Lecture :</b> <b>Début</b> = dernier relevé avant la première période ; pour chaque période, <b>Fin</b> = dernier relevé de la période et <b>Heures</b> = Fin − Fin de la période précédente. Une période sans relevé reste vide : ses heures sont comptées dans la période du relevé suivant, marquée « depuis le … » en orange.
     Avec <b>répartir au prorata</b>, ces heures sont étalées sur les sous-périodes au prorata des jours (valeurs en bleu = estimées). Un compteur en baisse ou plus de 24 h/jour signale une erreur de saisie à corriger dans Odoo (fiche de l'engin, Compteur).<br/>
-    <b>Nouveau relevé :</b> heures lues sur l'horamètre + date, bouton <b>＋</b> : enregistré dans Odoo, la page se recalcule. Un relevé par engin en fin de mois donne des chiffres exacts par mois.
+    <b>GNR :</b> cochez les engins éligibles au remboursement (extraction), choisissez le type d'engin au sens de la circulaire du 11 avril 2025 (le pourcentage présumé se remplit : pelle chenille 100 %, pelle ou chargeuse sur pneus 90 %, engin taupeur 50 %…) et ajustez-le librement. Ces réglages sont gardés dans la page, pour tous les postes, sans toucher aux fiches véhicules. <b>Heures éligibles</b> = heures × %.<br/>
+    <b>Nouveau relevé :</b> heures lues sur l'horamètre + date, bouton <b>＋</b> : enregistré dans Odoo, la page se recalcule. La demande de remboursement est annuelle : un relevé par engin le dernier jour de l'année est indispensable, un par mois pour le suivi.
   </div>
 </div>
 <script>
@@ -93,7 +102,8 @@
   var dispo = null;
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   function nb(n){ return n == null ? '' : Math.round(n).toLocaleString('fr-FR'); }
-  function qs(){ return 'periodicite=' + sel.periodicite + '&annee=' + sel.annee + '&societes=' + sel.socs.join(',') + '&prorata=' + (sel.prorata ? 1 : 0) + '&archives=' + ($('archives').checked ? 1 : 0); }
+  function qs(){ return 'periodicite=' + sel.periodicite + '&annee=' + sel.annee + '&societes=' + sel.socs.join(',') + '&prorata=' + (sel.prorata ? 1 : 0) + '&archives=' + ($('archives').checked ? 1 : 0) + '&eligibles=' + ($('eligibles').checked ? 1 : 0); }
+  var TYPES_GNR = [];
   function options(){
     var a = $('annee'); a.innerHTML = '';
     for(var y = an; y >= an - 6; y--){ var o = document.createElement('option'); o.value = y; o.textContent = y; a.appendChild(o); }
@@ -116,14 +126,17 @@
       if(!dispo){ dispo = d.societes_dispo; peintSocs(); }
       $('titre').textContent = d.periode.libelle + ' · ' + d.periode.societes.join(' + ') + ' · ' + d.lignes.length + ' engins' + (d.periode.prorata ? ' · au prorata des jours' : '');
       var n = d.colonnes.length;
-      $('t').querySelector('thead').innerHTML = '<tr><th class="g">Engin</th><th>Début<br/><span style="font-weight:600;text-transform:none">dernier relevé avant</span></th>' + d.colonnes.map(function(c){ return '<th class="fin" title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Fin<br/>' + esc(c.court) + '</th><th title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Heures<br/>' + esc(c.court) + '</th>'; }).join('') + '<th>Total<br/>heures</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
+      TYPES_GNR = d.types_gnr || TYPES_GNR;
+      $('t').querySelector('thead').innerHTML = '<tr><th class="g">Engin</th><th class="g">GNR : éligible · type · %</th><th>Début<br/><span style="font-weight:600;text-transform:none">dernier relevé avant</span></th>' + d.colonnes.map(function(c){ return '<th class="fin" title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Fin<br/>' + esc(c.court) + '</th><th title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Heures<br/>' + esc(c.court) + '</th>'; }).join('') + '<th>Total<br/>heures</th><th>Heures<br/>éligibles</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
       var tb = $('t').querySelector('tbody'); tb.innerHTML = '';
       var soc = null;
       d.lignes.forEach(function(l){
-        if(l.societe !== soc){ soc = l.societe; var ts = document.createElement('tr'); ts.className = 'soc'; ts.innerHTML = '<td class="g" colspan="' + (2 * n + 5) + '">' + esc(soc) + '</td>'; tb.appendChild(ts); }
+        if(l.societe !== soc){ soc = l.societe; var ts = document.createElement('tr'); ts.className = 'soc'; ts.innerHTML = '<td class="g" colspan="' + (2 * n + 7) + '">' + esc(soc) + '</td>'; tb.appendChild(ts); }
         var tr = document.createElement('tr');
         var rel = function(r){ return r ? nb(r.valeur) + '<span class="r">' + esc(r.date) + '</span>' : '<span class="vide">—</span>'; };
-        tr.innerHTML = '<td class="g nom">' + esc(l.nom) + '<small>' + esc(l.categorie) + (l.actif ? '' : ' · archivé') + (l.dernier ? ' · dernier relevé ' + esc(l.dernier.date) + ' : ' + nb(l.dernier.valeur) + ' h' : ' · aucun relevé') + '</small></td>'
+        var opts = TYPES_GNR.map(function(t){ return '<option value="' + t.code + '" data-pct="' + t.pct + '"' + (t.code === l.type ? ' selected' : '') + '>' + esc(t.nom) + '</option>'; }).join('');
+        tr.innerHTML = '<td class="g nom">' + esc(l.nom) + '<small>' + esc(l.categorie) + (l.serie ? ' · n° ' + esc(l.serie) : '') + (l.actif ? '' : ' · archivé') + (l.dernier ? ' · dernier relevé ' + esc(l.dernier.date) + ' : ' + nb(l.dernier.valeur) + ' h' : ' · aucun relevé') + '</small></td>'
+          + '<td class="gnr"><input type="checkbox" data-el="' + l.id + '"' + (l.eligible ? ' checked' : '') + ' title="Éligible au remboursement GNR"/> <select data-ty="' + l.id + '"' + (l.eligible ? '' : ' disabled') + '>' + opts + '</select> <input type="number" min="0" max="100" step="1" data-pc="' + l.id + '" value="' + (l.eligible ? l.pct : '') + '"' + (l.eligible ? '' : ' disabled') + ' title="% des consommations éligibles"/> %' + (l.gnr_defaut ? '<span class="def">proposé d\'après la catégorie, à confirmer</span>' : '') + '</td>'
           + '<td class="fin">' + rel(l.debut) + '</td>'
           + l.cellules.map(function(c){
               var fin = '<td class="fin">' + rel(c.releve) + '</td>';
@@ -131,19 +144,38 @@
               return fin + '<td class="h' + (c.h < 0 ? ' neg' : '') + (c.estime ? ' est' : '') + '">' + (c.estime ? '~' : '') + nb(c.h) + ' h' + (c.depuis ? '<span class="dep">depuis le ' + esc(c.depuis) + '</span>' : '') + '</td>';
             }).join('')
           + '<td class="tot">' + (l.total == null ? '<span style="color:#cbd5e1">—</span>' : nb(l.total) + ' h') + '</td>'
+          + '<td class="he">' + (l.total_elig == null ? '<span style="color:#cbd5e1">—</span>' : nb(l.total_elig) + ' h') + '</td>'
           + '<td class="rem">' + esc(l.remarques.join(' ; ')) + '</td>'
           + '<td class="g saisie"><input type="number" step="1" min="0" placeholder="heures" data-v="' + l.id + '"/> <input type="date" value="' + today.toISOString().slice(0, 10) + '" data-d="' + l.id + '"/> <label style="font-size:11px;color:#64748b;"><input type="checkbox" data-f="' + l.id + '" style="width:14px;height:14px;"/>forcer</label> <button class="b b-p" data-add="' + l.id + '" title="Enregistrer ce relevé dans Odoo">＋</button></td>';
         tb.appendChild(tr);
       });
-      var totLigne = function(lib, t){ return '<td class="g" colspan="2">' + lib + '</td>' + t.slice(0, n).map(function(h){ return '<td></td><td>' + nb(h) + ' h</td>'; }).join('') + '<td>' + nb(t[n]) + ' h</td><td colspan="2"></td>'; };
-      Object.keys(d.totaux).forEach(function(s){ var tr = document.createElement('tr'); tr.className = 'soc'; tr.innerHTML = totLigne('Total ' + esc(s), d.totaux[s]); tb.appendChild(tr); });
-      if(Object.keys(d.totaux).length !== 1){ var tt = document.createElement('tr'); tt.className = 'tt'; tt.innerHTML = totLigne('TOTAL engins', d.general); tb.appendChild(tt); }
+      var totLigne = function(lib, t, te){ return '<td class="g" colspan="3">' + lib + '</td>' + t.slice(0, n).map(function(h, i){ return '<td></td><td>' + nb(h) + ' h<span class="r">éligibles ' + nb(te[i]) + ' h</span></td>'; }).join('') + '<td>' + nb(t[n]) + ' h</td><td>' + nb(te[n]) + ' h</td><td colspan="2"></td>'; };
+      Object.keys(d.totaux).forEach(function(s){ var tr = document.createElement('tr'); tr.className = 'soc'; tr.innerHTML = totLigne('Total ' + esc(s), d.totaux[s], d.totaux_elig[s]); tb.appendChild(tr); });
+      if(Object.keys(d.totaux).length !== 1){ var tt = document.createElement('tr'); tt.className = 'tt'; tt.innerHTML = totLigne('TOTAL engins', d.general, d.general_elig); tb.appendChild(tt); }
     }).catch(function(){ msg('bad', '❌ Relais injoignable'); });
   }
   $('periodicite').onchange = function(){ sel.periodicite = this.value; localStorage.setItem('engins_per', sel.periodicite); charge(); };
   $('annee').onchange = function(){ sel.annee = parseInt(this.value, 10); charge(); };
   $('prorata').onchange = function(){ sel.prorata = this.checked; localStorage.setItem('engins_prorata', sel.prorata ? '1' : '0'); charge(); };
   $('archives').onchange = charge;
+  $('eligibles').onchange = charge;
+  var gnrTimer = {};
+  function envoieGnr(id){
+    clearTimeout(gnrTimer[id]);
+    gnrTimer[id] = setTimeout(function(){
+      var el = document.querySelector('input[data-el="' + id + '"]').checked, ty = document.querySelector('select[data-ty="' + id + '"]').value, pc = document.querySelector('input[data-pc="' + id + '"]').value;
+      fetch('api/engin', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:K, veh:parseInt(id, 10), eligible:el, type:ty, pct:pc})}).then(function(r){ return r.json(); }).then(function(d){
+        if(d.error){ msg('bad', '❌ ' + d.error); return; }
+        msg('ok', '✅ Réglage GNR enregistré (commun à tous les postes).'); charge();
+      }).catch(function(){ msg('bad', '❌ Relais injoignable'); });
+    }, 700);
+  }
+  document.addEventListener('change', function(e){
+    var el = e.target.closest('input[data-el]'), ty = e.target.closest('select[data-ty]'), pc = e.target.closest('input[data-pc]');
+    if(el){ var id = el.getAttribute('data-el'); var s2 = document.querySelector('select[data-ty="' + id + '"]'), p2 = document.querySelector('input[data-pc="' + id + '"]'); s2.disabled = p2.disabled = !el.checked; if(el.checked && (p2.value === '' || p2.value === '0')){ p2.value = s2.selectedOptions[0].getAttribute('data-pct'); } envoieGnr(id); return; }
+    if(ty){ var id2 = ty.getAttribute('data-ty'); document.querySelector('input[data-pc="' + id2 + '"]').value = ty.selectedOptions[0].getAttribute('data-pct'); envoieGnr(id2); return; }
+    if(pc){ envoieGnr(pc.getAttribute('data-pc')); return; }
+  });
   document.addEventListener('change', function(e){
     var s = e.target.closest('input[data-soc]'); if(!s){ return; }
     var ids = Array.prototype.slice.call(document.querySelectorAll('input[data-soc]')).filter(function(i){ return i.checked; }).map(function(i){ return parseInt(i.getAttribute('data-soc'), 10); });
