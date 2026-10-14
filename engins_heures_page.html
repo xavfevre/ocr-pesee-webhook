@@ -5,17 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Heures engins</title>
 <style>
-  :root{--ink:#0f172a;--grey:#64748b;--line:#cbd5e1;--blue:#1d4ed8;--green:#16a34a;--amber:#f59e0b;--red:#dc2626;}
+  :root{--ink:#0f172a;--grey:#64748b;--line:#cbd5e1;--blue:#1d4ed8;--green:#16a34a;--amber:#b45309;--red:#dc2626;}
   *{box-sizing:border-box;}
   body{margin:0;background:#f1f5f9;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);}
-  .wrap{max-width:1500px;margin:0 auto;padding:14px 14px 40px;}
+  .wrap{max-width:1600px;margin:0 auto;padding:14px 14px 40px;}
   h1{font-size:19px;margin:0 0 4px;font-weight:900;}
   .sous{font-size:12.5px;color:var(--grey);font-weight:600;margin-bottom:10px;}
   .card{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 14px;margin-bottom:10px;}
-  .ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
-  .ctrl label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:800;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;}
-  .ctrl select,.ctrl input{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--ink);background:#fff;min-width:150px;}
-  .ctrl .chk{flex-direction:row;align-items:center;gap:6px;text-transform:none;font-size:13px;padding-bottom:8px;}
+  .ctrl{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:end;}
+  .ctrl label.f{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:800;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;}
+  .ctrl select{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--ink);background:#fff;min-width:150px;}
+  .socs{display:flex;flex-direction:column;gap:3px;}
+  .socs .t{font-size:11.5px;font-weight:800;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;}
+  .socs .l{display:flex;flex-wrap:wrap;gap:6px;}
+  .socs label{display:flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:800;cursor:pointer;background:#f8fafc;}
+  .socs label.on{background:#1d4ed8;border-color:#1d4ed8;color:#fff;}
+  .socs input{display:none;}
+  .chk{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink);padding-bottom:8px;cursor:pointer;}
+  .chk input{width:18px;height:18px;}
   .b{border:none;border-radius:10px;padding:10px 16px;font-weight:900;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block;}
   .b-x{background:var(--green);color:#fff;}
   .b-p{background:#eef2ff;color:var(--blue);padding:6px 9px;font-size:12.5px;border-radius:8px;}
@@ -25,15 +32,20 @@
   th,td{border-bottom:1px solid #e2e8f0;padding:6px 7px;text-align:right;white-space:nowrap;vertical-align:middle;}
   th{font-size:11px;color:var(--grey);text-transform:uppercase;letter-spacing:.3px;background:#f8fafc;position:sticky;top:0;}
   th.g,td.g{text-align:left;}
-  td.nom{font-weight:800;white-space:normal;min-width:220px;}
+  td.nom{font-weight:800;white-space:normal;min-width:230px;}
   td.nom small{display:block;color:var(--grey);font-weight:600;font-size:11.5px;}
-  td .d{display:block;color:#94a3b8;font-size:10.5px;font-weight:600;}
-  td.diff{font-weight:900;font-size:14px;color:#166534;}
-  td.diff.neg{color:var(--red);}
-  td.vide{color:#cbd5e1;}
-  td.rem{white-space:normal;text-align:left;color:#92400e;font-size:11.5px;font-weight:600;max-width:320px;}
+  td.h{font-weight:900;font-size:14px;color:#166534;}
+  td.h.neg{color:var(--red);}
+  td.h.est{color:#1d4ed8;}
+  td .r{display:block;color:#94a3b8;font-size:10.5px;font-weight:600;}
+  td .dep{display:block;color:var(--amber);font-size:10.5px;font-weight:800;}
+  td.vide,span.vide{color:#cbd5e1;}
+  td.fin{color:#475569;font-weight:700;background:#fafafa;}
+  th.fin{background:#f1f5f9;}
+  td.tot{font-weight:900;font-size:14px;}
+  td.rem{white-space:normal;text-align:left;color:var(--amber);font-size:11.5px;font-weight:600;max-width:300px;}
   tr.soc td{background:#eef2ff;font-weight:900;color:var(--blue);}
-  tr.tot td{background:#0f172a;color:#fff;font-weight:900;font-size:14px;}
+  tr.tt td{background:#0f172a;color:#fff;font-weight:900;font-size:14px;}
   td.saisie{white-space:nowrap;}
   td.saisie input{border:1.5px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;font-weight:700;width:78px;}
   td.saisie input[type=date]{width:128px;}
@@ -47,13 +59,14 @@
 <body>
 <div class="wrap">
   <h1>⏱ Heures de fonctionnement des engins non routiers</h1>
-  <div class="sous">Dernier relevé d'horamètre de chaque mois (Parc automobile Odoo) et heures de fonctionnement sur la période choisie.</div>
+  <div class="sous">Heures consommées dans chaque mois, trimestre, semestre ou année, d'après les relevés d'horamètre du Parc automobile Odoo.</div>
   <div class="card">
     <div class="ctrl">
-      <label>Périodicité<select id="periodicite"><option value="trimestre">Trimestre</option><option value="semestre">Semestre</option><option value="annee">Année</option></select></label>
-      <label>Période<select id="index"></select></label>
-      <label>Année<select id="annee"></select></label>
-      <label class="chk"><input type="checkbox" id="archives" style="min-width:0;width:18px;height:18px;"/> engins archivés aussi</label>
+      <label class="f">Périodicité<select id="periodicite"><option value="mensuel">Par mois</option><option value="trimestriel">Par trimestre</option><option value="semestriel">Par semestre</option><option value="annuel">Par année</option></select></label>
+      <label class="f">Année<select id="annee"></select></label>
+      <div class="socs"><span class="t">Sociétés</span><div class="l" id="socs"></div></div>
+      <label class="chk" title="Quand un relevé manque, les heures entre deux relevés sont réparties sur les sous-périodes au prorata des jours (valeurs estimées, en bleu)"><input type="checkbox" id="prorata"/> répartir au prorata des jours</label>
+      <label class="chk"><input type="checkbox" id="archives"/> engins archivés aussi</label>
       <a class="b b-x" id="export" href="#">⬇ Exporter en Excel</a>
     </div>
   </div>
@@ -63,9 +76,9 @@
     <div class="scroll"><table id="t"><thead></thead><tbody></tbody></table></div>
   </div>
   <div class="aide">
-    <b>Lecture :</b> chaque colonne de mois montre le dernier relevé saisi ce mois-là (et sa date). <b>Référence</b> = dernier relevé avant la période ; <b>Fin</b> = dernier relevé de la période ;
-    <b>Heures</b> = Fin − Référence, et la colonne <b>Jours</b> dit sur combien de jours ces heures ont réellement été comptées : si les relevés mensuels manquent, elle dépasse la période et c'est signalé en orange. Un compteur en baisse ou plus de 24 h/jour signale une erreur de saisie à corriger dans Odoo (fiche de l'engin, Compteur).<br/>
-    <b>Nouveau relevé :</b> heures lues sur l'horamètre + date, bouton <b>＋</b> : il est enregistré dans Odoo et la page se recalcule. Pour des chiffres justes, un relevé par engin en fin de mois suffit.
+    <b>Lecture :</b> <b>Début</b> = dernier relevé avant la première période ; pour chaque période, <b>Fin</b> = dernier relevé de la période et <b>Heures</b> = Fin − Fin de la période précédente. Une période sans relevé reste vide : ses heures sont comptées dans la période du relevé suivant, marquée « depuis le … » en orange.
+    Avec <b>répartir au prorata</b>, ces heures sont étalées sur les sous-périodes au prorata des jours (valeurs en bleu = estimées). Un compteur en baisse ou plus de 24 h/jour signale une erreur de saisie à corriger dans Odoo (fiche de l'engin, Compteur).<br/>
+    <b>Nouveau relevé :</b> heures lues sur l'horamètre + date, bouton <b>＋</b> : enregistré dans Odoo, la page se recalcule. Un relevé par engin en fin de mois donne des chiffres exacts par mois.
   </div>
 </div>
 <script>
@@ -75,55 +88,68 @@
   if(P.get('k')){ localStorage.setItem('engins_k', P.get('k')); }
   var $ = function(id){ return document.getElementById(id); };
   var today = new Date(); var an = today.getFullYear();
-  var sel = {periodicite: P.get('periodicite') || localStorage.getItem('engins_per') || 'trimestre', annee: parseInt(P.get('annee') || an, 10), index: parseInt(P.get('index') || (Math.floor(today.getMonth() / 3) + 1), 10)};
+  var sel = {periodicite: P.get('periodicite') || localStorage.getItem('engins_per') || 'trimestriel', annee: parseInt(P.get('annee') || an, 10),
+             socs: (P.get('societes') || localStorage.getItem('engins_socs') || '').split(',').filter(Boolean).map(Number), prorata: (P.get('prorata') || localStorage.getItem('engins_prorata')) === '1'};
+  var dispo = null;
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   function nb(n){ return n == null ? '' : Math.round(n).toLocaleString('fr-FR'); }
-  function qs(){ return 'periodicite=' + sel.periodicite + '&annee=' + sel.annee + '&index=' + sel.index + '&archives=' + ($('archives').checked ? 1 : 0) + '&k=' + encodeURIComponent(K); }
+  function qs(){ return 'periodicite=' + sel.periodicite + '&annee=' + sel.annee + '&societes=' + sel.socs.join(',') + '&prorata=' + (sel.prorata ? 1 : 0) + '&archives=' + ($('archives').checked ? 1 : 0); }
   function options(){
     var a = $('annee'); a.innerHTML = '';
-    for(var y = an; y >= an - 4; y--){ var o = document.createElement('option'); o.value = y; o.textContent = y; a.appendChild(o); }
-    a.value = sel.annee;
-    var i = $('index'); i.innerHTML = '';
-    var libs = sel.periodicite === 'trimestre' ? ['1er trimestre (janv.-mars)', '2e trimestre (avril-juin)', '3e trimestre (juil.-sept.)', '4e trimestre (oct.-déc.)'] : sel.periodicite === 'semestre' ? ['1er semestre', '2e semestre'] : ['Année entière'];
-    libs.forEach(function(l, n){ var o = document.createElement('option'); o.value = n + 1; o.textContent = l; i.appendChild(o); });
-    if(sel.index > libs.length){ sel.index = libs.length; }
-    i.value = sel.index; i.disabled = libs.length === 1;
-    $('periodicite').value = sel.periodicite;
+    for(var y = an; y >= an - 6; y--){ var o = document.createElement('option'); o.value = y; o.textContent = y; a.appendChild(o); }
+    a.value = sel.annee; $('periodicite').value = sel.periodicite; $('prorata').checked = sel.prorata;
+  }
+  function peintSocs(){
+    var l = $('socs'); l.innerHTML = '';
+    (dispo || []).forEach(function(s){
+      var on = !sel.socs.length || sel.socs.indexOf(s.id) >= 0;
+      var lab = document.createElement('label'); lab.className = on ? 'on' : ''; lab.innerHTML = '<input type="checkbox" data-soc="' + s.id + '"' + (on ? ' checked' : '') + '/>' + (on ? '✓ ' : '') + esc(s.nom); l.appendChild(lab);
+    });
   }
   function msg(cls, t){ var m = $('msg'); m.className = 'msg ' + cls; m.textContent = t; if(cls === 'ok'){ setTimeout(function(){ m.className = 'msg'; }, 5000); } }
   function charge(){
     $('titre').textContent = 'Chargement…';
-    history.replaceState(null, '', '?' + qs().replace(/&k=[^&]*/, ''));
-    $('export').href = 'api/export.xlsx?' + qs();
-    fetch('api/tableau?' + qs()).then(function(r){ return r.json(); }).then(function(d){
+    history.replaceState(null, '', '?' + qs());
+    $('export').href = 'api/export.xlsx?' + qs() + '&k=' + encodeURIComponent(K);
+    fetch('api/tableau?' + qs() + '&k=' + encodeURIComponent(K)).then(function(r){ return r.json(); }).then(function(d){
       if(d.error){ msg('bad', '❌ ' + d.error); return; }
-      $('titre').textContent = d.periode.libelle + ' · du ' + d.periode.debut + ' au ' + d.periode.fin + ' · ' + d.lignes.length + ' engins';
-      var th = '<tr><th class="g">Engin</th><th>Référence<br/>(avant période)</th>' + d.mois.map(function(m){ return '<th>' + esc(m) + '</th>'; }).join('') + '<th>Fin de<br/>période</th><th>Heures<br/>de la période</th><th>Jours entre<br/>les 2 relevés</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
-      $('t').querySelector('thead').innerHTML = th;
+      if(!dispo){ dispo = d.societes_dispo; peintSocs(); }
+      $('titre').textContent = d.periode.libelle + ' · ' + d.periode.societes.join(' + ') + ' · ' + d.lignes.length + ' engins' + (d.periode.prorata ? ' · au prorata des jours' : '');
+      var n = d.colonnes.length;
+      $('t').querySelector('thead').innerHTML = '<tr><th class="g">Engin</th><th>Début<br/><span style="font-weight:600;text-transform:none">dernier relevé avant</span></th>' + d.colonnes.map(function(c){ return '<th class="fin" title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Fin<br/>' + esc(c.court) + '</th><th title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Heures<br/>' + esc(c.court) + '</th>'; }).join('') + '<th>Total<br/>heures</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
       var tb = $('t').querySelector('tbody'); tb.innerHTML = '';
       var soc = null;
       d.lignes.forEach(function(l){
-        if(l.societe !== soc){ soc = l.societe; var ts = document.createElement('tr'); ts.className = 'soc'; ts.innerHTML = '<td class="g" colspan="' + (7 + d.mois.length) + '">' + esc(soc) + '</td>'; tb.appendChild(ts); }
-        var cel = function(r){ return r ? nb(r.valeur) + '<span class="d">' + esc(r.date) + '</span>' : ''; };
+        if(l.societe !== soc){ soc = l.societe; var ts = document.createElement('tr'); ts.className = 'soc'; ts.innerHTML = '<td class="g" colspan="' + (2 * n + 5) + '">' + esc(soc) + '</td>'; tb.appendChild(ts); }
         var tr = document.createElement('tr');
+        var rel = function(r){ return r ? nb(r.valeur) + '<span class="r">' + esc(r.date) + '</span>' : '<span class="vide">—</span>'; };
         tr.innerHTML = '<td class="g nom">' + esc(l.nom) + '<small>' + esc(l.categorie) + (l.actif ? '' : ' · archivé') + (l.dernier ? ' · dernier relevé ' + esc(l.dernier.date) + ' : ' + nb(l.dernier.valeur) + ' h' : ' · aucun relevé') + '</small></td>'
-          + '<td class="' + (l.ref ? '' : 'vide') + '">' + (cel(l.ref) || '—') + '</td>'
-          + l.mois.map(function(m){ return '<td class="' + (m ? '' : 'vide') + '">' + (cel(m) || '—') + '</td>'; }).join('')
-          + '<td class="' + (l.fin ? '' : 'vide') + '">' + (cel(l.fin) || '—') + '</td>'
-          + '<td class="diff' + (l.diff != null && l.diff < 0 ? ' neg' : '') + '">' + (l.diff == null ? '<span style="color:#cbd5e1">—</span>' : nb(l.diff) + ' h') + '</td>'
-          + '<td class="' + (l.intervalle ? (l.intervalle.exact ? '' : 'rem') : 'vide') + '">' + (l.intervalle ? nb(l.intervalle.jours) + ' j' : '—') + '</td>'
+          + '<td class="fin">' + rel(l.debut) + '</td>'
+          + l.cellules.map(function(c){
+              var fin = '<td class="fin">' + rel(c.releve) + '</td>';
+              if(c.h == null){ return fin + '<td class="vide">—</td>'; }
+              return fin + '<td class="h' + (c.h < 0 ? ' neg' : '') + (c.estime ? ' est' : '') + '">' + (c.estime ? '~' : '') + nb(c.h) + ' h' + (c.depuis ? '<span class="dep">depuis le ' + esc(c.depuis) + '</span>' : '') + '</td>';
+            }).join('')
+          + '<td class="tot">' + (l.total == null ? '<span style="color:#cbd5e1">—</span>' : nb(l.total) + ' h') + '</td>'
           + '<td class="rem">' + esc(l.remarques.join(' ; ')) + '</td>'
           + '<td class="g saisie"><input type="number" step="1" min="0" placeholder="heures" data-v="' + l.id + '"/> <input type="date" value="' + today.toISOString().slice(0, 10) + '" data-d="' + l.id + '"/> <label style="font-size:11px;color:#64748b;"><input type="checkbox" data-f="' + l.id + '" style="width:14px;height:14px;"/>forcer</label> <button class="b b-p" data-add="' + l.id + '" title="Enregistrer ce relevé dans Odoo">＋</button></td>';
         tb.appendChild(tr);
       });
-      Object.keys(d.totaux).forEach(function(s){ var tr = document.createElement('tr'); tr.className = 'soc'; tr.innerHTML = '<td class="g" colspan="' + (2 + d.mois.length) + '">Total ' + esc(s) + '</td><td></td><td class="diff">' + nb(d.totaux[s]) + ' h</td><td colspan="3"></td>'; tb.appendChild(tr); });
-      var tt = document.createElement('tr'); tt.className = 'tot'; tt.innerHTML = '<td class="g" colspan="' + (2 + d.mois.length) + '">TOTAL engins · ' + esc(d.periode.libelle) + '</td><td></td><td>' + nb(d.total) + ' h</td><td colspan="3"></td>'; tb.appendChild(tt);
+      var totLigne = function(lib, t){ return '<td class="g" colspan="2">' + lib + '</td>' + t.slice(0, n).map(function(h){ return '<td></td><td>' + nb(h) + ' h</td>'; }).join('') + '<td>' + nb(t[n]) + ' h</td><td colspan="2"></td>'; };
+      Object.keys(d.totaux).forEach(function(s){ var tr = document.createElement('tr'); tr.className = 'soc'; tr.innerHTML = totLigne('Total ' + esc(s), d.totaux[s]); tb.appendChild(tr); });
+      if(Object.keys(d.totaux).length !== 1){ var tt = document.createElement('tr'); tt.className = 'tt'; tt.innerHTML = totLigne('TOTAL engins', d.general); tb.appendChild(tt); }
     }).catch(function(){ msg('bad', '❌ Relais injoignable'); });
   }
-  $('periodicite').onchange = function(){ sel.periodicite = this.value; localStorage.setItem('engins_per', sel.periodicite); options(); charge(); };
-  $('index').onchange = function(){ sel.index = parseInt(this.value, 10); charge(); };
+  $('periodicite').onchange = function(){ sel.periodicite = this.value; localStorage.setItem('engins_per', sel.periodicite); charge(); };
   $('annee').onchange = function(){ sel.annee = parseInt(this.value, 10); charge(); };
+  $('prorata').onchange = function(){ sel.prorata = this.checked; localStorage.setItem('engins_prorata', sel.prorata ? '1' : '0'); charge(); };
   $('archives').onchange = charge;
+  document.addEventListener('change', function(e){
+    var s = e.target.closest('input[data-soc]'); if(!s){ return; }
+    var ids = Array.prototype.slice.call(document.querySelectorAll('input[data-soc]')).filter(function(i){ return i.checked; }).map(function(i){ return parseInt(i.getAttribute('data-soc'), 10); });
+    if(!ids.length){ s.checked = true; return; }
+    sel.socs = (ids.length === (dispo || []).length) ? [] : ids; localStorage.setItem('engins_socs', sel.socs.join(',')); peintSocs(); charge();
+  });
   document.addEventListener('click', function(e){
     var b = e.target.closest('[data-add]'); if(!b){ return; }
     var id = b.getAttribute('data-add'); var v = document.querySelector('input[data-v="' + id + '"]').value; var dt = document.querySelector('input[data-d="' + id + '"]').value; var f = document.querySelector('input[data-f="' + id + '"]').checked;
