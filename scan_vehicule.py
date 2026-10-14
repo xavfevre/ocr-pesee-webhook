@@ -154,6 +154,18 @@ def page():
     return send_from_directory(ICI, 'scan_vehicule_page.html')
 
 
+POSTE_DIR = os.path.join(ICI, 'odoo-scan-page', 'scan_vehicule_20261014', 'poste')
+POSTE_FICHIERS = ('installer.ps1', 'scan_odoo_veilleur.ps1')
+
+
+@bp.route('/poste/<nom>')
+def poste_fichier(nom):
+    """Fichiers d'installation du veilleur (PowerShell) à télécharger sur le PC qui scanne ; pas de secret dedans."""
+    if nom not in POSTE_FICHIERS:
+        return jsonify({'error': 'fichier inconnu'}), 404
+    return send_from_directory(POSTE_DIR, nom, mimetype='text/plain; charset=utf-8', as_attachment=True)
+
+
 @bp.route('/api/vehicules')
 def vehicules():
     if not _cle_ok():
