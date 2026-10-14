@@ -40,16 +40,38 @@ for l in logs:
     releves[l['vehicle_id'][0]].append((datetime.strptime(l['date'], '%Y-%m-%d').date(), float(l['value'])))
 
 
-def segments(pts):
-    """Découpe les relevés en segments croissants (une baisse = nouveau compteur / anomalie)."""
-    segs, cur = [], []
-    for d, v in sorted(pts):
-        if cur and v < cur[-1][1]:
-            segs.append(cur); cur = []
+MAX_H_JOUR = 24.0   # un horamètre ne peut pas avancer de plus de 24 h par jour
+
+
+def nettoie(pts):
+    """Trie les relevés, écarte les relevés aberrants et découpe en segments.
+    - relevé plus petit que le précédent : si un relevé ultérieur revient au-dessus du précédent, c'est une faute de
+      frappe -> écarté ; sinon c'est une remise à zéro (nouveau compteur) -> nouveau segment ;
+    - relevé qui ferait avancer le compteur de plus de 24 h/jour : faute de frappe -> écarté si la suite est cohérente
+      avec le relevé précédent.
+    Retourne (segments, anomalies) ; anomalies = liste de (date, valeur, explication)."""
+    pts = sorted(pts); segs, cur, anomalies = [], [], []
+    for i, (d, v) in enumerate(pts):
+        if cur:
+            dp, vp = cur[-1]; jours = max((d - dp).days, 1); suite = pts[i + 1:]
+            if v < vp:
+                if any(s[1] >= vp for s in suite):
+                    anomalies.append((d, v, 'relevé inférieur au précédent (%s le %s) alors que les suivants repassent au-dessus : faute de frappe probable, relevé ignoré' % (int(vp), dp.strftime('%d/%m/%Y')))); continue
+                anomalies.append((d, v, 'compteur en baisse (%s le %s) et jamais rattrapé : remise à zéro ou changement de compteur, nouvelle série' % (int(vp), dp.strftime('%d/%m/%Y'))))
+                segs.append(cur); cur = [(d, v)]; continue
+            if v - vp > MAX_H_JOUR * jours + 24:
+                coherent = [s for s in suite if 0 <= s[1] - vp <= MAX_H_JOUR * max((s[0] - dp).days, 1) + 24]
+                if coherent or not suite:
+                    anomalies.append((d, v, '+%s h en %d jour(s) depuis %s : impossible (> 24 h/jour), faute de frappe probable, relevé ignoré' % (int(v - vp), jours, int(vp)))); continue
+                anomalies.append((d, v, '+%s h en %d jour(s) : > 24 h/jour mais la suite confirme ce niveau, relevé gardé (vérifier le relevé précédent %s)' % (int(v - vp), jours, int(vp))))
         cur.append((d, v))
     if cur:
         segs.append(cur)
-    return segs
+    return segs, anomalies
+
+
+def segments(pts):
+    return nettoie(pts)[0]
 
 
 def valeur_a(seg, d):
@@ -94,10 +116,8 @@ for an in ANNEES:
     tot = collections.Counter()
     for v in engins:
         pts = releves.get(v['id'], [])
-        segs = segments(pts)
-        rem = []
-        if len(segs) > 1:
-            rem.append('compteur en baisse le %s (%s -> %s) : remise à zéro ou erreur de saisie, segments traités séparément' % (segs[1][0][0].strftime('%d/%m/%Y'), int(segs[0][-1][1]), int(segs[1][0][1])))
+        segs, anomalies = nettoie(pts)
+        rem = ['%s : %s' % (d.strftime('%d/%m/%Y'), txt) for d, val, txt in anomalies]
         if v['odometer_unit'] != 'miles':
             rem.append("unité du compteur « %s » dans Odoo (pas « miles » = heures) : à vérifier" % v['odometer_unit'])
         if pts and v['odometer'] and abs(v['odometer'] - max(p[1] for p in pts)) > 0.5:
@@ -129,16 +149,33 @@ for an in ANNEES:
             c.number_format = '# ##0'; c.alignment = Alignment(horizontal='right')
         row[14].alignment = Alignment(wrap_text=True, vertical='top'); row[1].alignment = Alignment(vertical='top')
     ws.freeze_panes = 'C4'
+ws = wb.create_sheet('Anomalies à corriger')
+ws.append(['Engin', 'Date du relevé', 'Valeur saisie (h)', 'Problème', 'À faire dans Odoo (Parc automobile > engin > Compteur)'])
+for c in ws[1]:
+    c.font = gras; c.fill = fond
+n_anom = 0
+for v in engins:
+    for d, val, txt in nettoie(releves.get(v['id'], []))[1]:
+        ws.append([v['name'], d, int(val), txt, 'corriger ou supprimer ce relevé, puis relancer le calcul']); n_anom += 1
+    if v['odometer_unit'] != 'miles':
+        ws.append([v['name'], '', '', "unité du compteur « %s » : pour un engin, mettre « miles » (= heures)" % v['odometer_unit'], 'fiche engin, champ Unité du compteur']); n_anom += 1
+    if not releves.get(v['id']) and v['active']:
+        ws.append([v['name'], '', '', 'aucun relevé de compteur', 'saisir un relevé (date + heures) à chaque fin de trimestre']); n_anom += 1
+for i, w in enumerate([46, 14, 16, 110, 52], 1):
+    ws.column_dimensions[get_column_letter(i)].width = w
+for row in ws.iter_rows(min_row=2):
+    row[1].number_format = 'DD/MM/YYYY'; row[3].alignment = Alignment(wrap_text=True, vertical='top')
+ws.freeze_panes = 'A2'
 ws = wb.create_sheet('Relevés')
-ws.append(['Engin', 'Date', 'Compteur (h)', 'Écart avec le relevé précédent (h)', 'Jours écoulés', 'h / jour'])
+ws.append(['Engin', 'Date', 'Compteur (h)', 'Écart avec le relevé précédent (h)', 'Jours écoulés', 'h / jour', 'Retenu'])
 for c in ws[1]:
     c.font = gras; c.fill = fond
 for v in engins:
-    prev = None
+    prev = None; ecartes = {(d, val) for d, val, _ in nettoie(releves.get(v['id'], []))[1] if 'ignoré' in _}
     for d, val in sorted(releves.get(v['id'], [])):
-        ws.append([v['name'], d, int(val), int(val - prev[1]) if prev else '', (d - prev[0]).days if prev else '', round((val - prev[1]) / (d - prev[0]).days, 2) if prev and (d - prev[0]).days else ''])
+        ws.append([v['name'], d, int(val), int(val - prev[1]) if prev else '', (d - prev[0]).days if prev else '', round((val - prev[1]) / (d - prev[0]).days, 2) if prev and (d - prev[0]).days else '', 'non (aberrant)' if (d, val) in ecartes else 'oui'])
         prev = (d, val)
-for i, w in enumerate([46, 12, 14, 30, 14, 10], 1):
+for i, w in enumerate([46, 12, 14, 30, 14, 10, 14], 1):
     ws.column_dimensions[get_column_letter(i)].width = w
 for row in ws.iter_rows(min_row=2):
     row[1].number_format = 'DD/MM/YYYY'
@@ -155,7 +192,7 @@ for l in ["Heures de fonctionnement des engins non routiers : méthode",
     ws.append([l])
 ws['A1'].font = titre; ws.column_dimensions['A'].width = 160
 wb.save(SORTIE)
-print('engins :', len(engins), '| relevés :', len(logs), '| fichier :', SORTIE)
+print('engins :', len(engins), '| relevés :', len(logs), '| anomalies :', n_anom, '| fichier :', SORTIE)
 for an in ANNEES:
     s = wb[str(an)]; r = s.max_row
     print('  %d : T1 %s  T2 %s  T3 %s  T4 %s  année %s' % (an, s.cell(r, 5).value, s.cell(r, 6).value, s.cell(r, 7).value, s.cell(r, 8).value, s.cell(r, 11).value))
