@@ -90,7 +90,7 @@
   </div>
 </div>
 <dialog id="dlg"><div style="font-weight:900;font-size:16px;">Nom du poste</div>
-  <div class="aide">Le même nom que celui donné au veilleur installé sur le PC (ex. isabelle).</div>
+  <div class="aide">Le même nom que celui donné au veilleur installé sur le PC (ex. franck).</div>
   <input id="dlg-poste"/><button class="b b-c" id="dlg-ok">Enregistrer</button><button class="b" id="dlg-non">Annuler</button></dialog>
 <script>
 (function(){
@@ -98,7 +98,8 @@
   var K = P.get('k') || localStorage.getItem('scan_k') || '';
   if(P.get('k')){ localStorage.setItem('scan_k', P.get('k')); }
   var VEH = parseInt(P.get('veh') || '0', 10) || 0;
-  var POSTE = (localStorage.getItem('scan_poste') || 'isabelle');
+  var POSTE = (P.get('poste') || localStorage.getItem('scan_poste') || 'franck');
+  if(P.get('poste')){ localStorage.setItem('scan_poste', P.get('poste')); }
   var TYPE = localStorage.getItem('scan_type') || 'doc';
   var TYPES = {};
   var connus = null, dernierCibleT = 0, timer = null;
@@ -192,7 +193,7 @@
   });
   $('poste').textContent = 'poste : ' + POSTE;
   $('poste').onclick = function(){ $('dlg-poste').value = POSTE; $('dlg').showModal(); };
-  $('dlg-ok').onclick = function(){ POSTE = ($('dlg-poste').value.trim().toLowerCase() || 'isabelle'); localStorage.setItem('scan_poste', POSTE); $('poste').textContent = 'poste : ' + POSTE; $('dlg').close(); cible().then(rafraichir); };
+  $('dlg-ok').onclick = function(){ POSTE = ($('dlg-poste').value.trim().toLowerCase() || 'franck'); localStorage.setItem('scan_poste', POSTE); $('poste').textContent = 'poste : ' + POSTE; $('dlg').close(); cible().then(rafraichir); };
   $('dlg-non').onclick = function(){ $('dlg').close(); };
   document.addEventListener('visibilitychange', function(){ if(!document.hidden){ dernierCibleT = 0; boucle(); } });
   window.addEventListener('pagehide', function(){ if(!proprietaire()){ return; } try{ localStorage.removeItem('scan_owner'); navigator.sendBeacon('api/cible?k=' + encodeURIComponent(K), new Blob([JSON.stringify({k:K, poste:POSTE, veh:0})], {type:'application/json'})); }catch(e){} });

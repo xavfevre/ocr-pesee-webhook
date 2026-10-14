@@ -1,11 +1,12 @@
 ﻿# Scan Odoo - installation du veilleur sur le PC (à lancer dans PowerShell, sans droits administrateur) :
-#   powershell -ExecutionPolicy Bypass -File installer.ps1 -Cle <clé maquignon.scan_key> [-Poste isabelle] [-Dossier "C:\...\Scan Odoo"]
+#   powershell -ExecutionPolicy Bypass -File installer.ps1 -Cle <clé maquignon.scan_key> [-Poste franck] [-Dossier "C:\...\Scan Odoo"]
+# À lancer DANS LA SESSION WINDOWS qui scanne (PC de Franck, session de Franck) : le veilleur et le dossier sont propres à la session.
 # Copie le veilleur dans %LOCALAPPDATA%\ScanOdoo, écrit sa configuration, crée le raccourci de démarrage
 # automatique à l'ouverture de session et lance le veilleur tout de suite.
 # Ensuite : dans Brother iPrint&Scan, régler « Numériser vers fichier » en PDF vers le dossier indiqué.
 param(
     [Parameter(Mandatory = $true)][string]$Cle,
-    [string]$Poste = 'isabelle',
+    [string]$Poste = 'franck',
     [string]$Url = 'https://ocr-pesee-webhook.onrender.com',
     [string]$Dossier = (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Scan Odoo')
 )

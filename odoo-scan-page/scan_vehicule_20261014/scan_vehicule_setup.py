@@ -43,8 +43,12 @@ if MODE == 'etat':
     print('URL de la page (sans véhicule) :', RELAIS + '?k=' + cle)
     sys.exit()
 if MODE == 'retour':
-    if actions:
-        x('ir.actions.server', 'unlink', [a['id'] for a in actions]); print('action supprimée')
+    emb = x('ir.embedded.actions', 'search', [['name', '=', NOM_ACTION]])
+    if emb:
+        x('ir.embedded.actions', 'unlink', emb); print('bouton Documents supprimé')
+    tous = x('ir.actions.server', 'search', [['name', '=', NOM_ACTION]])
+    if tous:
+        x('ir.actions.server', 'unlink', tous); print('actions supprimées :', tous)
     sys.exit()
 if MODE != 'apply':
     print('Simulation :', ('créer la clé' if not cle else 'clé conservée') + ', ' + ('créer' if not actions else 'mettre à jour') + " l'action « %s » (model fleet.vehicle, 1 ligne de code, menu Action du formulaire)." % NOM_ACTION)
@@ -57,5 +61,24 @@ if actions:
     x('ir.actions.server', 'write', [actions[0]['id']], vals); print('action %d mise à jour' % actions[0]['id'])
 else:
     aid = x('ir.actions.server', 'create', [vals]); print('action créée :', aid)
+# Même bouton dans la vue Documents du véhicule (dossier Fleet) : action sur documents.document (2 lignes) exposée comme
+# « embedded action » du dossier Fleet, comme « Link to a vehicle » (ir.embedded.actions, parent = action Documents 303).
+mdoc = x('ir.model', 'search', [['model', '=', 'documents.document']])[0]
+CODE_DOC = ("r = records.filtered(lambda d: d.res_model == 'fleet.vehicle')[:1]\n"
+            "action = {'type': 'ir.actions.act_url', 'target': 'new', 'url': '%s?veh=%%s&k=%%s' %% (r.res_id or env.context.get('default_res_id', 0), env['ir.config_parameter'].sudo().get_param('maquignon.scan_key', ''))}" % RELAIS)
+adoc = x('ir.actions.server', 'search', [['name', '=', NOM_ACTION], ['model_id', '=', mdoc]])
+vdoc = {'name': NOM_ACTION, 'model_id': mdoc, 'state': 'code', 'code': CODE_DOC, 'binding_type': 'action'}
+if adoc:
+    x('ir.actions.server', 'write', adoc, vdoc); print('action Documents %d mise à jour' % adoc[0])
+else:
+    adoc = [x('ir.actions.server', 'create', [vdoc])]; print('action Documents créée :', adoc[0])
+dossier = x('res.company', 'read', [1], ['documents_fleet_folder'])[0]['documents_fleet_folder'][0]
+act_docs = x('ir.actions.act_window', 'search', [['res_model', '=', 'documents.document'], ['name', '=', 'Documents']], limit=1)[0]
+emb = x('ir.embedded.actions', 'search', [['name', '=', NOM_ACTION], ['parent_res_model', '=', 'documents.document'], ['parent_res_id', '=', dossier]])
+vemb = {'name': NOM_ACTION, 'parent_action_id': act_docs, 'action_id': adoc[0], 'parent_res_model': 'documents.document', 'parent_res_id': dossier, 'groups_ids': [[6, 0, [1]]], 'sequence': 3}
+if emb:
+    x('ir.embedded.actions', 'write', emb, vemb); print('bouton Documents (embedded action) %d mis à jour' % emb[0])
+else:
+    print('bouton Documents (embedded action) créé :', x('ir.embedded.actions', 'create', [vemb]), 'sur le dossier', dossier)
 print('URL de la page :', RELAIS + '?veh=<id>&k=' + cle)
 print('clé pour le veilleur du PC (installer.ps1 -Cle ...) :', cle)
