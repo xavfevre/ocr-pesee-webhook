@@ -80,5 +80,14 @@ if emb:
     x('ir.embedded.actions', 'write', emb, vemb); print('bouton Documents (embedded action) %d mis à jour' % emb[0])
 else:
     print('bouton Documents (embedded action) créé :', x('ir.embedded.actions', 'create', [vemb]), 'sur le dossier', dossier)
+# Menu direct dans Parc automobile (page sans véhicule : on le cherche sur la page) — demande Xavier 14/10 « un menu direct »
+racine = x('ir.model.data', 'search_read', [['module', '=', 'fleet'], ['name', '=', 'menu_root']], fields=['res_id'])[0]['res_id']
+url_menu = RELAIS + '?k=' + cle
+menu = x('ir.ui.menu', 'search_read', [['name', '=', NOM_ACTION], ['parent_id', '=', racine]], fields=['id', 'action'])
+if menu and menu[0]['action'] and menu[0]['action'].startswith('ir.actions.act_url,'):
+    x('ir.actions.act_url', 'write', [int(menu[0]['action'].split(',')[1])], {'url': url_menu, 'target': 'new'}); print('menu direct %d à jour' % menu[0]['id'])
+else:
+    r = x('ir.actions.act_url', 'create', [{'name': NOM_ACTION, 'url': url_menu, 'target': 'new'}]); aurl = r[0] if isinstance(r, list) else r
+    r = x('ir.ui.menu', 'create', [{'name': NOM_ACTION, 'parent_id': racine, 'sequence': 61, 'action': 'ir.actions.act_url,%d' % aurl}]); print('menu direct créé :', r, '(action URL %d)' % aurl)
 print('URL de la page :', RELAIS + '?veh=<id>&k=' + cle)
 print('clé pour le veilleur du PC (installer.ps1 -Cle ...) :', cle)
