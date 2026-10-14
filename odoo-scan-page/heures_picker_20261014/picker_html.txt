@@ -1,0 +1,16 @@
+        <!-- Sélecteur d'heure intégré : grille heures + minutes, boutons toujours visibles (le sélecteur natif du téléphone cachait « OK » à droite sur certains Android) -->
+        <div id="mh-hp" class="mh-hp" role="dialog" aria-label="Choisir une heure">
+          <div class="mh-hp-bg"></div>
+          <div class="mh-hp-box">
+            <div class="mh-hp-t"><span id="mh-hp-lbl">Heure</span><b id="mh-hp-val">--:--</b></div>
+            <div class="mh-hp-s">Heure</div>
+            <div class="mh-hp-g" id="mh-hp-h"></div>
+            <div class="mh-hp-s">Minutes</div>
+            <div class="mh-hp-g" id="mh-hp-m"></div>
+            <div class="mh-hp-b">
+              <button type="button" class="mh-hp-eff">Effacer</button>
+              <button type="button" class="mh-hp-ann">Annuler</button>
+              <button type="button" class="mh-hp-ok" id="mh-hp-ok">OK</button>
+            </div>
+          </div>
+        </div>

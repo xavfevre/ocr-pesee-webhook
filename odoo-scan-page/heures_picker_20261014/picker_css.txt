@@ -1,0 +1,23 @@
+      /* ===== Sélecteur d'heure intégré (remplace le sélecteur du téléphone, dont le bouton OK est coupé sur certains téléphones) ===== */
+      input.mh-hr{cursor:pointer;text-align:center;background:#fff;color:#0f172a;caret-color:transparent;}
+      input.mh-hr.on{outline:2px solid #1d4ed8;outline-offset:1px;}
+      input.mh-hr::placeholder{color:#94a3b8;font-weight:700;}
+      .mh-hp{position:fixed;left:0;top:0;right:0;bottom:0;z-index:9999;display:none;}
+      .mh-hp.on{display:block;}
+      .mh-hp-bg{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(15,23,42,.45);}
+      .mh-hp-box{position:absolute;left:0;right:0;bottom:0;margin:0 auto;max-width:520px;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.25);padding:10px 12px calc(12px + env(safe-area-inset-bottom, 0px));box-sizing:border-box;max-height:92vh;overflow-y:auto;}
+      @media (min-width: 992px) { .mh-hp-box{bottom:auto;top:50%;transform:translateY(-50%);border-radius:18px;} }
+      .mh-hp-t{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+      .mh-hp-t span{font-size:14px;font-weight:800;color:#475569;min-width:0;}
+      .mh-hp-t b{font-size:26px;font-weight:900;color:#0f172a;font-variant-numeric:tabular-nums;white-space:nowrap;}
+      .mh-hp-s{font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px;}
+      .mh-hp-g{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;}
+      .mh-hp-g button{border:1.5px solid #cbd5e1;border-radius:9px;background:#f8fafc;color:#0f172a;font-weight:800;font-size:17px;min-height:42px;padding:0;cursor:pointer;font-variant-numeric:tabular-nums;min-width:0;}
+      .mh-hp-g button.sel{background:#1d4ed8;border-color:#1d4ed8;color:#fff;}
+      .mh-hp-g button.nuit{color:#94a3b8;}
+      .mh-hp-b{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px;margin-top:10px;}
+      .mh-hp-b button{border:none;border-radius:10px;min-height:46px;font-weight:900;font-size:15px;cursor:pointer;padding:0 6px;min-width:0;}
+      .mh-hp-eff{background:#f1f5f9;color:#475569;}
+      .mh-hp-ann{background:#fee2e2;color:#991b1b;}
+      .mh-hp-ok{background:#16a34a;color:#fff;}
+      .mh-hp-ok:disabled{opacity:.45;cursor:default;}

@@ -1,0 +1,63 @@
+(function(){
+  /* Sélecteur d'heure intégré à la page : remplace le sélecteur du téléphone (Chrome Android coupe son bouton
+     « Définir » à droite quand la police du téléphone est agrandie). Les champs restent des <input> dont la valeur
+     est « HH:MM », comme avant : le reste du script (calculs, enregistrement) ne change pas. */
+  var CH = {m_deb:'Matin : arrivée', m_fin:'Matin : départ', am_deb:'Après-midi : arrivée', am_fin:'Après-midi : départ',
+            recup_de:'Récup : de', recup_a:'Récup : à', ss_de:'Sans solde : de', ss_a:'Sans solde : à',
+            'mh-dc-hde':'Demande : de', 'mh-dc-ha':'Demande : à'};
+  var box = document.getElementById('mh-hp'); if(!box){ return; }
+  var gH = document.getElementById('mh-hp-h'), gM = document.getElementById('mh-hp-m');
+  var lbl = document.getElementById('mh-hp-lbl'), val = document.getElementById('mh-hp-val'), bOk = document.getElementById('mh-hp-ok');
+  var cible = null, h = null, mn = null, touche = {h:false, m:false};
+  function p2(n){ return ('0' + n).slice(-2); }
+  for(var i = 0; i < 24; i++){ var b = document.createElement('button'); b.type = 'button'; b.textContent = p2(i); b.setAttribute('data-h', i); if(i < 4 || i > 21){ b.className = 'nuit'; } gH.appendChild(b); }
+  for(var j = 0; j < 60; j += 5){ var c = document.createElement('button'); c.type = 'button'; c.textContent = p2(j); c.setAttribute('data-m', j); gM.appendChild(c); }
+  function peint(){
+    gH.querySelectorAll('button').forEach(function(b){ b.classList.toggle('sel', h !== null && parseInt(b.getAttribute('data-h'), 10) === h); });
+    gM.querySelectorAll('button').forEach(function(b){ b.classList.toggle('sel', mn !== null && parseInt(b.getAttribute('data-m'), 10) === mn); });
+    val.textContent = (h === null ? '--' : p2(h)) + ':' + (mn === null ? '--' : p2(mn));
+    bOk.disabled = (h === null);
+  }
+  function ouvre(inp){
+    try{ inp.blur(); }catch(e){}   /* jamais de focus : ni clavier, ni zoom automatique du téléphone */
+    cible = inp; touche = {h:false, m:false}; inp.classList.add('on');
+    var m = /^(\d\d?):(\d\d)/.exec(inp.value || '');
+    h = m ? parseInt(m[1], 10) : null; mn = m ? parseInt(m[2], 10) : null;
+    var card = inp.closest('.mh-day'); var dn = (card && card.querySelector('.mh-dname')) ? card.querySelector('.mh-dname').textContent.trim() : '';
+    var nom = CH[inp.getAttribute('data-f') || inp.id] || 'Heure';
+    lbl.textContent = (dn ? dn + ' · ' : '') + nom;
+    peint(); box.classList.add('on'); place();
+  }
+  /* le panneau est calé sur la partie visible de l'écran (zoom du doigt compris) : il ne peut pas être coupé */
+  function place(){
+    var vv = window.visualViewport, bx = box.querySelector('.mh-hp-box');
+    if(!vv || !box.classList.contains('on')){ return; }
+    var w = Math.min(520, vv.width), grand = window.matchMedia && window.matchMedia('(min-width: 992px)').matches;
+    bx.style.width = w + 'px'; bx.style.left = (vv.offsetLeft + (vv.width - w) / 2) + 'px'; bx.style.right = 'auto';
+    bx.style.maxHeight = Math.round(vv.height * 0.94) + 'px'; bx.style.transform = 'none'; bx.style.bottom = 'auto';
+    var hb = bx.offsetHeight;
+    bx.style.top = (vv.offsetTop + (grand ? (vv.height - hb) / 2 : vv.height - hb)) + 'px';
+  }
+  if(window.visualViewport){ window.visualViewport.addEventListener('resize', place); window.visualViewport.addEventListener('scroll', place); }
+  function ferme(){ box.classList.remove('on'); var c = cible; cible = null; if(c){ c.classList.remove('on'); try{ c.blur(); }catch(e){} } }
+  document.addEventListener('mousedown', function(e){ if(e.target.closest && e.target.closest('input.mh-hr')){ e.preventDefault(); } });
+  function evt(el, type){ var e; try{ e = new Event(type, {bubbles:true}); }catch(x){ e = document.createEvent('Event'); e.initEvent(type, true, true); } el.dispatchEvent(e); }
+  function applique(v){ if(!cible){ return; } var c = cible; ferme(); if(c.value !== v){ c.value = v; evt(c, 'input'); evt(c, 'change'); } }
+  function valide(){ if(h === null){ return; } applique(p2(h) + ':' + p2(mn === null ? 0 : mn)); }
+  document.addEventListener('click', function(e){
+    var inp = e.target.closest ? e.target.closest('input.mh-hr') : null;
+    if(inp){ e.preventDefault(); ouvre(inp); return; }
+    if(!box.classList.contains('on')){ return; }
+    var bh = e.target.closest('#mh-hp-h button');
+    if(bh){ h = parseInt(bh.getAttribute('data-h'), 10); touche.h = true; peint(); if(touche.m){ valide(); } return; }
+    var bm = e.target.closest('#mh-hp-m button');
+    if(bm){ mn = parseInt(bm.getAttribute('data-m'), 10); touche.m = true; peint(); if(h !== null){ valide(); } return; }
+    if(e.target.closest('.mh-hp-ok')){ valide(); return; }
+    if(e.target.closest('.mh-hp-eff')){ applique(''); return; }
+    if(e.target.closest('.mh-hp-ann') || e.target.classList.contains('mh-hp-bg')){ ferme(); return; }
+  });
+  document.addEventListener('keydown', function(e){
+    if(box.classList.contains('on') && e.key === 'Escape'){ ferme(); return; }
+    if(e.target && e.target.matches && e.target.matches('input.mh-hr') && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); ouvre(e.target); }
+  });
+})();
