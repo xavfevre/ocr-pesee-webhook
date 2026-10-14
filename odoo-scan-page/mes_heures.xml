@@ -112,7 +112,7 @@
       .mh-days-mois{display:block !important;}
       /* ===== Sélecteur d'heure intégré (remplace le sélecteur du téléphone, dont le bouton OK est coupé sur certains téléphones) ===== */
       input.mh-hr{cursor:pointer;text-align:center;background:#fff;color:#0f172a;caret-color:transparent;}
-      input.mh-hr:focus{outline:2px solid #1d4ed8;outline-offset:1px;}
+      input.mh-hr.on{outline:2px solid #1d4ed8;outline-offset:1px;}
       input.mh-hr::placeholder{color:#94a3b8;font-weight:700;}
       .mh-hp{position:fixed;left:0;top:0;right:0;bottom:0;z-index:9999;display:none;}
       .mh-hp.on{display:block;}
@@ -587,13 +587,13 @@
 
         <!-- Sélecteur d'heure intégré : grille heures + minutes, boutons toujours visibles (le sélecteur natif du téléphone cachait « OK » à droite sur certains Android) -->
         <div id="mh-hp" class="mh-hp" role="dialog" aria-label="Choisir une heure">
-          <div class="mh-hp-bg"></div>
+          <div class="mh-hp-bg"/>
           <div class="mh-hp-box">
             <div class="mh-hp-t"><span id="mh-hp-lbl">Heure</span><b id="mh-hp-val">--:--</b></div>
             <div class="mh-hp-s">Heure</div>
-            <div class="mh-hp-g" id="mh-hp-h"></div>
+            <div class="mh-hp-g" id="mh-hp-h"/>
             <div class="mh-hp-s">Minutes</div>
-            <div class="mh-hp-g" id="mh-hp-m"></div>
+            <div class="mh-hp-g" id="mh-hp-m"/>
             <div class="mh-hp-b">
               <button type="button" class="mh-hp-eff">Effacer</button>
               <button type="button" class="mh-hp-ann">Annuler</button>
@@ -623,15 +623,28 @@
     bOk.disabled = (h === null);
   }
   function ouvre(inp){
-    cible = inp; touche = {h:false, m:false};
+    try{ inp.blur(); }catch(e){}   /* jamais de focus : ni clavier, ni zoom automatique du téléphone */
+    cible = inp; touche = {h:false, m:false}; inp.classList.add('on');
     var m = /^(\d\d?):(\d\d)/.exec(inp.value || '');
     h = m ? parseInt(m[1], 10) : null; mn = m ? parseInt(m[2], 10) : null;
     var card = inp.closest('.mh-day'); var dn = (card &amp;&amp; card.querySelector('.mh-dname')) ? card.querySelector('.mh-dname').textContent.trim() : '';
     var nom = CH[inp.getAttribute('data-f') || inp.id] || 'Heure';
     lbl.textContent = (dn ? dn + ' · ' : '') + nom;
-    peint(); box.classList.add('on');
+    peint(); box.classList.add('on'); place();
   }
-  function ferme(){ box.classList.remove('on'); var c = cible; cible = null; if(c){ try{ c.blur(); }catch(e){} } }
+  /* le panneau est calé sur la partie visible de l'écran (zoom du doigt compris) : il ne peut pas être coupé */
+  function place(){
+    var vv = window.visualViewport, bx = box.querySelector('.mh-hp-box');
+    if(!vv || !box.classList.contains('on')){ return; }
+    var w = Math.min(520, vv.width), grand = window.matchMedia &amp;&amp; window.matchMedia('(min-width: 992px)').matches;
+    bx.style.width = w + 'px'; bx.style.left = (vv.offsetLeft + (vv.width - w) / 2) + 'px'; bx.style.right = 'auto';
+    bx.style.maxHeight = Math.round(vv.height * 0.94) + 'px'; bx.style.transform = 'none'; bx.style.bottom = 'auto';
+    var hb = bx.offsetHeight;
+    bx.style.top = (vv.offsetTop + (grand ? (vv.height - hb) / 2 : vv.height - hb)) + 'px';
+  }
+  if(window.visualViewport){ window.visualViewport.addEventListener('resize', place); window.visualViewport.addEventListener('scroll', place); }
+  function ferme(){ box.classList.remove('on'); var c = cible; cible = null; if(c){ c.classList.remove('on'); try{ c.blur(); }catch(e){} } }
+  document.addEventListener('mousedown', function(e){ if(e.target.closest &amp;&amp; e.target.closest('input.mh-hr')){ e.preventDefault(); } });
   function evt(el, type){ var e; try{ e = new Event(type, {bubbles:true}); }catch(x){ e = document.createEvent('Event'); e.initEvent(type, true, true); } el.dispatchEvent(e); }
   function applique(v){ if(!cible){ return; } var c = cible; ferme(); if(c.value !== v){ c.value = v; evt(c, 'input'); evt(c, 'change'); } }
   function valide(){ if(h === null){ return; } applique(p2(h) + ':' + p2(mn === null ? 0 : mn)); }
