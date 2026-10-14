@@ -1532,6 +1532,15 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module bascule_web non chargé: {_e}")
 
+# ─── SCANNER -> FICHE VÉHICULE : page + réception des scans du PC (scan_vehicule.py) ─
+# /scan-vehicule/?veh=<id>&k=<maquignon.scan_key> ; veilleur PowerShell du poste dans
+# odoo-scan-page/scan_vehicule_20261014/poste/ ; action « Scanner un document » sur fleet.vehicle.
+try:
+    from scan_vehicule import bp as scan_bp
+    app.register_blueprint(scan_bp, url_prefix="/scan-vehicule")
+except Exception as _e:
+    app.logger.warning(f"Module scan_vehicule non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Scanner dans Odoo · Parc automobile</title>
+<style>
+  :root{--ink:#0f172a;--grey:#64748b;--line:#cbd5e1;--blue:#1d4ed8;--green:#16a34a;--amber:#f59e0b;--red:#dc2626;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:#f1f5f9;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);}
+  .wrap{max-width:760px;margin:0 auto;padding:14px 12px 40px;}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;}
+  .top h1{font-size:18px;margin:0;font-weight:900;}
+  .top .poste{font-size:12.5px;color:var(--grey);font-weight:700;cursor:pointer;}
+  .card{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px;margin-bottom:10px;}
+  .veh{display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+  .plaque{font-size:30px;font-weight:900;letter-spacing:1px;background:#0f172a;color:#fde68a;border-radius:10px;padding:6px 14px;font-variant-numeric:tabular-nums;}
+  .veh .d{min-width:0;flex:1;}
+  .veh .n{font-size:16px;font-weight:800;}
+  .veh .s{font-size:13px;color:var(--grey);font-weight:600;}
+  .cherche{position:relative;margin-top:10px;}
+  .cherche input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:15px;font-weight:600;}
+  .cherche ul{display:none;position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid var(--line);border-radius:10px;margin:4px 0 0;padding:4px;list-style:none;max-height:260px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.15);}
+  .cherche li{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14px;}
+  .cherche li:hover{background:#eef2ff;}
+  .cherche li b{font-variant-numeric:tabular-nums;}
+  .lab{font-size:12px;font-weight:800;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px;}
+  .types{display:flex;flex-wrap:wrap;gap:6px;}
+  .types button{border:1.5px solid var(--line);background:#f8fafc;border-radius:999px;padding:8px 14px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink);}
+  .types button.sel{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .etat{border-radius:12px;padding:12px 14px;font-weight:800;font-size:15px;display:flex;align-items:center;gap:10px;}
+  .etat.ok{background:#dcfce7;color:#166534;}
+  .etat.warn{background:#fef3c7;color:#92400e;}
+  .etat.bad{background:#fee2e2;color:#991b1b;}
+  .etat .pulse{width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:p 1.6s infinite;flex:none;}
+  @keyframes p{0%{box-shadow:0 0 0 0 rgba(22,163,74,.6)}70%{box-shadow:0 0 0 10px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+  .etat small{display:block;font-weight:600;font-size:12.5px;opacity:.85;margin-top:2px;}
+  .flash{background:#1d4ed8;color:#fff;border-radius:12px;padding:12px 14px;font-weight:900;font-size:16px;margin-bottom:10px;display:none;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  td,th{padding:7px 6px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:middle;}
+  th{font-size:11.5px;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;}
+  td.nom{font-weight:700;word-break:break-word;}
+  td.nom.neuf{color:#166534;}
+  td .d{color:var(--grey);font-size:12px;font-weight:600;white-space:nowrap;}
+  .b{border:none;border-radius:8px;padding:6px 10px;font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap;}
+  .b-o{background:#eef2ff;color:var(--blue);text-decoration:none;display:inline-block;}
+  .b-r{background:#fee2e2;color:#991b1b;}
+  .b-c{background:#dcfce7;color:#166534;}
+  .vide{color:var(--grey);font-size:13px;font-weight:600;padding:6px 0;}
+  .attente{border:2px dashed var(--amber);background:#fffbeb;}
+  .aide{font-size:12.5px;color:var(--grey);line-height:1.5;}
+  .aide b{color:var(--ink);}
+  dialog{border:none;border-radius:14px;padding:18px;max-width:420px;width:92%;box-shadow:0 10px 40px rgba(0,0,0,.3);}
+  dialog input{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:8px;font-size:15px;margin:6px 0 12px;}
+  dialog button{margin-right:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>📎 Scanner dans Odoo · Parc automobile</h1>
+    <span class="poste" id="poste" title="Nom du poste (le même que dans le veilleur du PC)">poste : …</span>
+  </div>
+  <div class="flash" id="flash"></div>
+  <div class="card">
+    <div class="veh" id="veh">
+      <div class="plaque" id="plaque">—</div>
+      <div class="d"><div class="n" id="vnom">Aucun véhicule : cherchez-le ci-dessous</div><div class="s" id="vinfo"></div></div>
+    </div>
+    <div class="cherche"><input id="q" placeholder="Changer de véhicule : immatriculation, nom ou chauffeur…" autocomplete="off"/><ul id="sugg"></ul></div>
+  </div>
+  <div class="card">
+    <div class="lab">Type du document à scanner</div>
+    <div class="types" id="types"></div>
+  </div>
+  <div class="etat warn" id="etat"><span>⏳ Connexion…</span></div>
+  <div class="card attente" id="attente" style="display:none;">
+    <div class="lab">⚠️ Documents scannés en attente de classement</div>
+    <table><tbody id="attente-l"></tbody></table>
+  </div>
+  <div class="card">
+    <div class="lab">Documents du véhicule</div>
+    <table><tbody id="pieces"></tbody></table>
+    <div class="vide" id="pieces-vide" style="display:none;">Aucun document pour l'instant.</div>
+  </div>
+  <div class="aide">
+    <b>Comment faire :</b> laissez cette page ouverte, mettez le document dans le scanner et lancez la numérisation (bouton du scanner ou iPrint&amp;Scan).
+    Le PDF arrive ici en quelques secondes et s'attache au véhicule affiché, sous le nom « Type_immatriculation_date ». Il apparaît aussi dans Documents › Fleet.
+    Un document mal classé : bouton <b>Retirer</b> (la copie reste dans le dossier « Envoyés » du PC).
+  </div>
+</div>
+<dialog id="dlg"><div style="font-weight:900;font-size:16px;">Nom du poste</div>
+  <div class="aide">Le même nom que celui donné au veilleur installé sur le PC (ex. isabelle).</div>
+  <input id="dlg-poste"/><button class="b b-c" id="dlg-ok">Enregistrer</button><button class="b" id="dlg-non">Annuler</button></dialog>
+<script>
+(function(){
+  var P = new URLSearchParams(location.search);
+  var K = P.get('k') || localStorage.getItem('scan_k') || '';
+  if(P.get('k')){ localStorage.setItem('scan_k', P.get('k')); }
+  var VEH = parseInt(P.get('veh') || '0', 10) || 0;
+  var POSTE = (localStorage.getItem('scan_poste') || 'isabelle');
+  var TYPE = localStorage.getItem('scan_type') || 'doc';
+  var TYPES = {};
+  var connus = null, dernierCibleT = 0, timer = null;
+  var $ = function(id){ return document.getElementById(id); };
+  function api(path, data){
+    var opt = data ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.assign({k:K, poste:POSTE}, data))} : {};
+    var sep = path.indexOf('?') >= 0 ? '&' : '?';
+    return fetch('api/' + path + sep + 'k=' + encodeURIComponent(K) + '&poste=' + encodeURIComponent(POSTE), opt).then(function(r){ return r.json(); });
+  }
+  function taille(n){ return n > 1048576 ? (n/1048576).toFixed(1) + ' Mo' : Math.max(1, Math.round(n/1024)) + ' Ko'; }
+  function dateFr(s){ if(!s){ return ''; } var d = new Date(s.replace(' ', 'T') + 'Z'); return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function flash(txt){ var f = $('flash'); f.textContent = txt; f.style.display = 'block'; clearTimeout(f._t); f._t = setTimeout(function(){ f.style.display = 'none'; }, 6000); if(navigator.vibrate){ try{ navigator.vibrate(80); }catch(e){} } }
+  function etat(cls, html){ var e = $('etat'); e.className = 'etat ' + cls; e.innerHTML = (cls === 'ok' ? '<span class="pulse"></span>' : '') + '<span>' + html + '</span>'; }
+  function peintTypes(){
+    var t = $('types'); t.innerHTML = '';
+    Object.keys(TYPES).forEach(function(c){ var b = document.createElement('button'); b.type = 'button'; b.textContent = TYPES[c]; b.setAttribute('data-t', c); if(c === TYPE){ b.className = 'sel'; } t.appendChild(b); });
+  }
+  function cible(){
+    if(!VEH){ return Promise.resolve(); }
+    return api('cible', {veh:VEH, type:TYPE}).then(function(r){ dernierCibleT = Date.now(); if(r.error){ etat('bad', '❌ ' + esc(r.error)); } });
+  }
+  function rafraichir(){
+    api('etat?veh=' + VEH).then(function(d){
+      if(d.error){ etat('bad', '❌ ' + esc(d.error)); return; }
+      if(!Object.keys(TYPES).length){ TYPES = d.types; if(!TYPES[TYPE]){ TYPE = 'doc'; } peintTypes(); }
+      var v = d.vehicule;
+      if(v){
+        $('plaque').textContent = v.immat || '—'; $('vnom').textContent = v.nom;
+        $('vinfo').textContent = [v.modele, v.chauffeur ? 'chauffeur : ' + v.chauffeur : '', v.societe, v.actif ? '' : 'ARCHIVÉ'].filter(Boolean).join(' · ');
+        document.title = 'Scanner · ' + (v.immat || v.nom);
+        etat('ok', '✅ Prêt : scannez, le document s\'attache à <b>' + esc(v.immat || v.nom) + '</b> en « ' + esc(TYPES[TYPE]) + ' »<small>Gardez cette page ouverte pendant le scan (c\'est elle qui indique le véhicule).</small>');
+      } else {
+        $('plaque').textContent = '—'; $('vnom').textContent = 'Aucun véhicule : cherchez-le ci-dessous'; $('vinfo').textContent = '';
+        etat('warn', '👉 Choisissez un véhicule (ou ouvrez cette page depuis sa fiche Odoo, action « Scanner un document »).');
+      }
+      var tb = $('pieces'); tb.innerHTML = '';
+      (d.pieces || []).forEach(function(p){
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td class="nom' + (p.scan ? ' neuf' : '') + '">' + esc(p.nom) + '<div class="d">' + dateFr(p.date) + ' · ' + taille(p.taille || 0) + '</div></td>'
+          + '<td style="text-align:right;white-space:nowrap;"><a class="b b-o" target="_blank" href="' + esc(p.url) + '">Ouvrir</a> '
+          + (p.scan ? '<button class="b b-r" data-ret="' + p.id + '" data-nom="' + esc(p.nom) + '">Retirer</button>' : '') + '</td>';
+        tb.appendChild(tr);
+      });
+      $('pieces-vide').style.display = (d.pieces || []).length ? 'none' : '';
+      var ids = (d.pieces || []).filter(function(p){ return p.scan; }).map(function(p){ return p.id; });
+      if(connus !== null){ ids.forEach(function(i){ if(connus.indexOf(i) < 0){ var p = d.pieces.filter(function(q){ return q.id === i; })[0]; flash('📎 ' + p.nom + ' attaché au véhicule'); } }); }
+      connus = ids;
+      var at = d.attente || []; $('attente').style.display = at.length ? '' : 'none';
+      var al = $('attente-l'); al.innerHTML = '';
+      at.forEach(function(a){
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td class="nom">' + esc(a.nom) + '<div class="d">' + dateFr(a.date) + ' · ' + taille(a.taille || 0) + '</div></td>'
+          + '<td style="text-align:right;white-space:nowrap;"><a class="b b-o" target="_blank" href="' + esc(a.url) + '">Voir</a> '
+          + (v ? '<button class="b b-c" data-cl="' + a.id + '">Classer dans ' + esc(v.immat || 'ce véhicule') + '</button> ' : '')
+          + '<button class="b b-r" data-ret="' + a.id + '" data-nom="' + esc(a.nom) + '">Supprimer</button></td>';
+        al.appendChild(tr);
+      });
+    }).catch(function(){ etat('bad', '❌ Relais injoignable (internet ?)'); });
+  }
+  /* Plusieurs onglets « Scanner » ouverts : le dernier regardé est le « propriétaire » (localStorage) ; lui seul
+     signale sa cible au relais, même passé en arrière-plan. Sans signal pendant 3 min, le relais oublie la cible. */
+  var MOI = String(Date.now()) + Math.random().toString(36).slice(2, 8);
+  function proprietaire(){ try{ return localStorage.getItem('scan_owner') === MOI; }catch(e){ return true; } }
+  function prendre(){ try{ localStorage.setItem('scan_owner', MOI); }catch(e){} }
+  function boucle(){
+    clearTimeout(timer);
+    if(!document.hidden){ prendre(); }
+    if(proprietaire() && Date.now() - dernierCibleT > 20000){ cible(); }
+    if(!document.hidden){ rafraichir(); }
+    timer = setTimeout(boucle, 3000);
+  }
+  function choisir(v){ VEH = v.id; connus = null; history.replaceState(null, '', '?veh=' + VEH); $('q').value = ''; $('sugg').style.display = 'none'; cible().then(rafraichir); }
+  $('q').addEventListener('input', function(){
+    var q = this.value.trim(); var ul = $('sugg');
+    if(q.length < 2){ ul.style.display = 'none'; return; }
+    api('vehicules?q=' + encodeURIComponent(q)).then(function(l){
+      ul.innerHTML = '';
+      (l || []).forEach(function(v){ var li = document.createElement('li'); li.innerHTML = '<b>' + esc(v.immat || '—') + '</b> · ' + esc(v.nom) + (v.chauffeur ? ' · ' + esc(v.chauffeur) : '') + ' <span style="color:#94a3b8">' + esc(v.societe) + '</span>'; li.onclick = function(){ choisir(v); }; ul.appendChild(li); });
+      ul.style.display = (l || []).length ? 'block' : 'none';
+    });
+  });
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.cherche')){ $('sugg').style.display = 'none'; }
+    var t = e.target.closest('#types button');
+    if(t){ TYPE = t.getAttribute('data-t'); localStorage.setItem('scan_type', TYPE); peintTypes(); cible().then(rafraichir); return; }
+    var r = e.target.closest('[data-ret]');
+    if(r){ if(!confirm('Retirer « ' + r.getAttribute('data-nom') + ' » d\'Odoo ?')){ return; } api('retirer', {att:parseInt(r.getAttribute('data-ret'), 10)}).then(function(d){ if(d.error){ alert(d.error); } connus = null; rafraichir(); }); return; }
+    var c = e.target.closest('[data-cl]');
+    if(c){ api('classer', {att:parseInt(c.getAttribute('data-cl'), 10), veh:VEH, type:TYPE}).then(function(d){ if(d.error){ alert(d.error); } else { flash('📎 ' + d.nom + ' classé'); } connus = null; rafraichir(); }); return; }
+  });
+  $('poste').textContent = 'poste : ' + POSTE;
+  $('poste').onclick = function(){ $('dlg-poste').value = POSTE; $('dlg').showModal(); };
+  $('dlg-ok').onclick = function(){ POSTE = ($('dlg-poste').value.trim().toLowerCase() || 'isabelle'); localStorage.setItem('scan_poste', POSTE); $('poste').textContent = 'poste : ' + POSTE; $('dlg').close(); cible().then(rafraichir); };
+  $('dlg-non').onclick = function(){ $('dlg').close(); };
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden){ dernierCibleT = 0; boucle(); } });
+  window.addEventListener('pagehide', function(){ if(!proprietaire()){ return; } try{ localStorage.removeItem('scan_owner'); navigator.sendBeacon('api/cible?k=' + encodeURIComponent(K), new Blob([JSON.stringify({k:K, poste:POSTE, veh:0})], {type:'application/json'})); }catch(e){} });
+  cible().then(boucle);
+})();
+</script>
+</body>
+</html>
