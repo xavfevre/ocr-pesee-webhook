@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Heures engins</title>
+<style>
+  :root{--ink:#0f172a;--grey:#64748b;--line:#cbd5e1;--blue:#1d4ed8;--green:#16a34a;--amber:#f59e0b;--red:#dc2626;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:#f1f5f9;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);}
+  .wrap{max-width:1500px;margin:0 auto;padding:14px 14px 40px;}
+  h1{font-size:19px;margin:0 0 4px;font-weight:900;}
+  .sous{font-size:12.5px;color:var(--grey);font-weight:600;margin-bottom:10px;}
+  .card{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 14px;margin-bottom:10px;}
+  .ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
+  .ctrl label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:800;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;}
+  .ctrl select,.ctrl input{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--ink);background:#fff;min-width:150px;}
+  .ctrl .chk{flex-direction:row;align-items:center;gap:6px;text-transform:none;font-size:13px;padding-bottom:8px;}
+  .b{border:none;border-radius:10px;padding:10px 16px;font-weight:900;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block;}
+  .b-x{background:var(--green);color:#fff;}
+  .b-p{background:#eef2ff;color:var(--blue);padding:6px 9px;font-size:12.5px;border-radius:8px;}
+  .titre{font-size:16px;font-weight:900;margin:4px 0 8px;}
+  .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  th,td{border-bottom:1px solid #e2e8f0;padding:6px 7px;text-align:right;white-space:nowrap;vertical-align:middle;}
+  th{font-size:11px;color:var(--grey);text-transform:uppercase;letter-spacing:.3px;background:#f8fafc;position:sticky;top:0;}
+  th.g,td.g{text-align:left;}
+  td.nom{font-weight:800;white-space:normal;min-width:220px;}
+  td.nom small{display:block;color:var(--grey);font-weight:600;font-size:11.5px;}
+  td .d{display:block;color:#94a3b8;font-size:10.5px;font-weight:600;}
+  td.diff{font-weight:900;font-size:14px;color:#166534;}
+  td.diff.neg{color:var(--red);}
+  td.vide{color:#cbd5e1;}
+  td.rem{white-space:normal;text-align:left;color:#92400e;font-size:11.5px;font-weight:600;max-width:320px;}
+  tr.soc td{background:#eef2ff;font-weight:900;color:var(--blue);}
+  tr.tot td{background:#0f172a;color:#fff;font-weight:900;font-size:14px;}
+  td.saisie{white-space:nowrap;}
+  td.saisie input{border:1.5px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;font-weight:700;width:78px;}
+  td.saisie input[type=date]{width:128px;}
+  .aide{font-size:12.5px;color:var(--grey);line-height:1.5;}
+  .aide b{color:var(--ink);}
+  .msg{border-radius:10px;padding:10px 12px;font-weight:800;margin-bottom:10px;display:none;}
+  .msg.ok{background:#dcfce7;color:#166534;display:block;}
+  .msg.bad{background:#fee2e2;color:#991b1b;display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⏱ Heures de fonctionnement des engins non routiers</h1>
+  <div class="sous">Dernier relevé d'horamètre de chaque mois (Parc automobile Odoo) et heures de fonctionnement sur la période choisie.</div>
+  <div class="card">
+    <div class="ctrl">
+      <label>Périodicité<select id="periodicite"><option value="trimestre">Trimestre</option><option value="semestre">Semestre</option><option value="annee">Année</option></select></label>
+      <label>Période<select id="index"></select></label>
+      <label>Année<select id="annee"></select></label>
+      <label class="chk"><input type="checkbox" id="archives" style="min-width:0;width:18px;height:18px;"/> engins archivés aussi</label>
+      <a class="b b-x" id="export" href="#">⬇ Exporter en Excel</a>
+    </div>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="card">
+    <div class="titre" id="titre">…</div>
+    <div class="scroll"><table id="t"><thead></thead><tbody></tbody></table></div>
+  </div>
+  <div class="aide">
+    <b>Lecture :</b> chaque colonne de mois montre le dernier relevé saisi ce mois-là (et sa date). <b>Référence</b> = dernier relevé avant la période ; <b>Fin</b> = dernier relevé de la période ;
+    <b>Heures</b> = Fin − Référence, et la colonne <b>Jours</b> dit sur combien de jours ces heures ont réellement été comptées : si les relevés mensuels manquent, elle dépasse la période et c'est signalé en orange. Un compteur en baisse ou plus de 24 h/jour signale une erreur de saisie à corriger dans Odoo (fiche de l'engin, Compteur).<br/>
+    <b>Nouveau relevé :</b> heures lues sur l'horamètre + date, bouton <b>＋</b> : il est enregistré dans Odoo et la page se recalcule. Pour des chiffres justes, un relevé par engin en fin de mois suffit.
+  </div>
+</div>
+<script>
+(function(){
+  var P = new URLSearchParams(location.search);
+  var K = P.get('k') || localStorage.getItem('engins_k') || '';
+  if(P.get('k')){ localStorage.setItem('engins_k', P.get('k')); }
+  var $ = function(id){ return document.getElementById(id); };
+  var today = new Date(); var an = today.getFullYear();
+  var sel = {periodicite: P.get('periodicite') || localStorage.getItem('engins_per') || 'trimestre', annee: parseInt(P.get('annee') || an, 10), index: parseInt(P.get('index') || (Math.floor(today.getMonth() / 3) + 1), 10)};
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function nb(n){ return n == null ? '' : Math.round(n).toLocaleString('fr-FR'); }
+  function qs(){ return 'periodicite=' + sel.periodicite + '&annee=' + sel.annee + '&index=' + sel.index + '&archives=' + ($('archives').checked ? 1 : 0) + '&k=' + encodeURIComponent(K); }
+  function options(){
+    var a = $('annee'); a.innerHTML = '';
+    for(var y = an; y >= an - 4; y--){ var o = document.createElement('option'); o.value = y; o.textContent = y; a.appendChild(o); }
+    a.value = sel.annee;
+    var i = $('index'); i.innerHTML = '';
+    var libs = sel.periodicite === 'trimestre' ? ['1er trimestre (janv.-mars)', '2e trimestre (avril-juin)', '3e trimestre (juil.-sept.)', '4e trimestre (oct.-déc.)'] : sel.periodicite === 'semestre' ? ['1er semestre', '2e semestre'] : ['Année entière'];
+    libs.forEach(function(l, n){ var o = document.createElement('option'); o.value = n + 1; o.textContent = l; i.appendChild(o); });
+    if(sel.index > libs.length){ sel.index = libs.length; }
+    i.value = sel.index; i.disabled = libs.length === 1;
+    $('periodicite').value = sel.periodicite;
+  }
+  function msg(cls, t){ var m = $('msg'); m.className = 'msg ' + cls; m.textContent = t; if(cls === 'ok'){ setTimeout(function(){ m.className = 'msg'; }, 5000); } }
+  function charge(){
+    $('titre').textContent = 'Chargement…';
+    history.replaceState(null, '', '?' + qs().replace(/&k=[^&]*/, ''));
+    $('export').href = 'api/export.xlsx?' + qs();
+    fetch('api/tableau?' + qs()).then(function(r){ return r.json(); }).then(function(d){
+      if(d.error){ msg('bad', '❌ ' + d.error); return; }
+      $('titre').textContent = d.periode.libelle + ' · du ' + d.periode.debut + ' au ' + d.periode.fin + ' · ' + d.lignes.length + ' engins';
+      var th = '<tr><th class="g">Engin</th><th>Référence<br/>(avant période)</th>' + d.mois.map(function(m){ return '<th>' + esc(m) + '</th>'; }).join('') + '<th>Fin de<br/>période</th><th>Heures<br/>de la période</th><th>Jours entre<br/>les 2 relevés</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
+      $('t').querySelector('thead').innerHTML = th;
+      var tb = $('t').querySelector('tbody'); tb.innerHTML = '';
+      var soc = null;
+      d.lignes.forEach(function(l){
+        if(l.societe !== soc){ soc = l.societe; var ts = document.createElement('tr'); ts.className = 'soc'; ts.innerHTML = '<td class="g" colspan="' + (7 + d.mois.length) + '">' + esc(soc) + '</td>'; tb.appendChild(ts); }
+        var cel = function(r){ return r ? nb(r.valeur) + '<span class="d">' + esc(r.date) + '</span>' : ''; };
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td class="g nom">' + esc(l.nom) + '<small>' + esc(l.categorie) + (l.actif ? '' : ' · archivé') + (l.dernier ? ' · dernier relevé ' + esc(l.dernier.date) + ' : ' + nb(l.dernier.valeur) + ' h' : ' · aucun relevé') + '</small></td>'
+          + '<td class="' + (l.ref ? '' : 'vide') + '">' + (cel(l.ref) || '—') + '</td>'
+          + l.mois.map(function(m){ return '<td class="' + (m ? '' : 'vide') + '">' + (cel(m) || '—') + '</td>'; }).join('')
+          + '<td class="' + (l.fin ? '' : 'vide') + '">' + (cel(l.fin) || '—') + '</td>'
+          + '<td class="diff' + (l.diff != null && l.diff < 0 ? ' neg' : '') + '">' + (l.diff == null ? '<span style="color:#cbd5e1">—</span>' : nb(l.diff) + ' h') + '</td>'
+          + '<td class="' + (l.intervalle ? (l.intervalle.exact ? '' : 'rem') : 'vide') + '">' + (l.intervalle ? nb(l.intervalle.jours) + ' j' : '—') + '</td>'
+          + '<td class="rem">' + esc(l.remarques.join(' ; ')) + '</td>'
+          + '<td class="g saisie"><input type="number" step="1" min="0" placeholder="heures" data-v="' + l.id + '"/> <input type="date" value="' + today.toISOString().slice(0, 10) + '" data-d="' + l.id + '"/> <label style="font-size:11px;color:#64748b;"><input type="checkbox" data-f="' + l.id + '" style="width:14px;height:14px;"/>forcer</label> <button class="b b-p" data-add="' + l.id + '" title="Enregistrer ce relevé dans Odoo">＋</button></td>';
+        tb.appendChild(tr);
+      });
+      Object.keys(d.totaux).forEach(function(s){ var tr = document.createElement('tr'); tr.className = 'soc'; tr.innerHTML = '<td class="g" colspan="' + (2 + d.mois.length) + '">Total ' + esc(s) + '</td><td></td><td class="diff">' + nb(d.totaux[s]) + ' h</td><td colspan="3"></td>'; tb.appendChild(tr); });
+      var tt = document.createElement('tr'); tt.className = 'tot'; tt.innerHTML = '<td class="g" colspan="' + (2 + d.mois.length) + '">TOTAL engins · ' + esc(d.periode.libelle) + '</td><td></td><td>' + nb(d.total) + ' h</td><td colspan="3"></td>'; tb.appendChild(tt);
+    }).catch(function(){ msg('bad', '❌ Relais injoignable'); });
+  }
+  $('periodicite').onchange = function(){ sel.periodicite = this.value; localStorage.setItem('engins_per', sel.periodicite); options(); charge(); };
+  $('index').onchange = function(){ sel.index = parseInt(this.value, 10); charge(); };
+  $('annee').onchange = function(){ sel.annee = parseInt(this.value, 10); charge(); };
+  $('archives').onchange = charge;
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-add]'); if(!b){ return; }
+    var id = b.getAttribute('data-add'); var v = document.querySelector('input[data-v="' + id + '"]').value; var dt = document.querySelector('input[data-d="' + id + '"]').value; var f = document.querySelector('input[data-f="' + id + '"]').checked;
+    if(!v){ msg('bad', 'Saisissez les heures lues sur l\'horamètre.'); return; }
+    b.disabled = true;
+    fetch('api/releve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:K, veh:parseInt(id, 10), valeur:v, date:dt, forcer:f})}).then(function(r){ return r.json(); }).then(function(d){
+      b.disabled = false;
+      if(d.error){ msg('bad', '❌ ' + d.error); return; }
+      msg('ok', '✅ Relevé enregistré dans Odoo (' + v + ' h le ' + dt.split('-').reverse().join('/') + ').'); charge();
+    }).catch(function(){ b.disabled = false; msg('bad', '❌ Relais injoignable'); });
+  });
+  options(); charge();
+})();
+</script>
+</body>
+</html>

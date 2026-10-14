@@ -1541,6 +1541,14 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module scan_vehicule non chargé: {_e}")
 
+# ─── HEURES ENGINS NON ROUTIERS : page + export Excel + saisie de relevé (engins_heures_web.py) ─
+# /heures-engins/?k=<maquignon.engins_key> ; menu Parc automobile > Heures engins.
+try:
+    from engins_heures_web import bp as engins_bp
+    app.register_blueprint(engins_bp, url_prefix="/heures-engins")
+except Exception as _e:
+    app.logger.warning(f"Module engins_heures_web non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
