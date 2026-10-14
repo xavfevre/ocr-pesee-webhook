@@ -71,7 +71,7 @@ vdoc = {'name': NOM_ACTION, 'model_id': mdoc, 'state': 'code', 'code': CODE_DOC,
 if adoc:
     x('ir.actions.server', 'write', adoc, vdoc); print('action Documents %d mise à jour' % adoc[0])
 else:
-    adoc = [x('ir.actions.server', 'create', [vdoc])]; print('action Documents créée :', adoc[0])
+    r = x('ir.actions.server', 'create', [vdoc]); adoc = [r[0] if isinstance(r, list) else r]; print('action Documents créée :', adoc[0])
 dossier = x('res.company', 'read', [1], ['documents_fleet_folder'])[0]['documents_fleet_folder'][0]
 act_docs = x('ir.actions.act_window', 'search', [['res_model', '=', 'documents.document'], ['name', '=', 'Documents']], limit=1)[0]
 emb = x('ir.embedded.actions', 'search', [['name', '=', NOM_ACTION], ['parent_res_model', '=', 'documents.document'], ['parent_res_id', '=', dossier]])

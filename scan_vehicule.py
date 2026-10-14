@@ -75,12 +75,26 @@ def _poste(src=None):
     return re.sub(r'[^a-z0-9_-]', '', p)[:30] or 'poste'
 
 
+RE_PLAQUE = re.compile(r'^([A-Z]{2}-?\d{3}-?[A-Z]{2}|\d{1,4}\s?[A-Z]{1,3}\s?\d{2})$')
+
+
+def _libelle(nom, plaque):
+    """Ce qui identifie le véhicule : la plaque si c'en est une, sinon le modèle (les engins ont souvent l'année en guise
+    de plaque : « HITACHI/MINI PELLE ZX50U-2/2008 » -> « MINI PELLE ZX50U-2 »)."""
+    p = (plaque or '').strip().upper()
+    if RE_PLAQUE.match(p):
+        return p
+    parts = [s.strip() for s in (nom or '').split('/') if s.strip()]
+    return parts[1] if len(parts) >= 3 else (parts[0] if parts else p or 'vehicule')
+
+
 def _vehicule(vid):
     v = _call(MODELE, 'read', [vid], ['name', 'license_plate', 'driver_id', 'company_id', 'model_id', 'active'], **CTX)
     if not v:
         return None
     v = v[0]
-    return {'id': v['id'], 'nom': v['name'], 'immat': v['license_plate'] or '', 'chauffeur': v['driver_id'] and v['driver_id'][1] or '',
+    return {'id': v['id'], 'nom': v['name'], 'immat': v['license_plate'] or '', 'libelle': _libelle(v['name'], v['license_plate']),
+            'chauffeur': v['driver_id'] and v['driver_id'][1] or '',
             'societe': v['company_id'] and v['company_id'][1] or '', 'modele': v['model_id'] and v['model_id'][1] or '', 'actif': v['active']}
 
 
@@ -114,8 +128,7 @@ def _nom_fichier(type_code, veh, nom_origine):
     ext = os.path.splitext(nom_origine or '')[1].lower() or '.pdf'
     if ext not in MIMES:
         ext = '.pdf'
-    immat = (veh.get('immat') or veh.get('nom', '').split('/')[-1] or 'vehicule').strip()
-    immat = re.sub(r'[\\/:*?"<>|]+', '-', immat)
+    immat = re.sub(r'[\\/:*?"<>|]+', '-', veh.get('libelle') or 'vehicule')
     return f"{TYPES.get(type_code, 'Document')}_{immat}_{datetime.now().strftime('%d.%m.%Y')}{ext}", MIMES[ext]
 
 
@@ -151,8 +164,8 @@ def vehicules():
     dom = ['|', '|', ['license_plate', 'ilike', q], ['name', 'ilike', q], ['driver_id.name', 'ilike', q]]
     rows = _call(MODELE, 'search_read', dom, fields=['name', 'license_plate', 'driver_id', 'company_id'], limit=15, order='name',
                  context={'allowed_company_ids': [1, 3, 4], 'active_test': True})
-    return jsonify([{'id': r['id'], 'nom': r['name'], 'immat': r['license_plate'] or '', 'chauffeur': r['driver_id'] and r['driver_id'][1] or '',
-                     'societe': r['company_id'] and r['company_id'][1] or ''} for r in rows])
+    return jsonify([{'id': r['id'], 'nom': r['name'], 'immat': r['license_plate'] or '', 'libelle': _libelle(r['name'], r['license_plate']),
+                     'chauffeur': r['driver_id'] and r['driver_id'][1] or '', 'societe': r['company_id'] and r['company_id'][1] or ''} for r in rows])
 
 
 @bp.route('/api/etat')
@@ -212,7 +225,7 @@ def upload():
             r = _attacher(int(c['veh']), c.get('type', 'doc'), nom, b64, poste, mime)
             v = r['veh']
             return jsonify({'ok': True, 'id': r['id'], 'nom': r['nom'], 'veh': v['id'],
-                            'message': f"{r['nom']} attaché au véhicule {v['immat'] or v['nom']}"})
+                            'message': f"{r['nom']} attaché au véhicule {v['libelle']}"})
         except Exception as e:  # noqa: BLE001
             return jsonify({'ok': False, 'error': f'Odoo : {str(e)[-200:]}'}), 500
     att = _call('ir.attachment', 'create', [{'name': PREFIXE_ATTENTE + f"{datetime.now().strftime('%d.%m.%Y %Hh%M')} - {nom}", 'res_model': MODELE, 'res_id': 0,

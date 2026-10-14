@@ -128,10 +128,10 @@
       if(!Object.keys(TYPES).length){ TYPES = d.types; if(!TYPES[TYPE]){ TYPE = 'doc'; } peintTypes(); }
       var v = d.vehicule;
       if(v){
-        $('plaque').textContent = v.immat || '—'; $('vnom').textContent = v.nom;
+        $('plaque').textContent = v.libelle || v.immat || '—'; $('vnom').textContent = v.nom;
         $('vinfo').textContent = [v.modele, v.chauffeur ? 'chauffeur : ' + v.chauffeur : '', v.societe, v.actif ? '' : 'ARCHIVÉ'].filter(Boolean).join(' · ');
-        document.title = 'Scanner · ' + (v.immat || v.nom);
-        etat('ok', '✅ Prêt : scannez, le document s\'attache à <b>' + esc(v.immat || v.nom) + '</b> en « ' + esc(TYPES[TYPE]) + ' »<small>Gardez cette page ouverte pendant le scan (c\'est elle qui indique le véhicule).</small>');
+        document.title = 'Scanner · ' + (v.libelle || v.nom);
+        etat('ok', '✅ Prêt : scannez, le document s\'attache à <b>' + esc(v.libelle || v.nom) + '</b> en « ' + esc(TYPES[TYPE]) + ' »<small>Gardez cette page ouverte pendant le scan (c\'est elle qui indique le véhicule).</small>');
       } else {
         $('plaque').textContent = '—'; $('vnom').textContent = 'Aucun véhicule : cherchez-le ci-dessous'; $('vinfo').textContent = '';
         etat('warn', '👉 Choisissez un véhicule (ou ouvrez cette page depuis sa fiche Odoo, action « Scanner un document »).');
@@ -154,7 +154,7 @@
         var tr = document.createElement('tr');
         tr.innerHTML = '<td class="nom">' + esc(a.nom) + '<div class="d">' + dateFr(a.date) + ' · ' + taille(a.taille || 0) + '</div></td>'
           + '<td style="text-align:right;white-space:nowrap;"><a class="b b-o" target="_blank" href="' + esc(a.url) + '">Voir</a> '
-          + (v ? '<button class="b b-c" data-cl="' + a.id + '">Classer dans ' + esc(v.immat || 'ce véhicule') + '</button> ' : '')
+          + (v ? '<button class="b b-c" data-cl="' + a.id + '">Classer dans ' + esc(v.libelle || 'ce véhicule') + '</button> ' : '')
           + '<button class="b b-r" data-ret="' + a.id + '" data-nom="' + esc(a.nom) + '">Supprimer</button></td>';
         al.appendChild(tr);
       });
@@ -178,7 +178,7 @@
     if(q.length < 2){ ul.style.display = 'none'; return; }
     api('vehicules?q=' + encodeURIComponent(q)).then(function(l){
       ul.innerHTML = '';
-      (l || []).forEach(function(v){ var li = document.createElement('li'); li.innerHTML = '<b>' + esc(v.immat || '—') + '</b> · ' + esc(v.nom) + (v.chauffeur ? ' · ' + esc(v.chauffeur) : '') + ' <span style="color:#94a3b8">' + esc(v.societe) + '</span>'; li.onclick = function(){ choisir(v); }; ul.appendChild(li); });
+      (l || []).forEach(function(v){ var li = document.createElement('li'); li.innerHTML = '<b>' + esc(v.libelle || v.immat || '—') + '</b> · ' + esc(v.nom) + (v.chauffeur ? ' · ' + esc(v.chauffeur) : '') + ' <span style="color:#94a3b8">' + esc(v.societe) + '</span>'; li.onclick = function(){ choisir(v); }; ul.appendChild(li); });
       ul.style.display = (l || []).length ? 'block' : 'none';
     });
   });
