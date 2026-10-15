@@ -89,6 +89,18 @@
     <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Repli</th><th>Pierres à prix négocié</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
     <div class="aide" style="margin-top:8px">Retouche à l'unité (ajout, modification, suppression, dates) : bouton <b>Tarifs client</b>, qui ouvre la page existante du client. <b>Grille PDF</b> : la grille personnalisée du client aux dates des deux phases, prête à joindre à un e-mail.</div>
   </div>
+
+  <div class="card">
+    <div class="titre">4. Mailing « nouveaux tarifs pierres » dans E-mail Marketing</div>
+    <div class="etat" id="etatMailing">Chargement…</div>
+    <div class="ctrl" style="margin-top:8px">
+      <button class="b b-b" id="bMailing" onclick="preparerMailing()">Préparer le brouillon dans Odoo</button>
+      <a class="b b-p" id="aMailing" href="#" target="_blank" style="display:none">Ouvrir le brouillon dans E-mail Marketing</a>
+      <a class="b b-p" id="aApercuMail" href="#" target="_blank" style="display:none">Voir la grille telle qu'insérée (1er client)</a>
+    </div>
+    <div class="msg" id="msgMailing"></div>
+    <div class="aide" style="margin-top:8px">Cible : les clients pro ayant acheté de la pierre en 2025-2026, avec e-mail. La préparation calcule la grille de <b>chaque client</b> depuis ses listes de prix (phases ci-dessus), la range dans sa fiche et crée le brouillon : texte sur la mise en page du brouillon « Nouveaux tarifs 2026 » d'Isabelle, grille insérée dans l'e-mail, bouton vers son PDF. Relecture, test et envoi se font ensuite dans E-mail Marketing. Après un nouveau chargement de prix, cliquer à nouveau sur « Préparer » pour recalculer les grilles.</div>
+  </div>
 </div>
 <script>
 const K = new URLSearchParams(location.search).get('k') || '';
@@ -167,7 +179,25 @@ async function charger() {
   msg('msg', `Terminé : ${s.regles} règles créées, ${s.maj} mises à jour, ${s.regles_clients} prix négociés sur ${s.clients} clients` + (s.listes_creees.length ? `, listes dédiées créées : ${s.listes_creees.join(', ')}` : '') + '.', 'ok');
   etat();
 }
-etat();
+async function etatMailing() {
+  const r = await fetch('api/mailing/etat?k=' + encodeURIComponent(K)); if (!r.ok) { $('etatMailing').textContent = 'Accès refusé.'; return; }
+  const j = await r.json();
+  $('etatMailing').innerHTML = `Cible : <b>${j.cibles}</b> clients pro acheteurs de pierre avec e-mail (${Math.round(j.ca / 1000)} k€ de pierre en 2025-2026), par exemple ${j.exemples.map(c => c.nom).join(', ')}.` +
+    (j.modele_isabelle ? ' Mise en page : brouillon « Nouveaux tarifs 2026 » d\'Isabelle.' : ' Mise en page : corps simple (brouillon d\'Isabelle introuvable).') +
+    (j.etat_mailing ? `<br>Brouillon existant : <b>${j.etat_mailing.subject}</b>, statut ${j.etat_mailing.state}, ${j.etat_mailing.sent} envoyés, grilles calculées le ${(j.mailing.quand || '').slice(0, 16).replace('T', ' ')} (phases ${j.mailing.d1} / ${j.mailing.d2}).` : '<br>Aucun brouillon préparé.');
+  if (j.url) { $('aMailing').href = j.url; $('aMailing').style.display = ''; }
+  if (j.exemples.length) { $('aApercuMail').href = `api/mailing/apercu?k=${encodeURIComponent(K)}&partner=${j.exemples[0].id}&d1=${dates().d1}&d2=${dates().d2}`; $('aApercuMail').style.display = ''; }
+}
+async function preparerMailing() {
+  if (!confirm(`Calculer la grille de chaque client cible aux phases ${dates().d1} / ${dates().d2} et créer (ou mettre à jour) le brouillon dans E-mail Marketing ? Rien n'est envoyé.`)) return;
+  $('bMailing').disabled = true; msg('msgMailing', 'Préparation en cours (une à deux minutes)…', 'info');
+  const r = await fetch('api/mailing/preparer', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K, d1: dates().d1, d2: dates().d2})}); const j = await r.json();
+  $('bMailing').disabled = false;
+  if (j.erreur) { msg('msgMailing', j.erreur, 'bad'); return; }
+  msg('msgMailing', `${j.action} (n° ${j.mailing}) : ${j.cibles} destinataires, ${j.grilles} grilles calculées` + (j.champs_crees.length ? `, champs créés : ${j.champs_crees.join(', ')}` : '') + '. Ouvrez-le dans E-mail Marketing pour relire, tester et envoyer.', 'ok');
+  etatMailing();
+}
+etat(); etatMailing();
 </script>
 </body>
 </html>

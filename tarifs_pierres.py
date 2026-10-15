@@ -110,7 +110,8 @@ def _pierres():
     """Pierres vendables de la société (catégories Pierres*, unité m³) avec coefficient d'unité du devis."""
     cats = _call('product.category', 'search', [['complete_name', 'ilike', 'Pierres']], **CTX)
     prods = _call('product.product', 'search_read', [['categ_id', 'in', cats], ['sale_ok', '=', True], ['active', '=', True], ['product_tmpl_id.company_id', 'in', [SOC, False]]],
-                  fields=['default_code', 'display_name', 'lst_price', 'uom_name', 'categ_id'], order='categ_id, default_code, id', **CTX)
+                  fields=['default_code', 'display_name', 'lst_price', 'uom_name', 'categ_id', 'product_tmpl_id'], order='categ_id, default_code, id', **CTX)
+    parents = {c['id']: c['parent_path'] for c in _call('product.category', 'read', cats, ['parent_path'], **CTX)}
     out = []
     for pr in prods:
         if (pr['uom_name'] or '') in ('Forfait', 'Unité', 'Units', 'Unit(s)'):
@@ -118,6 +119,7 @@ def _pierres():
         mm = RE_EP.search(pr['display_name']) if pr['uom_name'] == 'm³' else None
         ep = int(mm.group(1)) / 100.0 if mm else None
         out.append({'id': pr['id'], 'code': pr['default_code'] or '', 'nom': nom_net(pr['display_name']), 'cat': pr['categ_id'][1].split('/')[-1].strip() if pr['categ_id'] else '',
+                    'tmpl': pr['product_tmpl_id'] and pr['product_tmpl_id'][0], 'categs': tuple(int(i) for i in (parents.get(pr['categ_id'][0], '') or '').strip('/').split('/') if i) if pr['categ_id'] else (),
                     'fiche': pr['lst_price'], 'unite': 'm²' if ep else (pr['uom_name'] or ''), 'coef': (1.0 / ep) if ep else 1.0})   # prix m³ = prix unité × coef
     out.sort(key=lambda q: (q['cat'].lower(), q['code'] or '~', q['nom'].lower()))
     return out
@@ -132,7 +134,7 @@ def _regles(liste_id):
     if c and time.time() - c[0] < 60:
         return c[1]
     r = _call('product.pricelist.item', 'search_read', [['pricelist_id', '=', liste_id]],
-              fields=['applied_on', 'product_id', 'product_tmpl_id', 'compute_price', 'fixed_price', 'percent_price', 'price_discount', 'base', 'base_pricelist_id', 'date_start', 'date_end', 'min_quantity'], **CTX)
+              fields=['applied_on', 'product_id', 'product_tmpl_id', 'categ_id', 'compute_price', 'fixed_price', 'percent_price', 'price_discount', 'base', 'base_pricelist_id', 'date_start', 'date_end', 'min_quantity'], **CTX)
     _CACHE_REGLES[liste_id] = (time.time(), r)
     return r
 
@@ -147,7 +149,9 @@ def _prix(liste_id, pierre, quand, profondeur=0):
     cand = [r for r in rs if r['applied_on'] == '0_product_variant' and r['product_id'] and r['product_id'][0] == pierre['id'] and r['compute_price'] == 'fixed' and ok(r)]
     if cand:
         return sorted(cand, key=lambda r: -r['id'])[0]['fixed_price']
-    glob = [r for r in rs if r['applied_on'] == '3_global' and ok(r)]
+    glob = [r for r in rs if r['applied_on'] == '1_product' and r['product_tmpl_id'] and r['product_tmpl_id'][0] == pierre.get('tmpl') and ok(r)] or \
+           [r for r in rs if r['applied_on'] == '2_product_category' and r.get('categ_id') and r['categ_id'][0] in pierre.get('categs', ()) and ok(r)] or \
+           [r for r in rs if r['applied_on'] == '3_global' and ok(r)]
     if glob:
         g = sorted(glob, key=lambda r: -r['id'])[0]
         if g['compute_price'] == 'formula' and g['base'] == 'pricelist' and g['base_pricelist_id']:
@@ -296,9 +300,9 @@ def _partenaire(nom):
 def _apercu(fichier, d1, d2):
     lu = _lire(fichier); cfg = _cfg(); ph = _phases(d1, d2); auj = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     pro_l, part_l = cfg.get('pro'), cfg.get('part')
+    par_id = {q['id']: q for q in _pierres()}
     for l in lu['lignes']:
-        q = {'id': l['id'], 'fiche': 0.0, 'coef': l['coef']}
-        pr = _call('product.product', 'read', [l['id']], ['lst_price'], **CTX)[0]['lst_price']; q['fiche'] = pr
+        q = par_id[l['id']]
         l['pro_act'] = round(_prix(pro_l or cfg['pro_prec'], q, auj) / l['coef'], 2); l['part_act'] = round(_prix(part_l or cfg['part_prec'], q, auj) / l['coef'], 2)
         for k in ('pro1', 'pro2', 'part1', 'part2'):
             l[k + '_m3'] = round(l[k] * l['coef'], 2) if l[k] else None
@@ -366,7 +370,236 @@ def _charger(fichier, d1, d2):
     return {'ok': True, 'stats': stats, 'phases': ap['phases']}
 
 
+# ---------------------------------------------------------------- grille d'un client (données communes PDF / HTML / e-mail)
+def _pierres_tarifees(cfg, ph):
+    """Pierres dont un prix de phase existe sur la liste PRO ou PARTICULIER cible (= la grille à diffuser)."""
+    ids = set()
+    for lid in (cfg.get('pro'), cfg.get('part')):
+        for r in (_regles(lid) if lid else []):
+            if r['applied_on'] == '0_product_variant' and r['product_id'] and r['date_start'] in (ph['p1'][0], ph['p2'][0]):
+                ids.add(r['product_id'][0])
+    return [q for q in _pierres() if q['id'] in ids]
+
+
+def _grille_client(pid, d1, d2):
+    pp = _call('res.partner', 'read', [pid], ['name', 'email', 'specific_property_product_pricelist'], **CTX)[0]
+    cfg = _cfg(); ph = _phases(d1, d2); pl = pp['specific_property_product_pricelist']; pl_id = pl and pl[0]
+    n_util = pl_id and _call('res.partner', 'search_count', [['specific_property_product_pricelist', '=', pl_id], ['parent_id', '=', False]], **CTX)
+    dediee = bool(pl_id and _liste_dediee(pl_id, pl[1], pp['name'], n_util))
+    liste = pl_id or cfg.get('pro') or cfg['pro_prec']
+    nego = {r['product_id'][0]: r['fixed_price'] for r in _regles(liste) if dediee and r['applied_on'] == '0_product_variant' and r['product_id'] and r['compute_price'] == 'fixed' and not r['date_start']} if dediee else {}
+    lignes = []
+    for q in _pierres_tarifees(cfg, ph):
+        pn = nego.get(q['id'])
+        v1, v2 = (pn, pn) if pn else (_prix(liste, q, ph['p1'][0]), _prix(liste, q, ph['p2'][0]))
+        lignes.append({'cat': q['cat'], 'nom': q['nom'], 'unite': q['unite'], 'v1': round(v1 / q['coef'], 2), 'v2': round(v2 / q['coef'], 2), 'nego': round(pn / q['coef'], 2) if pn else None})
+    return {'partner': pp, 'lignes': lignes, 'nego': bool(nego), 'd1': d1, 'd2': d2, 'liste': pl and pl[1] or ''}
+
+
+_fmt_prix = lambda v: ('%.2f' % v).replace('.', ',').replace(',00', '')  # noqa: E731
+_jour = lambda s_: datetime.strptime(s_, '%Y-%m-%d').strftime('%d/%m/%Y')  # noqa: E731
+
+
+def _grille_html(g):
+    """Tableau HTML (styles en ligne, compatible e-mail) de la grille d'un client."""
+    fin1 = (datetime.strptime(g['d2'], '%Y-%m-%d') - timedelta(days=1)).strftime('%d/%m/%Y')
+    th = 'style="padding:6px 8px;border-bottom:2px solid #cbd5e1;font-size:12px;color:#475569;text-align:right;background:#f8fafc"'
+    td = 'style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;white-space:nowrap"'
+    tdg = td.replace('text-align:right;white-space:nowrap', 'text-align:left')
+    h = ['<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif;color:#0f172a">',
+         '<tr><th %s>Pierre</th><th %s>Unité</th><th %s>Du %s au %s</th><th %s>À partir du %s</th>%s</tr>' % (th.replace('right', 'left'), th, th, _jour(g['d1']), fin1, th, _jour(g['d2']), ('<th %s>Votre prix négocié</th>' % th) if g['nego'] else '')]
+    cat = None
+    for l in g['lignes']:
+        if l['cat'] != cat:
+            cat = l['cat']; h.append('<tr><td colspan="%d" style="padding:7px 8px 3px;font-weight:bold;font-size:13px;color:#1d4ed8;border-bottom:1px solid #e2e8f0">%s</td></tr>' % (5 if g['nego'] else 4, cat))
+        fond = ' background:#fff4e0;' if l['nego'] else ''
+        h.append('<tr><td %s>%s</td><td %s>%s</td><td %s>%s €</td><td %s>%s €</td>%s</tr>' % (tdg[:-1] + fond + '"', l['nom'], td[:-1] + fond + '"', l['unite'], td[:-1] + fond + '"', _fmt_prix(l['v1']), td[:-1] + fond + '"', _fmt_prix(l['v2']),
+                                                                              ('<td %s><b>%s €</b></td>' % (td[:-1] + fond + '"', _fmt_prix(l['nego'])) if l['nego'] else '<td %s></td>' % td) if g['nego'] else ''))
+    h.append('</table>')
+    return ''.join(h)
+
+
+def _pdf_client(g, soc):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    INK = colors.HexColor('#0f172a'); GREY = colors.HexColor('#475569'); LIGHT = colors.HexColor('#eef2ff'); LINE = colors.HexColor('#cbd5e1'); NEGO = colors.HexColor('#fff4e0')
+    P = ParagraphStyle('p', fontName='Helvetica', fontSize=9.6, leading=13, textColor=INK); H1 = ParagraphStyle('h1', parent=P, fontName='Helvetica-Bold', fontSize=15, leading=19)
+    SMALL = ParagraphStyle('s', parent=P, fontSize=8, leading=10.5, textColor=GREY); CELL = ParagraphStyle('c', parent=P, fontSize=8.8, leading=11); CELLB = ParagraphStyle('cb', parent=CELL, fontName='Helvetica-Bold')
+    fin1 = (datetime.strptime(g['d2'], '%Y-%m-%d') - timedelta(days=1)).strftime('%d/%m/%Y')
+    buf = io.BytesIO(); doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=14 * mm, bottomMargin=14 * mm, title='Tarifs pierres', author=soc['name'])
+    s_ = [Paragraph(soc['name'], SMALL), Paragraph('Tarifs pierres : %s' % g['partner']['name'], H1),
+          Paragraph('Prix hors taxes, départ carrière, en deux étapes : du <b>%s</b> au <b>%s</b>, puis à partir du <b>%s</b>. Unités : m² pour les pierres d\'épaisseur, m³ pour les massifs, tranches et blocs. Édité le %s.'
+                    % (_jour(g['d1']), fin1, _jour(g['d2']), date.today().strftime('%d/%m/%Y')), P), Spacer(1, 4)]
+    if g['nego']:
+        s_ += [Paragraph('Les lignes sur fond orangé sont <b>vos prix négociés</b>, maintenus sur les deux périodes.', P), Spacer(1, 4)]
+    tete = ['Pierre', 'Unité', 'Du %s' % _jour(g['d1']), 'À partir du %s' % _jour(g['d2'])] + (['Votre prix négocié'] if g['nego'] else [])
+    lignes = [[Paragraph(t, CELLB) for t in tete]]; st = [('BACKGROUND', (0, 0), (-1, 0), LIGHT), ('LINEBELOW', (0, 0), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 2.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5), ('ALIGN', (2, 1), (-1, -1), 'RIGHT')]
+    cat = None
+    for l in g['lignes']:
+        if l['cat'] != cat:
+            cat = l['cat']; lignes.append([Paragraph('<b>%s</b>' % cat, CELL)] + [''] * (len(tete) - 1)); st += [('SPAN', (0, len(lignes) - 1), (-1, len(lignes) - 1)), ('BACKGROUND', (0, len(lignes) - 1), (-1, len(lignes) - 1), colors.HexColor('#f8fafc'))]
+        row = [Paragraph(l['nom'], CELL), Paragraph(l['unite'], CELL), Paragraph(_fmt_prix(l['v1']), CELL), Paragraph(_fmt_prix(l['v2']), CELL)]
+        if g['nego']:
+            row.append(Paragraph('<b>%s</b>' % _fmt_prix(l['nego']) if l['nego'] else '', CELL))
+            if l['nego']:
+                st.append(('BACKGROUND', (0, len(lignes)), (-1, len(lignes)), NEGO))
+        lignes.append(row)
+    larg = [86 * mm, 12 * mm, 38 * mm, 38 * mm] if not g['nego'] else [72 * mm, 12 * mm, 33 * mm, 33 * mm, 30 * mm]
+    t = Table(lignes, colWidths=larg, repeatRows=1); t.setStyle(TableStyle(st)); s_ += [t, Spacer(1, 6), Paragraph('Les autres articles ne changent pas. Votre contact : %s, %s.' % (soc['phone'] or '', soc['email'] or ''), SMALL)]
+    doc.build(s_); buf.seek(0)
+    return buf
+
+
+# ---------------------------------------------------------------- mailing E-mail Marketing
+CHAMPS_MAILING = {'x_tarif_token': ('Jeton grille tarifs', 'char'), 'x_tarif_html': ('Grille tarifs (HTML)', 'html')}
+PARAM_MAILING = 'maquignon.tarifs_pierres_mailing'
+SUJET_MAILING = 'Carrières Maquignon : vos tarifs pierres 2027'
+RELAIS_URL = os.environ.get('RELAIS_URL', 'https://ocr-pesee-webhook.onrender.com')
+
+
+def _champs_mailing():
+    """Crée les champs personnalisés sur res.partner s'ils manquent."""
+    mid = _call('ir.model', 'search', [['model', '=', 'res.partner']], **CTX)[0]
+    crees = []
+    for nom, (lib, ttype) in CHAMPS_MAILING.items():
+        if not _call('ir.model.fields', 'search', [['model', '=', 'res.partner'], ['name', '=', nom]], **CTX):
+            _call('ir.model.fields', 'create', [{'name': nom, 'model_id': mid, 'field_description': lib, 'ttype': ttype, 'state': 'manual'}], **CTX); crees.append(nom)
+    return crees
+
+
+def _cibles_mailing():
+    """Clients pro acheteurs de pierre (2025-2026, société 1) avec e-mail, hors liste particulier."""
+    cfg = _cfg(); cats = _call('product.category', 'search', [['complete_name', 'ilike', 'Pierres']], **CTX)
+    g = _call('account.move.line', 'read_group', [['move_id.move_type', '=', 'out_invoice'], ['move_id.state', '=', 'posted'], ['move_id.invoice_date', '>=', '2025-01-01'], ['company_id', '=', SOC], ['product_id.categ_id', 'in', cats]], ['price_subtotal:sum'], ['partner_id'], lazy=False, **CTX)
+    pids = [r['partner_id'][0] for r in g if r['partner_id']]
+    comm = {q['id']: q['commercial_partner_id'][0] for q in _call('res.partner', 'read', pids, ['commercial_partner_id'], **CTX)} if pids else {}
+    ca = {}
+    for r in g:
+        if r['partner_id']:
+            ca[comm[r['partner_id'][0]]] = ca.get(comm[r['partner_id'][0]], 0) + r['price_subtotal']
+    out = []
+    for q in _call('res.partner', 'read', list(ca), ['name', 'email', 'specific_property_product_pricelist'], **CTX) if ca else []:
+        l = q['specific_property_product_pricelist'] and q['specific_property_product_pricelist'][0]
+        if l and l not in (cfg['part_prec'], cfg.get('part')) and q['email']:
+            out.append({'id': q['id'], 'nom': q['name'], 'email': q['email'], 'ca': round(ca[q['id']])})
+    return sorted(out, key=lambda c: -c['ca'])
+
+
+def _corps_mailing(d1, d2, modele=None):
+    """Corps du mailing (QWeb : <t t-out>, t-attf-href) : {'body_arch': …, 'body_html': …}. Mise en page du brouillon
+    d'Isabelle (« Nouveaux tarifs 2026 ») si fourni, texte remplacé ; sinon corps simple."""
+    fin1 = (datetime.strptime(d2, '%Y-%m-%d') - timedelta(days=1)).strftime('%d/%m/%Y')
+    P = 'style="font-family:Arial,Helvetica,sans-serif;color:#000000;font-size:16px;margin:0 0 16px"'
+    bloc = ('<p %s>Vous trouverez ci-dessous votre grille de tarifs pierres, propre à votre compte. Elle s\'applique en deux étapes : du <strong>%s au %s</strong>, puis à partir du <strong>%s</strong>. '
+            'Les prix s\'entendent hors taxes, départ carrière, au m² pour les pierres d\'épaisseur et au m³ pour les massifs, tranches et blocs. Les autres articles ne changent pas. '
+            'Les devis signés avant le %s restent honorés aux conditions convenues.</p>'
+            '<t t-out="object.x_tarif_html"/>'
+            '<p style="text-align:center;margin:18px 0"><a t-attf-href="%s/tarifs-pierres/grille/#{object.x_tarif_token}" style="background:#1d4ed8;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-family:Arial,Helvetica,sans-serif">Télécharger votre grille en PDF</a></p>'
+            % (P, _jour(d1), fin1, _jour(d2), _jour(d1), RELAIS_URL))
+
+    def adapter(html):
+        h = html.replace('Nouveaux tarifs 2026', 'Nouveaux tarifs pierres 2027')
+        h = re.sub(r'À partir du 1er(?:&nbsp;| )octobre(?:&nbsp;| )2026', 'Du 1er novembre 2026, puis du 1er janvier 2027', h)
+        h = h.replace('<t t-out="object.contact_address_complete">client</t>', '<t t-out="object.name">client</t>')
+        h, n1 = re.subn(r'<p[^>]*>(?:(?!</p>).)*?augmentation de 6(?:(?!</p>).)*?</p>', lambda _m: bloc, h, count=1, flags=re.S)
+        h = re.sub(r'<p[^>]*>(?:(?!</p>).)*?Tous les devis signés et validés avant cette date(?:(?!</p>).)*?</p>', '', h, count=1, flags=re.S)
+        return h if n1 else None
+
+    if modele:
+        arch, html = adapter(modele.get('body_arch') or ''), adapter(modele.get('body_html') or '')
+        if arch and html:
+            return {'body_arch': arch, 'body_html': html}
+    simple = ('<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;max-width:680px;margin:0 auto"><h2 style="color:#1d4ed8">Nouveaux tarifs pierres 2027</h2><p %s>Madame, Monsieur,</p>'
+              '<p %s>Nous vous remercions pour la confiance que vous nous accordez pour l\'approvisionnement de vos chantiers en pierre de tuffeau et autres pierres calcaires. '
+              'Pour faire face à la hausse de nos coûts d\'exploitation et continuer à investir dans nos gisements, nous ajustons nos tarifs pierres en deux étapes.</p>%s'
+              '<p %s>Nous restons à votre disposition pour vos devis et vos chantiers.</p><p %s>Bien cordialement,<br/>SARL Maquignon</p></div>' % (P, P, bloc, P, P))
+    return {'body_arch': simple, 'body_html': simple}
+
+
+def _preparer_mailing(d1, d2):
+    import secrets
+    crees = _champs_mailing(); cibles = _cibles_mailing(); cfg = _cfg()
+    if not cfg.get('pro'):
+        return {'erreur': 'listes cibles absentes : créer les listes 2027 et charger la grille d abord'}
+    n_html = 0
+    for c in cibles:
+        pp = _call('res.partner', 'read', [c['id']], ['x_tarif_token'], **CTX)[0]
+        vals = {'x_tarif_html': _grille_html(_grille_client(c['id'], d1, d2))}
+        if not pp.get('x_tarif_token'):
+            vals['x_tarif_token'] = secrets.token_urlsafe(15)
+        _call('res.partner', 'write', [c['id']], vals, **CTX); n_html += 1
+    # brouillon : copie du brouillon « Nouveaux tarifs 2026 » d'Isabelle (mise en page) si présent, sinon corps simple
+    modele = _call('mailing.mailing', 'search_read', [['subject', '=', 'Nouveaux tarifs 2026'], ['state', '=', 'draft']], fields=['id', 'body_arch', 'body_html', 'email_from', 'reply_to'], limit=1, **CTX)
+    corps = _corps_mailing(d1, d2, modele[0] if modele else None)
+    modele_partner = _call('ir.model', 'search', [['model', '=', 'res.partner']], **CTX)[0]
+    vals = {'subject': SUJET_MAILING, 'body_arch': corps['body_arch'], 'body_html': corps['body_html'], 'mailing_model_id': modele_partner, 'mailing_domain': json.dumps([['id', 'in', [c['id'] for c in cibles]]]),
+            'email_from': (modele[0]['email_from'] if modele else '') or '"SARL MAQUIGNON" <contact@maquignon.com>', 'reply_to_mode': 'new', 'reply_to': (modele[0]['reply_to'] if modele else '') or 'contact@maquignon.com'}
+    existant = _call('mailing.mailing', 'search', [['subject', '=', SUJET_MAILING], ['state', '=', 'draft']], **CTX)
+    if existant:
+        _call('mailing.mailing', 'write', existant[:1], vals, **CTX); mid = existant[0]; action = 'brouillon mis à jour'
+    else:
+        mid = one(_call('mailing.mailing', 'create', [vals], **CTX)); action = 'brouillon créé'
+    _call('ir.config_parameter', 'set_param', PARAM_MAILING, json.dumps({'mailing': mid, 'd1': d1, 'd2': d2, 'n': len(cibles), 'quand': datetime.utcnow().isoformat()}))
+    return {'ok': True, 'mailing': mid, 'action': action, 'cibles': len(cibles), 'grilles': n_html, 'champs_crees': crees, 'modele_isabelle': bool(modele),
+            'url': '%s/odoo/action-mass_mailing.mailing_mailing_action_mail/%d' % (os.environ.get('ODOO_URL', ''), mid)}
+
+
 # ---------------------------------------------------------------- routes
+@bp.route('/grille/<jeton>')
+def grille_publique(jeton):
+    """Grille PDF d'un client, lien du mailing (jeton propre au client, sans clé)."""
+    if not re.fullmatch(r'[A-Za-z0-9_-]{12,40}', jeton or ''):
+        return 'lien invalide', 404
+    pp = _call('res.partner', 'search_read', [['x_tarif_token', '=', jeton]], fields=['name'], limit=1, **CTX)
+    if not pp:
+        return 'lien inconnu ou expiré', 404
+    try:
+        m_ = json.loads(_call('ir.config_parameter', 'get_param', PARAM_MAILING, '') or '{}')
+    except Exception:  # noqa: BLE001
+        m_ = {}
+    g = _grille_client(pp[0]['id'], m_.get('d1', '2026-11-01'), m_.get('d2', '2027-01-01'))
+    soc = _call('res.company', 'read', [SOC], ['name', 'phone', 'email'], **CTX)[0]
+    return send_file(_pdf_client(g, soc), as_attachment=False, download_name='Tarifs_pierres_%s.pdf' % re.sub(r'[^A-Za-z0-9]+', '_', pp[0]['name'])[:50], mimetype='application/pdf')
+
+
+@bp.route('/api/mailing/etat')
+def mailing_etat():
+    if not _cle_ok():
+        return jsonify({'erreur': 'clé'}), 403
+    cibles = _cibles_mailing()
+    try:
+        m_ = json.loads(_call('ir.config_parameter', 'get_param', PARAM_MAILING, '') or '{}')
+    except Exception:  # noqa: BLE001
+        m_ = {}
+    etat_m = _call('mailing.mailing', 'read', [m_['mailing']], ['state', 'sent', 'subject'], **CTX)[0] if m_.get('mailing') else None
+    return jsonify({'cibles': len(cibles), 'ca': sum(c['ca'] for c in cibles), 'exemples': cibles[:5], 'mailing': m_, 'etat_mailing': etat_m,
+                    'modele_isabelle': bool(_call('mailing.mailing', 'search', [['subject', '=', 'Nouveaux tarifs 2026'], ['state', '=', 'draft']], **CTX)),
+                    'url': ('%s/odoo/action-mass_mailing.mailing_mailing_action_mail/%d' % (os.environ.get('ODOO_URL', ''), m_['mailing'])) if m_.get('mailing') else ''})
+
+
+@bp.route('/api/mailing/preparer', methods=['POST'])
+def mailing_preparer():
+    if not _cle_ok():
+        return jsonify({'erreur': 'clé'}), 403
+    j = request.get_json(silent=True) or {}
+    try:
+        return jsonify(_preparer_mailing(j.get('d1', '2026-11-01'), j.get('d2', '2027-01-01')))
+    except Exception as e:  # noqa: BLE001
+        return jsonify({'erreur': 'préparation interrompue : %s' % e}), 500
+
+
+@bp.route('/api/mailing/apercu')
+def mailing_apercu():
+    """Grille HTML d'un client telle qu'elle sera insérée dans l'e-mail (contrôle)."""
+    if not _cle_ok():
+        return 'clé', 403
+    g = _grille_client(int(request.args.get('partner', 0)), request.args.get('d1', '2026-11-01'), request.args.get('d2', '2027-01-01'))
+    return '<html><body style="font-family:Arial;max-width:680px;margin:20px auto"><h3>%s</h3>%s</body></html>' % (g['partner']['name'], _grille_html(g))
+
+
 @bp.route('/')
 def page():
     return send_from_directory(ICI, 'tarifs_pierres_page.html')
@@ -456,16 +689,21 @@ def bascule():
         for i in range(0, len(ids), 200):
             _call('res.partner', 'write', ids[i:i + 200], {'specific_property_product_pricelist': cfg[k]}, **CTX)
         n[k] = len(ids)
-    defaut = _call('ir.default', 'search', [['field_id.model', '=', 'res.partner'], ['field_id.name', '=', 'property_product_pricelist'], ['company_id', '=', SOC]], **CTX)
+    champ = _call('ir.model.fields', 'search', [['model', '=', 'res.partner'], ['name', '=', 'property_product_pricelist']], **CTX)
+    defaut = _call('ir.default', 'search', [['field_id', 'in', champ], ['company_id', 'in', [SOC, False]]], **CTX) if champ else []
     if defaut:
         _call('ir.default', 'write', defaut, {'json_value': str(cfg['part'])}, **CTX)
     try:
         ref = json.loads(_call('ir.config_parameter', 'get_param', PARAM_DEFAUT_PL, '') or '{}')
-        if str(SOC) in ref or SOC in ref:
-            ref[str(SOC)] = cfg['pro']; _call('ir.config_parameter', 'set_param', PARAM_DEFAUT_PL, json.dumps(ref))
     except Exception:  # noqa: BLE001
-        pass
-    return jsonify({'ok': True, 'deplaces': n, 'defaut_maj': bool(defaut)})
+        ref = {}
+    ref[str(SOC)] = cfg['pro']; _call('ir.config_parameter', 'set_param', PARAM_DEFAUT_PL, json.dumps(ref))
+    # listes dédiées dont le repli est encore l'ancienne liste pro (12) ou Tarif Pro 2026 (299) -> repli sur Tarif Pro 2027
+    rebasees = []
+    for r in _call('product.pricelist.item', 'search_read', [['applied_on', '=', '3_global'], ['compute_price', '=', 'formula'], ['base', '=', 'pricelist'], ['base_pricelist_id', 'in', [12, cfg['pro_prec']]], ['pricelist_id', 'not in', [cfg['pro'], cfg['part']]]], fields=['pricelist_id'], **CTX):
+        _call('product.pricelist.item', 'write', [r['id']], {'base_pricelist_id': cfg['pro']}, **CTX); rebasees.append(r['pricelist_id'][1])
+    _CACHE_REGLES.clear()
+    return jsonify({'ok': True, 'deplaces': n, 'defaut_maj': bool(defaut), 'rebasees': rebasees})
 
 
 @bp.route('/api/pdf')
@@ -473,44 +711,6 @@ def pdf():
     """Grille PDF personnalisée d'un client (prix des deux phases sur sa liste, lignes négociées en orangé)."""
     if not _cle_ok():
         return 'clé', 403
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-    pid = int(request.args.get('partner', 0)); d1, d2 = request.args.get('d1', '2026-11-01'), request.args.get('d2', '2027-01-01')
-    pp = _call('res.partner', 'read', [pid], ['name', 'specific_property_product_pricelist'], **CTX)[0]
-    cfg = _cfg(); pl = pp['specific_property_product_pricelist']; pl_id = pl and pl[0]
-    liste = pl_id or cfg.get('pro') or cfg['pro_prec']; dediee = pl_id and _liste_dediee(pl_id, pl[1], pp['name'])
-    pierres = _pierres(); ph = _phases(d1, d2); q1, q2 = ph['p1'][0], ph['p2'][0]
-    nego = {r['product_id'][0]: r['fixed_price'] for r in _regles(liste) if dediee and r['applied_on'] == '0_product_variant' and r['product_id'] and r['compute_price'] == 'fixed' and not r['date_start']}
-    INK = colors.HexColor('#0f172a'); GREY = colors.HexColor('#475569'); LIGHT = colors.HexColor('#eef2ff'); LINE = colors.HexColor('#cbd5e1'); NEGO = colors.HexColor('#fff4e0')
-    P = ParagraphStyle('p', fontName='Helvetica', fontSize=9.6, leading=13, textColor=INK); H1 = ParagraphStyle('h1', parent=P, fontName='Helvetica-Bold', fontSize=15, leading=19)
-    SMALL = ParagraphStyle('s', parent=P, fontSize=8, leading=10.5, textColor=GREY); CELL = ParagraphStyle('c', parent=P, fontSize=8.8, leading=11); CELLB = ParagraphStyle('cb', parent=CELL, fontName='Helvetica-Bold')
-    fmt = lambda v: ('%.2f' % v).replace('.', ',').replace(',00', '')  # noqa: E731
-    jour = lambda s: datetime.strptime(s, '%Y-%m-%d').strftime('%d/%m/%Y')  # noqa: E731
+    g = _grille_client(int(request.args.get('partner', 0)), request.args.get('d1', '2026-11-01'), request.args.get('d2', '2027-01-01'))
     soc = _call('res.company', 'read', [SOC], ['name', 'phone', 'email'], **CTX)[0]
-    buf = io.BytesIO(); doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=14 * mm, bottomMargin=14 * mm, title='Tarifs pierres', author=soc['name'])
-    s = [Paragraph(soc['name'], SMALL), Paragraph('Tarifs pierres : %s' % pp['name'], H1),
-         Paragraph('Prix hors taxes, départ carrière, en deux étapes : du <b>%s</b> au <b>%s</b>, puis à partir du <b>%s</b>. Unités : m² pour les pierres d\'épaisseur, m³ pour les massifs, tranches et blocs. Édité le %s.'
-                   % (jour(d1), (datetime.strptime(d2, '%Y-%m-%d') - timedelta(days=1)).strftime('%d/%m/%Y'), jour(d2), date.today().strftime('%d/%m/%Y')), P), Spacer(1, 4)]
-    if nego:
-        s += [Paragraph('Les lignes sur fond orangé sont <b>vos prix négociés</b>, maintenus sur les deux périodes.', P), Spacer(1, 4)]
-    tete = ['Pierre', 'Unité', 'Du %s' % jour(d1), 'À partir du %s' % jour(d2)] + (['Votre prix négocié'] if nego else [])
-    lignes = [[Paragraph(t, CELLB) for t in tete]]; st = [('BACKGROUND', (0, 0), (-1, 0), LIGHT), ('LINEBELOW', (0, 0), (-1, -1), 0.3, LINE), ('TOPPADDING', (0, 0), (-1, -1), 2.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5), ('ALIGN', (2, 1), (-1, -1), 'RIGHT')]
-    cat = None
-    for q in pierres:
-        if q['cat'] != cat:
-            cat = q['cat']; lignes.append([Paragraph('<b>%s</b>' % cat, CELL)] + [''] * (len(tete) - 1)); st += [('SPAN', (0, len(lignes) - 1), (-1, len(lignes) - 1)), ('BACKGROUND', (0, len(lignes) - 1), (-1, len(lignes) - 1), colors.HexColor('#f8fafc'))]
-        pn = nego.get(q['id'])
-        v1, v2 = (pn, pn) if pn else (_prix(liste, q, q1), _prix(liste, q, q2))
-        row = [Paragraph(q['nom'], CELL), Paragraph(q['unite'], CELL), Paragraph(fmt(v1 / q['coef']), CELL), Paragraph(fmt(v2 / q['coef']), CELL)]
-        if nego:
-            row.append(Paragraph('<b>%s</b>' % fmt(pn / q['coef']) if pn else '', CELL))
-            if pn:
-                st.append(('BACKGROUND', (0, len(lignes)), (-1, len(lignes)), NEGO))
-        lignes.append(row)
-    larg = [86 * mm, 12 * mm, 38 * mm, 38 * mm] if not nego else [72 * mm, 12 * mm, 33 * mm, 33 * mm, 30 * mm]
-    t = Table(lignes, colWidths=larg, repeatRows=1); t.setStyle(TableStyle(st)); s += [t, Spacer(1, 6), Paragraph('Les autres articles ne changent pas. Votre contact : %s, %s.' % (soc['phone'] or '', soc['email'] or ''), SMALL)]
-    doc.build(s); buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name='Tarifs_pierres_%s.pdf' % re.sub(r'[^A-Za-z0-9]+', '_', pp['name'])[:50], mimetype='application/pdf')
+    return send_file(_pdf_client(g, soc), as_attachment=True, download_name='Tarifs_pierres_%s.pdf' % re.sub(r'[^A-Za-z0-9]+', '_', g['partner']['name'])[:50], mimetype='application/pdf')
