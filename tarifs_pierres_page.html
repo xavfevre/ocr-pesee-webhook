@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Tarifs pierres</title>
+<style>
+  :root{--ink:#0f172a;--grey:#64748b;--line:#cbd5e1;--blue:#1d4ed8;--green:#16a34a;--amber:#b45309;--red:#dc2626;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:#f1f5f9;font-family:system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);}
+  .wrap{max-width:1500px;margin:0 auto;padding:14px 14px 40px;}
+  h1{font-size:19px;margin:0 0 4px;font-weight:900;}
+  .sous{font-size:12.5px;color:var(--grey);font-weight:600;margin-bottom:10px;}
+  .card{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:12px 14px;margin-bottom:10px;}
+  .titre{font-size:16px;font-weight:900;margin:2px 0 8px;}
+  .ctrl{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:end;}
+  .ctrl label.f{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:800;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;}
+  .ctrl input,.ctrl select{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--ink);background:#fff;}
+  .b{border:none;border-radius:10px;padding:10px 16px;font-weight:900;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block;}
+  .b-x{background:var(--green);color:#fff;}
+  .b-b{background:var(--blue);color:#fff;}
+  .b-p{background:#eef2ff;color:var(--blue);padding:7px 10px;font-size:12.5px;border-radius:8px;}
+  .b-r{background:#fee2e2;color:#991b1b;}
+  .b[disabled]{opacity:.45;cursor:not-allowed;}
+  .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;}
+  th,td{border-bottom:1px solid #e2e8f0;padding:5px 7px;text-align:right;white-space:nowrap;vertical-align:middle;}
+  th{font-size:11px;color:var(--grey);text-transform:uppercase;letter-spacing:.3px;background:#f8fafc;position:sticky;top:0;}
+  th.g,td.g{text-align:left;}
+  td.nom{font-weight:800;white-space:normal;min-width:220px;}
+  td.nom small{display:block;color:var(--grey);font-weight:600;font-size:11px;}
+  td .m3{display:block;color:#94a3b8;font-size:10.5px;font-weight:600;}
+  td.new{font-weight:900;color:#166534;background:#fff8dc;}
+  td.vide{color:#cbd5e1;}
+  td.cli{background:#f3e8ff;font-weight:800;}
+  tr.cat td{background:#eef2ff;font-weight:900;color:var(--blue);text-align:left;}
+  .aide{font-size:12.5px;color:var(--grey);line-height:1.5;}
+  .aide b{color:var(--ink);}
+  .msg{border-radius:10px;padding:10px 12px;font-weight:800;margin:8px 0;display:none;white-space:pre-wrap;}
+  .msg.ok{background:#dcfce7;color:#166534;display:block;}
+  .msg.bad{background:#fee2e2;color:#991b1b;display:block;}
+  .msg.info{background:#eef2ff;color:#1e3a8a;display:block;}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+  .pill{border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:800;background:#f1f5f9;}
+  .pill.ok{background:#dcfce7;color:#166534;}
+  .pill.bad{background:#fee2e2;color:#991b1b;}
+  .pill.new{background:#fef3c7;color:#92400e;}
+  .etat b{color:var(--blue);}
+  .etat{font-size:13px;line-height:1.7;}
+  .cli-list td{text-align:left;}
+  .cli-list td.n{text-align:right;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💶 Tarifs pierres · import des tarifs et prix négociés</h1>
+  <div class="sous">Téléchargez le modèle rempli avec les prix actuels, complétez les colonnes jaunes (phase 1, phase 2) et mauves (clients à prix négociés), réimportez : aperçu, puis chargement dans les listes de prix d'Odoo. Prix dans l'unité du devis, m² pour les pierres d'épaisseur, m³ sinon.</div>
+
+  <div class="card">
+    <div class="titre">1. Listes de prix cibles</div>
+    <div class="etat" id="etat">Chargement…</div>
+    <div class="ctrl" style="margin-top:8px">
+      <button class="b b-p" id="bListes" style="display:none" onclick="creerListes()">Créer les listes 2027 (Pro et Particulier)</button>
+      <button class="b b-p" id="bBascule" style="display:none" onclick="bascule()">Basculer les clients des listes 2026 vers 2027</button>
+    </div>
+    <div class="msg" id="msgEtat"></div>
+  </div>
+
+  <div class="card">
+    <div class="titre">2. Grille : modèle, aperçu, chargement</div>
+    <div class="ctrl">
+      <label class="f">Phase 1 à partir du<input type="date" id="d1" value="2026-11-01"></label>
+      <label class="f">Phase 2 à partir du<input type="date" id="d2" value="2027-01-01"></label>
+      <a class="b b-p" id="aModele" href="#">⬇ Télécharger le modèle (prix actuels)</a>
+      <label class="f">Fichier rempli<input type="file" id="fichier" accept=".xlsx"></label>
+      <button class="b b-b" id="bApercu" onclick="apercu()" disabled>Aperçu</button>
+      <button class="b b-x" id="bCharger" onclick="charger()" disabled>Charger dans Odoo</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div id="resume" class="pills"></div>
+    <div class="scroll"><table id="tab" style="display:none">
+      <thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody>
+    </table></div>
+    <div class="aide" style="margin-top:8px">Une case vide dans le fichier = pas de changement. Une règle existante aux mêmes dates est mise à jour, jamais dupliquée. Les prix des clients négociés sont écrits sans date sur la liste dédiée du client, créée au besoin avec repli sur sa liste de base. Pour ajouter un client : une colonne avec son nom exact Odoo, avant « Remarque ».</div>
+  </div>
+
+  <div class="card">
+    <div class="titre">3. Clients à prix négociés</div>
+    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Repli</th><th>Pierres à prix négocié</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
+    <div class="aide" style="margin-top:8px">Retouche à l'unité (ajout, modification, suppression, dates) : bouton <b>Tarifs client</b>, qui ouvre la page existante du client. <b>Grille PDF</b> : la grille personnalisée du client aux dates des deux phases, prête à joindre à un e-mail.</div>
+  </div>
+</div>
+<script>
+const K = new URLSearchParams(location.search).get('k') || '';
+const $ = id => document.getElementById(id);
+const fmt = v => (v == null || v === '') ? '' : Number(v).toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+let ETAT = null, APERCU = null;
+function msg(id, texte, cls) { const m = $(id); m.className = 'msg ' + (cls || 'info'); m.textContent = texte; }
+function dates() { return {d1: $('d1').value, d2: $('d2').value}; }
+function majModele() { const d = dates(); $('aModele').href = 'api/modele.xlsx?k=' + encodeURIComponent(K) + '&d1=' + d.d1 + '&d2=' + d.d2; }
+$('d1').onchange = $('d2').onchange = majModele; majModele();
+$('fichier').onchange = () => { $('bApercu').disabled = !$('fichier').files.length; $('bCharger').disabled = true; };
+
+async function etat() {
+  const r = await fetch('api/etat?k=' + encodeURIComponent(K)); if (!r.ok) { msg('msgEtat', 'Accès refusé (clé).', 'bad'); return; }
+  ETAT = await r.json(); const c = ETAT.cfg, L = ETAT.listes;
+  const li = (id, lab) => id ? `<b>${L[id] || id}</b> (${lab} ${ETAT.clients_cibles ? '' : ''})` : '<span style="color:#b45309">à créer</span>';
+  $('etat').innerHTML = `Liste PRO cible : ${c.pro ? '<b>' + (L[c.pro] || c.pro) + '</b> · ' + ETAT.clients_cibles.pro + ' clients' : '<span style="color:#b45309">à créer</span>'} · ` +
+    `liste PARTICULIER cible : ${c.part ? '<b>' + (L[c.part] || c.part) + '</b> · ' + ETAT.clients_cibles.part + ' clients' : '<span style="color:#b45309">à créer</span>'}<br>` +
+    `Listes 2026 : <b>${L[c.pro_prec] || c.pro_prec}</b> · ${ETAT.clients_prec.pro_prec} clients, <b>${L[c.part_prec] || c.part_prec}</b> · ${ETAT.clients_prec.part_prec} clients · ${ETAT.n_pierres} pierres vendables.`;
+  $('bListes').style.display = (c.pro && c.part) ? 'none' : '';
+  $('bBascule').style.display = (c.pro && c.part && (ETAT.clients_prec.pro_prec + ETAT.clients_prec.part_prec) > 0) ? '' : 'none';
+  const tb = $('tbCli'); tb.innerHTML = '';
+  for (const cl of ETAT.clients_negocies) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><b>${cl.nom}</b></td><td>${cl.liste}</td><td>${cl.base || ''}</td><td class="n">${cl.lignes}</td>` +
+      `<td><a class="b b-p" target="_blank" href="${ETAT.url_tarifs_client}${cl.partner_id}">Tarifs client</a> <a class="b b-p" href="api/pdf?k=${encodeURIComponent(K)}&partner=${cl.partner_id}&d1=${dates().d1}&d2=${dates().d2}">Grille PDF</a></td>`;
+    tb.appendChild(tr);
+  }
+  if (!ETAT.clients_negocies.length) tb.innerHTML = '<tr><td colspan="5" style="text-align:left;color:#94a3b8">Aucun client avec un prix négocié sur une pierre.</td></tr>';
+}
+async function creerListes() {
+  if (!confirm('Créer les listes « Tarif Pro 2027 » (repli : Tarif Pro 2026) et « Tarif Particulier 2027 » (repli : prix fiche) ?')) return;
+  const r = await fetch('api/listes', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K})}); const j = await r.json();
+  msg('msgEtat', j.ok ? 'Listes : ' + j.faits.join(', ') : (j.erreur || 'erreur'), j.ok ? 'ok' : 'bad'); etat();
+}
+async function bascule() {
+  const n = ETAT.clients_prec.pro_prec + ETAT.clients_prec.part_prec;
+  if (!confirm(`Déplacer ${n} clients des listes 2026 vers les listes 2027, et faire de « Tarif Particulier 2027 » la liste par défaut ? Les clients à liste dédiée ne bougent pas.`)) return;
+  const r = await fetch('api/bascule', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K})}); const j = await r.json();
+  msg('msgEtat', j.ok ? `Clients déplacés : ${j.deplaces.pro} pro, ${j.deplaces.part} particuliers.` : (j.erreur || 'erreur'), j.ok ? 'ok' : 'bad'); etat();
+}
+function formData() { const fd = new FormData(); fd.append('fichier', $('fichier').files[0]); fd.append('k', K); fd.append('d1', dates().d1); fd.append('d2', dates().d2); return fd; }
+async function apercu() {
+  $('bApercu').disabled = true; msg('msg', 'Lecture du fichier…', 'info');
+  const r = await fetch('api/apercu', {method: 'POST', body: formData()}); const j = await r.json(); $('bApercu').disabled = false;
+  if (j.erreur) { msg('msg', j.erreur, 'bad'); return; }
+  APERCU = j; rendre(j);
+  const pb = j.clients.filter(c => !c.partner_id);
+  msg('msg', `${j.lignes.length} pierres reconnues, ${j.n_regles} prix à écrire sur les listes PRO / PARTICULIER, ${j.n_clients} prix négociés sur ${j.clients.filter(c => c.partner_id && c.n).length} clients.` +
+    (j.inconnues.length ? `\nPierres non reconnues (ignorées) : ${j.inconnues.join(' ; ')}` : '') + (pb.length ? `\nColonnes clients non résolues (ignorées) : ${pb.map(c => c.colonne + ' (' + c.etat + ')').join(' ; ')}` : '') +
+    (!(j.listes.pro && j.listes.part) ? '\nLes listes cibles ne sont pas créées : créer les listes 2027 avant de charger.' : ''), pb.length || j.inconnues.length ? 'info' : 'ok');
+  $('bCharger').disabled = !(j.listes.pro && j.listes.part) || !(j.n_regles || j.n_clients);
+}
+function rendre(j) {
+  const cols = j.clients.filter(c => c.partner_id);
+  $('resume').innerHTML = `<span class="pill">Phase 1 : ${j.phases.d1}</span><span class="pill">Phase 2 : ${j.phases.d2}</span>` +
+    j.clients.map(c => `<span class="pill ${c.partner_id ? (c.dediee ? 'ok' : 'new') : 'bad'}">${c.colonne} · ${c.n} prix · ${c.partner_id ? c.etat + (c.dediee ? '' : ' (repli ' + c.base + ')') : c.etat}</span>`).join('');
+  $('thead').innerHTML = '<th class="g">Pierre</th><th>U.</th><th>Pro actuel</th><th>Pro phase 1</th><th>Pro phase 2</th><th>Part. actuel</th><th>Part. phase 1</th><th>Part. phase 2</th>' + cols.map(c => `<th>${c.colonne}</th>`).join('');
+  const tb = $('tbody'); tb.innerHTML = '';
+  const cell = (v, m3, cls) => `<td class="${v ? (cls || 'new') : 'vide'}">${v ? fmt(v) : '—'}${v && m3 && m3 !== v ? `<span class="m3">${fmt(m3)} €/m³</span>` : ''}</td>`;
+  for (const l of j.lignes) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="nom">${l.nom}<small>${l.code}</small></td><td>${l.unite}</td><td>${fmt(l.pro_act)}</td>${cell(l.pro1, l.pro1_m3)}${cell(l.pro2, l.pro2_m3)}<td>${fmt(l.part_act)}</td>${cell(l.part1, l.part1_m3)}${cell(l.part2, l.part2_m3)}` +
+      cols.map(c => { const v = l.clients[c.colonne]; return `<td class="${v ? 'cli' : 'vide'}">${v ? fmt(v) : '—'}</td>`; }).join('');
+    tb.appendChild(tr);
+  }
+  $('tab').style.display = '';
+}
+async function charger() {
+  if (!APERCU) return;
+  if (!confirm(`Écrire ${APERCU.n_regles} prix datés sur les listes PRO / PARTICULIER et ${APERCU.n_clients} prix négociés dans Odoo ?`)) return;
+  $('bCharger').disabled = true; msg('msg', 'Chargement en cours…', 'info');
+  const r = await fetch('api/charger', {method: 'POST', body: formData()}); const j = await r.json();
+  if (j.erreur) { msg('msg', j.erreur, 'bad'); $('bCharger').disabled = false; return; }
+  const s = j.stats;
+  msg('msg', `Terminé : ${s.regles} règles créées, ${s.maj} mises à jour, ${s.regles_clients} prix négociés sur ${s.clients} clients` + (s.listes_creees.length ? `, listes dédiées créées : ${s.listes_creees.join(', ')}` : '') + '.', 'ok');
+  etat();
+}
+etat();
+</script>
+</body>
+</html>

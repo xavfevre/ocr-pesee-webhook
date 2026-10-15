@@ -1549,6 +1549,14 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module engins_heures_web non chargé: {_e}")
 
+# ─── TARIFS PIERRES : import Excel des tarifs (phases datées) et prix négociés par client (tarifs_pierres.py) ─
+# /tarifs-pierres/?k=<maquignon.tarifs_key> ; menu Ventes > Tarifs pierres.
+try:
+    from tarifs_pierres import bp as tarifs_pierres_bp
+    app.register_blueprint(tarifs_pierres_bp, url_prefix="/tarifs-pierres")
+except Exception as _e:
+    app.logger.warning(f"Module tarifs_pierres non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
