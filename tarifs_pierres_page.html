@@ -86,8 +86,10 @@
 
   <div class="card">
     <div class="titre">3. Clients à prix négociés</div>
-    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Autres pierres et articles : prix de</th><th>Pierres à prix négocié</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
-    <div class="aide" style="margin-top:8px">Retouche à l'unité (ajout, modification, suppression, dates) : bouton <b>Tarifs client</b>, qui ouvre la page existante du client. <b>Grille PDF</b> : la grille personnalisée du client aux dates des deux phases, prête à joindre à un e-mail.</div>
+    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Autres pierres et articles : prix de</th><th>Pierres à prix négocié (prix fixe ou remise)</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
+    <div class="ctrl" style="margin-top:8px"><button class="b b-p" id="bRebaser" style="display:none" onclick="rebaser()">Mettre le repli de toutes les listes dédiées sur le nouveau tarif pro</button></div>
+    <div class="msg" id="msgCli"></div>
+    <div class="aide" style="margin-top:8px">Retouche à l'unité (ajout, modification, suppression, dates) : bouton <b>Tarifs client</b>, qui ouvre la page existante du client. <b>Grille PDF</b> : la grille personnalisée du client aux dates des deux phases, prête à joindre à un e-mail. Le repli = la liste qui donne le prix de tout ce qui n'est pas négocié ; il doit être le tarif pro en vigueur.</div>
   </div>
 
   <div class="card">
@@ -125,11 +127,17 @@ async function etat() {
   const tb = $('tbCli'); tb.innerHTML = '';
   for (const cl of ETAT.clients_negocies) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><b>${cl.nom}</b></td><td>${cl.liste}</td><td>${cl.base ? (cl.base.includes('Anciens') ? '<span style="color:#b45309">' + cl.base + ' (liste vide : prix fiche)</span>' : cl.base) : '<span style="color:#b45309">aucune liste de repli : prix fiche</span>'}</td><td class="n">${cl.lignes}</td>` +
+    tr.innerHTML = `<td><b>${cl.nom}</b></td><td>${cl.liste}</td><td>${cl.base ? (cl.base.includes('Anciens') ? '<span style="color:#b45309">' + cl.base + ' (liste vide : prix fiche)</span>' : cl.base) : '<span style="color:#b45309">aucune liste de repli : prix fiche</span>'}</td><td class="n" title="${(cl.detail || []).map(d => d.pierre + ' : ' + fmt(d.prix) + ' €/' + d.unite + ' (' + d.nature + ')').join('\n')}">${cl.lignes}<small style="display:block;color:#64748b;font-weight:600;white-space:normal;max-width:420px;text-align:left">${(cl.detail || []).map(d => d.pierre.replace(/^.*? - /, '') + ' ' + fmt(d.prix) + ' €' + (d.nature === 'fixe' ? '' : ' (' + d.nature + ')')).join(' · ')}</small></td>` +
       `<td><a class="b b-p" target="_blank" href="${ETAT.url_tarifs_client}${cl.partner_id}">Tarifs client</a> <a class="b b-p" href="api/pdf?k=${encodeURIComponent(K)}&partner=${cl.partner_id}&d1=${dates().d1}&d2=${dates().d2}">Grille PDF</a></td>`;
     tb.appendChild(tr);
   }
   if (!ETAT.clients_negocies.length) tb.innerHTML = '<tr><td colspan="5" style="text-align:left;color:#94a3b8">Aucun client avec un prix négocié sur une pierre.</td></tr>';
+  $('bRebaser').style.display = (c.pro && c.part) ? '' : 'none';
+}
+async function rebaser() {
+  if (!confirm('Mettre le repli de toutes les listes dédiées (clients à prix négociés) sur le nouveau tarif pro ? Les prix négociés ne changent pas.')) return;
+  const r = await fetch('api/rebaser', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K})}); const j = await r.json();
+  msg('msgCli', j.ok ? (j.rebasees.length ? 'Repli mis à jour : ' + j.rebasees.map(x => x[0] + ' → ' + x[1]).join(', ') : 'Toutes les listes dédiées étaient déjà sur le nouveau tarif.') : (j.erreur || 'erreur'), j.ok ? 'ok' : 'bad'); etat();
 }
 async function creerListes() {
   if (!confirm('Créer les listes « Tarif Pro 2027 » (repli : Tarif Pro 2026) et « Tarif Particulier 2027 » (repli : prix fiche) ?')) return;

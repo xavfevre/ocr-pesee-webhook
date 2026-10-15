@@ -134,37 +134,40 @@ def _regles(liste_id):
     if c and time.time() - c[0] < 60:
         return c[1]
     r = _call('product.pricelist.item', 'search_read', [['pricelist_id', '=', liste_id]],
-              fields=['applied_on', 'product_id', 'product_tmpl_id', 'categ_id', 'compute_price', 'fixed_price', 'percent_price', 'price_discount', 'base', 'base_pricelist_id', 'date_start', 'date_end', 'min_quantity'], **CTX)
+              fields=['applied_on', 'product_id', 'product_tmpl_id', 'categ_id', 'compute_price', 'fixed_price', 'percent_price', 'price_discount', 'price_surcharge', 'base', 'base_pricelist_id', 'date_start', 'date_end', 'min_quantity'], **CTX)
     _CACHE_REGLES[liste_id] = (time.time(), r)
     return r
 
 
-def _prix(liste_id, pierre, quand, profondeur=0):
-    """Prix €/m³ d'une pierre sur une liste à une date UTC 'YYYY-MM-DD HH:MM:SS' (règles variante, puis formule générale)."""
-    if not liste_id or profondeur > 4:
-        return pierre['fiche']
+def _regle_applicable(liste_id, pierre, quand):
+    """Règle de la liste qui s'applique à la pierre à la date UTC donnée (variante > modèle > catégorie > générale), ou None."""
     rs = _regles(liste_id)
+
     def ok(r):
         return (not r['date_start'] or r['date_start'] <= quand) and (not r['date_end'] or r['date_end'] >= quand) and (r['min_quantity'] or 0) <= 1
-    cand = [r for r in rs if r['applied_on'] == '0_product_variant' and r['product_id'] and r['product_id'][0] == pierre['id'] and r['compute_price'] == 'fixed' and ok(r)]
-    if cand:
-        return sorted(cand, key=lambda r: -r['id'])[0]['fixed_price']
-    glob = [r for r in rs if r['applied_on'] == '1_product' and r['product_tmpl_id'] and r['product_tmpl_id'][0] == pierre.get('tmpl') and ok(r)] or \
-           [r for r in rs if r['applied_on'] == '2_product_category' and r.get('categ_id') and r['categ_id'][0] in pierre.get('categs', ()) and ok(r)] or \
-           [r for r in rs if r['applied_on'] == '3_global' and ok(r)]
-    if glob:
-        g = sorted(glob, key=lambda r: -r['id'])[0]
-        if g['compute_price'] == 'formula' and g['base'] == 'pricelist' and g['base_pricelist_id']:
-            base = _prix(g['base_pricelist_id'][0], pierre, quand, profondeur + 1)
-        else:
-            base = pierre['fiche']
-        if g['compute_price'] == 'percentage':
-            return base * (1 - (g['percent_price'] or 0) / 100.0)
-        if g['compute_price'] == 'formula':
-            return base * (1 - (g['price_discount'] or 0) / 100.0)
-        if g['compute_price'] == 'fixed':
-            return g['fixed_price']
-    return pierre['fiche']
+    for filtre in (lambda r: r['applied_on'] == '0_product_variant' and r['product_id'] and r['product_id'][0] == pierre['id'],
+                   lambda r: r['applied_on'] == '1_product' and r['product_tmpl_id'] and r['product_tmpl_id'][0] == pierre.get('tmpl'),
+                   lambda r: r['applied_on'] == '2_product_category' and r.get('categ_id') and r['categ_id'][0] in pierre.get('categs', ()),
+                   lambda r: r['applied_on'] == '3_global'):
+        cand = [r for r in rs if filtre(r) and ok(r)]
+        if cand:
+            return sorted(cand, key=lambda r: -r['id'])[0]
+    return None
+
+
+def _prix(liste_id, pierre, quand, profondeur=0):
+    """Prix €/m³ d'une pierre sur une liste à une date UTC 'YYYY-MM-DD HH:MM:SS'."""
+    if not liste_id or profondeur > 4:
+        return pierre['fiche']
+    r = _regle_applicable(liste_id, pierre, quand)
+    if not r:
+        return pierre['fiche']
+    if r['compute_price'] == 'fixed':
+        return r['fixed_price']
+    base = _prix(r['base_pricelist_id'][0], pierre, quand, profondeur + 1) if (r['base'] == 'pricelist' and r['base_pricelist_id']) else pierre['fiche']
+    if r['compute_price'] == 'percentage':
+        return base * (1 - (r['percent_price'] or 0) / 100.0)
+    return base * (1 - (r['price_discount'] or 0) / 100.0) + (r.get('price_surcharge') or 0)
 
 
 # ---------------------------------------------------------------- clients à prix négociés
@@ -202,14 +205,28 @@ def _clients_negocies(pierres):
         pp = parts[0]
         if not _liste_dediee(l['id'], l['name'], pp['name'], len(parts)):
             continue
-        lignes = {}
+        lignes, detail = {}, []
+        auj = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        tmpl_de = {q['tmpl']: q for q in pierres}
         for r in _regles(l['id']):
-            if r['applied_on'] == '0_product_variant' and r['product_id'] and r['product_id'][0] in pid_de and r['compute_price'] == 'fixed' and not r['date_start']:
-                q = pid_de[r['product_id'][0]]; lignes[q['id']] = round(r['fixed_price'] / q['coef'], 2)
+            if r['applied_on'] not in ('0_product_variant', '1_product'):
+                continue
+            q = pid_de.get(r['product_id'] and r['product_id'][0]) if r['applied_on'] == '0_product_variant' else tmpl_de.get(r['product_tmpl_id'] and r['product_tmpl_id'][0])
+            if not q or (r['date_end'] and r['date_end'] < auj):
+                continue
+            if r['compute_price'] == 'fixed' and not r['date_start'] and r['applied_on'] == '0_product_variant':
+                lignes[q['id']] = round(r['fixed_price'] / q['coef'], 2)            # repris dans les colonnes mauves du modèle
+            prix = _prix(l['id'], q, auj) / q['coef']
+            nature = 'fixe' if r['compute_price'] == 'fixed' else ('%s %% sur le prix fiche' % _fmt_pct(-(r['percent_price'] or 0)) if r['compute_price'] == 'percentage' else 'formule')
+            detail.append({'pierre': q['nom'], 'unite': q['unite'], 'prix': round(prix, 2), 'nature': nature, 'niveau': 'modèle' if r['applied_on'] == '1_product' else 'variante', 'dates': (r['date_start'] or '')[:10]})
         base = next((r['base_pricelist_id'][1] for r in _regles(l['id']) if r['applied_on'] == '3_global' and r['base'] == 'pricelist' and r['base_pricelist_id']), '')
-        if lignes:
-            out[pp['id']] = {'partner_id': pp['id'], 'nom': pp['name'], 'liste_id': l['id'], 'liste': l['name'], 'base': base, 'lignes': lignes}
+        if detail:
+            out[pp['id']] = {'partner_id': pp['id'], 'nom': pp['name'], 'liste_id': l['id'], 'liste': l['name'], 'base': base, 'lignes': lignes, 'detail': detail}
     return out
+
+
+def _fmt_pct(v):
+    return ('%+.1f' % v).replace('.', ',').replace(',0', '')
 
 
 # ---------------------------------------------------------------- modèle Excel
@@ -387,13 +404,14 @@ def _grille_client(pid, d1, d2):
     n_util = pl_id and _call('res.partner', 'search_count', [['specific_property_product_pricelist', '=', pl_id], ['parent_id', '=', False]], **CTX)
     dediee = bool(pl_id and _liste_dediee(pl_id, pl[1], pp['name'], n_util))
     liste = pl_id or cfg.get('pro') or cfg['pro_prec']
-    nego = {r['product_id'][0]: r['fixed_price'] for r in _regles(liste) if dediee and r['applied_on'] == '0_product_variant' and r['product_id'] and r['compute_price'] == 'fixed' and not r['date_start']} if dediee else {}
-    lignes = []
+    lignes, n_nego = [], 0
     for q in _pierres_tarifees(cfg, ph):
-        pn = nego.get(q['id'])
-        v1, v2 = (pn, pn) if pn else (_prix(liste, q, ph['p1'][0]), _prix(liste, q, ph['p2'][0]))
-        lignes.append({'cat': q['cat'], 'nom': q['nom'], 'unite': q['unite'], 'v1': round(v1 / q['coef'], 2), 'v2': round(v2 / q['coef'], 2), 'nego': round(pn / q['coef'], 2) if pn else None})
-    return {'partner': pp, 'lignes': lignes, 'nego': bool(nego), 'd1': d1, 'd2': d2, 'liste': pl and pl[1] or ''}
+        r1 = _regle_applicable(liste, q, ph['p1'][0]) if dediee else None
+        negocie = bool(r1 and r1['applied_on'] in ('0_product_variant', '1_product'))      # règle propre au client (fixe ou remise)
+        v1, v2 = _prix(liste, q, ph['p1'][0]), _prix(liste, q, ph['p2'][0])
+        n_nego += negocie
+        lignes.append({'cat': q['cat'], 'nom': q['nom'], 'unite': q['unite'], 'v1': round(v1 / q['coef'], 2), 'v2': round(v2 / q['coef'], 2), 'nego': round(v1 / q['coef'], 2) if negocie else None})
+    return {'partner': pp, 'lignes': lignes, 'nego': n_nego > 0, 'd1': d1, 'd2': d2, 'liste': pl and pl[1] or ''}
 
 
 _fmt_prix = lambda v: ('%.2f' % v).replace('.', ',').replace(',00', '')  # noqa: E731
@@ -618,7 +636,7 @@ def etat():
     n_cibles = {k: _call('res.partner', 'search_count', [['specific_property_product_pricelist', '=', cfg[k]]], **CTX) if cfg.get(k) else 0 for k in ('pro', 'part')}
     clients = _clients_negocies(pierres)
     return jsonify({'cfg': cfg, 'listes': listes, 'n_pierres': len(pierres), 'clients_prec': n_prec, 'clients_cibles': n_cibles,
-                    'clients_negocies': sorted(({**c, 'lignes': len(c['lignes'])} for c in clients.values()), key=lambda c: c['nom'].lower()),
+                    'clients_negocies': sorted(({**c, 'lignes': len(c['detail'])} for c in clients.values()), key=lambda c: c['nom'].lower()),
                     'url_tarifs_client': '/tarifs-client/?k=%s&partner=' % _CLE['val']})
 
 
@@ -701,12 +719,47 @@ def bascule():
     except Exception:  # noqa: BLE001
         ref = {}
     ref[str(SOC)] = cfg['pro']; _call('ir.config_parameter', 'set_param', PARAM_DEFAUT_PL, json.dumps(ref))
-    # listes dédiées dont le repli est encore l'ancienne liste pro (12) ou Tarif Pro 2026 (299) -> repli sur Tarif Pro 2027
-    rebasees = []
-    for r in _call('product.pricelist.item', 'search_read', [['applied_on', '=', '3_global'], ['compute_price', '=', 'formula'], ['base', '=', 'pricelist'], ['base_pricelist_id', 'in', [12, cfg['pro_prec']]], ['pricelist_id', 'not in', [cfg['pro'], cfg['part']]]], fields=['pricelist_id'], **CTX):
-        _call('product.pricelist.item', 'write', [r['id']], {'base_pricelist_id': cfg['pro']}, **CTX); rebasees.append(r['pricelist_id'][1])
+    rebasees = _rebaser(cfg)
     _CACHE_REGLES.clear()
     return jsonify({'ok': True, 'deplaces': n, 'defaut_maj': bool(defaut), 'rebasees': rebasees})
+
+
+def _rebaser(cfg):
+    """Repli de chaque liste dédiée (client) = nouveau tarif pro (ou particulier si le repli était la liste publique) :
+    règle générale « formule 100 % de la liste » réécrite, ou créée si la liste n'en a pas. Renvoie [(liste, repli)]."""
+    faits = []
+    listes = _call('product.pricelist', 'search_read', [['company_id', 'in', [SOC, False]], ['id', 'not in', [cfg['pro'], cfg['part'], cfg['pro_prec'], cfg['part_prec'], 12]]], fields=['name'], **CTX)
+    for l in listes:
+        parts = _call('res.partner', 'search_read', [['specific_property_product_pricelist', '=', l['id']], ['parent_id', '=', False]], fields=['name'], limit=3, **CTX)
+        if not parts or not _liste_dediee(l['id'], l['name'], parts[0]['name'], len(parts)):
+            continue
+        glob = [r for r in _regles(l['id']) if r['applied_on'] == '3_global' and not r['date_start'] and not r['date_end']]
+        cible = cfg['pro']
+        if glob:
+            g = sorted(glob, key=lambda r: -r['id'])[0]
+            if g['compute_price'] == 'formula' and g['base'] == 'pricelist' and g['base_pricelist_id']:
+                if g['base_pricelist_id'][0] in (cfg['pro'], cfg['part']):
+                    continue                                   # déjà sur le nouveau tarif
+                if g['base_pricelist_id'][0] == cfg['part_prec']:
+                    cible = cfg['part']
+                _call('product.pricelist.item', 'write', [g['id']], {'base_pricelist_id': cible}, **CTX)
+            else:
+                _call('product.pricelist.item', 'write', [g['id']], {'compute_price': 'formula', 'base': 'pricelist', 'base_pricelist_id': cible, 'price_discount': 0}, **CTX)
+        else:
+            _call('product.pricelist.item', 'create', [{'pricelist_id': l['id'], 'applied_on': '3_global', 'compute_price': 'formula', 'base': 'pricelist', 'base_pricelist_id': cible, 'price_discount': 0}], **CTX)
+        faits.append([l['name'], 'particulier' if cible == cfg['part'] else 'pro'])
+    _CACHE_REGLES.clear()
+    return faits
+
+
+@bp.route('/api/rebaser', methods=['POST'])
+def rebaser():
+    if not _cle_ok():
+        return jsonify({'erreur': 'clé'}), 403
+    cfg = _cfg()
+    if not cfg.get('pro') or not cfg.get('part'):
+        return jsonify({'erreur': 'listes cibles absentes : créer les listes 2027 d abord'}), 400
+    return jsonify({'ok': True, 'rebasees': _rebaser(cfg)})
 
 
 @bp.route('/api/pdf')
