@@ -553,7 +553,10 @@ def grille_publique(jeton):
     """Grille PDF d'un client, lien du mailing (jeton propre au client, sans clé)."""
     if not re.fullmatch(r'[A-Za-z0-9_-]{12,40}', jeton or ''):
         return 'lien invalide', 404
-    pp = _call('res.partner', 'search_read', [['x_tarif_token', '=', jeton]], fields=['name'], limit=1, **CTX)
+    try:
+        pp = _call('res.partner', 'search_read', [['x_tarif_token', '=', jeton]], fields=['name'], limit=1, **CTX)
+    except Exception:  # noqa: BLE001  (champ absent tant qu'aucun mailing n'a été préparé)
+        pp = []
     if not pp:
         return 'lien inconnu ou expiré', 404
     try:
