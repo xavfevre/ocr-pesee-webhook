@@ -40,6 +40,9 @@
   .msg.ok{background:#dcfce7;color:#166534;display:block;}
   .msg.bad{background:#fee2e2;color:#991b1b;display:block;}
   .msg.info{background:#eef2ff;color:#1e3a8a;display:block;}
+  .spin{display:inline-block;width:16px;height:16px;border:3px solid #cbd5e1;border-top-color:#1d4ed8;border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:7px;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+  .charge{color:var(--grey);font-weight:700;}
   .pills{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
   .pill{border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:800;background:#f1f5f9;}
   .pill.ok{background:#dcfce7;color:#166534;}
@@ -58,7 +61,7 @@
 
   <div class="card">
     <div class="titre">1. Listes de prix cibles</div>
-    <div class="etat" id="etat">Chargement…</div>
+    <div class="etat" id="etat"><span class="charge"><span class="spin"></span>Lecture des listes de prix dans Odoo…</span></div>
     <div class="ctrl" style="margin-top:8px">
       <button class="b b-p" id="bListes" style="display:none" onclick="creerListes()">Créer les listes 2027 (Pro et Particulier)</button>
       <button class="b b-p" id="bBascule" style="display:none" onclick="bascule()">Basculer les clients des listes 2026 vers 2027</button>
@@ -86,15 +89,20 @@
 
   <div class="card">
     <div class="titre">3. Clients à prix négociés</div>
-    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Autres pierres et articles : prix de</th><th>Pierres à prix négocié (prix fixe ou remise)</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
-    <div class="ctrl" style="margin-top:8px"><button class="b b-p" id="bRebaser" style="display:none" onclick="rebaser()">Mettre le repli de toutes les listes dédiées sur le nouveau tarif pro</button></div>
+    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Autres pierres et articles : prix de</th><th>Pierres à prix négocié (prix fixe ou remise)</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"><tr><td colspan="5" class="charge"><span class="spin"></span>Recherche des prix négociés dans les listes de prix… (quelques secondes)</td></tr></tbody></table></div>
+    <div class="ctrl" style="margin-top:8px"><button class="b b-p" id="bFixer" onclick="fixerApercu()">Remises négociées à convertir en prix fixes…</button><button class="b b-p" id="bRebaser" style="display:none" onclick="rebaser()">Mettre le repli de toutes les listes dédiées sur le nouveau tarif pro</button></div>
     <div class="msg" id="msgCli"></div>
+    <div id="fixerZone" style="display:none">
+      <div class="aide" style="margin:6px 0">Ces remises en pourcentage ne sont <b>pas appliquées par Odoo sur les devis</b> (vérifié) : les clients paient le prix fiche sauf saisie manuelle. Indiquez pour chaque ligne le prix fixe à inscrire, dans l'unité du devis : prérempli avec le dernier prix facturé au client s'il existe, sinon le prix que donnerait la remise. Videz la case pour ne rien inscrire (la remise sera quand même supprimée si vous validez la ligne).</div>
+      <div class="scroll"><table id="tabFixer"><thead><tr><th class="g">Client</th><th class="g">Pierre</th><th>U.</th><th>Prix fiche</th><th class="g">Remise inscrite</th><th>Prix si remise</th><th>Dernier facturé</th><th>Prix fixe à inscrire</th><th>Convertir</th></tr></thead><tbody id="tbFixer"></tbody></table></div>
+      <div class="ctrl" style="margin-top:8px"><button class="b b-x" id="bFixerGo" onclick="fixerAppliquer()">Inscrire les prix fixes cochés et supprimer les remises</button></div>
+    </div>
     <div class="aide" style="margin-top:8px">Retouche à l'unité (ajout, modification, suppression, dates) : bouton <b>Tarifs client</b>, qui ouvre la page existante du client. <b>Grille PDF</b> : la grille personnalisée du client aux dates des deux phases, prête à joindre à un e-mail. Le repli = la liste qui donne le prix de tout ce qui n'est pas négocié ; il doit être le tarif pro en vigueur.</div>
   </div>
 
   <div class="card">
     <div class="titre">4. Mailing « nouveaux tarifs pierres » dans E-mail Marketing</div>
-    <div class="etat" id="etatMailing">Chargement…</div>
+    <div class="etat" id="etatMailing"><span class="charge"><span class="spin"></span>Comptage des clients à mailer…</span></div>
     <div class="ctrl" style="margin-top:8px">
       <button class="b b-b" id="bMailing" onclick="preparerMailing()">Préparer le brouillon dans Odoo</button>
       <a class="b b-p" id="aMailing" href="#" target="_blank" style="display:none">Ouvrir le brouillon dans E-mail Marketing</a>
@@ -134,6 +142,30 @@ async function etat() {
   if (!ETAT.clients_negocies.length) tb.innerHTML = '<tr><td colspan="5" style="text-align:left;color:#94a3b8">Aucun client avec un prix négocié sur une pierre.</td></tr>';
   $('bRebaser').style.display = (c.pro && c.part) ? '' : 'none';
 }
+let REMISES = [];
+async function fixerApercu() {
+  msg('msgCli', 'Recherche des remises et des derniers prix facturés…', 'info'); $('msgCli').innerHTML = '<span class="spin"></span>' + $('msgCli').textContent;
+  const r = await fetch('api/fixer/apercu?k=' + encodeURIComponent(K)); const j = await r.json();
+  if (j.erreur) { msg('msgCli', j.erreur, 'bad'); return; }
+  REMISES = j.remises; const tb = $('tbFixer'); tb.innerHTML = '';
+  if (!REMISES.length) { msg('msgCli', 'Aucune remise sur une pierre : tous les prix négociés sont déjà des prix fixes.', 'ok'); $('fixerZone').style.display = 'none'; return; }
+  msg('msgCli', REMISES.length + ' remises trouvées. Vérifiez les prix, cochez, puis validez.', 'info');
+  REMISES.forEach((x, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="g"><b>${x.client}</b><small style="display:block;color:#64748b">${x.liste}</small></td><td class="g">${x.pierre}</td><td>${x.unite}</td><td>${fmt(x.fiche)}</td><td class="g">${x.nature}</td><td>${fmt(x.prix_remise)}</td><td>${x.facture != null ? fmt(x.facture) + '<small style="display:block;color:#94a3b8">' + x.facture_ref + '</small>' : '—'}</td>` +
+      `<td><input type="number" step="0.01" id="fx${i}" value="${x.facture != null ? x.facture : x.prix_remise}" style="width:110px;border:1.5px solid #cbd5e1;border-radius:7px;padding:4px 6px;font-weight:800;text-align:right"></td><td><input type="checkbox" id="fc${i}" checked style="width:18px;height:18px"></td>`;
+    tb.appendChild(tr);
+  });
+  $('fixerZone').style.display = '';
+}
+async function fixerAppliquer() {
+  const choix = REMISES.map((x, i) => ({regle: x.regle, liste_id: x.liste_id, pid: x.pid, client: x.client, prix: parseFloat($('fx' + i).value), coche: $('fc' + i).checked})).filter(c => c.coche);
+  if (!choix.length) { msg('msgCli', 'Aucune ligne cochée.', 'bad'); return; }
+  if (!confirm(`Inscrire ${choix.filter(c => c.prix > 0).length} prix fixes et supprimer ${choix.length} remises ?`)) return;
+  const r = await fetch('api/fixer', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K, choix})}); const j = await r.json();
+  msg('msgCli', j.ok ? `${j.faits.length} prix fixes inscrits : ` + j.faits.map(f => f[0] + ' · ' + f[1].replace(/^.*? - /, '') + ' ' + fmt(f[2]) + ' €/' + f[3]).join(' ; ') : (j.erreur || 'erreur'), j.ok ? 'ok' : 'bad');
+  $('fixerZone').style.display = 'none'; etat();
+}
 async function rebaser() {
   if (!confirm('Mettre le repli de toutes les listes dédiées (clients à prix négociés) sur le nouveau tarif pro ? Les prix négociés ne changent pas.')) return;
   const r = await fetch('api/rebaser', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K})}); const j = await r.json();
@@ -152,7 +184,7 @@ async function bascule() {
 }
 function formData() { const fd = new FormData(); fd.append('fichier', $('fichier').files[0]); fd.append('k', K); fd.append('d1', dates().d1); fd.append('d2', dates().d2); return fd; }
 async function apercu() {
-  $('bApercu').disabled = true; msg('msg', 'Lecture du fichier…', 'info');
+  $('bApercu').disabled = true; msg('msg', 'Lecture du fichier et calcul de l\'aperçu…', 'info'); $('msg').innerHTML = '<span class="spin"></span>' + $('msg').textContent;
   const r = await fetch('api/apercu', {method: 'POST', body: formData()}); const j = await r.json(); $('bApercu').disabled = false;
   if (j.erreur) { msg('msg', j.erreur, 'bad'); return; }
   APERCU = j; rendre(j);
@@ -180,7 +212,7 @@ function rendre(j) {
 async function charger() {
   if (!APERCU) return;
   if (!confirm(`Écrire ${APERCU.n_regles} prix datés sur les listes PRO / PARTICULIER et ${APERCU.n_clients} prix négociés dans Odoo ?`)) return;
-  $('bCharger').disabled = true; msg('msg', 'Chargement en cours…', 'info');
+  $('bCharger').disabled = true; msg('msg', 'Chargement en cours (une à deux minutes)…', 'info'); $('msg').innerHTML = '<span class="spin"></span>' + $('msg').textContent;
   const r = await fetch('api/charger', {method: 'POST', body: formData()}); const j = await r.json();
   if (j.erreur) { msg('msg', j.erreur, 'bad'); $('bCharger').disabled = false; return; }
   const s = j.stats;
@@ -198,7 +230,7 @@ async function etatMailing() {
 }
 async function preparerMailing() {
   if (!confirm(`Calculer la grille de chaque client cible aux phases ${dates().d1} / ${dates().d2} et créer (ou mettre à jour) le brouillon dans E-mail Marketing ? Rien n'est envoyé.`)) return;
-  $('bMailing').disabled = true; msg('msgMailing', 'Préparation en cours (une à deux minutes)…', 'info');
+  $('bMailing').disabled = true; msg('msgMailing', 'Préparation en cours (une à deux minutes)…', 'info'); $('msgMailing').innerHTML = '<span class="spin"></span>' + $('msgMailing').textContent;
   const r = await fetch('api/mailing/preparer', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({k: K, d1: dates().d1, d2: dates().d2})}); const j = await r.json();
   $('bMailing').disabled = false;
   if (j.erreur) { msg('msgMailing', j.erreur, 'bad'); return; }

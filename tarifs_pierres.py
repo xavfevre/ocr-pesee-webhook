@@ -194,20 +194,11 @@ def _liste_dediee(pl_id, pl_name, partner_name, n_utilisateurs=None):
 
 
 def _clients_negocies(pierres):
-    """Clients ayant une liste dédiée avec au moins un prix fixe sur une pierre : {partner_id: {...}}."""
-    pid_de = {p['id']: p for p in pierres}
-    listes = _call('product.pricelist', 'search_read', [['company_id', 'in', [SOC, False]], ['id', 'not in', list(LISTES_PARTAGEES)]], fields=['name'], **CTX)
-    out = {}
-    for l in listes:
-        parts = _call('res.partner', 'search_read', [['specific_property_product_pricelist', '=', l['id']], ['parent_id', '=', False]], fields=['name'], limit=3, **CTX)
-        if not parts:
-            continue
-        pp = parts[0]
-        if not _liste_dediee(l['id'], l['name'], pp['name'], len(parts)):
-            continue
+    """Clients ayant une liste dédiée avec au moins une règle pierre (fixe ou remise) : {partner_id: {...}}."""
+    pid_de = {p['id']: p for p in pierres}; tmpl_de = {q['tmpl']: q for q in pierres}
+    auj = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'); out = {}
+    for l, pp in _listes_dediees(_cfg()):
         lignes, detail = {}, []
-        auj = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        tmpl_de = {q['tmpl']: q for q in pierres}
         for r in _regles(l['id']):
             if r['applied_on'] not in ('0_product_variant', '1_product'):
                 continue
@@ -217,7 +208,7 @@ def _clients_negocies(pierres):
             if r['compute_price'] == 'fixed' and not r['date_start'] and r['applied_on'] == '0_product_variant':
                 lignes[q['id']] = round(r['fixed_price'] / q['coef'], 2)            # repris dans les colonnes mauves du modèle
             prix = _prix(l['id'], q, auj) / q['coef']
-            nature = 'fixe' if r['compute_price'] == 'fixed' else ('%s %% sur le prix fiche' % _fmt_pct(-(r['percent_price'] or 0)) if r['compute_price'] == 'percentage' else 'formule')
+            nature = 'fixe' if r['compute_price'] == 'fixed' else ('%s %% sur le prix fiche (non appliquée sur les devis)' % _fmt_pct(-(r['percent_price'] or 0)) if r['compute_price'] == 'percentage' else 'formule')
             detail.append({'pierre': q['nom'], 'unite': q['unite'], 'prix': round(prix, 2), 'nature': nature, 'niveau': 'modèle' if r['applied_on'] == '1_product' else 'variante', 'dates': (r['date_start'] or '')[:10]})
         base = next((r['base_pricelist_id'][1] for r in _regles(l['id']) if r['applied_on'] == '3_global' and r['base'] == 'pricelist' and r['base_pricelist_id']), '')
         if detail:
@@ -750,6 +741,86 @@ def _rebaser(cfg):
         faits.append([l['name'], 'particulier' if cible == cfg['part'] else 'pro'])
     _CACHE_REGLES.clear()
     return faits
+
+
+def _listes_dediees(cfg):
+    """[(liste, premier partenaire)] des listes dédiées à un client, en deux appels Odoo (listes, partenaires) + règles groupées."""
+    exclues = [cfg.get('pro') or 0, cfg.get('part') or 0, cfg['pro_prec'], cfg['part_prec'], 12]
+    listes = {l['id']: l for l in _call('product.pricelist', 'search_read', [['company_id', 'in', [SOC, False]], ['id', 'not in', exclues]], fields=['name'], **CTX)}
+    parts = {}
+    for q in _call('res.partner', 'search_read', [['specific_property_product_pricelist', 'in', list(listes)], ['parent_id', '=', False]], fields=['name', 'specific_property_product_pricelist'], **CTX):
+        parts.setdefault(q['specific_property_product_pricelist'][0], []).append(q)
+    out = [(listes[lid], ps[0]) for lid, ps in parts.items() if _liste_dediee(lid, listes[lid]['name'], ps[0]['name'], len(ps))]
+    manquantes = [l['id'] for l, _ in out if not (_CACHE_REGLES.get(l['id']) and time.time() - _CACHE_REGLES[l['id']][0] < 60)]
+    if manquantes:
+        tous = _call('product.pricelist.item', 'search_read', [['pricelist_id', 'in', manquantes]],
+                     fields=['applied_on', 'product_id', 'product_tmpl_id', 'categ_id', 'compute_price', 'fixed_price', 'percent_price', 'price_discount', 'price_surcharge', 'base', 'base_pricelist_id', 'date_start', 'date_end', 'min_quantity', 'pricelist_id'], **CTX)
+        par = {lid: [] for lid in manquantes}
+        for r in tous:
+            par[r['pricelist_id'][0]].append(r)
+        for lid, rs in par.items():
+            _CACHE_REGLES[lid] = (time.time(), rs)
+    return sorted(out, key=lambda t: t[0]['name'].lower())
+
+
+def _remises_negociees(cfg):
+    """Règles pierres en remise/formule des listes dédiées, avec prix si converti et dernier prix facturé au client."""
+    auj = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'); pierres = _pierres(); out = []
+    for l, pp in _listes_dediees(cfg):
+        rs = _regles(l['id'])
+        fixes = {r['product_id'][0] for r in rs if r['applied_on'] == '0_product_variant' and r['product_id'] and r['compute_price'] == 'fixed' and not r['date_start']}
+        for r in rs:
+            if r['applied_on'] not in ('0_product_variant', '1_product') or r['compute_price'] == 'fixed' or (r['date_end'] and r['date_end'] < auj):
+                continue
+            cibles = [q for q in pierres if (r['applied_on'] == '0_product_variant' and r['product_id'] and q['id'] == r['product_id'][0]) or (r['applied_on'] == '1_product' and r['product_tmpl_id'] and q['tmpl'] == r['product_tmpl_id'][0])]
+            nature = ('%s %% sur le prix fiche' % _fmt_pct(-(r['percent_price'] or 0))) if r['compute_price'] == 'percentage' else 'formule -%s %%' % (r['price_discount'] or 0)
+            for q in cibles:
+                if q['id'] in fixes:
+                    continue
+                prix_remise = round(_prix(l['id'], q, auj) / q['coef'], 2)
+                fact = _call('account.move.line', 'search_read', [['move_id.partner_id', 'child_of', pp['id']], ['move_id.move_type', '=', 'out_invoice'], ['move_id.state', '=', 'posted'], ['move_id.invoice_date', '>=', '2025-01-01'], ['product_id', '=', q['id']], ['company_id', '=', SOC]], fields=['price_unit', 'move_id'], order='id desc', limit=1, **CTX)
+                out.append({'regle': r['id'], 'liste_id': l['id'], 'liste': l['name'], 'client': pp['name'], 'partner_id': pp['id'], 'pid': q['id'], 'pierre': q['nom'], 'unite': q['unite'], 'coef': q['coef'],
+                            'nature': nature, 'fiche': round(q['fiche'] / q['coef'], 2), 'prix_remise': prix_remise,
+                            'facture': round(fact[0]['price_unit'], 2) if fact else None, 'facture_ref': fact[0]['move_id'][1][:30] if fact else ''})
+    return out
+
+
+def _fixer_remises(cfg, choix):
+    """Applique la conversion : pour chaque ligne choisie {regle, liste_id, pid, prix (unité du devis)} -> règle variante fixe
+    (€/m³) créée ou mise à jour, puis la règle en remise est supprimée si plus aucune ligne ne l'utilise."""
+    pierres = {q['id']: q for q in _pierres()}; faits = []; regles_a_supprimer = set()
+    for c in choix:
+        q = pierres.get(int(c['pid']))
+        if not q or not nombre(c.get('prix')) or float(c['prix']) <= 0:
+            continue
+        prix_m3 = round(float(c['prix']) * q['coef'], 2)
+        _regle_fixe(int(c['liste_id']), q['id'], prix_m3, False, False); regles_a_supprimer.add(int(c['regle']))
+        faits.append([c.get('client', ''), q['nom'], round(float(c['prix']), 2), q['unite']])
+    if regles_a_supprimer:
+        ex = _call('product.pricelist.item', 'search', [['id', 'in', list(regles_a_supprimer)]], **CTX)
+        if ex:
+            _call('product.pricelist.item', 'unlink', ex, **CTX)
+    _CACHE_REGLES.clear()
+    return faits
+
+
+@bp.route('/api/fixer/apercu')
+def fixer_apercu():
+    if not _cle_ok():
+        return jsonify({'erreur': 'clé'}), 403
+    return jsonify({'remises': _remises_negociees(_cfg())})
+
+
+@bp.route('/api/fixer', methods=['POST'])
+def fixer():
+    if not _cle_ok():
+        return jsonify({'erreur': 'clé'}), 403
+    j = request.get_json(silent=True) or {}
+    try:
+        return jsonify({'ok': True, 'faits': _fixer_remises(_cfg(), j.get('choix') or [])})
+    except Exception as e:  # noqa: BLE001
+        _CACHE_REGLES.clear()
+        return jsonify({'erreur': 'conversion interrompue : %s' % e}), 500
 
 
 @bp.route('/api/rebaser', methods=['POST'])
