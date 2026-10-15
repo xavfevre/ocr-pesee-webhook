@@ -86,7 +86,7 @@
 
   <div class="card">
     <div class="titre">3. Clients à prix négociés</div>
-    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Repli</th><th>Pierres à prix négocié</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
+    <div class="scroll"><table class="cli-list" id="tabCli"><thead><tr><th class="g">Client</th><th class="g">Liste dédiée</th><th class="g">Autres pierres et articles : prix de</th><th>Pierres à prix négocié</th><th class="g">Actions</th></tr></thead><tbody id="tbCli"></tbody></table></div>
     <div class="aide" style="margin-top:8px">Retouche à l'unité (ajout, modification, suppression, dates) : bouton <b>Tarifs client</b>, qui ouvre la page existante du client. <b>Grille PDF</b> : la grille personnalisée du client aux dates des deux phases, prête à joindre à un e-mail.</div>
   </div>
 
@@ -125,7 +125,7 @@ async function etat() {
   const tb = $('tbCli'); tb.innerHTML = '';
   for (const cl of ETAT.clients_negocies) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><b>${cl.nom}</b></td><td>${cl.liste}</td><td>${cl.base || ''}</td><td class="n">${cl.lignes}</td>` +
+    tr.innerHTML = `<td><b>${cl.nom}</b></td><td>${cl.liste}</td><td>${cl.base ? (cl.base.includes('Anciens') ? '<span style="color:#b45309">' + cl.base + ' (liste vide : prix fiche)</span>' : cl.base) : '<span style="color:#b45309">aucune liste de repli : prix fiche</span>'}</td><td class="n">${cl.lignes}</td>` +
       `<td><a class="b b-p" target="_blank" href="${ETAT.url_tarifs_client}${cl.partner_id}">Tarifs client</a> <a class="b b-p" href="api/pdf?k=${encodeURIComponent(K)}&partner=${cl.partner_id}&d1=${dates().d1}&d2=${dates().d2}">Grille PDF</a></td>`;
     tb.appendChild(tr);
   }
