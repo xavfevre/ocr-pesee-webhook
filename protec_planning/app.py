@@ -2343,10 +2343,15 @@ def ebp_page():
     if not SECRET or request.args.get("token") != SECRET:
         abort(403)
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
-    error, rows, months = None, [], []
+    error, rows, months, tiers_mois = None, [], [], 0
     try:
         uid, models = odoo_connect()
         lines = _ebp_lines(uid, models, mois)
+        acc_ids = list({l["account_id"][0] for l in lines})
+        if acc_ids:
+            codes = x(models, uid, "account.account", "read", acc_ids, fields=["code"],
+                      context={"allowed_company_ids": [EBP_COMPANY_ID]})
+            tiers_mois = sum(1 for a in codes if str(a.get("code") or "").startswith(("411", "401")))
         agg = {}
         for l in lines:
             code = l["journal_id"][1]
@@ -2383,7 +2388,7 @@ def ebp_page():
         error = str(ex)
     return render_template("ebp.html", mois=mois, months=months, rows=rows,
                            mois_debut=_ebp_month_range(mois)[0],
-                           mois_fin=_ebp_month_range(mois)[1],
+                           mois_fin=_ebp_month_range(mois)[1], tiers_mois=tiers_mois,
                            error=error, token=request.args.get("token"))
 
 def _ebp_csv_body(uid, models, mois, code):
@@ -2406,6 +2411,102 @@ def _ebp_csv_body(uid, models, mois, code):
             (l["partner_id"][1] if l["partner_id"] else "").replace(";", ","),
         ]))
     return "﻿" + "\r\n".join(out)
+
+def _ebp_tiers(uid, models, mois=None):
+    """Comptes tiers facturés (411… / 401…) : comptes mouvementés dans les écritures
+    validées de la société EBP, sur un mois ('YYYY-MM') ou depuis l'ouverture (None).
+    Chaque compte est rattaché au partenaire le plus présent sur ses lignes (un compte
+    411Axxxxxx est propre à un tiers) ; nom et adresse viennent de la fiche contact,
+    à défaut de l'intitulé du compte. Renvoie des dicts triés par code."""
+    CTX = {"allowed_company_ids": [EBP_COMPANY_ID]}
+    dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+           "|", ["account_id.code", "=like", "411%"], ["account_id.code", "=like", "401%"]]
+    if mois:
+        d1, d2 = _ebp_month_range(mois)
+        dom += [["date", ">=", d1], ["date", "<=", d2]]
+    lines = x(models, uid, "account.move.line", "search_read", dom,
+              fields=["account_id", "partner_id"], limit=200000, context=CTX)
+    if not lines:
+        return []
+    freq = {}
+    for l in lines:
+        aid = l["account_id"][0]
+        pid = l["partner_id"][0] if l["partner_id"] else 0
+        freq.setdefault(aid, {})
+        freq[aid][pid] = freq[aid].get(pid, 0) + 1
+    accs = {a["id"]: a for a in x(models, uid, "account.account", "read", list(freq),
+            fields=["code", "name"], context=CTX)}
+    part_of = {}
+    for aid, d in freq.items():
+        best = max(d.items(), key=lambda kv: kv[1])[0]
+        if best:
+            part_of[aid] = best
+    parts = {}
+    pids = sorted(set(part_of.values()))
+    if pids:
+        # les fiches réservées à une autre société restent lisibles avec toutes
+        # les sociétés de l'utilisateur dans le contexte
+        try:
+            cids = x(models, uid, "res.users", "read", [uid], fields=["company_ids"])[0]["company_ids"]
+        except Exception:
+            cids = [EBP_COMPANY_ID]
+        pctx = {"allowed_company_ids": cids or [EBP_COMPANY_ID], "active_test": False}
+        for i in range(0, len(pids), 500):
+            lot = pids[i:i + 500]
+            try:
+                recs = x(models, uid, "res.partner", "read", lot,
+                         fields=["name", "street", "street2", "zip", "city"], context=pctx)
+            except Exception:
+                recs = []
+                for pid in lot:  # une fiche inaccessible ne bloque pas l'export
+                    try:
+                        recs += x(models, uid, "res.partner", "read", [pid],
+                                  fields=["name", "street", "street2", "zip", "city"], context=pctx)
+                    except Exception:
+                        pass
+            for r in recs:
+                parts[r["id"]] = r
+
+    def clean(v, n=60):
+        if not isinstance(v, str):
+            return ""
+        return " ".join(v.replace(";", ",").split())[:n]
+
+    rows = []
+    for aid, a in accs.items():
+        p = parts.get(part_of.get(aid))
+        rows.append({
+            "code": clean(a.get("code"), 20),
+            "nom": clean(p["name"] if p else a.get("name")),
+            "adresse1": clean(p.get("street") if p else ""),
+            "adresse2": clean(p.get("street2") if p else ""),
+            "cp": clean(p.get("zip") if p else "", 10),
+            "ville": clean(p.get("city") if p else ""),
+            "partner_id": part_of.get(aid, 0),
+        })
+    rows.sort(key=lambda r: r["code"])
+    return rows
+
+def _ebp_tiers_csv(rows):
+    """CSV des comptes tiers — même format que les fichiers COMPTE-TIERS d'ECOREC
+    (Compte;Nom;Adresse 1;Adresse 2;CP;Ville), à importer dans EBP avant les écritures."""
+    out = ["Compte;Nom;Adresse 1;Adresse 2;CP;Ville"]
+    for r in rows:
+        out.append(";".join([r["code"], r["nom"], r["adresse1"], r["adresse2"], r["cp"], r["ville"]]))
+    return "\ufeff" + "\r\n".join(out)
+
+@bp.route("/ebp-tiers.csv")
+def ebp_tiers_csv():
+    """Comptes tiers facturés du mois (défaut) ou depuis l'ouverture (?tous=1)."""
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    tous = request.args.get("tous") == "1"
+    uid, models = odoo_connect()
+    body = _ebp_tiers_csv(_ebp_tiers(uid, models, None if tous else mois))
+    fn = "Comptes_tiers_TOUS.csv" if tous else f"Comptes_tiers_{mois}.csv"
+    return Response(body, mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 @bp.route("/ebp.csv")
 def ebp_csv():
@@ -2433,6 +2534,9 @@ def ebp_zip():
     import io, zipfile
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        # comptes tiers facturés du mois, à importer avant les écritures
+        z.writestr(f"0_Comptes_tiers_{mois}.csv",
+                   _ebp_tiers_csv(_ebp_tiers(uid, models, mois)).encode("utf-8"))
         for code in codes:
             z.writestr(f"Export_{code}_{mois}.csv",
                        _ebp_csv_body(uid, models, mois, code).encode("utf-8"))
