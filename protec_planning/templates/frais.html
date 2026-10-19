@@ -58,6 +58,9 @@
     .st { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; background: #eef2f2; color: var(--muted); white-space: nowrap; }
     .st.submitted { background: #fdf3df; color: #b07c10; }
     .st.approved, .st.paid { background: #e5f7eb; color: #1d7f3f; }
+    .mnav { display: flex; gap: 10px; font-size: 12px; font-weight: 800; }
+    .mnav a { color: var(--cy-dk); text-decoration: none; white-space: nowrap; }
+    tr.tot td { border-top: 2px solid var(--cy-lt); padding-top: 6px; color: var(--muted); font-weight: 800; }
   </style>
 </head>
 <body>
@@ -125,9 +128,14 @@
     </div>
   </div>
 
-  {% if derniers %}
   <div class="card">
-    <div class="card-h">Mes 5 dernières notes</div>
+    <div class="card-h" style="justify-content:space-between;">
+      <span>Mes notes de {{ mois_label }}</span>
+      <span class="mnav">
+        <a href="?c={{ emp_id }}&s={{ sig }}&m={{ mois_prec }}">◀ Mois précédent</a>
+        {% if mois_suiv %}<a href="?c={{ emp_id }}&s={{ sig }}&m={{ mois_suiv }}">Mois suivant ▶</a>{% endif %}
+      </span>
+    </div>
     <table>
       {% for d in derniers %}
       <tr>
@@ -136,10 +144,18 @@
         <td style="text-align:right; font-weight:800;">{{ '%.2f'|format(d.total_amount) }} €</td>
         <td style="text-align:right;"><span class="st {{ d.state }}">{{ etats.get(d.state, d.state) }}</span></td>
       </tr>
+      {% else %}
+      <tr><td colspan="4" style="color:var(--muted); text-align:center; padding:10px 0;">Aucune note déclarée en {{ mois_label|lower }}</td></tr>
       {% endfor %}
+      {% if derniers %}
+      <tr class="tot">
+        <td colspan="2">{{ derniers|length }} note{{ 's' if derniers|length > 1 else '' }}</td>
+        <td style="text-align:right; font-weight:800;">{{ '%.2f'|format(total_mois) }} €</td>
+        <td></td>
+      </tr>
+      {% endif %}
     </table>
   </div>
-  {% endif %}
 
 </div>
 <div class="submitbar"><button type="submit" id="go">💶 ENVOYER LA NOTE DE FRAIS</button></div>

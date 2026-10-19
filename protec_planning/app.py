@@ -197,6 +197,8 @@ MOIS_FR  = ["janvier","février","mars","avril","mai","juin","juillet","août",
             "septembre","octobre","novembre","décembre"]
 MOIS_ABR = ["jan","fév","mar","avr","mai","juin","juil","août","sep","oct","nov","déc"]
 JOURS_FR = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
+MOIS_LONG = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
+             "Septembre","Octobre","Novembre","Décembre"]
 JOURS_LONG = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
 
 # ─── Sécurité HMAC ────────────────────────────────────────────────────────────
@@ -1253,22 +1255,37 @@ def frais():
         except Exception:
             error = "Erreur d'enregistrement — réessayez."
 
-    # 5 dernières notes du chauffeur (réassurance)
+    # Notes du chauffeur sur le mois choisi (?m=AAAA-MM, défaut mois courant),
+    # pour vérifier qu'il a tout déclaré ; navigation mois précédent / suivant.
+    mois_cour = date.today().strftime("%Y-%m")
+    mois = request.args.get("m") or mois_cour
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", mois) or mois > mois_cour:
+        mois = mois_cour
+    d1, d2 = _ebp_month_range(mois)
     derniers = x(models, uid, "hr.expense", "search_read",
-                 [["employee_id", "=", emp_id]],
+                 [["employee_id", "=", emp_id], ["date", ">=", d1], ["date", "<=", d2]],
                  fields=["name", "date", "total_amount", "state"],
-                 order="date desc", limit=5,
+                 order="date desc, id desc", limit=300,
                  context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7]})
+    total_mois = 0.0
     for d_ in derniers:
+        total_mois += d_.get("total_amount") or 0.0
         if d_.get("date"):
             an, mo, jr = d_["date"].split("-")
-            d_["date"] = f"{jr}/{mo}/{an}"
+            d_["date"] = f"{jr}/{mo}"
+    an, mo = int(mois[:4]), int(mois[5:7])
+    mois_label = f"{MOIS_LONG[mo - 1]} {an}"
+    mois_prec = f"{an - 1}-12" if mo == 1 else f"{an}-{mo - 1:02d}"
+    mois_suiv = ("" if mois == mois_cour else
+                 (f"{an + 1}-01" if mo == 12 else f"{an}-{mo + 1:02d}"))
     etats = {"draft": "Brouillon", "submitted": "En validation",
              "approved": "Validée", "paid": "Remboursée", "refused": "Refusée"}
     return render_template("frais.html", emp_id=emp_id, sig=sig, emp_name=emp_name,
                            categories=FRAIS_CATEGORIES,
                            today=date.today().isoformat(),
                            derniers=derniers, etats=etats,
+                           mois=mois, mois_label=mois_label, mois_prec=mois_prec,
+                           mois_suiv=mois_suiv, total_mois=total_mois,
                            result=result, error=error)
 
 # ─── ASTREINTE (opération non prévue) ────────────────────────────────────────
