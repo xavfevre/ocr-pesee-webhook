@@ -15,6 +15,9 @@
                 text-decoration: none; background: #fff; color: #3a5a99;
                 border: 1px solid #dce3ef; }
     .months a.active { background: #0b7285; color: #fff; border-color: #0b7285; }
+    .socs { margin-bottom: 8px; }
+    .socs a { background: #eef2ff; color: #3a5a99; border-color: #c7d2fe; }
+    .socs a.active { background: #3a5a99; border-color: #3a5a99; color: #fff; }
     table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px;
             overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
     th { background: #0b7285; color: #fff; font-size: 12px; text-align: left;
@@ -39,14 +42,19 @@
 </head>
 <body>
   <h1>🧾 Export comptable → EBP</h1>
-  <p class="sub">Écritures Odoo (PROTEC) par journal — à importer dans EBP Compta SaaS.
+  <p class="sub">Écritures Odoo de <b>{{ soc_nom }}</b> par journal — à importer dans le dossier EBP de cette société.
      Ne pas oublier le journal <b>TVAE</b> (transferts de TVA sur encaissements).</p>
 
   {% if error %}<div class="warn">{{ error }}</div>{% endif %}
 
+  <div class="months socs">
+    {% for cid, (nom, sfx) in societes.items() %}
+    <a href="?token={{ token }}&mois={{ mois }}&soc={{ cid }}" class="{{ 'active' if cid == soc else '' }}">🏢 {{ nom }}</a>
+    {% endfor %}
+  </div>
   <div class="months">
     {% for mo in months %}
-    <a href="?token={{ token }}&mois={{ mo }}" class="{{ 'active' if mo == mois else '' }}">{{ mo }}</a>
+    <a href="?token={{ token }}&mois={{ mo }}&soc={{ soc }}" class="{{ 'active' if mo == mois else '' }}">{{ mo }}</a>
     {% endfor %}
   </div>
 
@@ -56,6 +64,7 @@
           style="display:flex; gap:6px; align-items:center; background:#fff; border:1px solid #dce3ef;
                  border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;">
       <input type="hidden" name="token" value="{{ token }}"/>
+      <input type="hidden" name="soc" value="{{ soc }}"/>
       FEC du <input type="date" name="du" value="{{ mois_debut }}" required
                     style="border:1.5px solid #cbd5e1; border-radius:7px; padding:4px 6px;"/>
       au <input type="date" name="au" value="{{ mois_fin }}" required
@@ -63,9 +72,9 @@
       <button class="btn" style="border:none; cursor:pointer; background:#3a5a99;">🗎 FEC période</button>
     </form>
     <a class="btn" style="font-size:13px; padding:9px 16px; background:#3a5a99;"
-       href="{{ BASE }}/ebp-fec?token={{ token }}&du={{ mois[:4] }}-01-01&mois={{ mois }}">🗎 FEC 01/01 → fin {{ mois }}</a>
+       href="{{ BASE }}/ebp-fec?token={{ token }}&du={{ mois[:4] }}-01-01&mois={{ mois }}&soc={{ soc }}">🗎 FEC 01/01 → fin {{ mois }}</a>
     <a class="btn" style="font-size:13px; padding:9px 16px;"
-       href="{{ BASE }}/ebp.zip?token={{ token }}&mois={{ mois }}">📦 Tout télécharger ({{ mois }}, ZIP)</a>
+       href="{{ BASE }}/ebp.zip?token={{ token }}&mois={{ mois }}&soc={{ soc }}">📦 Tout télécharger ({{ mois }}, ZIP)</a>
   </div>
   {% endif %}
 
@@ -81,7 +90,7 @@
       <td class="num">{{ r.nlines }}</td>
       <td class="num">{{ "%.2f"|format(r.debit)|replace(".", ",") }} €</td>
       <td style="text-align:right;">
-        <a class="btn" href="{{ BASE }}/ebp.csv?token={{ token }}&mois={{ mois }}&journal={{ r.code }}">⬇ CSV</a>
+        <a class="btn" href="{{ BASE }}/ebp.csv?token={{ token }}&mois={{ mois }}&journal={{ r.code }}&soc={{ soc }}">⬇ CSV</a>
       </td>
     </tr>
     {% else %}
@@ -95,7 +104,7 @@
       <td class="num">{{ tiers_mois }}</td>
       <td class="num" style="color:#6b7c9a;">comptes 411 / 401</td>
       <td style="text-align:right;">
-        <a class="btn" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}">⬇ CSV</a>
+        <a class="btn" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}&soc={{ soc }}">⬇ CSV</a>
       </td>
     </tr>
     <tr class="tiers">
@@ -106,7 +115,7 @@
       <td class="num">—</td>
       <td class="num" style="color:#6b7c9a;">comptes 411 / 401</td>
       <td style="text-align:right;">
-        <a class="btn" style="background:#3a5a99;" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}&tous=1">⬇ CSV</a>
+        <a class="btn" style="background:#3a5a99;" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}&tous=1&soc={{ soc }}">⬇ CSV</a>
       </td>
     </tr>
   </table>

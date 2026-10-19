@@ -2442,7 +2442,19 @@ def liens():
 # Journaux Odoo (PROTEC) → EBP : la comptable importe les CSV dans EBP SaaS.
 # À terme : poussée directe via l'API EBP (couche push_ebp_api à câbler quand
 # la clé d'abonnement et la doc des endpoints seront fournies).
-EBP_COMPANY_ID = 2
+EBP_COMPANY_ID = 2  # société par défaut (Assainissement)
+# Sociétés proposées sur la page : id -> (nom affiché, suffixe des fichiers)
+EBP_SOCIETES = {2: ("Pôle Assainissement", "ASSAINISSEMENT"),
+                7: ("Pôle Déchets", "DECHETS"),
+                1: ("S3T", "S3T")}
+
+def _ebp_cid():
+    """Société choisie (?soc=), Assainissement par défaut."""
+    cid = request.args.get("soc", type=int)
+    return cid if cid in EBP_SOCIETES else EBP_COMPANY_ID
+
+def _ebp_suffixe(cid):
+    return EBP_SOCIETES.get(cid, ("", "PROTEC"))[1]
 
 def _ebp_month_range(mois):
     """'2026-06' → ('2026-06-01', '2026-06-30')."""
@@ -2451,9 +2463,10 @@ def _ebp_month_range(mois):
     return (f"{y:04d}-{mo:02d}-01",
             f"{y:04d}-{mo:02d}-{calendar.monthrange(y, mo)[1]:02d}")
 
-def _ebp_lines(uid, models, mois, journal_code=None):
+def _ebp_lines(uid, models, mois, journal_code=None, cid=None):
+    cid = cid or EBP_COMPANY_ID
     d1, d2 = _ebp_month_range(mois)
-    dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+    dom = [["company_id", "=", cid], ["parent_state", "=", "posted"],
            ["account_id", "!=", False],  # exclut notes/sections sans compte
            "|", ["debit", "!=", 0], ["credit", "!=", 0],  # EBP refuse les lignes à 0
            ["date", ">=", d1], ["date", "<=", d2]]
@@ -2469,14 +2482,15 @@ def ebp_page():
     if not SECRET or request.args.get("token") != SECRET:
         abort(403)
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    cid = _ebp_cid()
     error, rows, months, tiers_mois = None, [], [], 0
     try:
         uid, models = odoo_connect()
-        lines = _ebp_lines(uid, models, mois)
+        lines = _ebp_lines(uid, models, mois, cid=cid)
         acc_ids = list({l["account_id"][0] for l in lines})
         if acc_ids:
             codes = x(models, uid, "account.account", "read", acc_ids, fields=["code"],
-                      context={"allowed_company_ids": [EBP_COMPANY_ID]})
+                      context={"allowed_company_ids": [cid]})
             tiers_mois = sum(1 for a in codes if str(a.get("code") or "").startswith(("411", "401")))
         agg = {}
         for l in lines:
@@ -2515,16 +2529,18 @@ def ebp_page():
     return render_template("ebp.html", mois=mois, months=months, rows=rows,
                            mois_debut=_ebp_month_range(mois)[0],
                            mois_fin=_ebp_month_range(mois)[1], tiers_mois=tiers_mois,
+                           soc=cid, societes=EBP_SOCIETES, soc_nom=EBP_SOCIETES[cid][0],
                            error=error, token=request.args.get("token"))
 
-def _ebp_csv_body(uid, models, mois, code):
+def _ebp_csv_body(uid, models, mois, code, cid=None):
     """Contenu CSV (format import EBP) d'un journal pour un mois."""
-    lines = _ebp_lines(uid, models, mois, journal_code=code or None)
+    cid = cid or EBP_COMPANY_ID
+    lines = _ebp_lines(uid, models, mois, journal_code=code or None, cid=cid)
     acc_ids = list({l["account_id"][0] for l in lines})
     # code comptable : champ multi-société en v19 → lecture en contexte PROTEC
     accs = {a["id"]: a["code"] for a in x(models, uid, "account.account", "read",
             acc_ids, fields=["code"],
-            context={"allowed_company_ids": [EBP_COMPANY_ID]})} if acc_ids else {}
+            context={"allowed_company_ids": [cid]})} if acc_ids else {}
     def fr(v):
         return f"{round(v or 0, 2):.2f}".replace(".", ",")
     out = ["Journal;Date;N° pièce;Compte;Libellé;Débit;Crédit;Partenaire"]
@@ -2538,14 +2554,15 @@ def _ebp_csv_body(uid, models, mois, code):
         ]))
     return "﻿" + "\r\n".join(out)
 
-def _ebp_tiers(uid, models, mois=None):
+def _ebp_tiers(uid, models, mois=None, cid=None):
     """Comptes tiers facturés (411… / 401…) : comptes mouvementés dans les écritures
     validées de la société EBP, sur un mois ('YYYY-MM') ou depuis l'ouverture (None).
     Chaque compte est rattaché au partenaire le plus présent sur ses lignes (un compte
     411Axxxxxx est propre à un tiers) ; nom et adresse viennent de la fiche contact,
     à défaut de l'intitulé du compte. Renvoie des dicts triés par code."""
-    CTX = {"allowed_company_ids": [EBP_COMPANY_ID]}
-    dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+    cid = cid or EBP_COMPANY_ID
+    CTX = {"allowed_company_ids": [cid]}
+    dom = [["company_id", "=", cid], ["parent_state", "=", "posted"],
            "|", ["account_id.code", "=like", "411%"], ["account_id.code", "=like", "401%"]]
     if mois:
         d1, d2 = _ebp_month_range(mois)
@@ -2575,8 +2592,8 @@ def _ebp_tiers(uid, models, mois=None):
         try:
             cids = x(models, uid, "res.users", "read", [uid], fields=["company_ids"])[0]["company_ids"]
         except Exception:
-            cids = [EBP_COMPANY_ID]
-        pctx = {"allowed_company_ids": cids or [EBP_COMPANY_ID], "active_test": False}
+            cids = [cid]
+        pctx = {"allowed_company_ids": cids or [cid], "active_test": False}
         for i in range(0, len(pids), 500):
             lot = pids[i:i + 500]
             try:
@@ -2628,9 +2645,11 @@ def ebp_tiers_csv():
         abort(403)
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
     tous = request.args.get("tous") == "1"
+    cid = _ebp_cid()
     uid, models = odoo_connect()
-    body = _ebp_tiers_csv(_ebp_tiers(uid, models, None if tous else mois))
-    fn = "Comptes_tiers_TOUS.csv" if tous else f"Comptes_tiers_{mois}.csv"
+    body = _ebp_tiers_csv(_ebp_tiers(uid, models, None if tous else mois, cid=cid))
+    sfx = _ebp_suffixe(cid)
+    fn = f"Comptes_tiers_TOUS_{sfx}.csv" if tous else f"Comptes_tiers_{mois}_{sfx}.csv"
     return Response(body, mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
@@ -2640,9 +2659,10 @@ def ebp_csv():
         abort(403)
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
     code = request.args.get("journal") or ""
+    cid = _ebp_cid()
     uid, models = odoo_connect()
-    body = _ebp_csv_body(uid, models, mois, code)
-    fn = f"Export_{code or 'TOUS'}_{mois}.csv"
+    body = _ebp_csv_body(uid, models, mois, code, cid=cid)
+    fn = f"Export_{code or 'TOUS'}_{mois}_{_ebp_suffixe(cid)}.csv"
     return Response(body, mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
@@ -2651,9 +2671,11 @@ def ebp_zip():
     if not SECRET or request.args.get("token") != SECRET:
         abort(403)
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    cid = _ebp_cid()
+    sfx = _ebp_suffixe(cid)
     uid, models = odoo_connect()
     # journaux mouvementés du mois
-    lines = _ebp_lines(uid, models, mois)
+    lines = _ebp_lines(uid, models, mois, cid=cid)
     jids = list({l["journal_id"][0] for l in lines})
     codes = sorted({j["code"] for j in x(models, uid, "account.journal", "read",
                     jids, fields=["code"])}) if jids else []
@@ -2661,15 +2683,15 @@ def ebp_zip():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         # comptes tiers facturés du mois, à importer avant les écritures
-        z.writestr(f"0_Comptes_tiers_{mois}.csv",
-                   _ebp_tiers_csv(_ebp_tiers(uid, models, mois)).encode("utf-8"))
+        z.writestr(f"0_Comptes_tiers_{mois}_{sfx}.csv",
+                   _ebp_tiers_csv(_ebp_tiers(uid, models, mois, cid=cid)).encode("utf-8"))
         for code in codes:
-            z.writestr(f"Export_{code}_{mois}.csv",
-                       _ebp_csv_body(uid, models, mois, code).encode("utf-8"))
+            z.writestr(f"Export_{code}_{mois}_{sfx}.csv",
+                       _ebp_csv_body(uid, models, mois, code, cid=cid).encode("utf-8"))
     buf.seek(0)
     return Response(buf.read(), mimetype="application/zip",
                     headers={"Content-Disposition":
-                             f'attachment; filename="Export_EBP_{mois}.zip"'})
+                             f'attachment; filename="Export_EBP_{mois}_{sfx}.zip"'})
 
 @bp.route("/ebp-fec")
 def ebp_fec():
@@ -2679,15 +2701,16 @@ def ebp_fec():
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
     d1 = request.args.get("du") or _ebp_month_range(mois)[0]
     d2 = request.args.get("au") or _ebp_month_range(mois)[1]
+    cid = _ebp_cid()
     uid, models = odoo_connect()
-    CTX = {"allowed_company_ids": [EBP_COMPANY_ID]}
+    CTX = {"allowed_company_ids": [cid]}
 
     # écriture d'ouverture de la société + journaux d'à-nouveaux exclus
-    co = x(models, uid, "res.company", "read", [EBP_COMPANY_ID],
+    co = x(models, uid, "res.company", "read", [cid],
            fields=["account_opening_move_id"], context=CTX)[0]
     open_move = co["account_opening_move_id"][0] if co.get("account_opening_move_id") else 0
 
-    dom = [["company_id", "=", EBP_COMPANY_ID], ["parent_state", "=", "posted"],
+    dom = [["company_id", "=", cid], ["parent_state", "=", "posted"],
            ["account_id", "!=", False], ["date", ">=", d1], ["date", "<=", d2],
            "|", ["debit", "!=", 0], ["credit", "!=", 0],  # EBP refuse les lignes à 0
            ["journal_id.code", "not in", ["AN", "OUV"]]]
@@ -2742,7 +2765,7 @@ def ebp_fec():
             dt(mv.get("date")), "", "",
         ]))
     body = "﻿" + "\r\n".join(out)
-    fn = f"FEC_PROTEC_{dt(d1)}_{dt(d2)}.txt"
+    fn = f"FEC_{_ebp_suffixe(cid)}_{dt(d1)}_{dt(d2)}.txt"
     return Response(body, mimetype="text/plain; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
