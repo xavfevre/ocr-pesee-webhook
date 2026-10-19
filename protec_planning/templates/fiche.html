@@ -154,10 +154,12 @@
               data-tab="tab-curage-tranches" onclick="showTab('tab-curage-tranches', this)">
         Tranches de curage<span class="cnt">{{ curage_rows|length }}</span>
       </button>
+      {% if s3t_visible %}
       <button type="button" class="tab-btn{{ ' filled' if s3t_count else '' }}"
               data-tab="tab-s3t" onclick="showTab('tab-s3t', this)">
         S3T<span class="cnt">{{ s3t_count }}</span>
       </button>
+      {% endif %}
     </div>
     <div class="box-body" style="padding:0 0 4px;">
       {% for tkey, tlabel, rows in travaux_tabs %}
@@ -186,6 +188,7 @@
         {% endif %}
       </div>
       {% endfor %}
+      {% if s3t_visible %}
       <div class="tab-pane" id="tab-s3t">
         <table>
           <tr><th>Prestations S3T (sous-traitance)</th><th class="col-q">Quantité réalisée</th><th class="col-u">Unité</th></tr>
@@ -209,6 +212,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
       <div class="tab-pane" id="tab-curage-tranches">
         <div style="padding:10px;">
           <div class="fld" style="margin-bottom:10px;">

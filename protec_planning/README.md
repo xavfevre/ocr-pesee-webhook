@@ -46,7 +46,9 @@ chatter du créneau. Badge « ✓ FDT » visible sur les plannings bureau.
 S3T (société 1 de la même base) réalise des prestations pour PROTEC (inspections
 télévisées, prise en charge fourgon, location caméra…). L'onglet **S3T** de la fiche
 de fin de travaux liste les articles vendables de S3T (`product.product`, société 1)
-avec une quantité et une unité. À l'enregistrement (hors pause) :
+avec une quantité et une unité. L'onglet n'apparaît que si le créneau est affecté à un
+employé portant l'**étiquette RH « S3T »** (`hr.employee.category`, ex. Thomas PINARD).
+À l'enregistrement (hors pause) :
 
 - les quantités sont stockées dans `x_fdt_data["s3t"]` et résumées dans le chatter du
   créneau ; elles figurent aussi dans « Prestations réalisées » du rapport client ;

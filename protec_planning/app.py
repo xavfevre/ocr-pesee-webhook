@@ -43,6 +43,7 @@ CHAUFFEUR_TAG_ID = 1  # étiquette RH « CHAUFFEUR OPÉRATEUR » — seuls ces e
 # client). Pas de devis S3T généré (décision Xavier 19/10/2026).
 S3T_COMPANY_ID = 1
 S3T_CTX = {"allowed_company_ids": [S3T_COMPANY_ID]}
+S3T_TAG_NAME = "S3T"  # étiquette RH des employés qui interviennent pour S3T (ex. Thomas)
 
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
@@ -272,6 +273,24 @@ def get_s3t_articles(uid, models):
         data = []
     if data:
         _s3t_cache["t"], _s3t_cache["data"] = now, data
+    return data
+
+_s3t_emp_cache = {"t": 0.0, "data": None}
+
+def get_s3t_employee_ids(uid, models):
+    """Employés portant l'étiquette RH « S3T » (toutes sociétés), cache 10 min :
+    l'onglet S3T de la fiche n'est proposé que sur leurs interventions."""
+    now = time.time()
+    if _s3t_emp_cache["data"] is not None and now - _s3t_emp_cache["t"] < 600:
+        return _s3t_emp_cache["data"]
+    try:
+        emps = x(models, uid, "hr.employee", "search_read",
+                 [["category_ids.name", "=", S3T_TAG_NAME]], fields=["id"], limit=100,
+                 context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7], "active_test": False})
+        data = {e["id"] for e in emps}
+    except Exception:
+        data = set()
+    _s3t_emp_cache["t"], _s3t_emp_cache["data"] = now, data
     return data
 
 def fetch_slots(uid, models, d_start: date, d_end: date, emp_id=None):
@@ -547,6 +566,8 @@ def fiche(slot_id):
         abort(404)
     s = recs[0]
     card = slot_to_card(s)
+    # onglet S3T : seulement si un employé étiqueté « S3T » est affecté au créneau
+    s3t_visible = bool(set(card["emp_ids"]) & get_s3t_employee_ids(uid, models))
 
     emp_names = ""
     if card["emp_ids"]:
@@ -590,10 +611,11 @@ def fiche(slot_id):
             })
         data["curage"] = curage_rows
 
-        # Prestations S3T (sous-traitance) : quantité par article S3T
-        s3t_arts = {a["id"]: a for a in get_s3t_articles(uid, models)}
+        # Prestations S3T (sous-traitance) : quantité par article S3T,
+        # uniquement pour les employés étiquetés S3T
+        s3t_arts = {a["id"]: a for a in get_s3t_articles(uid, models)} if s3t_visible else {}
         s3t_rows = {}
-        for k in f.keys():
+        for k in (f.keys() if s3t_visible else []):
             mo = re.match(r"s3t_(\d+)_qte$", k)
             if not mo or not f.get(k, "").strip():
                 continue
@@ -778,7 +800,8 @@ def fiche(slot_id):
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
-        s3t_articles=get_s3t_articles(uid, models), s3t_saved=s3t_saved,
+        s3t_visible=s3t_visible,
+        s3t_articles=get_s3t_articles(uid, models) if s3t_visible else [], s3t_saved=s3t_saved,
         s3t_note=s3t_note, s3t_count=len(s3t_saved),
         s3t_cmd=request.args.get("s3t", ""),
         has=has,
