@@ -44,9 +44,9 @@ chatter du créneau. Badge « ✓ FDT » visible sur les plannings bureau.
 ## Sous-traitance S3T (onglet « S3T » de la fiche)
 
 S3T (société 1 de la même base) réalise des prestations pour PROTEC (inspections
-télévisées, prise en charge fourgon, location caméra…). L'onglet **S3T** de la fiche
-de fin de travaux liste les articles vendables de S3T (`product.product`, société 1)
-avec une quantité et une unité. L'onglet n'apparaît que si le créneau est affecté à un
+télévisées, tests d'étanchéité). L'onglet **S3T** de la fiche de fin de travaux reprend
+la fiche journalière papier de S3T : neuf natures de travaux fixes (`S3T_LIGNES`, unité
+ml ou h), quantité réalisée, détails par ligne, temps de pause. L'onglet n'apparaît que si le créneau est affecté à un
 employé portant l'**étiquette RH « S3T »** (`hr.employee.category`, ex. Thomas PINARD).
 À l'enregistrement (hors pause) :
 
@@ -55,8 +55,7 @@ employé portant l'**étiquette RH « S3T »** (`hr.employee.category`, ex. Thom
 - une **note** « Prestations S3T (sous-traitant) » est posée sur la commande PROTEC liée.
 
 Aucun devis S3T n'est généré (décision du 19/10/2026) : S3T facture PROTEC comme
-aujourd'hui, à partir des prestations notées. Le compte relais doit avoir accès à la
-société S3T pour lire ses articles (sinon l'onglet affiche « Articles S3T inaccessibles »).
+aujourd'hui, à partir des prestations notées.
 
 ## Champs créés dans Odoo (planning.slot, champs manuels)
 

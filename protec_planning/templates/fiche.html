@@ -191,24 +191,24 @@
       {% if s3t_visible %}
       <div class="tab-pane" id="tab-s3t">
         <table>
-          <tr><th>Prestations S3T (sous-traitance)</th><th class="col-q">Quantité réalisée</th><th class="col-u">Unité</th></tr>
-          {% for a in s3t_articles %}
+          <tr><th>Nature des travaux S3T</th><th class="col-q">Quantités réalisées</th><th class="col-u">Unité</th><th>Détails</th></tr>
+          {% for code, label, unit in s3t_lignes %}
+          {% set sv = s3t_saved.get(code, {}) %}
           <tr>
-            <td class="lbl">{{ a.name }}</td>
-            <td><input type="text" inputmode="decimal" name="s3t_{{ a.id }}_qte" value="{{ s3t_saved.get(a.id|string, {}).get('qte', '') }}"></td>
-            <td class="unit">{{ a.unite }}</td>
+            <td class="lbl">{{ label }}</td>
+            <td><input type="text" inputmode="decimal" name="s3t_{{ code }}_qte" value="{{ sv.get('qte', '') }}"></td>
+            <td class="unit">{{ unit }}</td>
+            <td><input type="text" name="s3t_{{ code }}_det" value="{{ sv.get('det', '') }}" placeholder="regard, rue, remarque…"></td>
           </tr>
-          {% else %}
-          <tr><td colspan="3" class="lbl" style="color:#b91c1c;">Articles S3T inaccessibles pour le moment — réessayez plus tard.</td></tr>
           {% endfor %}
         </table>
         <div style="padding:10px 12px;">
-          <div class="fld">
-            <label>Précisions S3T (matériel, remarques)</label>
-            <input type="text" name="s3t_note" value="{{ s3t_note }}">
+          <div class="fld" style="max-width:220px;">
+            <label>Temps de pause</label>
+            <input type="text" name="s3t_pause" value="{{ s3t_pause }}" placeholder="ex : 0h45">
           </div>
           <div style="font-size:12px; color:#6b7c9a; margin-top:8px;">
-            À l'enregistrement, les prestations sont transmises au bureau PROTEC (créneau + commande).
+            Même liste que la fiche journalière S3T. À l'enregistrement, les prestations sont transmises au bureau PROTEC (créneau + commande).
           </div>
         </div>
       </div>

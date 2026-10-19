@@ -36,14 +36,25 @@ EXCLUDED_EMPLOYEE_IDS = {1, 3, 8, 9}  # compte technique + Manon + Natacha (hors
 CHAUFFEUR_TAG_ID = 1  # étiquette RH « CHAUFFEUR OPÉRATEUR » — seuls ces employés sont listés
 
 # ─── Sous-traitance S3T ──────────────────────────────────────────────────────
-# S3T (société 1 de la même base Odoo) réalise des prestations (ITV, prise en
-# charge fourgon, location caméra…) pour PROTEC : l'onglet « S3T » de la fiche
-# de fin de travaux liste ses articles ; à l'enregistrement les prestations sont
-# transmises au bureau (chatter du créneau, note sur la commande PROTEC, rapport
-# client). Pas de devis S3T généré (décision Xavier 19/10/2026).
-S3T_COMPANY_ID = 1
-S3T_CTX = {"allowed_company_ids": [S3T_COMPANY_ID]}
+# S3T (société 1 de la même base Odoo) réalise des prestations pour PROTEC
+# (inspections télévisées, tests d'étanchéité). L'onglet « S3T » de la fiche de
+# fin de travaux reprend la fiche journalière papier de S3T : natures de travaux
+# fixes, quantité + unité + détails, temps de pause. À l'enregistrement les
+# prestations sont transmises au bureau (chatter du créneau, note sur la commande
+# PROTEC, rapport client). Pas de devis S3T généré (décision Xavier 19/10/2026).
 S3T_TAG_NAME = "S3T"  # étiquette RH des employés qui interviennent pour S3T (ex. Thomas)
+S3T_LIGNES = [  # (code, libellé, unité) — ordre de la fiche papier
+    ("itv_eu",          "Inspection télévisée EU",             "ml"),
+    ("itv_eu_brcht",    "Inspection télévisée EU branchement", "ml"),
+    ("itv_ep",          "Inspection télévisée EP",             "ml"),
+    ("itv_ep_brcht",    "Inspection télévisée EP branchement", "ml"),
+    ("etanch_eu_canal", "Test d'étanchéité EU canalisation",   "h"),
+    ("etanch_eu_regard","Test d'étanchéité EU regard",         "h"),
+    ("etanch_ep_canal", "Test d'étanchéité EP canalisation",   "h"),
+    ("etanch_ep_regard","Test d'étanchéité EP regard",         "h"),
+    ("autre",           "Autre (préciser dans Détails)",       "h"),
+]
+S3T_LIBELLES = {c: (l, u) for c, l, u in S3T_LIGNES}
 
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
@@ -253,28 +264,6 @@ def get_fleet_vehicles(uid, models):
     except Exception:
         data = []
     _veh_cache["t"], _veh_cache["data"] = now, data
-    return data
-
-_s3t_cache = {"t": 0.0, "data": None}
-
-def get_s3t_articles(uid, models):
-    """Articles vendables de la société S3T (nom + unité), cache 10 min.
-    Liste vide si le compte relais n'a pas accès à la société S3T."""
-    now = time.time()
-    if _s3t_cache["data"] is not None and now - _s3t_cache["t"] < 600:
-        return _s3t_cache["data"]
-    try:
-        arts = x(models, uid, "product.product", "search_read",
-                 [["company_id", "=", S3T_COMPANY_ID], ["sale_ok", "=", True]],
-                 fields=["name", "uom_id"], order="name asc", limit=200, context=S3T_CTX)
-        # unités lues en anglais par le compte relais : libellés français
-        UNITES = {"Units": "Unité(s)", "Hours": "Heure(s)", "Days": "Jour(s)", "Nights": "Nuit"}
-        data = [{"id": a["id"], "name": a["name"],
-                 "unite": UNITES.get(a["uom_id"][1], a["uom_id"][1]) if a.get("uom_id") else ""} for a in arts]
-    except Exception:
-        data = []
-    if data:
-        _s3t_cache["t"], _s3t_cache["data"] = now, data
     return data
 
 _s3t_emp_cache = {"t": 0.0, "data": None}
@@ -613,22 +602,17 @@ def fiche(slot_id):
             })
         data["curage"] = curage_rows
 
-        # Prestations S3T (sous-traitance) : quantité par article S3T,
-        # uniquement pour les employés étiquetés S3T
-        s3t_arts = {a["id"]: a for a in get_s3t_articles(uid, models)} if s3t_visible else {}
+        # Prestations S3T (fiche journalière S3T) : quantité + détails par
+        # nature de travaux, uniquement pour les employés étiquetés S3T
         s3t_rows = {}
-        for k in (f.keys() if s3t_visible else []):
-            mo = re.match(r"s3t_(\d+)_qte$", k)
-            if not mo or not f.get(k, "").strip():
-                continue
-            pid = int(mo.group(1))
-            art = s3t_arts.get(pid)
-            if not art:  # article inconnu ou plus vendable : ignoré
-                continue
-            s3t_rows[str(pid)] = {"qte": f.get(k, "").strip(),
-                                  "nom": art["name"], "unite": art["unite"]}
+        if s3t_visible:
+            for code, label, unit in S3T_LIGNES:
+                qte = f.get(f"s3t_{code}_qte", "").strip()
+                det = f.get(f"s3t_{code}_det", "").strip()
+                if qte or det:
+                    s3t_rows[code] = {"qte": qte, "det": det, "nom": label, "unite": unit}
         data["s3t"] = s3t_rows
-        data["s3t_note"] = f.get("s3t_note", "").strip()
+        data["s3t_pause"] = f.get("s3t_pause", "").strip() if s3t_visible else ""
 
         def bin_val(field_val):
             if field_val and field_val.startswith("data:"):
@@ -761,7 +745,7 @@ def fiche(slot_id):
     curage_rows = saved_data.get("curage", []) if isinstance(saved_data, dict) else []
     curage_commune = (saved_data.get("curage_commune") if isinstance(saved_data, dict) else "") or card["ville"]
     s3t_saved = saved_data.get("s3t", {}) if isinstance(saved_data, dict) else {}
-    s3t_note = (saved_data.get("s3t_note") if isinstance(saved_data, dict) else "") or ""
+    s3t_pause = (saved_data.get("s3t_pause") if isinstance(saved_data, dict) else "") or ""
 
     prefill = {
         "vehicule":      s.get("x_fdt_vehicule") or "",
@@ -802,9 +786,8 @@ def fiche(slot_id):
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
-        s3t_visible=s3t_visible,
-        s3t_articles=get_s3t_articles(uid, models) if s3t_visible else [], s3t_saved=s3t_saved,
-        s3t_note=s3t_note, s3t_count=len(s3t_saved),
+        s3t_visible=s3t_visible, s3t_lignes=S3T_LIGNES, s3t_saved=s3t_saved,
+        s3t_pause=s3t_pause, s3t_count=len(s3t_saved),
         s3t_cmd=request.args.get("s3t", ""),
         has=has,
         signataire=s.get("x_fdt_signataire") or "",
@@ -847,14 +830,13 @@ def render_fiche_html(card, vals, data, nphotos=0):
                  + rows_t + "</table>")
     if data.get("greenfosse"):
         html += "<p>🌱 <b>Greenfosse</b></p>"
-    rows_s = "".join(f"<tr><td>{v.get('nom', pid)}</td><td>{v.get('qte','')} {v.get('unite','')}</td></tr>"
-                     for pid, v in data.get("s3t", {}).items())
+    rows_s = "".join(f"<tr><td>{v.get('nom', code)}</td><td>{v.get('qte','')} {v.get('unite','')}</td><td>{v.get('det','')}</td></tr>"
+                     for code, v in data.get("s3t", {}).items())
     if rows_s:
-        html += ("<p><b>🔧 Prestations S3T (sous-traitant)</b></p>"
-                 "<table border='1' cellpadding='3'><tr><th>Prestation S3T</th><th>Quantité</th></tr>"
+        html += ("<p><b>🔧 Prestations S3T (sous-traitant)</b>"
+                 + (f" — pause : {data['s3t_pause']}" if data.get("s3t_pause") else "") + "</p>"
+                 "<table border='1' cellpadding='3'><tr><th>Nature des travaux S3T</th><th>Quantité</th><th>Détails</th></tr>"
                  + rows_s + "</table>")
-        if data.get("s3t_note"):
-            html += f"<p>{data['s3t_note']}</p>"
     if vals["x_fdt_commentaires"]:
         html += f"<p><b>Commentaires :</b><br/>{vals['x_fdt_commentaires']}</p>"
     if rows_d:
@@ -874,14 +856,8 @@ def _s3t_transmettre(uid, models, card, data, vals):
     """Pose sur la commande PROTEC liée au créneau une note « Prestations S3T
     (sous-traitant) » avec les quantités saisies (visible dans PROTEC pour la
     facturation du client). Renvoie 'ok' si des prestations ont été saisies."""
-    lignes = []
-    for pid, v in data.get("s3t", {}).items():
-        try:
-            qte = float(str(v.get("qte", "")).replace(",", ".").replace(" ", ""))
-        except ValueError:
-            continue
-        if qte > 0:
-            lignes.append((qte, v.get("nom", ""), v.get("unite", "")))
+    lignes = [(v.get("qte", ""), v.get("nom", ""), v.get("unite", ""), v.get("det", ""))
+              for v in data.get("s3t", {}).values() if v.get("qte") or v.get("det")]
     if not lignes:
         return ""
     ref0 = card["ref"].split()[0] if card["ref"] else ""
@@ -891,16 +867,16 @@ def _s3t_transmettre(uid, models, card, data, vals):
         if so_p:
             d = card["day"]
             date_fr = f"{d[8:10]}/{d[5:7]}/{d[:4]}"
-            rows = "".join(f"<tr><td>{n}</td><td>{q:g} {u}</td></tr>" for q, n, u in lignes)
+            rows = "".join(f"<tr><td>{n}</td><td>{q} {u}</td><td>{dt}</td></tr>" for q, n, u, dt in lignes)
             subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
             x(models, uid, "mail.message", "create", [{
                 "model": "sale.order", "res_id": so_p[0]["id"],
                 "message_type": "comment", "subtype_id": subtype[1],
                 "body": (f"<p><b>🔧 Prestations S3T (sous-traitant)</b> — intervention du {date_fr}"
                          + (f" · {vals['x_fdt_operateurs']}" if vals.get("x_fdt_operateurs") else "") + "</p>"
-                         "<table border='1' cellpadding='3'><tr><th>Prestation S3T</th><th>Quantité</th></tr>"
+                         "<table border='1' cellpadding='3'><tr><th>Nature des travaux S3T</th><th>Quantité</th><th>Détails</th></tr>"
                          + rows + "</table>"
-                         + (f"<p>{data['s3t_note']}</p>" if data.get("s3t_note") else "")),
+                         + (f"<p>Temps de pause : {data['s3t_pause']}</p>" if data.get("s3t_pause") else "")),
             }])
     return "ok"
 
@@ -959,9 +935,11 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
             qte = f"{E(v.get('qte',''))} {unit}".strip()
             html.append(f"<tr><td style='{td}'>{label}</td><td style='{td}'>{qte}</td>"
                         f"<td style='{td}'>{E(v.get('temps',''))} {'h' if v.get('temps') else ''}</td></tr>")
-        for pid, v in rows_s.items():
+        for code, v in rows_s.items():
             qte = f"{E(v.get('qte',''))} {E(v.get('unite',''))}".strip()
-            html.append(f"<tr><td style='{td}'>{E(v.get('nom', str(pid)))}</td>"
+            det = (f"<br/><span style='color:#64748b;font-size:11px;'>{E(v.get('det',''))}</span>"
+                   if v.get("det") else "")
+            html.append(f"<tr><td style='{td}'>{E(v.get('nom', code))}{det}</td>"
                         f"<td style='{td}'>{qte}</td><td style='{td}'></td></tr>")
         html.append("</table>")
 
