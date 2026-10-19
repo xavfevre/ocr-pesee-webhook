@@ -61,24 +61,24 @@ doc = SimpleDocTemplate(SORTIE, pagesize=A4, leftMargin=16 * mm, rightMargin=16 
                         title="Prestations S3T sur la fiche de fin de travaux", author="PROTEC")
 s = [Paragraph("Prestations S3T sur la fiche de fin de travaux", H1),
      Paragraph("Sous-traitance S3T pour PROTEC : saisie par Thomas sur le téléphone, suivi par le bureau. Version du 19/10/2026.", SMALL), Spacer(1, 6)]
-s.append(Paragraph("Quand S3T intervient pour un client PROTEC (inspection télévisée, prise en charge du fourgon, location de caméra…), "
-                   "Thomas remplit la fiche de fin de travaux habituelle et note les prestations S3T dans l'onglet <b>S3T</b>. "
+s.append(Paragraph("Quand S3T intervient pour un client PROTEC (inspection télévisée, test d'étanchéité), "
+                   "Thomas remplit la fiche de fin de travaux habituelle et note les prestations S3T dans l'onglet <b>S3T</b>, qui reprend la fiche journalière papier de S3T. "
                    "Ces prestations sont transmises au bureau PROTEC, qui facture le client ; S3T facture PROTEC comme aujourd'hui, à partir des prestations notées.", NOTE))
 
 s.append(Paragraph("Côté Thomas : remplir l'onglet S3T", H2))
 s.extend(etapes(["Ouvrir <b>Ma tournée</b> sur le téléphone (lien habituel), puis la fiche de fin de travaux de l'intervention.",
                  "Remplir la fiche comme d'habitude : véhicule, heures d'arrivée et de départ, trajet, opérateurs.",
-                 "Appuyer sur l'onglet <b>S3T</b> (dernier onglet du bloc « Nature des travaux »). La liste reprend les articles de S3T : inspections télévisées REU, REP ou EU + EP, forfaits « moins de 275 ml », branchements, prise en charge d'un fourgon, rapport d'ITV, location de caméra, découchage…",
-                 "Saisir la <b>quantité réalisée</b> en face de chaque prestation faite, dans l'unité indiquée (forfait, heure, unité, nuit). Laisser vide ce qui n'a pas été fait.",
-                 "Ligne <b>Précisions S3T</b> : le matériel ou une remarque utile pour la facturation (caméra utilisée, regard, longueur…).",
+                 "Appuyer sur l'onglet <b>S3T</b> (dernier onglet du bloc « Nature des travaux »). La liste est celle de la fiche papier : inspection télévisée EU, EU branchement, EP, EP branchement (en ml), tests d'étanchéité EU et EP, canalisation et regard (en heures), et « Autre ».",
+                 "Saisir la <b>quantité réalisée</b> en face de chaque nature de travaux faite, dans l'unité indiquée (ml ou h), et le <b>détail</b> utile sur la même ligne (regards, rue, remarque). Laisser vide ce qui n'a pas été fait. Pour « Autre », préciser dans Détails.",
+                 "Champ <b>Temps de pause</b> sous la liste, comme sur la fiche papier.",
                  "Signature et photos comme d'habitude, puis <b>ENREGISTRER</b>. Le bandeau vert confirme : « Prestations S3T transmises au bureau ».",
                  "<b>PAUSE</b> garde les saisies sans rien transmettre au bureau tant que la fiche n'est pas enregistrée."]))
-s.extend(deux_captures('1_onglet_s3t.png', "L'onglet S3T : quantités en face des prestations réalisées, puis précisions.",
+s.extend(deux_captures('1_onglet_s3t.png', "L'onglet S3T : quantités et détails en face des natures de travaux, puis temps de pause.",
                        '2_bandeau_s3t.png', "Après ENREGISTRER : le bandeau confirme la transmission au bureau."))
 s.append(Paragraph("Si la fiche est modifiée et enregistrée à nouveau, une nouvelle note est posée sur la commande avec les quantités à jour : c'est la dernière note qui compte.", NOTE))
 
 s.append(Paragraph("Côté bureau PROTEC : où retrouver les prestations", H2))
-s.extend(etapes(["<b>Sur le créneau du planning</b> : le chatter du créneau reçoit le résumé de la fiche avec un tableau « Prestations S3T (sous-traitant) » (prestation, quantité) et les précisions.",
+s.extend(etapes(["<b>Sur le créneau du planning</b> : le chatter du créneau reçoit le résumé de la fiche avec un tableau « Prestations S3T (sous-traitant) » (nature des travaux, quantité, détails) et le temps de pause.",
                  "<b>Sur la commande PROTEC</b> (le devis ou bon de commande client lié au créneau) : une note « Prestations S3T (sous-traitant) » reprend le même tableau. C'est le point de départ pour facturer le client PROTEC.",
                  "<b>Sur le rapport d'intervention client</b> : les prestations S3T figurent dans « Prestations réalisées », sans mention du sous-traitant.",
                  "<b>Côté S3T</b> : aucun devis n'est généré. S3T facture PROTEC comme aujourd'hui, en reprenant les prestations notées sur la commande PROTEC ; la facture arrive dans PROTEC par la facturation électronique."]))
@@ -87,9 +87,9 @@ s.extend(capture('4_chatter_creneau.png', "Le résumé de la fiche dans le chatt
 s.append(Paragraph("Points d'attention", H2))
 s.append(tableau([
     ["Situation", "Explication", "Que faire"],
-    ["L'onglet S3T affiche « Articles S3T inaccessibles »", "Odoo n'a pas répondu, ou le compte du relais n'a plus accès à la société S3T.", "Réessayer un peu plus tard ; si cela persiste, prévenir Xavier."],
+    ["L'onglet S3T n'apparaît pas", "L'intervention n'est pas affectée à un employé portant l'étiquette RH « S3T ».", "Affecter Thomas au créneau, ou poser l'étiquette « S3T » sur l'employé concerné dans Employés."],
     ["Le bandeau indique « ERREUR » après S3T", "La fiche est bien enregistrée, mais la note sur la commande PROTEC n'a pas pu être posée.", "Prévenir le bureau : les prestations restent lisibles dans le chatter du créneau."],
-    ["Plusieurs articles portent le même nom dans l'onglet (ex. « Prise en charge d'un fourgon »)", "Le catalogue S3T contient des doublons d'articles.", "Prendre le premier ; faire nettoyer le catalogue S3T (archiver les doublons) pour que la liste soit nette."],
+    ["Une prestation ne figure pas dans la liste", "La liste est fixe, identique à la fiche papier.", "Utiliser la ligne « Autre » avec le détail ; demander à Xavier d'ajouter une ligne si elle revient souvent."],
     ["Intervention sans commande PROTEC", "Le créneau n'a pas de référence de commande.", "Les prestations restent dans le chatter du créneau ; seule la note sur la commande PROTEC manque."],
 ], [52 * mm, 62 * mm, 64 * mm]))
 doc.build(s)
