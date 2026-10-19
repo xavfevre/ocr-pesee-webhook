@@ -267,8 +267,10 @@ def get_s3t_articles(uid, models):
         arts = x(models, uid, "product.product", "search_read",
                  [["company_id", "=", S3T_COMPANY_ID], ["sale_ok", "=", True]],
                  fields=["name", "uom_id"], order="name asc", limit=200, context=S3T_CTX)
+        # unités lues en anglais par le compte relais : libellés français
+        UNITES = {"Units": "Unité(s)", "Hours": "Heure(s)", "Days": "Jour(s)", "Nights": "Nuit"}
         data = [{"id": a["id"], "name": a["name"],
-                 "unite": a["uom_id"][1] if a.get("uom_id") else ""} for a in arts]
+                 "unite": UNITES.get(a["uom_id"][1], a["uom_id"][1]) if a.get("uom_id") else ""} for a in arts]
     except Exception:
         data = []
     if data:
