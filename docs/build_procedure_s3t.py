@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Procédure « Prestations S3T sur la fiche de fin de travaux » (19/10/2026).
   python build_procedure_s3t.py  ->  Desktop/Protec assainissement/Procedure_fiche_S3T_2026-10-19.pdf
-Captures facultatives : docs/captures_s3t/1_onglet_s3t.png, 2_bandeau_s3t.png, 3_devis_s3t.png, 4_chatter_creneau.png."""
+Captures facultatives : docs/captures_s3t/1_onglet_s3t.png, 2_bandeau_s3t.png, 4_chatter_creneau.png."""
 import os, sys
 sys.stdout.reconfigure(encoding='utf-8')
 from reportlab.lib.pagesizes import A4
@@ -63,7 +63,7 @@ s = [Paragraph("Prestations S3T sur la fiche de fin de travaux", H1),
      Paragraph("Sous-traitance S3T pour PROTEC : saisie par Thomas sur le téléphone, suivi par le bureau. Version du 19/10/2026.", SMALL), Spacer(1, 6)]
 s.append(Paragraph("Quand S3T intervient pour un client PROTEC (inspection télévisée, prise en charge du fourgon, location de caméra…), "
                    "Thomas remplit la fiche de fin de travaux habituelle et note les prestations S3T dans l'onglet <b>S3T</b>. "
-                   "Ces prestations sont transmises au bureau PROTEC et un devis S3T → PROTEC est créé automatiquement pour la facturation de S3T.", NOTE))
+                   "Ces prestations sont transmises au bureau PROTEC, qui facture le client ; S3T facture PROTEC comme aujourd'hui, à partir des prestations notées.", NOTE))
 
 s.append(Paragraph("Côté Thomas : remplir l'onglet S3T", H2))
 s.extend(etapes(["Ouvrir <b>Ma tournée</b> sur le téléphone (lien habituel), puis la fiche de fin de travaux de l'intervention.",
@@ -71,30 +71,26 @@ s.extend(etapes(["Ouvrir <b>Ma tournée</b> sur le téléphone (lien habituel), 
                  "Appuyer sur l'onglet <b>S3T</b> (dernier onglet du bloc « Nature des travaux »). La liste reprend les articles de S3T : inspections télévisées REU, REP ou EU + EP, forfaits « moins de 275 ml », branchements, prise en charge d'un fourgon, rapport d'ITV, location de caméra, découchage…",
                  "Saisir la <b>quantité réalisée</b> en face de chaque prestation faite, dans l'unité indiquée (forfait, heure, unité, nuit). Laisser vide ce qui n'a pas été fait.",
                  "Ligne <b>Précisions S3T</b> : le matériel ou une remarque utile pour la facturation (caméra utilisée, regard, longueur…).",
-                 "Signature et photos comme d'habitude, puis <b>ENREGISTRER</b>. Le bandeau vert confirme et affiche le numéro du devis S3T créé (ex. S3T2026-0068).",
-                 "<b>PAUSE</b> garde les saisies sans rien transmettre : rien n'est créé côté S3T tant que la fiche n'est pas enregistrée."]))
+                 "Signature et photos comme d'habitude, puis <b>ENREGISTRER</b>. Le bandeau vert confirme : « Prestations S3T transmises au bureau ».",
+                 "<b>PAUSE</b> garde les saisies sans rien transmettre au bureau tant que la fiche n'est pas enregistrée."]))
 s.extend(deux_captures('1_onglet_s3t.png', "L'onglet S3T : quantités en face des prestations réalisées, puis précisions.",
-                       '2_bandeau_s3t.png', "Après ENREGISTRER : le bandeau indique le devis S3T créé."))
-s.append(Paragraph("Si la fiche est modifiée et enregistrée à nouveau, les prestations du devis S3T sont remplacées par les nouvelles, tant que S3T n'a pas confirmé ce devis. "
-                   "Une fois le devis confirmé par S3T, il n'est plus modifié : prévenir le bureau en cas de correction.", NOTE))
+                       '2_bandeau_s3t.png', "Après ENREGISTRER : le bandeau confirme la transmission au bureau."))
+s.append(Paragraph("Si la fiche est modifiée et enregistrée à nouveau, une nouvelle note est posée sur la commande avec les quantités à jour : c'est la dernière note qui compte.", NOTE))
 
 s.append(Paragraph("Côté bureau PROTEC : où retrouver les prestations", H2))
 s.extend(etapes(["<b>Sur le créneau du planning</b> : le chatter du créneau reçoit le résumé de la fiche avec un tableau « Prestations S3T (sous-traitant) » (prestation, quantité) et les précisions.",
-                 "<b>Sur la commande PROTEC</b> (le devis ou bon de commande client lié au créneau) : une note « Prestations S3T (sous-traitant) » reprend le même tableau et le numéro du devis S3T. C'est le point de départ pour facturer le client PROTEC.",
+                 "<b>Sur la commande PROTEC</b> (le devis ou bon de commande client lié au créneau) : une note « Prestations S3T (sous-traitant) » reprend le même tableau. C'est le point de départ pour facturer le client PROTEC.",
                  "<b>Sur le rapport d'intervention client</b> : les prestations S3T figurent dans « Prestations réalisées », sans mention du sous-traitant.",
-                 "<b>Côté S3T</b> (société S3T dans Odoo, menu Ventes › Devis) : un devis <b>S3T → PROTEC « Pôle Assainissement »</b> en brouillon, avec les lignes aux tarifs S3T, la référence de la commande PROTEC en référence client et, en bas, la date, le client et l'adresse de l'intervention. "
-                 "Vérifier, <b>Confirmer</b>, puis facturer : la facture S3T arrive dans PROTEC par la facturation électronique comme aujourd'hui."]))
-s.extend(capture('3_devis_s3t.jpg', "Le devis S3T → PROTEC créé en brouillon dans la société S3T (ici un test, supprimé ensuite)."))
+                 "<b>Côté S3T</b> : aucun devis n'est généré. S3T facture PROTEC comme aujourd'hui, en reprenant les prestations notées sur la commande PROTEC ; la facture arrive dans PROTEC par la facturation électronique."]))
 s.extend(capture('4_chatter_creneau.png', "Le résumé de la fiche dans le chatter du créneau, avec le tableau des prestations S3T.", 52))
 
 s.append(Paragraph("Points d'attention", H2))
 s.append(tableau([
     ["Situation", "Explication", "Que faire"],
     ["L'onglet S3T affiche « Articles S3T inaccessibles »", "Odoo n'a pas répondu, ou le compte du relais n'a plus accès à la société S3T.", "Réessayer un peu plus tard ; si cela persiste, prévenir Xavier."],
-    ["Le bandeau indique « ERREUR » après S3T", "La fiche est bien enregistrée, mais le devis S3T n'a pas pu être créé (article supprimé, droit manquant).", "Transmettre le message au bureau : le devis S3T se crée à la main depuis la note posée sur le créneau."],
+    ["Le bandeau indique « ERREUR » après S3T", "La fiche est bien enregistrée, mais la note sur la commande PROTEC n'a pas pu être posée.", "Prévenir le bureau : les prestations restent lisibles dans le chatter du créneau."],
     ["Plusieurs articles portent le même nom dans l'onglet (ex. « Prise en charge d'un fourgon »)", "Le catalogue S3T contient des doublons d'articles.", "Prendre le premier ; faire nettoyer le catalogue S3T (archiver les doublons) pour que la liste soit nette."],
-    ["Le devis S3T ne correspond plus à la fiche", "La fiche a été ré-enregistrée après la confirmation du devis.", "Corriger le devis ou la facture S3T à la main."],
-    ["Intervention sans commande PROTEC", "Le créneau n'a pas de référence de commande.", "Le devis S3T est quand même créé (origine « sans commande ») ; seule la note sur la commande PROTEC manque."],
+    ["Intervention sans commande PROTEC", "Le créneau n'a pas de référence de commande.", "Les prestations restent dans le chatter du créneau ; seule la note sur la commande PROTEC manque."],
 ], [52 * mm, 62 * mm, 64 * mm]))
 doc.build(s)
 print('PDF :', SORTIE)
