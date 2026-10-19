@@ -596,9 +596,10 @@ def fiche(slot_id):
                 continue
             pid = int(mo.group(1))
             art = s3t_arts.get(pid)
+            if not art:  # article inconnu ou plus vendable : ignoré
+                continue
             s3t_rows[str(pid)] = {"qte": f.get(k, "").strip(),
-                                  "nom": art["name"] if art else f"Article S3T {pid}",
-                                  "unite": art["unite"] if art else ""}
+                                  "nom": art["name"], "unite": art["unite"]}
         data["s3t"] = s3t_rows
         data["s3t_note"] = f.get("s3t_note", "").strip()
 
