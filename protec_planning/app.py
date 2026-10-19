@@ -1150,6 +1150,26 @@ FRAIS_CATEGORIES = [
     ("hotel",  "Hôtel / Déplacement", 3),   # [TRANS & ACC] Travel & Accommodation
     ("autre",  "Autre dépense",       7),   # [EXP_GEN] Expenses
 ]
+# Employés étiquetés S3T (ex. Thomas) : leurs notes de frais vont sur leur fiche
+# employé S3T (société 1, même nom), comme celles saisies au bureau — décision
+# Xavier 19/10/2026 (« pour Thomas les notes de frais doivent aller sur S3T »).
+FRAIS_S3T_COMPANY_ID = 1
+
+def _frais_employe_effectif(uid, models, emp_id, emp):
+    """(id employé, société, responsable NDF) où créer la note : la fiche S3T de
+    l'employé s'il porte l'étiquette S3T et qu'une fiche au même nom existe chez
+    S3T, sinon sa propre fiche."""
+    comp_id = emp["company_id"][0] if emp.get("company_id") else EBP_COMPANY_ID
+    mgr = emp.get("expense_manager_id")
+    if emp_id in get_s3t_employee_ids(uid, models):
+        s3t = x(models, uid, "hr.employee", "search_read",
+                [["company_id", "=", FRAIS_S3T_COMPANY_ID],
+                 ["name", "=ilike", emp.get("name") or ""]],
+                fields=["id", "expense_manager_id"], limit=1,
+                context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7]})
+        if s3t:
+            return s3t[0]["id"], FRAIS_S3T_COMPANY_ID, (s3t[0].get("expense_manager_id") or mgr)
+    return emp_id, comp_id, mgr
 
 @bp.route("/frais", methods=["GET", "POST"])
 def frais():
@@ -1164,7 +1184,7 @@ def frais():
     if not emp:
         abort(404)
     emp_name = emp[0]["name"]
-    comp_id = emp[0]["company_id"][0] if emp[0]["company_id"] else 2
+    emp_eff, comp_id, mgr_eff = _frais_employe_effectif(uid, models, emp_id, emp[0])
 
     result, error = None, None
     if request.method == "POST":
@@ -1184,7 +1204,7 @@ def frais():
             ctx = {"allowed_company_ids": [comp_id]}
             eid = x(models, uid, "hr.expense", "create", [{
                 "name": commerce or label,
-                "employee_id": emp_id,
+                "employee_id": emp_eff,
                 "product_id": prod,
                 "total_amount_currency": montant,
                 "date": jour,
@@ -1212,8 +1232,7 @@ def frais():
             # (équivalent du flux natif) : responsable NDF de l'employé,
             # sinon Natacha.
             try:
-                mgr = emp[0].get("expense_manager_id")
-                mgr_uid = mgr[0] if mgr else 2
+                mgr_uid = mgr_eff[0] if mgr_eff else 2
                 exp_model = x(models, uid, "ir.model", "search",
                               [["model", "=", "hr.expense"]], limit=1)[0]
                 x(models, uid, "mail.activity", "create", [{
@@ -1239,7 +1258,7 @@ def frais():
         mois = mois_cour
     d1, d2 = _ebp_month_range(mois)
     derniers = x(models, uid, "hr.expense", "search_read",
-                 [["employee_id", "=", emp_id], ["date", ">=", d1], ["date", "<=", d2]],
+                 [["employee_id", "=", emp_eff], ["date", ">=", d1], ["date", "<=", d2]],
                  fields=["name", "date", "total_amount", "state"],
                  order="date desc, id desc", limit=300,
                  context={"allowed_company_ids": [1, 2, 3, 4, 5, 6, 7]})
@@ -2483,7 +2502,7 @@ def ebp_page():
         abort(403)
     mois = request.args.get("mois") or date.today().strftime("%Y-%m")
     cid = _ebp_cid()
-    error, rows, months, tiers_mois = None, [], [], 0
+    error, rows, months, tiers_mois, ventes_mois = None, [], [], 0, 0
     try:
         uid, models = odoo_connect()
         lines = _ebp_lines(uid, models, mois, cid=cid)
@@ -2492,6 +2511,13 @@ def ebp_page():
             codes = x(models, uid, "account.account", "read", acc_ids, fields=["code"],
                       context={"allowed_company_ids": [cid]})
             tiers_mois = sum(1 for a in codes if str(a.get("code") or "").startswith(("411", "401")))
+        d1, d2 = _ebp_month_range(mois)
+        ventes_mois = x(models, uid, "account.move", "search_count",
+                        [["company_id", "=", cid],
+                         ["move_type", "in", ["out_invoice", "out_refund"]],
+                         ["state", "=", "posted"],
+                         ["invoice_date", ">=", d1], ["invoice_date", "<=", d2]],
+                        context={"allowed_company_ids": [cid]})
         agg = {}
         for l in lines:
             code = l["journal_id"][1]
@@ -2529,6 +2555,7 @@ def ebp_page():
     return render_template("ebp.html", mois=mois, months=months, rows=rows,
                            mois_debut=_ebp_month_range(mois)[0],
                            mois_fin=_ebp_month_range(mois)[1], tiers_mois=tiers_mois,
+                           ventes_mois=ventes_mois,
                            soc=cid, societes=EBP_SOCIETES, soc_nom=EBP_SOCIETES[cid][0],
                            error=error, token=request.args.get("token"))
 
@@ -2772,6 +2799,132 @@ def ebp_fec():
     body = "﻿" + "\r\n".join(out)
     fn = f"FEC_{_ebp_suffixe(cid)}_{dt(d1)}_{dt(d2)}.txt"
     return Response(body, mimetype="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+# ─── Tableau des ventes du mois (Excel, modèle de Natacha) ───────────────────
+# Reprend le classeur « MM - Tableau vente <Mois> <Année> ASS.xlsx » que la
+# comptable construisait depuis les exports Odoo : un bloc par taux de TVA
+# (Numéro ; Partenaire ; HT ; TVA x% ; TTC ; Montant dû signé), puis les totaux
+# BASE HT / TVA par taux et le total général. Factures ET avoirs clients validés,
+# sur la date de facturation. Une facture à plusieurs taux figure dans chaque bloc
+# avec la seule part du taux (bases exactes pour la déclaration de TVA).
+EBP_VENTES_CODES = {2: "ASS", 7: "ACD", 1: "S3T"}  # suffixe court des fichiers
+MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+           "août", "septembre", "octobre", "novembre", "décembre"]
+
+def _ebp_ventes(uid, models, mois, cid=None):
+    """Blocs [{taux, label, rows}] triés par taux ; rows = dicts num / partenaire /
+    ht / tva / ttc / du (montants signés : avoirs négatifs)."""
+    cid = cid or EBP_COMPANY_ID
+    d1, d2 = _ebp_month_range(mois)
+    CTX = {"allowed_company_ids": [cid]}
+    moves = x(models, uid, "account.move", "search_read",
+              [["company_id", "=", cid],
+               ["move_type", "in", ["out_invoice", "out_refund"]],
+               ["state", "=", "posted"],
+               ["invoice_date", ">=", d1], ["invoice_date", "<=", d2]],
+              fields=["name", "partner_id", "move_type", "amount_untaxed_signed",
+                      "amount_residual_signed"],
+              order="name desc", limit=10000, context=CTX)
+    if not moves:
+        return []
+    tax_lines = x(models, uid, "account.move.line", "search_read",
+                  [["move_id", "in", [m["id"] for m in moves]],
+                   ["display_type", "=", "tax"]],
+                  fields=["move_id", "tax_line_id", "tax_base_amount", "balance"],
+                  limit=100000, context=CTX)
+    tax_ids = list({l["tax_line_id"][0] for l in tax_lines if l["tax_line_id"]})
+    rates = {t["id"]: float(t["amount"] or 0) for t in
+             x(models, uid, "account.tax", "read", tax_ids, fields=["amount"],
+               context=CTX)} if tax_ids else {}
+    # cumul (facture, taux) : les lignes de taxe portent le signe comptable
+    # (crédit négatif sur une facture) → inversé pour retrouver le sens « signé »
+    par_mv = {}
+    for l in tax_lines:
+        if not l["tax_line_id"]:
+            continue
+        acc = par_mv.setdefault(l["move_id"][0], {}).setdefault(
+            rates.get(l["tax_line_id"][0], 0.0), [0.0, 0.0])
+        acc[0] += -(l["tax_base_amount"] or 0.0)
+        acc[1] += -(l["balance"] or 0.0)
+    # factures (numéro décroissant) puis avoirs (numéro décroissant)
+    ordre = sorted(sorted(moves, key=lambda m: m["name"] or "", reverse=True),
+                   key=lambda m: m["move_type"] != "out_invoice")
+    blocs = {}
+    for m in ordre:
+        parts = par_mv.get(m["id"]) or {None: [m["amount_untaxed_signed"] or 0.0, 0.0]}
+        for taux, (ht, tva) in parts.items():
+            ht, tva = round(ht, 2), round(tva, 2)
+            blocs.setdefault(taux, []).append({
+                "num": m["name"], "partenaire": (m["partner_id"] or [0, ""])[1],
+                "ht": ht, "tva": tva, "ttc": round(ht + tva, 2),
+                "du": round(m["amount_residual_signed"] or 0.0, 2)})
+    def lbl(t):
+        return "Sans TVA" if t is None else f"TVA {t:g}%"
+    return [{"taux": t, "label": lbl(t), "rows": blocs[t]}
+            for t in sorted(blocs, key=lambda t: (t is None, t or 0))]
+
+def _ebp_ventes_xlsx(blocs, mois):
+    """Classeur Excel (octets) au format du modèle de la comptable."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Ventes {mois}"
+    H_FILL, BOLD, NUM = PatternFill("solid", fgColor="76E3FF"), Font(bold=True), "#,##0.00"
+    plages, r = [], 1
+    for b in blocs:
+        if r > 1:
+            r += 2
+        for c, h in enumerate(["Numéro", "Partenaire", "HT", b["label"], "TTC",
+                               "Montant dû signé"], 1):
+            cell = ws.cell(row=r, column=c, value=h)
+            cell.fill, cell.font = H_FILL, BOLD
+        r += 1
+        first = r
+        for row in b["rows"]:
+            ws.cell(row=r, column=1, value=row["num"])
+            ws.cell(row=r, column=2, value=row["partenaire"])
+            for c, k in zip((3, 4, 5, 6), ("ht", "tva", "ttc", "du")):
+                ws.cell(row=r, column=c, value=row[k]).number_format = NUM
+            r += 1
+        plages.append((b["label"].replace("TVA ", ""), first, max(first, r - 1)))
+    r += 3
+    ws.cell(row=r, column=3, value="BASE HT").font = BOLD
+    ws.cell(row=r, column=4, value="TVA").font = BOLD
+    r += 1
+    t1 = r
+    for label, first, last in plages:
+        ws.cell(row=r, column=2, value=f"TOTAL {label}").font = BOLD
+        for c, col in ((3, "C"), (4, "D")):
+            ws.cell(row=r, column=c, value=f"=SUM({col}{first}:{col}{last})").number_format = NUM
+        r += 1
+    if plages:
+        for c, col in ((3, "C"), (4, "D")):
+            cell = ws.cell(row=r, column=c, value=f"=SUM({col}{t1}:{col}{r - 1})")
+            cell.number_format, cell.font = NUM, BOLD
+        cell = ws.cell(row=r, column=5, value=f"=SUM(C{r}:D{r})")
+        cell.number_format, cell.font = NUM, BOLD
+    for col, w in zip("ABCDEF", (30.7, 38, 14, 14, 14, 16)):
+        ws.column_dimensions[col].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+@bp.route("/ebp-ventes.xlsx")
+def ebp_ventes_xlsx():
+    if not SECRET or request.args.get("token") != SECRET:
+        abort(403)
+    mois = request.args.get("mois") or date.today().strftime("%Y-%m")
+    cid = _ebp_cid()
+    uid, models = odoo_connect()
+    data = _ebp_ventes_xlsx(_ebp_ventes(uid, models, mois, cid=cid), mois)
+    y, mo = int(mois[:4]), int(mois[5:7])
+    fn = (f"{mo:02d} - Tableau vente {MOIS_FR[mo - 1].capitalize()} {y} "
+          f"{EBP_VENTES_CODES.get(cid, _ebp_suffixe(cid))}.xlsx")
+    return Response(data, mimetype="application/vnd.openxmlformats-officedocument"
+                                   ".spreadsheetml.sheet",
                     headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 @bp.route("/health")

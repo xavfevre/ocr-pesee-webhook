@@ -118,11 +118,24 @@
         <a class="btn" style="background:#3a5a99;" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}&tous=1&soc={{ soc }}">⬇ CSV</a>
       </td>
     </tr>
+    <tr class="tiers">
+      <td><span class="cat cat-0">Ventes</span></td>
+      <td>Tableau des ventes du mois (factures et avoirs clients, un bloc par taux de TVA)</td>
+      <td><b>XLSX</b></td>
+      <td class="num">{{ ventes_mois }}</td>
+      <td class="num">—</td>
+      <td class="num" style="color:#6b7c9a;">bases HT / TVA par taux</td>
+      <td style="text-align:right;">
+        <a class="btn" style="background:#15803d;" href="{{ BASE }}/ebp-ventes.xlsx?token={{ token }}&mois={{ mois }}&soc={{ soc }}">⬇ Excel</a>
+      </td>
+    </tr>
   </table>
 
   <div class="note">
     💡 Ordre d'import dans EBP : <b>1.</b> comptes tiers facturés (ligne TIERS : Compte ; Nom ; Adresse 1 ; Adresse 2 ; CP ; Ville ; SIRET ; TVA intracom ; Typologie (Particulier / Professionnel),
     les six premières colonnes comme les fichiers COMPTE-TIERS), <b>2.</b> écritures (ventes, achats, banque, TVAE).
+    La ligne <b>XLSX</b> donne le tableau des ventes du mois (classeur Excel : un bloc par taux de TVA,
+    totaux BASE HT / TVA), hors import EBP.
     Le ZIP du mois contient le fichier des tiers en premier (0_Comptes_tiers_…).<br/>
     💡 Import EBP : Quotidien &gt; Import de données &gt; format paramétrable
     (séparateur « ; », décimales à virgule, colonnes : Journal / Date / N° pièce /
