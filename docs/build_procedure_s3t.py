@@ -41,7 +41,7 @@ def capture(nom, legende, largeur=178):
     return [Spacer(1, 3), img, Paragraph(legende, SMALL), Spacer(1, 4)]
 
 
-def deux_captures(n1, l1, n2, l2, largeur=80):
+def deux_captures(n1, l1, n2, l2, largeur=68):
     """Deux captures téléphone côte à côte."""
     cells = []
     for n, l in ((n1, l1), (n2, l2)):
@@ -85,7 +85,7 @@ s.extend(etapes(["<b>Sur le créneau du planning</b> : le chatter du créneau re
                  "<b>Côté S3T</b> (société S3T dans Odoo, menu Ventes › Devis) : un devis <b>S3T → PROTEC « Pôle Assainissement »</b> en brouillon, avec les lignes aux tarifs S3T, la référence de la commande PROTEC en référence client et, en bas, la date, le client et l'adresse de l'intervention. "
                  "Vérifier, <b>Confirmer</b>, puis facturer : la facture S3T arrive dans PROTEC par la facturation électronique comme aujourd'hui."]))
 s.extend(capture('3_devis_s3t.jpg', "Le devis S3T → PROTEC créé en brouillon dans la société S3T (ici un test, supprimé ensuite)."))
-s.extend(capture('4_chatter_creneau.png', "Le résumé de la fiche dans le chatter du créneau, avec le tableau des prestations S3T.", 70))
+s.extend(capture('4_chatter_creneau.png', "Le résumé de la fiche dans le chatter du créneau, avec le tableau des prestations S3T.", 52))
 
 s.append(Paragraph("Points d'attention", H2))
 s.append(tableau([
