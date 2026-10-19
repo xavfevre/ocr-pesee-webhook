@@ -2598,13 +2598,13 @@ def _ebp_tiers(uid, models, mois=None, cid=None):
             lot = pids[i:i + 500]
             try:
                 recs = x(models, uid, "res.partner", "read", lot,
-                         fields=["name", "street", "street2", "zip", "city"], context=pctx)
+                         fields=["name", "street", "street2", "zip", "city", "company_registry", "vat"], context=pctx)
             except Exception:
                 recs = []
                 for pid in lot:  # une fiche inaccessible ne bloque pas l'export
                     try:
                         recs += x(models, uid, "res.partner", "read", [pid],
-                                  fields=["name", "street", "street2", "zip", "city"], context=pctx)
+                                  fields=["name", "street", "street2", "zip", "city", "company_registry", "vat"], context=pctx)
                     except Exception:
                         pass
             for r in recs:
@@ -2625,17 +2625,21 @@ def _ebp_tiers(uid, models, mois=None, cid=None):
             "adresse2": clean(p.get("street2") if p else ""),
             "cp": clean(p.get("zip") if p else "", 10),
             "ville": clean(p.get("city") if p else ""),
+            "siret": clean(p.get("company_registry") if p else "", 20).replace(" ", ""),
+            "tva": clean(p.get("vat") if p else "", 20).replace(" ", ""),
             "partner_id": part_of.get(aid, 0),
         })
     rows.sort(key=lambda r: r["code"])
     return rows
 
 def _ebp_tiers_csv(rows):
-    """CSV des comptes tiers — même format que les fichiers COMPTE-TIERS d'ECOREC
-    (Compte;Nom;Adresse 1;Adresse 2;CP;Ville), à importer dans EBP avant les écritures."""
-    out = ["Compte;Nom;Adresse 1;Adresse 2;CP;Ville"]
+    """CSV des comptes tiers — six premières colonnes comme les fichiers COMPTE-TIERS d'ECOREC
+    (Compte;Nom;Adresse 1;Adresse 2;CP;Ville), plus SIRET et TVA intracom (demande Xavier 19/10/2026),
+    à importer dans EBP avant les écritures."""
+    out = ["Compte;Nom;Adresse 1;Adresse 2;CP;Ville;SIRET;TVA intracom"]
     for r in rows:
-        out.append(";".join([r["code"], r["nom"], r["adresse1"], r["adresse2"], r["cp"], r["ville"]]))
+        out.append(";".join([r["code"], r["nom"], r["adresse1"], r["adresse2"], r["cp"], r["ville"],
+                             r.get("siret", ""), r.get("tva", "")]))
     return "\ufeff" + "\r\n".join(out)
 
 @bp.route("/ebp-tiers.csv")
