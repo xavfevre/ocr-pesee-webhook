@@ -33,9 +33,8 @@
             padding: 10px 14px; font-size: 12.5px; margin-top: 14px; color: #0b5560; }
     .warn { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
             padding: 14px; color: #856404; font-size: 13px; margin-bottom: 12px; }
-    .tiers { background: #fff; border: 1px solid #dce3ef; border-radius: 12px; padding: 12px 14px;
-             font-size: 13px; margin-bottom: 12px; display: flex; gap: 12px; justify-content: space-between;
-             align-items: center; flex-wrap: wrap; box-shadow: 0 2px 6px rgba(0,0,0,.05); }
+    .cat-5 { background: #ede9fe; color: #6d28d9; }   /* Tiers */
+    tr.tiers td { background: #faf9ff; }
   </style>
 </head>
 <body>
@@ -49,18 +48,6 @@
     {% for mo in months %}
     <a href="?token={{ token }}&mois={{ mo }}" class="{{ 'active' if mo == mois else '' }}">{{ mo }}</a>
     {% endfor %}
-  </div>
-
-  <div class="tiers">
-    <div>
-      <b>👥 Comptes tiers facturés</b> — <b>{{ tiers_mois }}</b> compte(s) 411 / 401 mouvementé(s) en {{ mois }}.<br/>
-      <span style="color:#6b7c9a;">À importer dans EBP <b>avant</b> les écritures du mois, sinon les pièces des nouveaux
-      tiers sont rejetées. Format : Compte ; Nom ; Adresse 1 ; Adresse 2 ; CP ; Ville (comme les fichiers COMPTE-TIERS).</span>
-    </div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-      <a class="btn" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}">⬇ Tiers facturés {{ mois }}</a>
-      <a class="btn" style="background:#3a5a99;" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}&tous=1">⬇ Tous les tiers facturés</a>
-    </div>
   </div>
 
   {% if rows %}
@@ -100,10 +87,33 @@
     {% else %}
     <tr><td colspan="7" style="text-align:center; color:#6b7c9a;">Aucune écriture pour {{ mois }}</td></tr>
     {% endfor %}
+    <tr class="tiers">
+      <td><span class="cat cat-5">Tiers</span></td>
+      <td>Comptes tiers facturés du mois</td>
+      <td><b>TIERS</b></td>
+      <td class="num">—</td>
+      <td class="num">{{ tiers_mois }}</td>
+      <td class="num" style="color:#6b7c9a;">comptes 411 / 401</td>
+      <td style="text-align:right;">
+        <a class="btn" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}">⬇ CSV</a>
+      </td>
+    </tr>
+    <tr class="tiers">
+      <td><span class="cat cat-5">Tiers</span></td>
+      <td>Tous les tiers facturés depuis l'ouverture</td>
+      <td><b>TIERS</b></td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num" style="color:#6b7c9a;">comptes 411 / 401</td>
+      <td style="text-align:right;">
+        <a class="btn" style="background:#3a5a99;" href="{{ BASE }}/ebp-tiers.csv?token={{ token }}&mois={{ mois }}&tous=1">⬇ CSV</a>
+      </td>
+    </tr>
   </table>
 
   <div class="note">
-    💡 Ordre d'import dans EBP : <b>1.</b> comptes tiers facturés, <b>2.</b> écritures (ventes, achats, banque, TVAE).
+    💡 Ordre d'import dans EBP : <b>1.</b> comptes tiers facturés (ligne TIERS : Compte ; Nom ; Adresse 1 ; Adresse 2 ; CP ; Ville,
+    comme les fichiers COMPTE-TIERS), <b>2.</b> écritures (ventes, achats, banque, TVAE).
     Le ZIP du mois contient le fichier des tiers en premier (0_Comptes_tiers_…).<br/>
     💡 Import EBP : Quotidien &gt; Import de données &gt; format paramétrable
     (séparateur « ; », décimales à virgule, colonnes : Journal / Date / N° pièce /
