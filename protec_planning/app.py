@@ -38,8 +38,9 @@ CHAUFFEUR_TAG_ID = 1  # étiquette RH « CHAUFFEUR OPÉRATEUR » — seuls ces e
 # ─── Sous-traitance S3T ──────────────────────────────────────────────────────
 # S3T (société 1 de la même base Odoo) réalise des prestations (ITV, prise en
 # charge fourgon, location caméra…) pour PROTEC : l'onglet « S3T » de la fiche
-# de fin de travaux liste ses articles ; à l'enregistrement un devis S3T → PROTEC
-# est créé en brouillon et une note est posée sur la commande PROTEC.
+# de fin de travaux liste ses articles ; à l'enregistrement les prestations sont
+# transmises au bureau (chatter du créneau, note sur la commande PROTEC, rapport
+# client). Pas de devis S3T généré (décision Xavier 19/10/2026).
 S3T_COMPANY_ID = 1
 S3T_CTX = {"allowed_company_ids": [S3T_COMPANY_ID]}
 
@@ -695,12 +696,12 @@ def fiche(slot_id):
             except Exception:
                 pass
 
-        # Sous-traitance S3T : devis S3T → PROTEC (brouillon) + note sur la
-        # commande PROTEC — jamais en pause, jamais bloquant pour la fiche
+        # Sous-traitance S3T : note sur la commande PROTEC liée — jamais en
+        # pause, jamais bloquant pour la fiche
         s3t_cmd = ""
         if not pause and data.get("s3t"):
             try:
-                s3t_cmd = _s3t_commande(uid, models, card, slot_id, s, data, vals)
+                s3t_cmd = _s3t_transmettre(uid, models, card, data, vals)
             except Exception as ex:
                 s3t_cmd = "ERREUR : " + str(ex)[:160]
 
@@ -844,13 +845,10 @@ def render_fiche_html(card, vals, data, nphotos=0):
                  "<th>Amiante</th><th>Problèmes rencontrés</th></tr>" + rows_c + "</table>")
     return html
 
-def _s3t_commande(uid, models, card, slot_id, slot, data, vals):
-    """Devis S3T → PROTEC (société S3T, brouillon) portant les prestations S3T de
-    la fiche : créé la première fois, lignes remplacées aux enregistrements
-    suivants tant qu'il n'est pas confirmé. Pose aussi une note sur la commande
-    PROTEC liée (visible dans PROTEC). Renvoie le nom du devis S3T."""
-    ref0 = card["ref"].split()[0] if card["ref"] else ""
-    origin = f"PROTEC {ref0 or 'sans commande'} · créneau {slot_id}"
+def _s3t_transmettre(uid, models, card, data, vals):
+    """Pose sur la commande PROTEC liée au créneau une note « Prestations S3T
+    (sous-traitant) » avec les quantités saisies (visible dans PROTEC pour la
+    facturation du client). Renvoie 'ok' si des prestations ont été saisies."""
     lignes = []
     for pid, v in data.get("s3t", {}).items():
         try:
@@ -858,53 +856,28 @@ def _s3t_commande(uid, models, card, slot_id, slot, data, vals):
         except ValueError:
             continue
         if qte > 0:
-            lignes.append((int(pid), qte, v.get("nom", ""), v.get("unite", "")))
+            lignes.append((qte, v.get("nom", ""), v.get("unite", "")))
     if not lignes:
         return ""
-    d = card["day"]
-    date_fr = f"{d[8:10]}/{d[5:7]}/{d[:4]}"
-    adresse = " ".join(p for p in [card.get("street", ""), card.get("zip", ""), card.get("ville", "")] if p)
-    note = (f"Intervention PROTEC du {date_fr} — {card['client']}" + (f", {adresse}" if adresse else "")
-            + (f"<br/>Opérateur(s) : {vals.get('x_fdt_operateurs')}" if vals.get("x_fdt_operateurs") else "")
-            + (f"<br/>{data.get('s3t_note')}" if data.get("s3t_note") else ""))
-    comp_id = slot["company_id"][0] if slot.get("company_id") else 2
-    client_id = x(models, uid, "res.company", "read", [comp_id], fields=["partner_id"])[0]["partner_id"][0]
-    line_vals = [(0, 0, {"product_id": pid, "product_uom_qty": qte}) for pid, qte, _n, _u in lignes]
-    existing = x(models, uid, "sale.order", "search_read",
-                 [["company_id", "=", S3T_COMPANY_ID], ["origin", "=", origin]],
-                 fields=["name", "state", "order_line"], limit=1, context=S3T_CTX)
-    if existing and existing[0]["state"] in ("draft", "sent"):
-        cmds = [(2, lid, 0) for lid in existing[0]["order_line"]] + line_vals
-        x(models, uid, "sale.order", "write", [existing[0]["id"]],
-          {"order_line": cmds, "note": note}, context=S3T_CTX)
-        name = existing[0]["name"]
-    elif existing:
-        name = existing[0]["name"] + " (déjà confirmé, non modifié)"
-    else:
-        so_id = x(models, uid, "sale.order", "create", {
-            "company_id": S3T_COMPANY_ID, "partner_id": client_id, "origin": origin,
-            "client_order_ref": ref0, "note": note, "order_line": line_vals}, context=S3T_CTX)
-        name = x(models, uid, "sale.order", "read", [so_id], fields=["name"], context=S3T_CTX)[0]["name"]
-    if ref0:  # note sur la commande PROTEC liée
-        try:
-            so_p = x(models, uid, "sale.order", "search_read", [["name", "=", ref0]],
-                     fields=["id"], limit=1)
-            if so_p:
-                rows = "".join(f"<tr><td>{n}</td><td>{q:g} {u}</td></tr>" for _p, q, n, u in lignes)
-                subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
-                x(models, uid, "mail.message", "create", [{
-                    "model": "sale.order", "res_id": so_p[0]["id"],
-                    "message_type": "comment", "subtype_id": subtype[1],
-                    "body": (f"<p><b>🔧 Prestations S3T (sous-traitant)</b> — intervention du {date_fr}"
-                             + (f" · {vals['x_fdt_operateurs']}" if vals.get("x_fdt_operateurs") else "") + "</p>"
-                             "<table border='1' cellpadding='3'><tr><th>Prestation S3T</th><th>Quantité</th></tr>"
-                             + rows + "</table>"
-                             + f"<p>Devis S3T → PROTEC : <b>{name}</b></p>"
-                             + (f"<p>{data['s3t_note']}</p>" if data.get("s3t_note") else "")),
-                }])
-        except Exception:
-            pass
-    return name
+    ref0 = card["ref"].split()[0] if card["ref"] else ""
+    if ref0:
+        so_p = x(models, uid, "sale.order", "search_read", [["name", "=", ref0]],
+                 fields=["id"], limit=1)
+        if so_p:
+            d = card["day"]
+            date_fr = f"{d[8:10]}/{d[5:7]}/{d[:4]}"
+            rows = "".join(f"<tr><td>{n}</td><td>{q:g} {u}</td></tr>" for q, n, u in lignes)
+            subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
+            x(models, uid, "mail.message", "create", [{
+                "model": "sale.order", "res_id": so_p[0]["id"],
+                "message_type": "comment", "subtype_id": subtype[1],
+                "body": (f"<p><b>🔧 Prestations S3T (sous-traitant)</b> — intervention du {date_fr}"
+                         + (f" · {vals['x_fdt_operateurs']}" if vals.get("x_fdt_operateurs") else "") + "</p>"
+                         "<table border='1' cellpadding='3'><tr><th>Prestation S3T</th><th>Quantité</th></tr>"
+                         + rows + "</table>"
+                         + (f"<p>{data['s3t_note']}</p>" if data.get("s3t_note") else "")),
+            }])
+    return "ok"
 
 def _labelize(code):
     """Libellé lisible pour un code inconnu (anciennes fiches)."""

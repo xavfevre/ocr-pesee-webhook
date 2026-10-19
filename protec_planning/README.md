@@ -50,13 +50,11 @@ avec une quantité et une unité. À l'enregistrement (hors pause) :
 
 - les quantités sont stockées dans `x_fdt_data["s3t"]` et résumées dans le chatter du
   créneau ; elles figurent aussi dans « Prestations réalisées » du rapport client ;
-- un **devis S3T → PROTEC** (société S3T, client = société PROTEC du créneau,
-  `origin` = `PROTEC <réf> · créneau <id>`) est créé en brouillon, ou ses lignes
-  remplacées tant qu'il n'est pas confirmé ; S3T le confirme et facture PROTEC ;
-- une **note** est posée sur la commande PROTEC liée (prestations + n° du devis S3T).
+- une **note** « Prestations S3T (sous-traitant) » est posée sur la commande PROTEC liée.
 
-Le compte relais doit avoir accès à la société S3T (sinon l'onglet affiche
-« Articles S3T inaccessibles » et rien n'est créé).
+Aucun devis S3T n'est généré (décision du 19/10/2026) : S3T facture PROTEC comme
+aujourd'hui, à partir des prestations notées. Le compte relais doit avoir accès à la
+société S3T pour lire ses articles (sinon l'onglet affiche « Articles S3T inaccessibles »).
 
 ## Champs créés dans Odoo (planning.slot, champs manuels)
 

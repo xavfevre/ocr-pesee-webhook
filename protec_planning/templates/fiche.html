@@ -99,7 +99,7 @@
 
 {% if ok == "2" %}<div class="pausebar">⏸ Fiche mise en pause — vos saisies sont conservées, revenez quand vous voulez</div>
 {% elif ok %}<div class="okbar">✓ Fiche enregistrée — transmise au bureau</div>
-{% if s3t_cmd %}<div class="okbar">🔧 Prestations S3T : devis S3T → PROTEC {{ s3t_cmd }}</div>{% endif %}
+{% if s3t_cmd == 'ok' %}<div class="okbar">🔧 Prestations S3T transmises au bureau</div>{% elif s3t_cmd %}<div class="okbar">🔧 Prestations S3T : {{ s3t_cmd }}</div>{% endif %}
 {% elif deja_fait %}<div class="donebar">Fiche déjà remplie — vous pouvez la modifier</div>
 {% elif en_pause %}<div class="pausebar">⏸ Fiche en pause — reprenez votre saisie puis ENREGISTRER</div>{% endif %}
 
@@ -205,8 +205,7 @@
             <input type="text" name="s3t_note" value="{{ s3t_note }}">
           </div>
           <div style="font-size:12px; color:#6b7c9a; margin-top:8px;">
-            À l'enregistrement : les prestations sont transmises au bureau PROTEC (créneau + commande)
-            et un devis S3T → PROTEC est créé en brouillon pour la facturation S3T.
+            À l'enregistrement, les prestations sont transmises au bureau PROTEC (créneau + commande).
           </div>
         </div>
       </div>
