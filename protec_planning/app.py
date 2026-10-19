@@ -35,6 +35,14 @@ UTC = ZoneInfo("UTC")
 EXCLUDED_EMPLOYEE_IDS = {1, 3, 8, 9}  # compte technique + Manon + Natacha (hors terrain)
 CHAUFFEUR_TAG_ID = 1  # étiquette RH « CHAUFFEUR OPÉRATEUR » — seuls ces employés sont listés
 
+# ─── Sous-traitance S3T ──────────────────────────────────────────────────────
+# S3T (société 1 de la même base Odoo) réalise des prestations (ITV, prise en
+# charge fourgon, location caméra…) pour PROTEC : l'onglet « S3T » de la fiche
+# de fin de travaux liste ses articles ; à l'enregistrement un devis S3T → PROTEC
+# est créé en brouillon et une note est posée sur la commande PROTEC.
+S3T_COMPANY_ID = 1
+S3T_CTX = {"allowed_company_ids": [S3T_COMPANY_ID]}
+
 # Palette couleurs vives par chauffeur (stable sur l'id employé)
 PALETTE = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#0d9488",
            "#db2777", "#ca8a04", "#4f46e5", "#dc2626", "#0891b2"]
@@ -241,6 +249,26 @@ def get_fleet_vehicles(uid, models):
     except Exception:
         data = []
     _veh_cache["t"], _veh_cache["data"] = now, data
+    return data
+
+_s3t_cache = {"t": 0.0, "data": None}
+
+def get_s3t_articles(uid, models):
+    """Articles vendables de la société S3T (nom + unité), cache 10 min.
+    Liste vide si le compte relais n'a pas accès à la société S3T."""
+    now = time.time()
+    if _s3t_cache["data"] is not None and now - _s3t_cache["t"] < 600:
+        return _s3t_cache["data"]
+    try:
+        arts = x(models, uid, "product.product", "search_read",
+                 [["company_id", "=", S3T_COMPANY_ID], ["sale_ok", "=", True]],
+                 fields=["name", "uom_id"], order="name asc", limit=200, context=S3T_CTX)
+        data = [{"id": a["id"], "name": a["name"],
+                 "unite": a["uom_id"][1] if a.get("uom_id") else ""} for a in arts]
+    except Exception:
+        data = []
+    if data:
+        _s3t_cache["t"], _s3t_cache["data"] = now, data
     return data
 
 def fetch_slots(uid, models, d_start: date, d_end: date, emp_id=None):
@@ -511,7 +539,7 @@ def fiche(slot_id):
 
     uid, models = odoo_connect()
     recs = x(models, uid, "planning.slot", "read", [slot_id],
-             fields=SLOT_FIELDS + FDT_FIELDS + ["partner_street2"])
+             fields=SLOT_FIELDS + FDT_FIELDS + ["partner_street2", "company_id"])
     if not recs:
         abort(404)
     s = recs[0]
@@ -558,6 +586,21 @@ def fiche(slot_id):
                 "probleme": f.get(f"curage_probleme_{i}", "").strip(),
             })
         data["curage"] = curage_rows
+
+        # Prestations S3T (sous-traitance) : quantité par article S3T
+        s3t_arts = {a["id"]: a for a in get_s3t_articles(uid, models)}
+        s3t_rows = {}
+        for k in f.keys():
+            mo = re.match(r"s3t_(\d+)_qte$", k)
+            if not mo or not f.get(k, "").strip():
+                continue
+            pid = int(mo.group(1))
+            art = s3t_arts.get(pid)
+            s3t_rows[str(pid)] = {"qte": f.get(k, "").strip(),
+                                  "nom": art["name"] if art else f"Article S3T {pid}",
+                                  "unite": art["unite"] if art else ""}
+        data["s3t"] = s3t_rows
+        data["s3t_note"] = f.get("s3t_note", "").strip()
 
         def bin_val(field_val):
             if field_val and field_val.startswith("data:"):
@@ -649,9 +692,18 @@ def fiche(slot_id):
             except Exception:
                 pass
 
+        # Sous-traitance S3T : devis S3T → PROTEC (brouillon) + note sur la
+        # commande PROTEC — jamais en pause, jamais bloquant pour la fiche
+        s3t_cmd = ""
+        if not pause and data.get("s3t"):
+            try:
+                s3t_cmd = _s3t_commande(uid, models, card, slot_id, s, data, vals)
+            except Exception as ex:
+                s3t_cmd = "ERREUR : " + str(ex)[:160]
+
         back = request.args.get("back", "")
         return redirect(url_for(".fiche", slot_id=slot_id, t=token, back=back,
-                                ok=2 if pause else 1))
+                                ok=2 if pause else 1, s3t=s3t_cmd or None))
 
     # GET : présence signature/photos sans télécharger les binaires
     bins = x(models, uid, "planning.slot", "read", [slot_id],
@@ -680,6 +732,8 @@ def fiche(slot_id):
                   for tkey, _tl, rows in TRAVAUX_TABS}
     curage_rows = saved_data.get("curage", []) if isinstance(saved_data, dict) else []
     curage_commune = (saved_data.get("curage_commune") if isinstance(saved_data, dict) else "") or card["ville"]
+    s3t_saved = saved_data.get("s3t", {}) if isinstance(saved_data, dict) else {}
+    s3t_note = (saved_data.get("s3t_note") if isinstance(saved_data, dict) else "") or ""
 
     prefill = {
         "vehicule":      s.get("x_fdt_vehicule") or "",
@@ -720,6 +774,9 @@ def fiche(slot_id):
         dechets=DECHETS, destinations=DESTINATIONS,
         vehicules=get_fleet_vehicles(uid, models),
         saved=saved_data,
+        s3t_articles=get_s3t_articles(uid, models), s3t_saved=s3t_saved,
+        s3t_note=s3t_note, s3t_count=len(s3t_saved),
+        s3t_cmd=request.args.get("s3t", ""),
         has=has,
         signataire=s.get("x_fdt_signataire") or "",
         deja_fait=bool(s.get("x_fdt_fait")),
@@ -761,6 +818,14 @@ def render_fiche_html(card, vals, data, nphotos=0):
                  + rows_t + "</table>")
     if data.get("greenfosse"):
         html += "<p>🌱 <b>Greenfosse</b></p>"
+    rows_s = "".join(f"<tr><td>{v.get('nom', pid)}</td><td>{v.get('qte','')} {v.get('unite','')}</td></tr>"
+                     for pid, v in data.get("s3t", {}).items())
+    if rows_s:
+        html += ("<p><b>🔧 Prestations S3T (sous-traitant)</b></p>"
+                 "<table border='1' cellpadding='3'><tr><th>Prestation S3T</th><th>Quantité</th></tr>"
+                 + rows_s + "</table>")
+        if data.get("s3t_note"):
+            html += f"<p>{data['s3t_note']}</p>"
     if vals["x_fdt_commentaires"]:
         html += f"<p><b>Commentaires :</b><br/>{vals['x_fdt_commentaires']}</p>"
     if rows_d:
@@ -775,6 +840,68 @@ def render_fiche_html(card, vals, data, nphotos=0):
                  "<table border='1' cellpadding='3'><tr><th>Rue</th><th>Longueur (ml)</th>"
                  "<th>Amiante</th><th>Problèmes rencontrés</th></tr>" + rows_c + "</table>")
     return html
+
+def _s3t_commande(uid, models, card, slot_id, slot, data, vals):
+    """Devis S3T → PROTEC (société S3T, brouillon) portant les prestations S3T de
+    la fiche : créé la première fois, lignes remplacées aux enregistrements
+    suivants tant qu'il n'est pas confirmé. Pose aussi une note sur la commande
+    PROTEC liée (visible dans PROTEC). Renvoie le nom du devis S3T."""
+    ref0 = card["ref"].split()[0] if card["ref"] else ""
+    origin = f"PROTEC {ref0 or 'sans commande'} · créneau {slot_id}"
+    lignes = []
+    for pid, v in data.get("s3t", {}).items():
+        try:
+            qte = float(str(v.get("qte", "")).replace(",", ".").replace(" ", ""))
+        except ValueError:
+            continue
+        if qte > 0:
+            lignes.append((int(pid), qte, v.get("nom", ""), v.get("unite", "")))
+    if not lignes:
+        return ""
+    d = card["day"]
+    date_fr = f"{d[8:10]}/{d[5:7]}/{d[:4]}"
+    adresse = " ".join(p for p in [card.get("street", ""), card.get("zip", ""), card.get("ville", "")] if p)
+    note = (f"Intervention PROTEC du {date_fr} — {card['client']}" + (f", {adresse}" if adresse else "")
+            + (f"<br/>Opérateur(s) : {vals.get('x_fdt_operateurs')}" if vals.get("x_fdt_operateurs") else "")
+            + (f"<br/>{data.get('s3t_note')}" if data.get("s3t_note") else ""))
+    comp_id = slot["company_id"][0] if slot.get("company_id") else 2
+    client_id = x(models, uid, "res.company", "read", [comp_id], fields=["partner_id"])[0]["partner_id"][0]
+    line_vals = [(0, 0, {"product_id": pid, "product_uom_qty": qte}) for pid, qte, _n, _u in lignes]
+    existing = x(models, uid, "sale.order", "search_read",
+                 [["company_id", "=", S3T_COMPANY_ID], ["origin", "=", origin]],
+                 fields=["name", "state", "order_line"], limit=1, context=S3T_CTX)
+    if existing and existing[0]["state"] in ("draft", "sent"):
+        cmds = [(2, lid, 0) for lid in existing[0]["order_line"]] + line_vals
+        x(models, uid, "sale.order", "write", [existing[0]["id"]],
+          {"order_line": cmds, "note": note}, context=S3T_CTX)
+        name = existing[0]["name"]
+    elif existing:
+        name = existing[0]["name"] + " (déjà confirmé, non modifié)"
+    else:
+        so_id = x(models, uid, "sale.order", "create", {
+            "company_id": S3T_COMPANY_ID, "partner_id": client_id, "origin": origin,
+            "client_order_ref": ref0, "note": note, "order_line": line_vals}, context=S3T_CTX)
+        name = x(models, uid, "sale.order", "read", [so_id], fields=["name"], context=S3T_CTX)[0]["name"]
+    if ref0:  # note sur la commande PROTEC liée
+        try:
+            so_p = x(models, uid, "sale.order", "search_read", [["name", "=", ref0]],
+                     fields=["id"], limit=1)
+            if so_p:
+                rows = "".join(f"<tr><td>{n}</td><td>{q:g} {u}</td></tr>" for _p, q, n, u in lignes)
+                subtype = x(models, uid, "ir.model.data", "check_object_reference", "mail", "mt_note")
+                x(models, uid, "mail.message", "create", [{
+                    "model": "sale.order", "res_id": so_p[0]["id"],
+                    "message_type": "comment", "subtype_id": subtype[1],
+                    "body": (f"<p><b>🔧 Prestations S3T (sous-traitant)</b> — intervention du {date_fr}"
+                             + (f" · {vals['x_fdt_operateurs']}" if vals.get("x_fdt_operateurs") else "") + "</p>"
+                             "<table border='1' cellpadding='3'><tr><th>Prestation S3T</th><th>Quantité</th></tr>"
+                             + rows + "</table>"
+                             + f"<p>Devis S3T → PROTEC : <b>{name}</b></p>"
+                             + (f"<p>{data['s3t_note']}</p>" if data.get("s3t_note") else "")),
+                }])
+        except Exception:
+            pass
+    return name
 
 def _labelize(code):
     """Libellé lisible pour un code inconnu (anciennes fiches)."""
@@ -820,7 +947,8 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
 
     labels_t = {c: (l, u) for c, l, u in TRAVAUX}
     rows_t = data.get("travaux", {})
-    if rows_t:
+    rows_s = data.get("s3t", {})
+    if rows_t or rows_s:
         html.append(f"<h3 style='{H2}'>PRESTATIONS RÉALISÉES</h3>")
         html.append("<table style='width:100%;border-collapse:collapse;margin-bottom:6px;'>")
         html.append(f"<tr><th style='{th}'>Prestation</th><th style='{th};width:100px;'>Quantité</th>"
@@ -830,6 +958,10 @@ def build_report_body(client, adresse, date_label, vehicule, operateurs,
             qte = f"{E(v.get('qte',''))} {unit}".strip()
             html.append(f"<tr><td style='{td}'>{label}</td><td style='{td}'>{qte}</td>"
                         f"<td style='{td}'>{E(v.get('temps',''))} {'h' if v.get('temps') else ''}</td></tr>")
+        for pid, v in rows_s.items():
+            qte = f"{E(v.get('qte',''))} {E(v.get('unite',''))}".strip()
+            html.append(f"<tr><td style='{td}'>{E(v.get('nom', str(pid)))}</td>"
+                        f"<td style='{td}'>{qte}</td><td style='{td}'></td></tr>")
         html.append("</table>")
 
     labels_d = dict(DECHETS)

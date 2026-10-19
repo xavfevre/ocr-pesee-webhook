@@ -41,6 +41,23 @@ autre — badges STEP PROTEC/CCLST, volume m³, destination, temps dépotage).
 (dont le détail JSON dans `x_fdt_data`) + poste un résumé HTML dans le
 chatter du créneau. Badge « ✓ FDT » visible sur les plannings bureau.
 
+## Sous-traitance S3T (onglet « S3T » de la fiche)
+
+S3T (société 1 de la même base) réalise des prestations pour PROTEC (inspections
+télévisées, prise en charge fourgon, location caméra…). L'onglet **S3T** de la fiche
+de fin de travaux liste les articles vendables de S3T (`product.product`, société 1)
+avec une quantité et une unité. À l'enregistrement (hors pause) :
+
+- les quantités sont stockées dans `x_fdt_data["s3t"]` et résumées dans le chatter du
+  créneau ; elles figurent aussi dans « Prestations réalisées » du rapport client ;
+- un **devis S3T → PROTEC** (société S3T, client = société PROTEC du créneau,
+  `origin` = `PROTEC <réf> · créneau <id>`) est créé en brouillon, ou ses lignes
+  remplacées tant qu'il n'est pas confirmé ; S3T le confirme et facture PROTEC ;
+- une **note** est posée sur la commande PROTEC liée (prestations + n° du devis S3T).
+
+Le compte relais doit avoir accès à la société S3T (sinon l'onglet affiche
+« Articles S3T inaccessibles » et rien n'est créé).
+
 ## Champs créés dans Odoo (planning.slot, champs manuels)
 
 `x_fdt_fait`, `x_fdt_date`, `x_fdt_vehicule`, `x_fdt_heure_arrivee`,

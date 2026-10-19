@@ -99,6 +99,7 @@
 
 {% if ok == "2" %}<div class="pausebar">⏸ Fiche mise en pause — vos saisies sont conservées, revenez quand vous voulez</div>
 {% elif ok %}<div class="okbar">✓ Fiche enregistrée — transmise au bureau</div>
+{% if s3t_cmd %}<div class="okbar">🔧 Prestations S3T : devis S3T → PROTEC {{ s3t_cmd }}</div>{% endif %}
 {% elif deja_fait %}<div class="donebar">Fiche déjà remplie — vous pouvez la modifier</div>
 {% elif en_pause %}<div class="pausebar">⏸ Fiche en pause — reprenez votre saisie puis ENREGISTRER</div>{% endif %}
 
@@ -153,6 +154,10 @@
               data-tab="tab-curage-tranches" onclick="showTab('tab-curage-tranches', this)">
         Tranches de curage<span class="cnt">{{ curage_rows|length }}</span>
       </button>
+      <button type="button" class="tab-btn{{ ' filled' if s3t_count else '' }}"
+              data-tab="tab-s3t" onclick="showTab('tab-s3t', this)">
+        S3T<span class="cnt">{{ s3t_count }}</span>
+      </button>
     </div>
     <div class="box-body" style="padding:0 0 4px;">
       {% for tkey, tlabel, rows in travaux_tabs %}
@@ -181,6 +186,30 @@
         {% endif %}
       </div>
       {% endfor %}
+      <div class="tab-pane" id="tab-s3t">
+        <table>
+          <tr><th>Prestations S3T (sous-traitance)</th><th class="col-q">Quantité réalisée</th><th class="col-u">Unité</th></tr>
+          {% for a in s3t_articles %}
+          <tr>
+            <td class="lbl">{{ a.name }}</td>
+            <td><input type="text" inputmode="decimal" name="s3t_{{ a.id }}_qte" value="{{ s3t_saved.get(a.id|string, {}).get('qte', '') }}"></td>
+            <td class="unit">{{ a.unite }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="lbl" style="color:#b91c1c;">Articles S3T inaccessibles pour le moment — réessayez plus tard.</td></tr>
+          {% endfor %}
+        </table>
+        <div style="padding:10px 12px;">
+          <div class="fld">
+            <label>Précisions S3T (matériel, remarques)</label>
+            <input type="text" name="s3t_note" value="{{ s3t_note }}">
+          </div>
+          <div style="font-size:12px; color:#6b7c9a; margin-top:8px;">
+            À l'enregistrement : les prestations sont transmises au bureau PROTEC (créneau + commande)
+            et un devis S3T → PROTEC est créé en brouillon pour la facturation S3T.
+          </div>
+        </div>
+      </div>
       <div class="tab-pane" id="tab-curage-tranches">
         <div style="padding:10px;">
           <div class="fld" style="margin-bottom:10px;">
