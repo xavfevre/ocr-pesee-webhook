@@ -867,11 +867,11 @@ def page():
               "<form method='get' action='facture' style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>"
               "<input type='hidden' name='token' value='%s'><input type='hidden' name='societe' value='%s'>"
               "<input type='text' name='numero' placeholder='FAC/26-27/0600' required style='min-width:180px;'>"
-              "<button type='submit'>⬇ .txt</button></form>"
-              "<p class='hint' style='margin:10px 0 0;'>Même format que le journal. La facture est marquée « Transféré Sage » dans Odoo ; "
+              "<button type='submit'>⬇ .%s</button></form>"
+              "<p class='hint' style='margin:10px 0 0;'>Même format que le journal. La facture est marquée « Transféré Sage » dans Odoo (= transmise à %s) ; "
               "si elle l'est déjà, la page demande confirmation.</p></div>"
               "<div class='card'><details%s><summary>🕘 Historique des exports (%d)</summary>%s</details></div>"
-              "</div>" % (token, comp, "" if histo else " open", len(histo), histo_html))
+              "</div>" % (token, comp, ext, dest, "" if histo else " open", len(histo), histo_html))
 
     if prof:
         titre, sous, outils = prof["titre"], prof["sous_titre"], ""
@@ -1036,7 +1036,11 @@ def facture():
     _marquer_transferees(sortis)
     _histo_add(mv["company_id"][0], "🧾 Facture seule %s" % mv["name"], mv["date"], mv["date"])
     slug = mv["company_id"][1].replace(" ", "_").replace("/", "_")
-    nom = "%s_%s_%s.txt" % (prefixe, slug, mv["name"].replace("/", "-"))
+    prof = _profil(mv["company_id"][0])
+    if prof and prof.get("prefixe_fichier"):
+        nom = "%s_%s.%s" % (prof["prefixe_fichier"], mv["name"].replace("/", "-"), prof.get("extension", "csv"))
+    else:
+        nom = "%s_%s_%s.txt" % (prefixe, slug, mv["name"].replace("/", "-"))
     return Response(contenu.encode("cp1252", errors="replace"),
                     mimetype="text/plain; charset=windows-1252",
                     headers={"Content-Disposition": "attachment; filename=%s" % nom})
