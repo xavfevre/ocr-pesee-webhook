@@ -115,7 +115,7 @@ s.append(Paragraph("Tout se pilote depuis <b>l'accueil</b>, le chauffeur reste d
 s.extend(puces([
     "<b>Le DAP dans Odoo</b> : élaboré à l'accueil avec le client (ou rempli en ligne par le client puis validé), relié à sa fiche, avec chantier, transporteur, nature et code déchet, tonnage estimé, validité 12 mois, numéro d'acceptation. Un DAP accepté est visible à la bascule dans la seconde.",
     "<b>La bascule télécommandée</b> : la page « Pont-bascule » d'Odoo affiche le poids de la D400 en direct et l'image de la caméra du pont, depuis l'accueil comme depuis la cabine. La pesée crée la ligne « Décharge (Tonnes) » sur le bon de commande du client au prix négocié ; le bureau confirme et facture.",
-    "<b>Le portier vidéo à la colonne</b> : le chauffeur appuie, l'accueil répond, voit le camion et le guide. Sans DAP, l'accueil le crée pendant l'appel : plus de trajet jusqu'au bureau.",
+    "<b>Le portier vidéo DoorBird à la colonne</b> : le chauffeur appuie, l'accueil répond sur l'application ou un téléphone IP, voit le camion et le guide. Sans DAP, l'accueil le crée pendant l'appel : plus de trajet jusqu'au bureau.",
     "<b>Les documents sans papier</b> : ticket de pesée et bordereau de suivi générés en PDF et envoyés par e-mail au client dès la pesée vide. Le registre d'admission et le registre des refus se remplissent tout seuls.",
 ]))
 
@@ -131,7 +131,7 @@ s.extend(etapes([
 ]))
 s.append(Paragraph("4.2 Accueil : réceptionner un camion à distance", H3))
 s.extend(etapes([
-    "Le portier sonne : répondre. Demander l'<b>immatriculation</b> et le <b>numéro de DAP</b> (ou le nom du chantier).",
+    "Le portier DoorBird sonne (application sur le téléphone ou la tablette de l'accueil, ou téléphone IP) : répondre, on voit le chauffeur. Demander l'<b>immatriculation</b> et le <b>numéro de DAP</b> (ou le nom du chantier).",
     "Sur la page <b>Pont-bascule</b> (Odoo, Ventes > Pont-bascule), mode <b>Apport extérieur</b> : taper l'immatriculation ou le client. La page affiche les DAP valides du client (numéro, chantier, nature, tonnage déjà apporté). Sans DAP valide : bandeau rouge, pas de pesée possible ; créer le DAP (4.1) pendant l'appel, puis rafraîchir.",
     "Dire au chauffeur d'avancer sur le pont. Vérifier sur la <b>caméra</b> que le camion est entièrement sur le pont ; le poids passe à <b>STABLE</b>. Contrôle visuel du chargement : <b>Bon / Moyen / Mauvais</b>, puis <b>Accepté</b> ou <b>Refusé</b> (motif obligatoire, le camion repart, le refus est au registre).",
     "Bouton <b>Pesée 1 : enregistrer le poids</b> (plein). Indiquer au chauffeur la <b>zone de déchargement</b>.",
@@ -155,8 +155,8 @@ s.append(tableau([
     ['Élément', 'Rôle', 'Ordre de grandeur'],
     ['Pont Wi-Fi point à point (2 antennes extérieures 5 GHz)', "Relie la cabine au réseau du bureau : internet pour le PC, le portier et la caméra", '150 à 300 € le couple'],
     ['PC de la cabine (existant) + programme « passerelle »', "Lit la D400 par le câble série et envoie poids et image au relais chaque seconde ; doit rester allumé. Sinon convertisseur RS232/Ethernet", 'convertisseur 100 à 150 € si besoin'],
-    ['Portier vidéo IP à la colonne (bouton, caméra, haut-parleur)', "Le chauffeur appelle sans descendre ; l'accueil répond sur un téléphone IP ou une application et voit le camion", '300 à 900 € + poste de réponse 80 à 150 €'],
-    ['Caméra IP au-dessus du pont', "Vérifier à distance que le camion est bien sur le pont et voir le chargement", '100 à 250 €'],
+    ['Portier vidéo DoorBird D1101V à la colonne (inox, caméra, bouton, haut-parleur)', "Le chauffeur appelle sans descendre ; l'accueil répond sur l'application DoorBird (téléphone, tablette) ou un téléphone IP à écran (SIP). Wi-Fi 2,4 GHz et PoE, relais pour une barrière plus tard ; son image est réutilisable dans la page bascule", '400 à 600 € (Boulanger, Rue du Commerce) ; téléphone IP à écran en option 200 à 350 €'],
+    ['Caméra IP au-dessus du pont', "Vérifier à distance que le camion est bien sur le pont et voir le chargement (le DoorBird voit le chauffeur, pas le pont entier)", '100 à 250 €'],
     ['Panneau de consignes à la colonne', "Les 6 étapes pour le chauffeur (voir ci-dessous)", 'impression'],
     ["Imprimante Epson à l'accueil (tickets)", "Le ticket de pesée s'imprime à l'accueil depuis la page ; rien à la bascule, le chauffeur reçoit ses documents par e-mail", 'imprimante prévue'],
     ["Caisse Odoo à l'accueil (point de vente)", "Encaissement immédiat des particuliers (espèces, carte) avec ticket de caisse, sur la même imprimante ; la pesée peut créer directement le ticket à régler", 'inclus dans Odoo'],
@@ -172,14 +172,14 @@ s.append(tableau([
     ['1', "DAP dans Odoo (fiche enrichie, boutons Imprimer / Accepter / Refuser, formulaire officiel prérempli, reprise des DAP du carnet)", 'rien : utilisable tout de suite'],
     ['2', "Pont Wi-Fi posé, PC de la cabine sur le réseau, programme passerelle installé (poids en direct à l'accueil)", 'pont Wi-Fi'],
     ['3', "Page Pont-bascule : mode Apport extérieur (contrôle DAP, contrôle visuel, refus), ticket et bordereau PDF par e-mail, vue caméra", 'étapes 1 et 2'],
-    ['4', "Portier vidéo et caméra installés, consignes affichées ; essais avec quelques chauffeurs habitués", 'étape 2'],
+    ['4', "Portier DoorBird et caméra posés (câble PoE depuis le switch de la cabine, hauteur de la fenêtre du chauffeur, visière), consignes affichées ; essais avec quelques chauffeurs habitués", 'étape 2'],
     ['5', "Registres et alertes DAP ; fin du carnet papier", 'étape 3'],
 ], [16 * mm, 118 * mm, 44 * mm]))
 
 s.append(Paragraph("8. Ce que ça change", H2))
 s.append(tableau([
     ['Pour', 'Avant', 'Après'],
-    ['Le chauffeur', "DAP papier à présenter, trajet au bureau s'il manque, bordereau à remplir à la main", "Appuie sur le portier, donne son numéro de DAP, reste dans le camion, reçoit son ticket par e-mail"],
+    ['Le chauffeur', "DAP papier à présenter, trajet au bureau s'il manque, bordereau à remplir à la main", "Appuie sur le portier DoorBird, donne son numéro de DAP, reste dans le camion, reçoit son ticket par e-mail"],
     ["L'accueil", "Ne voit pas la bascule, DAP sur papier", "Pèse à distance avec le poids et la caméra en direct, crée les DAP, voit tout dans Odoo"],
     ["L'agent de bascule", "Doit être présent pour chaque camion", "Même page quand il est là ; la bascule fonctionne sans lui le reste du temps"],
     ['Le bureau / la compta', "Ressaisie des bons papier, registres à tenir", "Lignes de commande créées à la pesée, registres automatiques, alertes DAP"],
