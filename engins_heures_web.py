@@ -110,8 +110,22 @@ def _sous_periodes(periodicite, annee):
     return [(date(annee, 3 * t - 2, 1), _fin_mois(annee, 3 * t), 'T%d %d' % (t, annee), '%s trimestre %d' % ('1er' if t == 1 else '%de' % t, annee)) for t in range(1, 5)]
 
 
+_CHAMPS_VEH = ['name', 'license_plate', 'category_id', 'odometer', 'odometer_unit', 'company_id', 'active', 'model_id', 'vin_sn']
+
+
+def _champs_vehicule():
+    """Champs lus sur fleet.vehicle ; x_conso_lh (Consommation GNR en l/h, champ manuel du 21/10/2026) s'il existe."""
+    if 'x_conso_lh' not in _CHAMPS_VEH:
+        try:
+            if 'x_conso_lh' in _call('fleet.vehicle', 'fields_get', ['x_conso_lh'], attributes=['type']):
+                _CHAMPS_VEH.append('x_conso_lh')
+        except Exception:  # noqa: BLE001
+            pass
+    return _CHAMPS_VEH
+
+
 def _engins(archives=False):
-    rows = _call('fleet.vehicle', 'search_read', [], fields=['name', 'license_plate', 'category_id', 'odometer', 'odometer_unit', 'company_id', 'active', 'model_id', 'vin_sn'], limit=1000, **CTX)
+    rows = _call('fleet.vehicle', 'search_read', [], fields=_champs_vehicule(), limit=1000, **CTX)
     eng = [v for v in rows if (v['odometer_unit'] == 'miles' or (v['category_id'] and v['category_id'][1] in CATEGORIES)) and (archives or v['active'])]
     eng.sort(key=lambda v: ((v['company_id'] and v['company_id'][1]) or '', (v['category_id'] and v['category_id'][1]) or 'zzz', v['name']))
     return eng
@@ -205,7 +219,7 @@ def _declaration(periodicite, annee, prorata, archives, societes=None, eligibles
         for c in cells:
             c['he'] = round(c['h'] * pctv / 100) if (elig and c['h'] is not None) else None
         lignes.append({'id': v['id'], 'nom': v['name'], 'categorie': (v['category_id'] and v['category_id'][1]) or '', 'societe': (v['company_id'] and v['company_id'][1]) or '',
-                       'actif': v['active'], 'serie': v.get('vin_sn') or '', 'eligible': elig, 'type': g.get('type') or '', 'pct': pctv, 'gnr_defaut': bool(g.get('defaut')),
+                       'actif': v['active'], 'serie': v.get('vin_sn') or '', 'conso_lh': v.get('x_conso_lh') or None, 'eligible': elig, 'type': g.get('type') or '', 'pct': pctv, 'gnr_defaut': bool(g.get('defaut')),
                        'total_elig': round(total * pctv / 100) if (elig and total is not None) else None,
                        'debut': {'date': _fmt(avant[-1][0]), 'valeur': round(avant[-1][1])} if avant else None,
                        'cellules': cells, 'total': total, 'remarques': rem,
@@ -312,16 +326,16 @@ def export():
                 % (', réparties au prorata des jours entre deux relevés' if t['periode']['prorata'] else ' ; une case vide = pas de relevé dans la sous-période, ses heures sont comptées dans la case du relevé suivant', _fmt(date.today())))
     n = len(t['colonnes'])
     noms_types = {c: l for c, l, _p in TYPES_GNR}
-    ent = ['Société', 'Catégorie', 'Engin', 'N° de série / châssis', 'Éligible GNR', "Type d'engin (circulaire)", '% éligible', 'Relevé début', 'Date début']
+    ent = ['Société', 'Catégorie', 'Engin', 'N° de série / châssis', 'Éligible GNR', 'Consommation GNR (l/h)', "Type d'engin (circulaire)", '% éligible', 'Relevé début', 'Date début']
     for c in t['colonnes']:
         ent += ['Fin %s' % c['court'], 'Date', 'Heures %s' % c['court']]
     ent += ['Total heures', 'Heures éligibles', 'Remarques']
     ws.append([]); ws.append(ent)
     for c in ws[4]:
         c.font = gras; c.fill = fond; c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    AV = 9   # colonnes avant les périodes
+    AV = 10  # colonnes avant les périodes
     for l in t['lignes']:
-        ligne = [l['societe'], l['categorie'], l['nom'], l['serie'], 'oui' if l['eligible'] else 'non', noms_types.get(l['type'], ''), l['pct'] if l['eligible'] else '',
+        ligne = [l['societe'], l['categorie'], l['nom'], l['serie'], 'oui' if l['eligible'] else 'non', l['conso_lh'] if l['conso_lh'] else '', noms_types.get(l['type'], ''), l['pct'] if l['eligible'] else '',
                  l['debut']['valeur'] if l['debut'] else '', l['debut']['date'] if l['debut'] else '']
         for c in l['cellules']:
             ligne += [c['releve']['valeur'] if c['releve'] else '', c['releve']['date'] if c['releve'] else '', c['h'] if c['h'] is not None else '']
@@ -344,11 +358,12 @@ def export():
     for soc in t['totaux']:
         total_ligne('TOTAL ' + soc, t['totaux'][soc], t['totaux_elig'][soc])
     total_ligne('TOTAL engins', t['general'], t['general_elig'])
-    larg = [20, 16, 44, 18, 10, 26, 9, 11, 11] + [11, 11, 11] * n + [12, 12, 70]
+    larg = [20, 16, 44, 18, 10, 13, 26, 9, 11, 11] + [11, 11, 11] * n + [12, 12, 70]
     for i, w in enumerate(larg, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
     for row in ws.iter_rows(min_row=5):
-        for c in row[6:len(larg) - 1]:
+        row[5].number_format = '0.0'
+        for c in row[7:len(larg) - 1]:
             c.number_format = '# ##0'
         row[-1].alignment = Alignment(wrap_text=True, vertical='top')
     ws.freeze_panes = 'D5'

@@ -61,6 +61,7 @@
   .msg{border-radius:10px;padding:10px 12px;font-weight:800;margin-bottom:10px;display:none;}
   .msg.ok{background:#dcfce7;color:#166534;display:block;}
   .msg.bad{background:#fee2e2;color:#991b1b;display:block;}
+  .lh{display:inline-block;margin-left:6px;font-weight:700;color:#0f766e;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -103,6 +104,7 @@
              eligibles: (P.get('eligibles') || localStorage.getItem('gnr_elig') || '1') === '1'};
   var dispo = null;
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function nb1(x){ return x == null ? '' : (Math.round(x * 10) / 10).toLocaleString('fr-FR'); }
   function nb(n){ return n == null ? '' : Math.round(n).toLocaleString('fr-FR'); }
   function qs(){ return 'periodicite=' + sel.periodicite + '&annee=' + sel.annee + '&societes=' + sel.socs.join(',') + '&prorata=' + (sel.prorata ? 1 : 0) + '&archives=' + ($('archives').checked ? 1 : 0) + '&eligibles=' + ($('eligibles').checked ? 1 : 0); }
   var TYPES_GNR = [];
@@ -129,7 +131,7 @@
       $('titre').textContent = d.periode.libelle + ' · ' + d.periode.societes.join(' + ') + ' · ' + d.lignes.length + ' engins' + (d.periode.prorata ? ' · au prorata des jours' : '');
       var n = d.colonnes.length;
       TYPES_GNR = d.types_gnr || TYPES_GNR;
-      $('t').querySelector('thead').innerHTML = '<tr><th class="g">Engin</th><th class="g">GNR : éligible · type · %</th><th>Début<br/><span style="font-weight:600;text-transform:none">dernier relevé avant</span></th>' + d.colonnes.map(function(c){ return '<th class="fin" title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Fin<br/>' + esc(c.court) + '</th><th title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Heures<br/>' + esc(c.court) + '</th>'; }).join('') + '<th>Total<br/>heures</th><th>Heures<br/>éligibles</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
+      $('t').querySelector('thead').innerHTML = '<tr><th class="g">Engin</th><th class="g">GNR : éligible · type · % · l/h</th><th>Début<br/><span style="font-weight:600;text-transform:none">dernier relevé avant</span></th>' + d.colonnes.map(function(c){ return '<th class="fin" title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Fin<br/>' + esc(c.court) + '</th><th title="du ' + esc(c.debut) + ' au ' + esc(c.fin) + '">Heures<br/>' + esc(c.court) + '</th>'; }).join('') + '<th>Total<br/>heures</th><th>Heures<br/>éligibles</th><th class="g">Remarques</th><th class="g">Nouveau relevé</th></tr>';
       var tb = $('t').querySelector('tbody'); tb.innerHTML = '';
       var soc = null;
       d.lignes.forEach(function(l){
@@ -138,7 +140,7 @@
         var rel = function(r){ return r ? nb(r.valeur) + '<span class="r">' + esc(r.date) + '</span>' : '<span class="vide">—</span>'; };
         var opts = TYPES_GNR.map(function(t){ return '<option value="' + t.code + '" data-pct="' + t.pct + '"' + (t.code === l.type ? ' selected' : '') + '>' + esc(t.nom) + '</option>'; }).join('');
         tr.innerHTML = '<td class="g nom">' + esc(l.nom) + '<small>' + esc(l.categorie) + (l.serie ? ' · n° ' + esc(l.serie) : '') + (l.actif ? '' : ' · archivé') + (l.dernier ? ' · dernier relevé ' + esc(l.dernier.date) + ' : ' + nb(l.dernier.valeur) + ' h' : ' · aucun relevé') + '</small></td>'
-          + '<td class="gnr"><input type="checkbox" data-el="' + l.id + '"' + (l.eligible ? ' checked' : '') + ' title="Éligible au remboursement GNR"/> <select data-ty="' + l.id + '"' + (l.eligible ? '' : ' disabled') + '>' + opts + '</select> <input type="number" min="0" max="100" step="1" data-pc="' + l.id + '" value="' + (l.eligible ? l.pct : '') + '"' + (l.eligible ? '' : ' disabled') + ' title="% des consommations éligibles"/> %' + (l.gnr_defaut ? '<span class="def">proposé d\'après la catégorie, à confirmer</span>' : '') + '</td>'
+          + '<td class="gnr"><input type="checkbox" data-el="' + l.id + '"' + (l.eligible ? ' checked' : '') + ' title="Éligible au remboursement GNR"/> <select data-ty="' + l.id + '"' + (l.eligible ? '' : ' disabled') + '>' + opts + '</select> <input type="number" min="0" max="100" step="1" data-pc="' + l.id + '" value="' + (l.eligible ? l.pct : '') + '"' + (l.eligible ? '' : ' disabled') + ' title="% des consommations éligibles"/> %' + (l.gnr_defaut ? '<span class="def">proposé d\'après la catégorie, à confirmer</span>' : '') + ' <span class="lh" title="Consommation GNR (l/h), fiche véhicule Odoo">' + (l.conso_lh ? nb1(l.conso_lh) + ' l/h' : '<span style="color:#cbd5e1">l/h ?</span>') + '</span></td>'
           + '<td class="fin">' + rel(l.debut) + '</td>'
           + l.cellules.map(function(c){
               var fin = '<td class="fin">' + rel(c.releve) + '</td>';
