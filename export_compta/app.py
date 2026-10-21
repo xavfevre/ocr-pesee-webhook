@@ -393,7 +393,7 @@ def _journaux(comp):
             b["format_caisse"] = False
             b["explication"] = "Encaissements différés (CB / chèques à encaisser) — format ventes, comme l'export historique"
             js.append(b)
-    return js
+    return [j for j in js if j["id"] not in JOURNAUX_EXCLUS]      # journaux hors export (consigne)
 
 
 def _apercu(comp, du, au, journaux):
@@ -527,6 +527,20 @@ def _pieces_retro(comp, journaux):
 
 
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
+
+# Journaux volontairement HORS export Sage (consigne de Xavier du 21/10/2026) : le journal « Caisse » CSH2 de
+# Châtel'Granulats (id 42) porte les mouvements d'espèces (fond de caisse, apports de monnaie, remises en banque,
+# écarts de comptage, compte d'attente 471000) que Charlotte ne reprend pas dans Sage. Les clôtures de session
+# du point de vente (« Cloture CAISSE », pièces POSS : ventes comptoir, TVA) restent exportées.
+JOURNAUX_EXCLUS = {42: "mouvements d'espèces (fond de caisse, apports, remises en banque, écarts) : non transmis à Sage, consigne de Xavier du 21/10/2026"}
+
+
+def _journaux_exclus(comp):
+    """Journaux de cette société volontairement hors export (affichés en gris sur la page)."""
+    if not JOURNAUX_EXCLUS:
+        return []
+    return _q("account.journal", "search_read", [("company_id", "=", comp), ("id", "in", list(JOURNAUX_EXCLUS))],
+              fields=["name", "code", "type"], context={"lang": "fr_FR"})
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -676,6 +690,11 @@ def page():
                         "<td class='num'>%s</td><td class='num'>%.2f €</td><td class='num'>%s</td></tr>" % (
                             j["code"] or "—", j["name"], j.get("explication", ""),
                             TYPES.get(j["type"], j["type"]), n_sort, tag, a["nlignes"], a["debit"], btn))
+    if lignes_html:
+        for j in _journaux_exclus(comp):
+            lignes_html += ("<tr style='opacity:.7'><td><span class='tag mut'>%s</span></td><td><div class='jname'>%s</div>"
+                            "<div class='jexp'>%s</div></td><td>%s</td><td colspan='4'><span class='tag warn'>🚫 hors export Sage</span></td></tr>"
+                            % (j["code"] or "—", j["name"], JOURNAUX_EXCLUS.get(j["id"], ""), TYPES.get(j["type"], j["type"])))
 
     corps = ""
     if not lignes_html:
@@ -899,6 +918,10 @@ def facture():
         return Response("Plusieurs pièces portent ce numéro : précisez la société.",
                         mimetype="text/plain; charset=utf-8", status=409)
     mv = mv[0]
+    if mv["journal_id"] and mv["journal_id"][0] in JOURNAUX_EXCLUS:
+        return Response("%s appartient au journal « %s », volontairement hors export Sage (%s)."
+                        % (mv["name"], mv["journal_id"][1], JOURNAUX_EXCLUS[mv["journal_id"][0]]),
+                        mimetype="text/plain; charset=utf-8", status=409)
     if mv["x_sage_envoye_le"] and request.args.get("force") != "1":
         from urllib.parse import quote as _quote
         html = ("<html><body style='font-family:Segoe UI,sans-serif;padding:30px;max-width:640px;'>"
