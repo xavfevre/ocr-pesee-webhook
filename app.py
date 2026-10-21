@@ -327,6 +327,74 @@ def odoo_write_statut(worksheet_id: int, model: str, statut: str, conn=None):
         app.logger.warning(f"Statut OCR non écrit: {e}")
 
 
+# ─── N° LVN : numéro de la lettre de voiture papier, lu sur les autres photos de la feuille (Xavier, 21/10/2026) ───
+# Le bon de pesée est OCRisé depuis x_studio_photo_bon ; la lettre de voiture (n° LVN 27881…) est en général la
+# photo de chargement (x_studio_photo). Quand la pièce « bon » est elle-même une lettre de voiture, son numéro
+# est le LVN. Résultat écrit dans x_lvn (feuille + tâche) et ajouté au statut OCR.
+PHOTOS_LVN = ["x_studio_photo", "x_studio_photo_1", "x_studio_photos", "x_studio_photos_1", "x_studio_photos_2"]
+
+
+def _lvn_depuis_extraction(extracted):
+    """N° LVN si l'extraction Mistral décrit une lettre de voiture (numero_bon = « n° LVN »)."""
+    if not extracted or extracted.get("type_document") != "lettre_voiture":
+        return None
+    mt = re.search(r"\d{4,7}", str(extracted.get("numero_bon") or ""))
+    return mt.group(0) if mt else None
+
+
+def _chercher_lvn(models, uid, worksheet_id, model, photo_bon=None, maxi=2):
+    """Passe les autres photos (chargement d'abord) à Mistral ; renvoie (lvn, champ) ou (None, None).
+    Au plus `maxi` photos, et jamais deux fois la même image (le chauffeur peut avoir envoyé la même photo deux fois)."""
+    ws = x(models, uid, model, "read", [worksheet_id], fields=PHOTOS_LVN)
+    if not ws:
+        return None, None
+    vus, essais = set(), 0
+    if photo_bon:
+        vus.add(photo_bon[:400])
+    for champ in PHOTOS_LVN:
+        img = ws[0].get(champ)
+        if not img or img[:400] in vus:
+            continue
+        vus.add(img[:400]); essais += 1
+        try:
+            lvn = _lvn_depuis_extraction(extract_with_mistral(img))
+        except Exception as e:  # noqa: BLE001
+            app.logger.warning(f"LVN : OCR {champ} de {worksheet_id} impossible : {e}")
+            lvn = None
+        if lvn:
+            return lvn, champ
+        if essais >= maxi:
+            break
+    return None, None
+
+
+def _ecrire_lvn(models, uid, worksheet_id, model, lvn):
+    """Écrit le N° LVN sur la feuille et sur la tâche, et le mentionne dans le statut OCR."""
+    ws = x(models, uid, model, "read", [worksheet_id], fields=["x_project_task_id", "x_studio_ocr_statut"])
+    vals = {"x_lvn": lvn}
+    statut = (ws[0].get("x_studio_ocr_statut") or "") if ws else ""
+    if statut.startswith("✅") and "LVN" not in statut:
+        vals["x_studio_ocr_statut"] = "%s · LVN %s" % (statut, lvn)
+    x(models, uid, model, "write", [worksheet_id], vals)
+    if ws and ws[0].get("x_project_task_id"):
+        x(models, uid, "project.task", "write", [ws[0]["x_project_task_id"][0]], {"x_lvn": lvn})
+
+
+def _lvn_seul(worksheet_id, model, photo_bon=None):
+    """Recherche du N° LVN seule : photo de chargement arrivée après l'OCR du bon, ou reprise manuelle (/ocr-lvn)."""
+    with _OCR_SEM:
+        try:
+            uid, models = odoo_connect()
+            lvn, champ = _chercher_lvn(models, uid, worksheet_id, model, photo_bon)
+            if lvn:
+                _ecrire_lvn(models, uid, worksheet_id, model, lvn)
+            app.logger.info(f"LVN pour {worksheet_id} : {lvn} ({champ})")
+            return lvn
+        except Exception as e:  # noqa: BLE001
+            app.logger.error(f"Erreur LVN {worksheet_id}: {e}")
+            return None
+
+
 def _section_name(extracted_or_ws, from_ws=False):
     """Construit le libellé de section depuis l'OCR ou depuis la worksheet Odoo."""
     g = extracted_or_ws.get
@@ -429,6 +497,16 @@ def _ocr_traite_1(worksheet_id, model):
         # 3. Écriture des champs
         odoo_write(models, uid, worksheet_id, model, extracted)
 
+        # 3b. N° LVN : la pièce elle-même si c'est une lettre de voiture, sinon les autres photos (chargement d'abord)
+        try:
+            lvn = _lvn_depuis_extraction(extracted)
+            if not lvn:
+                lvn, _champ = _chercher_lvn(models, uid, worksheet_id, model, image_base64)
+            if lvn:
+                _ecrire_lvn(models, uid, worksheet_id, model, lvn)
+        except Exception as e:  # noqa: BLE001
+            app.logger.warning(f"LVN non recherché pour {worksheet_id}: {e}")
+
         # 4. Section sur la commande (idempotent)
         order_id = odoo_order_id_from_worksheet(models, uid, worksheet_id, model)
         section_status = None
@@ -440,6 +518,22 @@ def _ocr_traite_1(worksheet_id, model):
     except Exception as e:
         app.logger.error(f"Erreur OCR {worksheet_id}: {e}")
         odoo_write_statut(worksheet_id, model, f"❌ OCR erreur: {str(e)[:100]}")
+
+
+@app.route("/ocr-lvn", methods=["POST"])
+@require_secret
+def ocr_lvn():
+    """{"_id": <feuille>} : relit les autres photos de la feuille pour trouver le N° LVN, sans refaire l'OCR du bon.
+    Avec "attendre": true, répond après la recherche (pour les essais) ; sinon en tâche de fond."""
+    data = request.get_json(force=True)
+    worksheet_id = data.get("_id") or data.get("id") or data.get("worksheet_id")
+    model = data.get("_model") or data.get("model") or ODOO_WORKSHEET_MODEL
+    if not worksheet_id:
+        return jsonify({"error": "id requis"}), 400
+    if data.get("attendre"):
+        return jsonify({"worksheet_id": int(worksheet_id), "lvn": _lvn_seul(int(worksheet_id), model)})
+    _thr.Thread(target=_lvn_seul, args=(int(worksheet_id), model), daemon=True).start()
+    return jsonify({"status": "accepted", "worksheet_id": int(worksheet_id)})
 
 
 @app.route("/add-section", methods=["POST"])
@@ -917,6 +1011,14 @@ def tournee_upload():
         ws_id = ws[0] if ws else x(models, uid, TOURNEE_WS_MODEL, "create",
                                    {"x_project_task_id": task_id})
         x(models, uid, TOURNEE_WS_MODEL, "write", [ws_id], {field: image})
+        if kind == "charge":
+            # photo de chargement (souvent la lettre de voiture) arrivée après l'OCR du bon : on cherche le N° LVN
+            try:
+                cur = x(models, uid, TOURNEE_WS_MODEL, "read", [ws_id], fields=["x_studio_ocr_statut", "x_lvn"])
+                if cur and (cur[0].get("x_studio_ocr_statut") or "").startswith("✅") and not cur[0].get("x_lvn"):
+                    _thr.Thread(target=_lvn_seul, args=(ws_id, TOURNEE_WS_MODEL), daemon=True).start()
+            except Exception as e:  # noqa: BLE001
+                app.logger.warning(f"LVN après chargement non lancé ({ws_id}): {e}")
         return jsonify({"ok": True, "worksheet_id": ws_id})
     except Exception as e:
         app.logger.error(f"Erreur tournee-upload: {e}")
