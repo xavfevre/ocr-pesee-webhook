@@ -281,7 +281,7 @@ def _feuille_tache(call, tid):
               fields=['x_studio_numero_bon', 'x_studio_client_pesee', 'x_studio_vehicule',
                       'x_studio_date_bon', 'x_studio_produit_pesee', 'x_studio_poids_net',
                       'x_studio_type_document', 'x_studio_contrat_sap',
-                      'x_studio_code_destinataire'],
+                      'x_studio_code_destinataire', 'x_lvn'],
               limit=1, order='create_date desc')
     return ws[0] if ws else None
 
@@ -317,11 +317,19 @@ def _section_bc(call, so_id, nom_section):
 
 def _post_bon(call, so_id, ws, pied):
     _sur(lambda: call('sale.order', 'message_post', [so_id],
-                      body='<b>Données bon de pesée</b><br/>N° Bon : %s<br/>Date : %s<br/>'
+                      body='<b>Données bon de pesée</b><br/>N° Bon : %s<br/>N° LVN : %s<br/>Date : %s<br/>'
                            'Véhicule : %s<br/>Produit : %s<br/>Poids net : %s kg<br/><i>%s</i>'
-                           % (ws['x_studio_numero_bon'] or '-', ws['x_studio_date_bon'] or '-',
+                           % (ws['x_studio_numero_bon'] or '-', ws.get('x_lvn') or '-', ws['x_studio_date_bon'] or '-',
                               ws['x_studio_vehicule'] or '-', ws['x_studio_produit_pesee'] or '-',
                               ws['x_studio_poids_net'] or 0, pied)))
+
+
+def _avec_lvn(nom, ws):
+    """Ajoute « | LVN n » au libellé de section quand la feuille porte un N° LVN distinct du numéro de bon."""
+    lvn = (ws or {}).get('x_lvn')
+    if lvn and str(lvn) not in (ws.get('x_studio_numero_bon') or '') and ('LVN %s' % lvn) not in nom:
+        return '%s | LVN %s' % (nom, lvn)
+    return nom
 
 
 # ─── 2078 · SEDE : générer les BC VEOLIA ─────────────────────────────────────
@@ -357,9 +365,9 @@ def _sede_veolia(call, ctx):
         if ws and (ws['x_studio_numero_bon'] or ws['x_studio_client_pesee'] or ws['x_studio_vehicule']):
             poids_str = ('%s T' % round(ws['x_studio_poids_net'] / 1000, 3)) \
                 if ws['x_studio_poids_net'] else 'Poids N/A'
-            _section_bc(call, so, 'Bon n°%s | %s | %s | %s | %s' % (
+            _section_bc(call, so, _avec_lvn('Bon n°%s | %s | %s | %s | %s' % (
                 ws['x_studio_numero_bon'] or '', ws['x_studio_date_bon'] or '',
-                ws['x_studio_produit_pesee'] or '', ws['x_studio_vehicule'] or '', poids_str))
+                ws['x_studio_produit_pesee'] or '', ws['x_studio_vehicule'] or '', poids_str), ws))
             _post_bon(call, so, ws, 'BC généré par le bouton SEDE (planning transport)')
         else:
             sans_bon.append('%s (%s)' % (t['name'] or t['id'], so_nom))
@@ -621,7 +629,7 @@ def _boutons_transport(call, ctx):
                 parts += [produit, label, veh, poids_str]
             else:
                 parts += [produit, veh, poids_str]
-            _section_bc(call, so, ' | '.join(parts))
+            _section_bc(call, so, _avec_lvn(' | '.join(parts), ws))
             _post_bon(call, so, ws, 'BC généré par le bouton « %s » (planning transport)' % recette)
         else:
             sans_bon.append('%s (%s)' % ((t['name'] or t['id']), so_nom))

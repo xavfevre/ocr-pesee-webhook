@@ -31,3 +31,20 @@ Le champ `x_studio_lettre_de_voiture_n` (n° CMR généré par la séquence 122)
 
 Exemple vérifié : feuille 5090 / tâche 7391 « CHATEL GRANULATS - BAILLY », LVN 27881 lu sur la photo de
 chargement en 45 s. Réglages Odoo : `pa_test/lvn_setup.py` (champs 54756/54758, vues 8054/8056).
+
+## Où le N° LVN est repris (demande « regarde les automatisations qui en découlent : bons de commande, factures, pages web »)
+
+- **Bon de commande** : la section « Bon n°… | date | client | véhicule | poids » reçoit « | LVN n » —
+  à l'OCR (`_section_name(..., lvn)`), à l'arrivée tardive du LVN (`_section_depuis_feuille` après `_ecrire_lvn`,
+  via `sale_line_id` de la tâche), sur la route `/add-section`, dans les BC générés par les boutons du planning
+  (`web_actions.py` : `_avec_lvn` sur SEDE Veolia et sur les BC par bouton 2081) et dans le bouton Odoo
+  « Bon de pesée » des commandes (action 1615, 2 lignes ajoutées). Pas de doublon quand le bon est lui-même la LVN.
+- **Facture** : la section est recopiée sur la facture créée depuis la commande (lignes de section Odoo), donc le
+  LVN y figure dès que la section est à jour avant facturation. Le message « Données bon de pesée » posté sur la
+  commande mentionne aussi « N° LVN ».
+- **Rapport feuille de travail** (vue 4261, envoyé aux clients type Veolia) : ligne « N° LVN (papier) » sous
+  « Lettre de voiture N° » (vue héritée 8058).
+- **Pages web** (vues QWeb website) : `bon_map` contient désormais la feuille entière ; planning transport jour
+  (7967 + carte 7966) et page Tâche (6671) affichent « 📎 Bon n°33990 · LVN 27881 », plannings mois transport
+  (7883) et TP (7882) mettent les numéros dans l'infobulle du 📎. Copies dans `odoo-scan-page/lvn_20261021/`.
+

@@ -378,6 +378,10 @@ def _ecrire_lvn(models, uid, worksheet_id, model, lvn):
     x(models, uid, model, "write", [worksheet_id], vals)
     if ws and ws[0].get("x_project_task_id"):
         x(models, uid, "project.task", "write", [ws[0]["x_project_task_id"][0]], {"x_lvn": lvn})
+    try:
+        _section_depuis_feuille(models, uid, worksheet_id, model)   # la section « Bon n°… » du bon de commande reçoit le LVN
+    except Exception as e:  # noqa: BLE001
+        app.logger.warning(f"LVN : section non mise à jour pour {worksheet_id}: {e}")
 
 
 def _lvn_seul(worksheet_id, model, photo_bon=None):
@@ -395,19 +399,37 @@ def _lvn_seul(worksheet_id, model, photo_bon=None):
             return None
 
 
-def _section_name(extracted_or_ws, from_ws=False):
-    """Construit le libellé de section depuis l'OCR ou depuis la worksheet Odoo."""
+def _section_name(extracted_or_ws, from_ws=False, lvn=None):
+    """Construit le libellé de section depuis l'OCR ou depuis la worksheet Odoo (+ « | LVN n » si connu)."""
     g = extracted_or_ws.get
     if from_ws:
         num, date = g("x_studio_numero_bon") or "", g("x_studio_date_bon") or ""
         client, veh = g("x_studio_client_pesee") or "", g("x_studio_vehicule") or ""
         poids = g("x_studio_poids_net") or 0
+        lvn = lvn or g("x_lvn") or None
     else:
         num, date = g("numero_bon") or "", g("date_bon") or ""
         client, veh = g("client") or "", g("vehicule") or ""
         poids = g("poids_net") or 0
     poids_t = round(poids / 1000, 3) if poids else 0
-    return f"Bon n°{num} | {date} | {client} | {veh} | {poids_t} T"
+    nom = f"Bon n°{num} | {date} | {client} | {veh} | {poids_t} T"
+    if lvn and str(lvn) not in str(num):
+        nom += f" | LVN {lvn}"
+    return nom
+
+
+WS_SECTION_FIELDS = ["x_studio_numero_bon", "x_studio_date_bon", "x_studio_client_pesee", "x_studio_vehicule", "x_studio_poids_net", "x_lvn"]
+
+
+def _section_depuis_feuille(models, uid, worksheet_id, model):
+    """Recalcule la section « Bon n°… » de la commande liée depuis la feuille (après l'arrivée du N° LVN)."""
+    order_id = odoo_order_id_from_worksheet(models, uid, worksheet_id, model)
+    if not order_id:
+        return None
+    ws = x(models, uid, model, "read", [worksheet_id], fields=WS_SECTION_FIELDS)
+    if not ws or not ws[0].get("x_studio_poids_net"):
+        return None
+    return odoo_upsert_section(models, uid, order_id, _section_name(ws[0], from_ws=True))
 
 
 def odoo_upsert_section(models, uid, order_id: int, section_name: str):
@@ -498,6 +520,7 @@ def _ocr_traite_1(worksheet_id, model):
         odoo_write(models, uid, worksheet_id, model, extracted)
 
         # 3b. N° LVN : la pièce elle-même si c'est une lettre de voiture, sinon les autres photos (chargement d'abord)
+        lvn = None
         try:
             lvn = _lvn_depuis_extraction(extracted)
             if not lvn:
@@ -507,11 +530,11 @@ def _ocr_traite_1(worksheet_id, model):
         except Exception as e:  # noqa: BLE001
             app.logger.warning(f"LVN non recherché pour {worksheet_id}: {e}")
 
-        # 4. Section sur la commande (idempotent)
+        # 4. Section sur la commande (idempotent), avec le N° LVN s'il est connu
         order_id = odoo_order_id_from_worksheet(models, uid, worksheet_id, model)
         section_status = None
         if order_id:
-            section_status = odoo_upsert_section(models, uid, order_id, _section_name(extracted))
+            section_status = odoo_upsert_section(models, uid, order_id, _section_name(extracted, lvn=lvn))
 
         app.logger.info(f"OCR terminé pour {worksheet_id} (section: {section_status})")
 
@@ -568,8 +591,7 @@ def add_section():
 
         worksheets = x(models, uid, ODOO_WORKSHEET_MODEL, "search_read",
                        [("x_project_task_id", "=", task_id), ("x_studio_poids_net", ">", 0)],
-                       fields=["x_studio_numero_bon", "x_studio_date_bon", "x_studio_client_pesee",
-                               "x_studio_vehicule", "x_studio_poids_net"], limit=1)
+                       fields=WS_SECTION_FIELDS, limit=1)
         if not worksheets:
             return jsonify({"status": "skipped", "reason": "pas de feuille OCR remplie"})
 
