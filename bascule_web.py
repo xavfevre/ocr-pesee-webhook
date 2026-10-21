@@ -7,14 +7,16 @@ l'imprimante Epson ePOS du site et enregistre chaque pesée dans Odoo (modèle m
 Pesées pont-bascule) via ces services. Accès : ?site=<code>&k=<clé maquignon.bascule_key>.
 Multi-sites : un bloc par site dans SITES (société, imprimante, en-tête du ticket, protocole, séquence).
 """
+import json
 import os
 import re
+import tempfile
 import threading
 import time
 import xmlrpc.client
 from datetime import datetime
 
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, Response, jsonify, request, send_from_directory
 
 bp = Blueprint('bascule', __name__)
 ICI = os.path.dirname(os.path.abspath(__file__))
@@ -362,3 +364,94 @@ def api_pesee():
     else:
         return jsonify({'error': 'action inconnue'}), 400
     return jsonify({'pesee': _lire(site, [rid])[0]})
+
+
+# ─── Passerelle de la cabine : poids et image de la caméra transmis par le PC relié à l'indicateur (21/10/2026) ───
+# Le programme docs/bascule_passerelle.ps1 tourne sur le PC de la cabine (qui tient le port série) et envoie le poids chaque
+# seconde ; la page ouverte sur n'importe quel autre PC (accueil) l'affiche comme si la bascule était branchée dessus.
+# État conservé dans des fichiers du dossier temporaire : partagés entre les workers gunicorn, perdus au redéploiement (sans gravité).
+FRAICHEUR_POIDS = 5      # secondes : au-delà, la cabine est considérée muette
+FRAICHEUR_IMAGE = 120    # secondes : au-delà, plus d'image proposée
+
+
+def _fichier(site, ext):
+    return os.path.join(tempfile.gettempdir(), 'bascule_%s.%s' % (site, ext))
+
+
+def _ecrire_atomique(chemin, data):
+    tmp = '%s.%d.tmp' % (chemin, os.getpid())
+    with open(tmp, 'wb') as f:
+        f.write(data)
+    os.replace(tmp, chemin)
+
+
+@bp.route('/api/passerelle', methods=['POST'])
+def api_passerelle():
+    """{site, k, poids (kg ou null), stable, etat (lettres de l'indicateur), brut (ligne lue), erreur, poste}."""
+    g = _garde()
+    if g:
+        return g
+    site = _site(); d = request.get_json(silent=True) or {}
+    try:
+        poids = float(d['poids']) if d.get('poids') is not None else None
+    except (TypeError, ValueError, KeyError):
+        poids = None
+    etat = {'poids': poids, 'stable': bool(d.get('stable')), 'etat': str(d.get('etat') or '')[:10], 'brut': str(d.get('brut') or '')[:40],
+            'erreur': str(d.get('erreur') or '')[:200], 'poste': str(d.get('poste') or '')[:60], 't': time.time(), 'horodatage': _maintenant()}
+    _ecrire_atomique(_fichier(site, 'json'), json.dumps(etat).encode('utf-8'))
+    return jsonify({'ok': True, 'serveur': etat['horodatage']})
+
+
+@bp.route('/api/passerelle/image', methods=['POST'])
+def api_passerelle_image():
+    """Image JPEG de la caméra du pont, corps brut (Content-Type image/jpeg), 2 Mo maximum."""
+    g = _garde()
+    if g:
+        return g
+    data = request.get_data()
+    if not data or len(data) > 2_000_000 or data[:2] != b'\xff\xd8':
+        return jsonify({'error': 'image JPEG attendue (2 Mo maximum)'}), 400
+    _ecrire_atomique(_fichier(_site(), 'jpg'), data)
+    return jsonify({'ok': True})
+
+
+def _direct(site):
+    try:
+        with open(_fichier(site, 'json'), 'rb') as f:
+            etat = json.loads(f.read().decode('utf-8'))
+    except (OSError, ValueError):
+        return None
+    etat['age'] = round(time.time() - float(etat.get('t') or 0), 1)
+    etat['connecte'] = etat['age'] < FRAICHEUR_POIDS and not etat.get('erreur') and etat.get('poids') is not None
+    try:
+        etat['image_age'] = round(time.time() - os.path.getmtime(_fichier(site, 'jpg')), 1)
+    except OSError:
+        etat['image_age'] = None
+    return etat
+
+
+@bp.route('/api/direct')
+def api_direct():
+    """Dernier poids reçu de la passerelle : {poids, stable, etat, erreur, poste, age (s), connecte, image_age}."""
+    g = _garde()
+    if g:
+        return g
+    etat = _direct(_site())
+    return jsonify(etat or {'poids': None, 'stable': False, 'erreur': '', 'poste': '', 'age': None, 'connecte': False, 'image_age': None, 'jamais': True})
+
+
+@bp.route('/api/camera')
+def api_camera():
+    """Dernière image de la caméra du pont (JPEG), 204 s'il n'y en a pas de récente."""
+    g = _garde()
+    if g:
+        return g
+    chemin = _fichier(_site(), 'jpg')
+    try:
+        if time.time() - os.path.getmtime(chemin) > FRAICHEUR_IMAGE:
+            return '', 204
+        with open(chemin, 'rb') as f:
+            data = f.read()
+    except OSError:
+        return '', 204
+    return Response(data, mimetype='image/jpeg', headers={'Cache-Control': 'no-store'})
