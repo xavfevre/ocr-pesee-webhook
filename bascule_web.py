@@ -247,8 +247,8 @@ def api_config():
     site = _site(); cfg = SITES[site]
     dom = cfg.get('produits_domaine') or [['available_in_pos', '=', True], ['sale_ok', '=', True], ['uom_id.name', 'ilike', 'tonne']]
     prods = _call('product.product', 'search_read', dom + ['|', ['company_id', '=', cfg['company_id']], ['company_id', '=', False]],
-                  fields=['name', 'default_code', 'list_price'], order='id', **_ctx(site))
-    prods = sorted(({'id': p['id'], 'nom': p['name'], 'prix': p['list_price']} for p in prods), key=lambda p: p['nom'].lower())
+                  fields=['display_name', 'default_code', 'list_price'], order='id', **_ctx(site))
+    prods = sorted(({'id': p['id'], 'nom': p['display_name'], 'prix': p['list_price']} for p in prods), key=lambda p: p['nom'].lower())   # display_name : variantes distinguées (0/20 Bleu…)
     return jsonify({'site': site, 'nom': cfg['nom'], 'imprimante': cfg['imprimante'], 'entete': cfg['entete'], 'instrument': cfg['instrument'],
                     'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'caisse': bool(cfg.get('caisse')), 'produits': prods, 'serveur': _maintenant()})
 
