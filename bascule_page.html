@@ -154,6 +154,8 @@
   let port = null, writer = null, lecteur = null, tampon = '', attente = null, file = Promise.resolve(), poll = null;
   let derniers = [], poidsCourant = null, stable = false;
   let distant = null, camManques = 0, camUrl = null;   // passerelle de la cabine (poids + caméra) quand la bascule n'est pas branchée sur ce PC
+  let dernierEnvoi = 0;                                  // la page qui tient le câble publie le poids au relais chaque seconde pour les autres PC
+  const publier = (donnees) => { dernierEnvoi = Date.now(); api('passerelle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ site: SITE, k: LS('cle'), poste: LS('poste') || (SITE + ' - caisse') }, donnees)) }).catch(() => {}); };
 
   const message = (txt, type) => { const m = $('message'); m.textContent = txt; m.className = type || 'info'; if (type === 'ok') setTimeout(() => { if (m.textContent === txt) m.className = ''; }, 6000); };
   const api = async (chemin, options) => {
@@ -202,7 +204,9 @@
           }
         }
       } catch (e) { /* port fermé */ }
+      port = null; writer = null;
       serieEtat(false, 'bascule déconnectée');
+      publier({ poids: null, stable: false, erreur: 'bascule débranchée du PC de la cabine' });
     })();
     serieEtat(true, 'bascule connectée');
     message('Bascule connectée', 'ok');
@@ -228,6 +232,7 @@
     $('poids').innerHTML = fmtKg(v.poids) + ' <small>kg</small>';
     $('stable').textContent = stable ? 'STABLE' : 'en mouvement…'; $('stable').className = stable ? 'ok' : 'mvt';
     majBoutons();
+    if (Date.now() - dernierEnvoi >= 1000) publier({ poids: v.poids, stable, etat: v.etat, brut: rep });
   }
   function serieEtat(ok, txt) { $('p-serie').className = 'pastille ' + (ok ? 'ok' : 'ko'); $('t-serie').textContent = txt; if (!ok) { $('poids').innerHTML = '— <small>kg</small>'; $('stable').textContent = ''; stable = false; poidsCourant = null; majBoutons(); } }
 
