@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titre %}{{ seo_titre or ((titre ~ " | ") if titre) ~ "Chatel'Granulats" }}{% endblock %}</title>
+<meta name="description" content="{% filter trim %}{% block desc %}{{ seo_desc or "Sable, gravier, grave, galets et pierres de décoration livrés autour de Châtellerault (86). Prix livré en 2 minutes, livraison sous 48 h, évacuation de déblais inertes." }}{% endblock %}{% endfilter %}">
+<link rel="canonical" href="{{ canonique }}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Chatel'Granulats">
+<meta property="og:title" content="{{ self.titre() }}">
+<meta property="og:description" content="{{ self.desc()|trim }}">
+<meta property="og:url" content="{{ canonique }}">
+<meta property="og:image" content="{{ c.site_principal }}/web/image/36537-73724b17/Resized_20220929_171743.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#3D3229">
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org", "@type": "HomeAndConstructionBusiness", "@id": url_publique('chatel_devis.accueil') ~ "#entreprise",
+  "name": "Chatel'Granulats", "legalName": soc.name, "url": url_publique('chatel_devis.accueil'),
+  "logo": c.site_principal ~ "/web/image/website/4/logo/300x300", "image": c.site_principal ~ "/web/image/36537-73724b17/Resized_20220929_171743.jpg",
+  "telephone": soc.phone, "email": soc.email, "priceRange": "€€",
+  "address": {"@type": "PostalAddress", "streetAddress": soc.street, "postalCode": soc.zip, "addressLocality": soc.city, "addressRegion": "Vienne", "addressCountry": "FR"},
+  "geo": {"@type": "GeoCoordinates", "latitude": c.depart.lat, "longitude": c.depart.lon},
+  "areaServed": {"@type": "GeoCircle", "geoMidpoint": {"@type": "GeoCoordinates", "latitude": c.depart.lat, "longitude": c.depart.lon}, "geoRadius": (c.zone_km * 1000)|string},
+  "sameAs": [c.site_principal],
+  "makesOffer": [{"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Livraison de granulats"}},
+                 {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Évacuation de déblais inertes"}},
+                 {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Affrètement de camion benne"}},
+                 {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Location de benne"}}]
+}|tojson }}</script>
+<link rel="icon" href="{{ c.site_principal }}/web/image/website/4/favicon">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="{{ url_for('chatel_devis.static', filename='chatel.css') }}?v=3">
+{% block tete %}{% endblock %}
+</head>
+<body class="{{ '' if point == 'chatel_devis.parcours' else 'a-barre' }}">
+<div class="bandeau"><div class="cont">
+  <span class="adr">📍 {{ soc.street }}, {{ soc.zip }} {{ soc.city }} — carrière et showroom</span>
+  <span><a href="{{ tel_lien }}">📞 {{ soc.phone }}</a></span>
+</div></div>
+<header class="entete"><div class="cont">
+  <a class="logo" href="{{ url_for('chatel_devis.accueil') }}"><img src="{{ c.site_principal }}/web/image/website/4/logo/300x300" alt="Chatel'Granulats — pierre et décoration" width="150" height="52"></a>
+  <button class="burger" aria-label="Menu" onclick="document.querySelector('nav.menu').classList.toggle('ouvert')">☰</button>
+  <nav class="menu">
+    <a href="{{ url_for('chatel_devis.page', page='produits') }}">Produits</a>
+    <a href="{{ url_for('chatel_devis.page', page='services') }}">Services</a>
+    <a href="{{ url_for('chatel_devis.page', page='usages') }}">Usages</a>
+    <a href="{{ url_for('chatel_devis.page', page='pour-qui') }}">Pour qui ?</a>
+    <a href="{{ url_for('chatel_devis.ressources') }}">Ressources</a>
+    <a href="{{ url_for('chatel_devis.page', page='espace-pro') }}">Espace pro</a>
+    <a href="{{ url_for('chatel_devis.page', page='contact') }}">Contact</a>
+    <a class="btn" href="{{ url_for('chatel_devis.parcours') }}" style="color:#fff;margin-left:6px">Devis en 2 min</a>
+  </nav>
+</div></header>
+
+<main>{% block contenu %}{% endblock %}</main>
+
+<footer class="pied"><div class="cont">
+  <div class="cols">
+    <div>
+      <h4>Chatel'Granulats</h4>
+      <p>{{ soc.street }}<br>{{ soc.zip }} {{ soc.city }}<br><a href="{{ tel_lien }}">{{ soc.phone }}</a><br><a href="mailto:{{ soc.email }}">{{ soc.email }}</a></p>
+    </div>
+    <div>
+      <h4>Services</h4>
+      <ul>
+        <li><a href="{{ url_for('chatel_devis.parcours') }}?service=livraison">Livraison de granulats</a></li>
+        <li><a href="{{ url_for('chatel_devis.parcours') }}?service=evacuation">Évacuation de déblais</a></li>
+        <li><a href="{{ url_for('chatel_devis.parcours') }}?service=affretement">Affrètement de camion</a></li>
+        <li><a href="{{ url_for('chatel_devis.parcours') }}?service=benne">Location de benne</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Infos</h4>
+      <ul>
+        <li><a href="{{ url_for('chatel_devis.page', page='faq') }}">Questions fréquentes</a></li>
+        <li><a href="{{ url_for('chatel_devis.ressources') }}">Ressources</a></li>
+        <li><a href="{{ url_for('chatel_devis.page', page='recrutement') }}">Recrutement</a></li>
+        <li><a href="{{ c.site_principal }}">Showroom & pierres naturelles</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Légal</h4>
+      <ul>
+        <li><a href="{{ url_for('chatel_devis.page', page='mentions-legales') }}">Mentions légales</a></li>
+        <li><a href="{{ url_for('chatel_devis.page', page='cgv') }}">Conditions générales de vente</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="bas">© {{ soc.name }} — groupe Carrières Maquignon. Prix indicatifs HT, confirmés par devis.</div>
+</div></footer>
+
+{% if point != 'chatel_devis.parcours' %}<div class="appel-mobile">
+  <a class="btn btn-clair" href="{{ tel_lien }}">📞 Appeler</a>
+  <a class="btn" href="{{ url_for('chatel_devis.parcours') }}">Devis en 2 min</a>
+</div>{% endif %}
+<script>
+// liens actifs du menu
+(function(){var p=location.pathname.replace(/\/$/,'');document.querySelectorAll('nav.menu a').forEach(function(a){if(a.pathname.replace(/\/$/,'')===p)a.classList.add('actif');});})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

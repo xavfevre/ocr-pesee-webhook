@@ -1,0 +1,13 @@
+{% extends 'chatel/base.html' %}
+{% block desc %}Guides pratiques granulats et déblais : calculer un tonnage, choisir un granulat, ISDI / ISDND / ISDD, double flux livraison + évacuation.{% endblock %}
+{% block contenu %}
+{% set chapo = "Guides pratiques pour bien choisir, bien doser et bien évacuer." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille-2">
+    {% for a in articles %}
+    <a class="carte" href="{{ url_for('chatel_devis.article', slug=a.slug) }}"><h2 style="font-size:1.6rem">{{ a.titre }}</h2><p class="muet">{{ a.chapo }}</p><b>Lire l'article →</b></a>
+    {% endfor %}
+  </div>
+</div></section>
+{% endblock %}

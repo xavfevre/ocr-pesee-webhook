@@ -1,0 +1,19 @@
+{% extends 'chatel/_article.html' %}
+{% block corps %}
+<p>Les granulats se vendent à la tonne, mais on raisonne en surface et en épaisseur. Trois étapes suffisent.</p>
+<h2>1. Calculez la surface</h2>
+<p>Longueur × largeur, en mètres. Une allée de 15 m sur 3 m = <b>45 m²</b>.</p>
+<h2>2. Multipliez par l'épaisseur</h2>
+<p>Épaisseur en mètres (10 cm = 0,10 m). 45 m² × 0,10 m = <b>4,5 m³</b>.</p>
+<h2>3. Convertissez en tonnes avec la densité</h2>
+<p>4,5 m³ de gravier × 1,5 = <b>6,75 t</b>, arrondi à 7 t.</p>
+<table><tr><th>Matériau</th><th>Densité indicative (t/m³)</th></tr>
+<tr><td>Sable</td><td>1,5 à 1,6</td></tr><tr><td>Gravier, gravillon</td><td>1,4 à 1,5</td></tr>
+<tr><td>Grave 0/20, 0/31,5 (compactée)</td><td>1,8 à 2,0</td></tr><tr><td>Galets</td><td>1,5 à 1,6</td></tr>
+<tr><td>Terre végétale</td><td>1,2 à 1,4</td></tr><tr><td>Ardoise, schiste</td><td>1,3 à 1,4</td></tr></table>
+<h2>Épaisseurs conseillées</h2>
+<table><tr><th>Usage</th><th>Épaisseur</th></tr>
+<tr><td>Gravier décoratif (massif)</td><td>5 cm</td></tr><tr><td>Allée piétonne</td><td>5 cm de gravier sur 10 cm de grave</td></tr>
+<tr><td>Allée carrossable</td><td>5 cm de gravier sur 15 à 20 cm de grave</td></tr><tr><td>Lit de pose de canalisation</td><td>10 cm de sable sous le tuyau</td></tr></table>
+<div class="encart">Pas besoin de calculatrice : à l'étape « Volume » du devis, saisissez longueur, largeur et épaisseur, le site calcule les tonnes pour vous.</div>
+{% endblock %}

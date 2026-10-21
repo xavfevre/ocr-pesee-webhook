@@ -1,0 +1,34 @@
+{% extends 'chatel/base.html' %}
+{% block contenu %}
+{% set chapo = "Une carrière, des camions et une équipe locale : on livre vos matériaux et on repart avec vos déblais." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille-2">
+    <div class="carte" id="livraison">
+      <div class="icone">🚚</div><h2>Livraison de granulats</h2>
+      <p>Sable, gravier, grave, terre, galets, pierres de décoration : livrés en camion benne depuis notre carrière du Pautron, à Châtellerault, dans un rayon d'environ {{ c.zone_km }} km.</p>
+      <ul><li>Prix livré calculé selon la distance réelle de votre chantier</li><li>Porteurs 6x4 ({{ c.camions[0].charge }} t), 8x4 et semi-bennes</li><li>Livraison dès J+{{ c.delai_jours }} ouvrés, créneau au choix</li></ul>
+      <a class="btn" href="{{ url_for('chatel_devis.parcours') }}?service=livraison">Obtenir mon prix livré</a>
+    </div>
+    <div class="carte" id="evacuation">
+      <div class="icone">♻️</div><h2>Évacuation de déblais inertes</h2>
+      <p>Terres, cailloux, béton, briques, tuiles : nous reprenons vos déchets inertes et les valorisons en carrière. Facturation à la tonne, pesée sur notre pont-bascule.</p>
+      <ul><li>Reprise à la tonne + transport</li><li>Double flux : le camion qui livre repart chargé</li><li>Bon de pesée remis à chaque rotation</li></ul>
+      <a class="btn" href="{{ url_for('chatel_devis.parcours') }}?service=evacuation">Estimer l'évacuation</a>
+    </div>
+    <div class="carte" id="affretement">
+      <div class="icone">🚛</div><h2>Affrètement de camion</h2>
+      <p>Besoin de rotations sur un chantier de terrassement ? Réservez un camion benne avec chauffeur à la demi-journée ou à la journée.</p>
+      <ul><li>Porteurs 6x4, 8x4 et semi-bennes</li><li>Chauffeurs expérimentés du secteur</li><li>Facturation au temps passé</li></ul>
+      <a class="btn" href="{{ url_for('chatel_devis.parcours') }}?service=affretement">Réserver un camion</a>
+    </div>
+    <div class="carte" id="benne">
+      <div class="icone">🗑️</div><h2>Location de benne</h2>
+      <p>Une benne posée sur votre chantier pour vos terres et gravats inertes, enlevée à la date de votre choix.</p>
+      <ul><li>Plusieurs volumes disponibles</li><li>Pose et enlèvement inclus</li><li>Prix confirmé selon la durée et le contenu</li></ul>
+      <a class="btn" href="{{ url_for('chatel_devis.parcours') }}?service=benne">Demander une benne</a>
+    </div>
+  </div>
+  <div class="encart" style="margin-top:28px"><b>Vous préférez venir charger ?</b> Notre carrière et notre showroom vous accueillent au {{ soc.street }}, {{ soc.zip }} {{ soc.city }}. Chargement en remorque ou en camion, pesée sur place.</div>
+</div></section>
+{% endblock %}

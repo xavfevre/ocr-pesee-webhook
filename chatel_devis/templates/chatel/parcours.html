@@ -1,0 +1,158 @@
+{% extends 'chatel/base.html' %}
+{% block tete %}
+<link rel="stylesheet" href="{{ url_for('chatel_devis.static', filename='parcours.css') }}?v=3">
+{% endblock %}
+{% block contenu %}
+<div class="parcours">
+  <div class="stepper-barre"><div class="cont">
+    <ol class="stepper" id="stepper">
+      <li data-e="1"><span>1</span> Service</li>
+      <li data-e="2"><span>2</span> <em id="lib-e2">Produit</em></li>
+      <li data-e="3"><span>3</span> <em id="lib-e3">Volume</em></li>
+      <li data-e="4"><span>4</span> Récapitulatif</li>
+    </ol>
+  </div></div>
+
+  <div class="cont parcours-corps">
+    <div class="parcours-main">
+
+      <!-- ÉTAPE 1 : service + adresse -->
+      <section class="etape" id="e1">
+        <h1 class="h-etape">De quoi avez-vous besoin ?</h1>
+        <p class="aide">Deux clics et votre adresse : on s'occupe du calcul.</p>
+        <div class="choix-services" id="services">
+          <button type="button" class="choix" data-s="livraison"><span class="icone">🚚</span><b>Livraison</b><small>Sable, gravier, grave, terre, déco</small></button>
+          <button type="button" class="choix" data-s="evacuation"><span class="icone">♻️</span><b>Évacuation</b><small>Terres et gravats inertes</small></button>
+          <button type="button" class="choix" data-s="affretement"><span class="icone">🚛</span><b>Affrètement</b><small>Camion + chauffeur</small></button>
+          <button type="button" class="choix" data-s="benne"><span class="icone">🗑️</span><b>Location</b><small>Benne sur chantier</small></button>
+        </div>
+        <label class="champ adresse" style="margin-top:22px"><span>Adresse du chantier</span>
+          <input id="adresse" placeholder="Commencez à taper : numéro, rue, commune">
+          <div class="suggestions" id="sugg"></div>
+        </label>
+        <div class="info-km" id="km"></div>
+        <div class="actions"><button class="btn btn-grand" id="go1" disabled>Continuer</button></div>
+      </section>
+
+      <!-- ÉTAPE 2 -->
+      <section class="etape" id="e2" hidden>
+        <div id="e2-livraison">
+          <h2 class="h-etape">Choisissez votre matériau</h2>
+          <p class="aide">Prix livré chez vous, transport compris. Un doute ? Filtrez par usage.</p>
+          <div class="catalogue">
+            <aside class="familles" id="familles"></aside>
+            <div>
+              <div class="outils">
+                <input type="search" id="recherche" placeholder="Rechercher : sable 0/4, gravier, galet…">
+                <div class="vue" role="group" aria-label="Affichage">
+                  <button type="button" data-v="liste" class="on" title="Liste">☰</button><button type="button" data-v="cartes" title="Cartes">▦</button>
+                </div>
+              </div>
+              <div class="usages" id="usages"></div>
+              <div id="produits" class="produits liste"></div>
+              <p class="muet petit" id="cat-maj"></p>
+            </div>
+          </div>
+        </div>
+        <div id="e2-evacuation" hidden>
+          <h2 class="h-etape">Quels déblais évacuer ?</h2>
+          <div class="choix-liste" id="deblais"></div>
+          <div class="encart">Nous reprenons uniquement les <b>déchets inertes</b> : terres et cailloux non pollués, béton, briques, tuiles, carrelage. Pas de plâtre, bois, plastique, enrobé ou amiante. <a href="{{ url_for('chatel_devis.article', slug='isdi-isdnd-isdd-differences') }}" target="_blank">Pourquoi ?</a></div>
+        </div>
+        <div id="e2-affretement" hidden>
+          <h2 class="h-etape">Quel camion ?</h2>
+          <div class="choix-liste" id="affr"></div>
+        </div>
+        <div id="e2-benne" hidden>
+          <h2 class="h-etape">Quelle benne ?</h2>
+          <div class="choix-liste" id="bennes"></div>
+        </div>
+        <div class="actions"><button class="btn btn-clair" data-retour="1">← Retour</button><button class="btn btn-grand" id="go2" disabled>Continuer</button></div>
+      </section>
+
+      <!-- ÉTAPE 3 -->
+      <section class="etape" id="e3" hidden>
+        <h2 class="h-etape" id="h-e3">Quantité, camion et date</h2>
+        <p class="aide" id="aide-e3">On vous conseille le bon camion selon la quantité.</p>
+        <div id="bloc-qte">
+          <div class="qte">
+            <label class="champ"><span>Quantité</span>
+              <div class="qte-saisie"><input type="number" id="qte" min="0.5" step="0.5" inputmode="decimal" placeholder="Ex. 10">
+                <div class="vue" role="group"><button type="button" data-u="t" class="on">tonnes</button><button type="button" data-u="m3">m³</button></div></div>
+            </label>
+            <div class="rapides" id="rapides"></div>
+            <div class="muet petit" id="conv"></div>
+          </div>
+          <details class="calc"><summary>Je ne connais pas la quantité : calculer</summary><div>
+            <div class="form-grille" style="grid-template-columns:repeat(3,1fr)">
+              <label class="champ"><span>Longueur (m)</span><input type="number" id="c-l" min="0" step="0.1" inputmode="decimal"></label>
+              <label class="champ"><span>Largeur (m)</span><input type="number" id="c-w" min="0" step="0.1" inputmode="decimal"></label>
+              <label class="champ"><span>Épaisseur (cm)</span><input type="number" id="c-e" min="0" step="1" inputmode="decimal" value="10"></label>
+            </div>
+            <p id="c-res" class="muet" style="margin-top:8px"></p>
+            <button type="button" class="btn btn-clair" id="c-ok">Utiliser cette quantité</button>
+          </div></details>
+          <h3 style="margin-top:22px">Camion</h3>
+          <div class="choix-liste camions" id="camions"></div>
+        </div>
+        <div id="bloc-duree" hidden>
+          <div class="form-grille">
+            <label class="champ" id="l-duree"><span>Durée</span><select id="duree"><option value="jour">Journée</option><option value="demi">Demi-journée</option></select></label>
+            <label class="champ"><span id="l-nb">Nombre de jours</span><input type="number" id="nb" min="1" max="60" value="1" inputmode="numeric"></label>
+          </div>
+        </div>
+        <h3 style="margin-top:22px" id="h-date">Date de livraison</h3>
+        <div class="dates" id="dates"></div>
+        <h3 style="margin-top:18px">Créneau</h3>
+        <div class="dates" id="creneaux"></div>
+        <div class="actions"><button class="btn btn-clair" data-retour="2">← Retour</button><button class="btn btn-grand" id="go3" disabled>Voir mon prix</button></div>
+      </section>
+
+      <!-- ÉTAPE 4 -->
+      <section class="etape" id="e4" hidden>
+        <h2 class="h-etape">Votre estimation</h2>
+        <p class="aide">Plus qu'une étape : vos coordonnées, et on vous rappelle pour confirmer.</p>
+        <div id="recap"></div>
+        <form id="form-client" class="carte" style="margin-top:20px" autocomplete="on">
+          <h3>Vos coordonnées</h3>
+          <p class="muet petit">Notre équipe vous confirme le prix et la date, en général le jour même. Aucun paiement en ligne.</p>
+          <div class="form-grille">
+            <label class="champ"><span>Nom et prénom *</span><input name="nom" autocomplete="name" required></label>
+            <label class="champ"><span>Société</span><input name="societe" autocomplete="organization"></label>
+            <label class="champ"><span>E-mail *</span><input name="email" type="email" autocomplete="email" required></label>
+            <label class="champ"><span>Téléphone *</span><input name="tel" type="tel" autocomplete="tel" required></label>
+            <label class="champ plein"><span>Précisions (accès, portail, horaires…)</span><textarea name="message"></textarea></label>
+            <label class="case plein"><input type="checkbox" name="pro" value="1"> Je suis un professionnel (tarifs pro, facturation à 30 jours)</label>
+            <div class="hp" aria-hidden="true"><label>Site web<input name="site_web" tabindex="-1" autocomplete="off"></label></div>
+          </div>
+          <p class="petit muet" style="margin-top:12px">En envoyant cette demande, vous acceptez d'être recontacté au sujet de ce devis. <a href="{{ url_for('chatel_devis.page', page='cgv') }}" target="_blank">CGV</a> · <a href="{{ url_for('chatel_devis.page', page='mentions-legales') }}" target="_blank">Données personnelles</a></p>
+          <div class="actions"><button class="btn btn-clair" type="button" data-retour="3">← Retour</button><button class="btn btn-grand btn-lime" type="submit" id="envoyer">Envoyer ma demande de devis</button></div>
+          <div class="message" id="msg"></div>
+        </form>
+      </section>
+
+      <section class="etape" id="e5" hidden>
+        <div class="carte centre" style="padding:36px">
+          <div style="font-size:3rem">✅</div>
+          <h2 class="h-etape">Demande envoyée</h2>
+          <p>Votre demande <b id="numero"></b> est bien reçue. Un récapitulatif vous a été envoyé par e-mail.<br>Nous vous rappelons pour confirmer le prix et la date.</p>
+          <p>Une question ? <a href="{{ tel_lien }}">{{ soc.phone }}</a></p>
+          <a class="btn" href="{{ url_for('chatel_devis.accueil') }}">Retour à l'accueil</a>
+        </div>
+      </section>
+    </div>
+
+    <aside class="resume" id="resume">
+      <h3>Votre demande</h3>
+      <dl id="resume-dl"></dl>
+      <div class="resume-prix" id="resume-prix"></div>
+      <p class="petit muet">Besoin d'aide ? <a href="{{ tel_lien }}">{{ soc.phone }}</a></p>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>window.CG = {base: '{{ url_for("chatel_devis.accueil")[:-1] }}', jeton: '{{ jeton }}', img: '{{ url_for("chatel_devis.image", tmpl=0)[:-1] }}'};</script>
+<script src="{{ url_for('chatel_devis.static', filename='adresse.js') }}?v=3"></script>
+<script src="{{ url_for('chatel_devis.static', filename='parcours.js') }}?v=3"></script>
+{% endblock %}

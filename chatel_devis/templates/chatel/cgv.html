@@ -1,0 +1,28 @@
+{% extends 'chatel/base.html' %}
+{% block tete %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block contenu %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont etroit prose">
+  <p class="muet">Conditions applicables aux ventes de matériaux, livraisons, évacuations de déblais et locations conclues avec {{ soc.name }}. Elles prévalent sur tout autre document, sauf conditions particulières écrites.</p>
+  <h2>1. Devis et commande</h2>
+  <p>Les prix affichés sur le site sont des estimations indicatives hors taxes. La vente est formée à l'acceptation du devis confirmé par {{ soc.name }} (signature, bon pour accord ou accord écrit par e-mail).</p>
+  <h2>2. Prix</h2>
+  <p>Les prix s'entendent en euros hors taxes, à la tonne pour les matériaux et les déblais, selon le tarif en vigueur au jour de la commande. Le transport est facturé selon la distance et le camion, avec un minimum de tonnage par camion. Les contributions et taxes en vigueur s'ajoutent.</p>
+  <h2>3. Quantités et pesée</h2>
+  <p>Les quantités facturées sont celles pesées sur le pont-bascule de la carrière. Les conversions m³ / tonnes proposées sur le site sont indicatives.</p>
+  <h2>4. Livraison</h2>
+  <p>Les dates et créneaux sont convenus à titre indicatif ; un retard ne peut donner lieu ni à annulation ni à indemnité. Le client garantit un accès praticable et sans danger pour un camion de 26 à 44 t ; le déchargement a lieu au point accessible le plus proche. Toute attente sur place ou tout déplacement inutile du fait du client peut être facturé.</p>
+  <h2>5. Transfert des risques</h2>
+  <p>Les risques passent au client au déchargement. La propriété est transférée au paiement complet du prix (clause de réserve de propriété).</p>
+  <h2>6. Évacuation de déblais</h2>
+  <p>Seuls les déchets inertes non pollués sont acceptés. Tout chargement non conforme (plâtre, bois, plastique, enrobé, amiante, terres polluées…) peut être refusé ou faire l'objet d'une facturation de tri et de traitement.</p>
+  <h2>7. Paiement</h2>
+  <p>Particuliers : paiement à la livraison ou à l'enlèvement. Professionnels titulaires d'un compte : paiement à 30 jours date de facture. Tout retard entraîne des pénalités au taux de trois fois l'intérêt légal et, pour les professionnels, l'indemnité forfaitaire de 40 € pour frais de recouvrement.</p>
+  <h2>8. Réclamations</h2>
+  <p>Toute réserve sur la quantité ou l'aspect doit être portée sur le bon de livraison et confirmée par écrit sous 48 h. Les matériaux naturels présentent des variations de teinte et de granulométrie qui ne constituent pas un défaut.</p>
+  <h2>9. Droit de rétractation</h2>
+  <p>Les matériaux en vrac livrés sont, par nature, mélangés à d'autres éléments après livraison ; le droit de rétractation ne s'applique pas une fois la livraison effectuée (art. L221-28 du Code de la consommation).</p>
+  <h2>10. Litiges</h2>
+  <p>Droit français. Le consommateur peut recourir gratuitement à un médiateur de la consommation. À défaut d'accord amiable, compétence des tribunaux du siège de {{ soc.name }} pour les professionnels.</p>
+</div></section>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends 'chatel/base.html' %}
+{% block contenu %}
+<section class="heros" style="--heros-img:url('{{ c.site_principal }}/web/image/36537-73724b17/Resized_20220929_171743.jpg')">
+  <div class="cont">
+    <div class="sur-titre" style="color:#CFE3A6">Carrière du Pautron · Châtellerault</div>
+    <h1>Vos granulats livrés sur chantier, prix en 2 minutes</h1>
+    <p class="chapo">Sable, gravier, grave, galets, pierres de décoration : choisissez, indiquez votre adresse, recevez votre prix livré. On évacue aussi vos déblais.</p>
+    <form class="carte-devis" action="{{ url_for('chatel_devis.parcours') }}" method="get" onsubmit="return allerParcours(event)">
+      <div class="onglets" role="radiogroup" aria-label="Service">
+        <label><input type="radio" name="service" value="livraison" checked><span>🚚 Livraison</span></label>
+        <label><input type="radio" name="service" value="evacuation"><span>♻️ Évacuation</span></label>
+        <label><input type="radio" name="service" value="affretement"><span>🚛 Camion</span></label>
+        <label><input type="radio" name="service" value="benne"><span>🗑️ Benne</span></label>
+      </div>
+      <div class="ligne-adresse">
+        <label class="champ adresse"><span class="sr">Adresse du chantier</span>
+          <input id="h-adresse" placeholder="📍 Adresse du chantier (ex. 12 rue de la Gare, Naintré)" aria-label="Adresse du chantier">
+          <div class="suggestions" id="h-sugg"></div>
+        </label>
+        <button class="btn btn-grand btn-lime" type="submit">Voir mon prix →</button>
+      </div>
+      <div class="info-km" id="h-km"></div>
+    </form>
+    <div class="badges"><span>Prix livré en 2 min</span><span>Livraison sous 48 h ouvrées</span><span>Sans paiement en ligne</span><span>Sans engagement</span></div>
+  </div>
+</section>
+
+<section class="atouts"><div class="cont">
+  <div><b>🏔️ Carrière locale</b><span>Nos matériaux partent du Pautron, à Châtellerault</span></div>
+  <div><b>🚚 Nos propres camions</b><span>Du porteur 6x4 à la semi-benne</span></div>
+  <div><b>⚖️ Pesée certifiée</b><span>Vous payez le poids réel livré</span></div>
+  <div><b>💬 Un vrai conseil</b><span>Une équipe joignable au {{ soc.phone }}</span></div>
+</div></section>
+
+<section>
+  <div class="cont">
+    <div class="centre"><div class="sur-titre">Comment ça marche</div><h2>Simple comme un coup de fil, en mieux</h2></div>
+    <ol class="etapes" style="margin-top:24px">
+      <li><span class="ic">📍</span><b>Votre adresse</b><span class="muet">On calcule la distance depuis la carrière.</span></li>
+      <li><span class="ic">🪨</span><b>Votre matériau</b><span class="muet">Le prix livré s'affiche pour chaque produit.</span></li>
+      <li><span class="ic">📅</span><b>Quantité et date</b><span class="muet">En tonnes ou en m³, livré dès J+{{ c.delai_jours }}.</span></li>
+      <li><span class="ic">✅</span><b>On confirme</b><span class="muet">Par téléphone, en général le jour même.</span></li>
+    </ol>
+  </div>
+</section>
+
+{% if familles %}
+<section class="fond-sable">
+  <div class="cont">
+    <div class="centre"><div class="sur-titre">Nos matériaux</div><h2>Tout ce qu'il faut pour vos chantiers et vos jardins</h2></div>
+    <div class="grille familles-grille" style="margin-top:24px">
+      {% for f in familles %}{% set d = deco.get(f.nom, ('🪨', '#E3DED6')) %}
+      <a class="carte carte-img" href="{{ url_for('chatel_devis.parcours') }}?service=livraison&famille={{ f.nom|urlencode }}">
+        {% if f.img %}<img loading="lazy" src="{{ url_for('chatel_devis.image', tmpl=f.img) }}" alt="{{ f.nom }} — Chatel'Granulats">
+        {% else %}<div class="ph" style="background:{{ d[1] }}" aria-hidden="true">{{ d[0] }}</div>{% endif %}
+        <div class="corps"><h3>{{ f.nom }}</h3><span class="muet">{{ f.n }} produit{{ 's' if f.n > 1 }} · dès {{ '%.0f'|format(f.prix) }} € HT/t</span></div>
+      </a>
+      {% endfor %}
+    </div>
+    <p class="centre" style="margin-top:24px"><a class="btn btn-clair" href="{{ url_for('chatel_devis.page', page='produits') }}">Voir tous les produits</a></p>
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <div class="cont">
+    <div class="centre"><div class="sur-titre">Nos services</div><h2>Livrer, évacuer, transporter</h2></div>
+    <div class="grille" style="margin-top:24px">
+      <a class="carte" href="{{ url_for('chatel_devis.parcours') }}?service=livraison"><div class="icone">🚚</div><h3>Livraison de granulats</h3><p class="muet">Sable, gravier, grave, terre, galets et pierres de décoration, livrés en camion benne.</p><b>Prix livré immédiat →</b></a>
+      <a class="carte" href="{{ url_for('chatel_devis.parcours') }}?service=evacuation"><div class="icone">♻️</div><h3>Évacuation de déblais</h3><p class="muet">On reprend vos terres et gravats inertes. Couplé à une livraison : un seul camion, double économie.</p><b>Estimer l'évacuation →</b></a>
+      <a class="carte" href="{{ url_for('chatel_devis.parcours') }}?service=affretement"><div class="icone">🚛</div><h3>Affrètement de camion</h3><p class="muet">Un camion benne et son chauffeur à la demi-journée ou à la journée pour vos rotations.</p><b>Réserver un camion →</b></a>
+      <a class="carte" href="{{ url_for('chatel_devis.parcours') }}?service=benne"><div class="icone">🗑️</div><h3>Location de benne</h3><p class="muet">Une benne posée sur votre chantier, enlevée quand vous le souhaitez.</p><b>Demander une benne →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="fond-sable">
+  <div class="cont">
+    <div class="centre"><div class="sur-titre">Pour qui ?</div><h2>Particuliers et professionnels</h2></div>
+    <div class="grille-2" style="margin-top:24px">
+      <div class="carte"><h3>🏡 Particuliers</h3><p>Une allée, une terrasse, un massif, une dalle ? Prix livré clair, conseil au téléphone, livraison à la date choisie.</p><a href="{{ url_for('chatel_devis.page', page='pour-qui') }}#particuliers">En savoir plus →</a></div>
+      <div class="carte"><h3>🏗️ Professionnels du BTP et paysagistes</h3><p>Tarifs négociés, facturation à 30 jours, livraisons récurrentes et évacuation de vos déblais.</p><a href="{{ url_for('chatel_devis.page', page='espace-pro') }}">Ouvrir un compte pro →</a></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="cont">
+    <div class="centre"><div class="sur-titre">Réalisations</div><h2>Ils ont choisi nos pierres</h2></div>
+    <div class="grille" style="margin-top:24px">
+      {% for img in ['25941-3ec4482e/r%C3%A9alisation%20client%201.webp','25942-19752b80/r%C3%A9alisation%20client%202.webp','25943-ba4ccf70/r%C3%A9alisation%20client%203.webp','25940-35da1cca/r%C3%A9alisation%20client%204.webp'] %}
+      <div class="carte carte-img"><img loading="lazy" src="{{ c.site_principal }}/web/image/{{ img }}" alt="Réalisation client Chatel'Granulats"></div>
+      {% endfor %}
+    </div>
+    <p class="centre" style="margin-top:24px"><a class="btn btn-clair" href="{{ c.avis_google }}" target="_blank" rel="noopener">⭐ Lire nos avis Google</a></p>
+  </div>
+</section>
+
+<section class="fond-sable">
+  <div class="cont etroit">
+    <div class="centre"><div class="sur-titre">FAQ</div><h2>Vos questions</h2></div>
+    {% include 'chatel/_faq_courte.html' %}
+    <p class="centre"><a href="{{ url_for('chatel_devis.page', page='faq') }}">Toutes les questions →</a></p>
+  </div>
+</section>
+
+<section>
+  <div class="cont">
+    <div class="centre"><div class="sur-titre">Ressources</div><h2>Conseils et guides</h2></div>
+    <div class="grille" style="margin-top:24px">
+      {% for a in articles %}
+      <a class="carte" href="{{ url_for('chatel_devis.article', slug=a.slug) }}"><h3>{{ a.titre }}</h3><p class="muet">{{ a.chapo }}</p><b>Lire →</b></a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="fond-brun centre">
+  <div class="cont">
+    <h2>Un projet ? Votre prix livré en 2 minutes.</h2>
+    <p>Ou appelez-nous : <a href="{{ tel_lien }}">{{ soc.phone }}</a></p>
+    <a class="btn btn-grand btn-lime" href="{{ url_for('chatel_devis.parcours') }}">Obtenir un devis</a>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('chatel_devis.static', filename='adresse.js') }}?v=3"></script>
+<script>
+var hAdr = Adresse(document.getElementById('h-adresse'), document.getElementById('h-sugg'), document.getElementById('h-km'));
+function allerParcours(e) {
+  e.preventDefault();
+  location.href = '{{ url_for("chatel_devis.parcours") }}?service=' + document.querySelector('.onglets input:checked').value;
+  return false;
+}
+</script>
+{% endblock %}

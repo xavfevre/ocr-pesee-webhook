@@ -1,0 +1,20 @@
+{% extends 'chatel/base.html' %}
+{% block desc %}Compte professionnel Chatel'Granulats : tarifs négociés, facturation à 30 jours, livraison et évacuation de déblais pour les entreprises du BTP et paysagistes.{% endblock %}
+{% block contenu %}
+{% set chapo = "Tarifs négociés, facturation à 30 jours et un interlocuteur dédié pour vos chantiers." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille-2">
+    <div>
+      <div class="grille" style="grid-template-columns:1fr 1fr">
+        <div class="carte"><div class="icone">💶</div><b>Tarifs pro</b><p class="muet petit">Prix négociés selon vos volumes.</p></div>
+        <div class="carte"><div class="icone">🧾</div><b>30 jours</b><p class="muet petit">Facture mensuelle, bons de pesée joints.</p></div>
+        <div class="carte"><div class="icone">♻️</div><b>Double flux</b><p class="muet petit">Livraison + reprise des déblais.</p></div>
+        <div class="carte"><div class="icone">📞</div><b>Interlocuteur dédié</b><p class="muet petit">Un numéro, une personne.</p></div>
+      </div>
+      <div class="encart">Déjà client ? Consultez vos devis et factures sur votre <a href="{{ c.site_principal }}/my">espace client</a>.</div>
+    </div>
+    <div><h2>Demander un compte pro</h2>{% set type_form = 'pro' %}{% include 'chatel/_formulaire.html' %}</div>
+  </div>
+</div></section>
+{% endblock %}

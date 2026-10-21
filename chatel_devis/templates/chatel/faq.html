@@ -1,0 +1,30 @@
+{% extends 'chatel/base.html' %}
+{% block desc %}Délais, quantités, conversion m³ en tonnes, accès camion, déblais acceptés, paiement : les réponses aux questions fréquentes sur la livraison de granulats autour de Châtellerault.{% endblock %}
+{% block contenu %}
+{% set chapo = "Tout ce qu'il faut savoir avant de commander." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont etroit">
+  <h2>Commande et prix</h2>
+  {% include 'chatel/_faq_courte.html' %}
+  <details><summary>Comment est calculé le prix livré ?</summary><div>Prix du matériau à la tonne + transport à la tonne, calculé selon la distance routière entre notre carrière du Pautron et votre chantier et selon le camion. La fourchette affichée va du camion le plus économique (gros volume) au plus petit.</div></details>
+  <details><summary>Dois-je payer en ligne ?</summary><div>Non. Vous envoyez une demande, nous vous confirmons le devis. Les particuliers règlent à la livraison ou à l'enlèvement ; les professionnels avec un compte sont facturés à 30 jours.</div></details>
+  <details><summary>Existe-t-il des tarifs professionnels ?</summary><div>Oui, sur ouverture d'un compte. <a href="{{ url_for('chatel_devis.page', page='espace-pro') }}">Demandez votre compte pro</a>.</div></details>
+  <h2>Livraison</h2>
+  <details><summary>Le camion peut-il accéder à mon chantier ?</summary><div>Un porteur 6x4 a besoin d'un passage d'environ 3 m de large et 4 m de haut, et d'un sol portant (pas de pelouse détrempée). Un semi demande une voie large et un espace pour manœuvrer. Précisez les contraintes d'accès dans votre demande.</div></details>
+  <details><summary>Où le camion vide-t-il le matériau ?</summary><div>Le camion bascule sa benne à l'endroit indiqué, accessible depuis la voie. Il ne peut pas rouler sur une dalle fraîche, un trottoir fragile ou une fosse. Le déchargement sur la voie publique nécessite une autorisation de la mairie.</div></details>
+  <details><summary>Faut-il être présent à la livraison ?</summary><div>C'est préférable. Sinon, indiquez précisément l'emplacement de déchargement et joignez-nous la veille.</div></details>
+  <h2>Déblais</h2>
+  <details><summary>Quels déblais reprenez-vous ?</summary><div>Uniquement les déchets inertes : terres et cailloux non pollués, béton, briques, tuiles, céramique. Pas de plâtre, bois, plastique, ferraille, enrobé bitumineux ni amiante. Voir <a href="{{ url_for('chatel_devis.article', slug='isdi-isdnd-isdd-differences') }}">ISDI, ISDND, ISDD</a>.</div></details>
+  <details><summary>Comment les déblais sont-ils facturés ?</summary><div>À la tonne, d'après la pesée sur notre pont-bascule, plus le transport. Un bon de pesée est remis à chaque rotation.</div></details>
+</div></section>
+{% endblock %}
+{% block scripts %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Le prix affiché est-il définitif ?","acceptedAnswer":{"@type":"Answer","text":"C'est une estimation HT calculée à partir de nos tarifs et de la distance du chantier, confirmée par devis par notre équipe, en général le jour même."}},
+{"@type":"Question","name":"Sous quel délai suis-je livré ?","acceptedAnswer":{"@type":"Answer","text":"À partir de 2 jours ouvrés après la commande, du lundi au vendredi, entre 6 h 30 et 16 h 30."}},
+{"@type":"Question","name":"Comment convertir des m³ en tonnes ?","acceptedAnswer":{"@type":"Answer","text":"1 m³ de sable pèse environ 1,6 t, 1 m³ de gravier environ 1,5 t, 1 m³ de grave compactée environ 1,9 t."}},
+{"@type":"Question","name":"Quels déblais reprenez-vous ?","acceptedAnswer":{"@type":"Answer","text":"Uniquement les déchets inertes : terres et cailloux non pollués, béton, briques, tuiles, céramique."}},
+{"@type":"Question","name":"Dois-je payer en ligne ?","acceptedAnswer":{"@type":"Answer","text":"Non. Vous envoyez une demande, nous confirmons le devis ; paiement à la livraison pour les particuliers, à 30 jours pour les professionnels avec compte."}}]}
+</script>
+{% endblock %}

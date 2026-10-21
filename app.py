@@ -1659,6 +1659,14 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module tarifs_pierres non chargé: {_e}")
 
+# ─── CHATEL'GRANULATS : site public « devis instantané » (chatel_devis/) ─────
+# /devis/ (domaine prévu devis.chatelgranulats.com) ; réglages dans le paramètre Odoo chatel.devis_cfg.
+try:
+    from chatel_devis.app import bp as chatel_devis_bp
+    app.register_blueprint(chatel_devis_bp, url_prefix="/devis")
+except Exception as _e:
+    app.logger.warning(f"Module chatel_devis non chargé: {_e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

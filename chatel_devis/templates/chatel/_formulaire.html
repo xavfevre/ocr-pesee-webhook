@@ -1,0 +1,36 @@
+{# Formulaire générique (contact / pro / emploi) -> /api/message. Variable attendue : type_form #}
+<form class="carte form-message" data-type="{{ type_form }}">
+  <div class="form-grille">
+    <label class="champ"><span>Nom et prénom *</span><input name="nom" autocomplete="name" required></label>
+    <label class="champ"><span>Société{{ ' *' if type_form == 'pro' }}</span><input name="societe" autocomplete="organization" {{ 'required' if type_form == 'pro' }}></label>
+    <label class="champ"><span>E-mail *</span><input name="email" type="email" autocomplete="email" required></label>
+    <label class="champ"><span>Téléphone *</span><input name="tel" type="tel" autocomplete="tel" required></label>
+    {% if type_form == 'pro' %}
+    <label class="champ"><span>SIRET</span><input name="siret" inputmode="numeric"></label>
+    <label class="champ"><span>Volume annuel estimé</span><select name="volume"><option>Moins de 100 t</option><option>100 à 500 t</option><option>500 à 2 000 t</option><option>Plus de 2 000 t</option></select></label>
+    {% elif type_form == 'emploi' %}
+    <label class="champ plein"><span>Poste recherché</span><select name="poste"><option>Chauffeur poids lourd</option><option>Conducteur d'engins / chargeur</option><option>Agent de carrière</option><option>Vente / accueil</option><option>Autre</option></select></label>
+    {% endif %}
+    <label class="champ plein"><span>{{ 'Votre parcours, vos permis (C, CE, CACES…)' if type_form == 'emploi' else 'Votre message' }}</span><textarea name="message" required></textarea></label>
+    <div class="hp" aria-hidden="true"><label>Site web<input name="site_web" tabindex="-1" autocomplete="off"></label></div>
+  </div>
+  <div class="actions"><button class="btn btn-grand" type="submit">Envoyer</button></div>
+  <div class="message"></div>
+</form>
+<script>
+document.querySelectorAll('form.form-message').forEach(function (f) {
+  f.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var d = {type: f.dataset.type, jeton: '{{ jeton }}'};
+    new FormData(f).forEach(function (v, k) { d[k] = v; });
+    var b = f.querySelector('button[type=submit]'), m = f.querySelector('.message');
+    b.disabled = true; b.textContent = 'Envoi…'; m.className = 'message';
+    fetch('{{ url_for("chatel_devis.api_message") }}', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(d)})
+      .then(function (r) { return r.json(); }).then(function (r) {
+        if (r.ok) { f.reset(); m.textContent = 'Merci, votre message est bien envoyé. Nous vous répondons rapidement.'; m.className = 'message ok'; }
+        else { m.textContent = r.erreur || 'Envoi impossible.'; m.className = 'message err'; }
+      }).catch(function () { m.textContent = 'Envoi impossible, appelez-nous au {{ soc.phone }}.'; m.className = 'message err'; })
+      .then(function () { b.disabled = false; b.textContent = 'Envoyer'; });
+  });
+});
+</script>

@@ -1,0 +1,18 @@
+{% extends 'chatel/base.html' %}
+{% block desc %}Chatel'Granulats recrute à Châtellerault : chauffeurs poids lourd, conducteurs d'engins, agents de carrière. Envoyez votre candidature.{% endblock %}
+{% block contenu %}
+{% set chapo = "Chauffeurs, conducteurs d'engins, agents de carrière : rejoignez une équipe locale du groupe Carrières Maquignon." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille-2">
+    <div class="prose">
+      <h2>Pourquoi nous rejoindre ?</h2>
+      <ul><li>Une entreprise locale, des tournées autour de Châtellerault : retour au dépôt chaque soir</li><li>Du matériel entretenu et récent</li><li>Une équipe à taille humaine, au sein d'un groupe de carrières de la Vienne</li></ul>
+      <h2>Les métiers</h2>
+      <ul><li><b>Chauffeur poids lourd</b> (permis C ou CE, FIMO/FCO à jour)</li><li><b>Conducteur d'engins / chargeur</b> (CACES R482)</li><li><b>Agent de carrière</b> : chargement, pesée, accueil des clients</li><li><b>Vente / accueil showroom</b></li></ul>
+      <p>Aucune offre ne correspond ? Les candidatures spontanées sont les bienvenues.</p>
+    </div>
+    <div>{% set type_form = 'emploi' %}{% include 'chatel/_formulaire.html' %}</div>
+  </div>
+</div></section>
+{% endblock %}

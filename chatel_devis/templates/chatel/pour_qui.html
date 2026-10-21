@@ -1,0 +1,23 @@
+{% extends 'chatel/base.html' %}
+{% block contenu %}
+{% set chapo = "Particuliers, artisans, entreprises de travaux publics et paysagistes : un service adapté à chacun." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille-2">
+    <div class="carte" id="particuliers"><div class="icone">🏡</div><h2>Particuliers</h2>
+      <p>Aménagement de jardin, allée, terrasse, dalle de garage : on vous aide à choisir le bon matériau et la bonne quantité.</p>
+      <ul><li>Prix livré affiché avant de vous engager</li><li>Conversion m³ → tonnes automatique</li><li>Conseils au téléphone et au showroom</li><li>Possibilité de venir charger à la carrière</li></ul>
+      <a class="btn" href="{{ url_for('chatel_devis.parcours') }}">Faire mon devis</a></div>
+    <div class="carte" id="pros"><div class="icone">🏗️</div><h2>Professionnels</h2>
+      <p>Maçons, terrassiers, VRD, paysagistes, collectivités : des matériaux disponibles et des camions réactifs.</p>
+      <ul><li>Tarifs professionnels négociés</li><li>Paiement à 30 jours sur compte</li><li>Livraison + évacuation des déblais (double flux)</li><li>Bons de pesée et factures centralisés</li></ul>
+      <a class="btn" href="{{ url_for('chatel_devis.page', page='espace-pro') }}">Ouvrir un compte pro</a></div>
+    <div class="carte" id="transporteurs"><div class="icone">🚛</div><h2>Transporteurs</h2>
+      <p>Vous avez des camions disponibles autour de Châtellerault ? Travaillons ensemble sur nos pointes d'activité.</p>
+      <a class="btn btn-clair" href="{{ url_for('chatel_devis.page', page='contact') }}">Nous contacter</a></div>
+    <div class="carte" id="collectivites"><div class="icone">🏛️</div><h2>Collectivités</h2>
+      <p>Communes et syndicats : granulats pour voirie, chemins et espaces verts, sur devis ou marché.</p>
+      <a class="btn btn-clair" href="{{ url_for('chatel_devis.page', page='contact') }}">Demander un devis</a></div>
+  </div>
+</div></section>
+{% endblock %}

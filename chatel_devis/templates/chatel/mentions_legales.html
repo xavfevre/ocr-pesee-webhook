@@ -1,0 +1,23 @@
+{% extends 'chatel/base.html' %}
+{% block tete %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block contenu %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont etroit prose">
+  <h2>Éditeur du site</h2>
+  <p><b>{{ soc.name }}</b><br>{{ soc.street }}{% if soc.street2 %}, {{ soc.street2 }}{% endif %}, {{ soc.zip }} {{ soc.city }}<br>
+  Téléphone : {{ soc.phone }} — E-mail : {{ soc.email }}<br>
+  {% if soc.company_registry %}RCS / SIRET : {{ soc.company_registry }}<br>{% endif %}
+  {% if soc.vat %}N° TVA intracommunautaire : {{ soc.vat }}<br>{% endif %}
+  Directeur de la publication : le représentant légal de {{ soc.name }}.</p>
+  <h2>Hébergement</h2>
+  <p>Render Services, Inc., 525 Brannan Street, Suite 300, San Francisco, CA 94107, États-Unis — render.com.<br>
+  Données commerciales hébergées par Odoo SA, Chaussée de Namur 40, 1367 Grand-Rosière, Belgique.</p>
+  <h2>Données personnelles</h2>
+  <p>Les informations saisies dans les formulaires (nom, société, e-mail, téléphone, adresse du chantier) servent uniquement à établir votre devis, à organiser la livraison et à vous recontacter. Elles sont conservées dans notre logiciel de gestion pendant la durée de la relation commerciale puis 3 ans, et ne sont jamais revendues.</p>
+  <p>Vous pouvez demander l'accès, la rectification ou la suppression de vos données en écrivant à <a href="mailto:{{ soc.email }}">{{ soc.email }}</a>. En cas de difficulté, vous pouvez saisir la CNIL (cnil.fr).</p>
+  <h2>Cookies</h2>
+  <p>Ce site n'utilise aucun cookie publicitaire ni de mesure d'audience. Seul le stockage de session du navigateur mémorise votre parcours de devis le temps de la visite.</p>
+  <h2>Services tiers</h2>
+  <p>L'autocomplétion des adresses utilise la Base Adresse Nationale (api-adresse.data.gouv.fr) et le calcul de distance le service OSRM (OpenStreetMap). Les polices sont servies par Google Fonts.</p>
+</div></section>
+{% endblock %}

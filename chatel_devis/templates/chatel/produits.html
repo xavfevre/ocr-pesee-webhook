@@ -1,0 +1,51 @@
+{% extends 'chatel/base.html' %}
+{% block tete %}<link rel="stylesheet" href="{{ url_for('chatel_devis.static', filename='parcours.css') }}?v=3">{% endblock %}
+{% block contenu %}
+{% set chapo = "Prix HT à la tonne. Indiquez l'adresse du chantier pour voir le prix livré." %}
+{% include 'chatel/_titre.html' %}
+<section style="padding-top:28px"><div class="cont">
+  <label class="champ adresse" style="max-width:620px"><span>Adresse du chantier</span>
+    <input id="adresse" placeholder="Commencez à taper : numéro, rue, commune"><div class="suggestions" id="sugg"></div></label>
+  <div class="info-km" id="km"></div>
+  <div class="catalogue" style="margin-top:18px">
+    <aside class="familles" id="familles"></aside>
+    <div>
+      <div class="outils"><input type="search" id="recherche" placeholder="Rechercher un produit"></div>
+      <div class="usages" id="usages"></div>
+      <div id="produits" class="produits cartes"><div class="vide">Chargement du catalogue…</div></div>
+    </div>
+  </div>
+</div></section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('chatel_devis.static', filename='adresse.js') }}?v=3"></script>
+<script>
+(function () {
+  var B = '{{ url_for("chatel_devis.accueil")[:-1] }}', IMG = '{{ url_for("chatel_devis.image", tmpl=0)[:-1] }}', PARC = '{{ url_for("chatel_devis.parcours") }}';
+  var D = null, fam = new URLSearchParams(location.search).get('famille') || 'Tous', usage = null, rech = '';
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
+  function charger(a) {
+    fetch(B + '/api/catalogue' + (a && a.km != null ? '?km=' + a.km : '')).then(function (r) { return r.json(); }).then(function (j) { D = j; rendre(); });
+  }
+  function rendre() {
+    var nb = {}; D.produits.forEach(function (p) { nb[p.famille] = (nb[p.famille] || 0) + 1; });
+    var fams = ['Tous'].concat(D.familles.filter(function (f) { return nb[f]; }));
+    document.getElementById('familles').innerHTML = fams.map(function (f) { return '<button type="button" class="' + (f === fam ? 'on' : '') + '" data-f="' + esc(f) + '">' + esc(f) + ' <small>' + (f === 'Tous' ? D.produits.length : nb[f]) + '</small></button>'; }).join('');
+    document.querySelectorAll('#familles button').forEach(function (b) { b.onclick = function () { fam = b.dataset.f; rendre(); }; });
+    document.getElementById('usages').innerHTML = D.usages.filter(function (u) { return D.produits.some(function (p) { return p.usages.indexOf(u) >= 0; }); })
+      .map(function (u) { return '<button type="button" class="' + (u === usage ? 'on' : '') + '" data-u="' + esc(u) + '">' + esc(u) + '</button>'; }).join('');
+    document.querySelectorAll('#usages button').forEach(function (b) { b.onclick = function () { usage = usage === b.dataset.u ? null : b.dataset.u; rendre(); }; });
+    var r = rech.toLowerCase();
+    var ps = D.produits.filter(function (p) { return (fam === 'Tous' || p.famille === fam) && (!usage || p.usages.indexOf(usage) >= 0) && (!r || (p.nom + ' ' + p.famille).toLowerCase().indexOf(r) >= 0); });
+    document.getElementById('produits').innerHTML = ps.length ? ps.map(function (p) {
+      var px = p.min != null ? '<b>' + (p.min === p.max ? 'dès ' + p.min : p.min + ' – ' + p.max) + ' €</b><small>HT/T · prix livré</small>' : '<b>' + p.prix_t.toLocaleString('fr-FR', {minimumFractionDigits: 2}) + ' €</b><small>HT/T départ carrière</small>';
+      return '<a class="prod" style="text-decoration:none" href="' + PARC + '?service=livraison&produit=' + p.id + '">' + (p.img ? '<img loading="lazy" alt="' + esc(p.nom) + '" src="' + IMG + p.tmpl + '">' : '<div class="ph" aria-hidden="true" style="background:' + ((D.deco[p.famille] || [0, '#E3DED6'])[1]) + '">' + ((D.deco[p.famille] || ['🪨'])[0]) + '</div>') +
+        '<div><div class="nom">' + esc(p.nom) + (p.declasse ? '<span class="declasse">Déclassé</span>' : '') + '</div><div class="fam">' + esc(p.famille) + '</div></div><div class="px">' + px + '</div></a>';
+    }).join('') : '<div class="vide">Aucun produit ne correspond.</div>';
+  }
+  document.getElementById('recherche').addEventListener('input', function () { rech = this.value; if (D) rendre(); });
+  Adresse(document.getElementById('adresse'), document.getElementById('sugg'), document.getElementById('km'), charger);
+  charger(cgStock.lire('cg_adresse'));
+})();
+</script>
+{% endblock %}

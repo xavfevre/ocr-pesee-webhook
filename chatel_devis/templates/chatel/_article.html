@@ -1,0 +1,20 @@
+{% extends 'chatel/base.html' %}
+{% block desc %}{{ article.chapo }}{% endblock %}
+{% block contenu %}
+{% set chapo = article.chapo %}{% set parent = ('Ressources', url_for('chatel_devis.ressources')) %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont etroit prose">
+  {% block corps %}{% endblock %}
+  <div class="carte centre" style="margin-top:36px">
+    <h3>Prêt à commander ?</h3>
+    <p class="muet">Votre prix livré en 2 minutes, confirmé par notre équipe.</p>
+    <a class="btn btn-grand" href="{{ url_for('chatel_devis.parcours') }}">Obtenir mon devis</a>
+  </div>
+  <h3 style="margin-top:36px">À lire aussi</h3>
+  <ul>{% for a in articles if a.slug != article.slug %}<li><a href="{{ url_for('chatel_devis.article', slug=a.slug) }}">{{ a.titre }}</a></li>{% endfor %}</ul>
+</div></section>
+{% endblock %}
+{% block scripts %}
+<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "Article", "headline": article.titre, "description": article.chapo,
+  "inLanguage": "fr-FR", "publisher": {"@type": "Organization", "name": soc.name}, "mainEntityOfPage": request.url}|tojson }}</script>
+{% endblock %}

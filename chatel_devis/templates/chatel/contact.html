@@ -1,0 +1,19 @@
+{% extends 'chatel/base.html' %}
+{% block desc %}Contactez Chatel'Granulats, carrière du Pautron à Châtellerault : {{ soc.phone }}, {{ soc.email }}. Devis granulats, livraison et évacuation de déblais.{% endblock %}
+{% block contenu %}
+{% set chapo = "Une question, un projet particulier ? Appelez-nous ou écrivez-nous." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille-2">
+    <div>
+      <div class="carte">
+        <h3>📞 Par téléphone</h3><p><a class="btn btn-grand" href="{{ tel_lien }}">{{ soc.phone }}</a></p>
+        <h3>✉️ Par e-mail</h3><p><a href="mailto:{{ soc.email }}">{{ soc.email }}</a></p>
+        <h3>📍 À la carrière</h3><p>{{ soc.street }}<br>{{ soc.zip }} {{ soc.city }}</p>
+        <p><a class="btn btn-clair" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ c.depart.lat }},{{ c.depart.lon }}">Itinéraire</a></p>
+      </div>
+    </div>
+    <div>{% set type_form = 'contact' %}{% include 'chatel/_formulaire.html' %}</div>
+  </div>
+</div></section>
+{% endblock %}

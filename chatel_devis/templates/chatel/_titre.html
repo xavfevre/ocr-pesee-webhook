@@ -1,0 +1,5 @@
+<div class="titre-page"><div class="cont">
+  <div class="fil"><a href="{{ url_for('chatel_devis.accueil') }}">Accueil</a>{% if parent %} › <a href="{{ parent[1] }}">{{ parent[0] }}</a>{% endif %} › {{ titre }}</div>
+  <h1>{{ titre }}</h1>
+  {% if chapo %}<p class="muet" style="font-size:1.15rem;max-width:760px">{{ chapo }}</p>{% endif %}
+</div></div>

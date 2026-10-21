@@ -1,0 +1,23 @@
+{% extends 'chatel/base.html' %}
+{% block contenu %}
+{% set chapo = "Partez de votre projet : on vous indique les matériaux qui conviennent." %}
+{% include 'chatel/_titre.html' %}
+<section><div class="cont">
+  <div class="grille">
+    {% set infos = {
+      'Béton & maçonnerie': ('🧱', "Sable 0/4 et gravier 4/10 à 6/14 pour vos bétons, chapes et mortiers."),
+      'Tranchée canalisation': ('🔧', "Sable ou petit gravillon pour le lit de pose et l'enrobage des réseaux."),
+      'Tranchée technique & remblai': ('⛏️', "Grave 0/20 ou 0/31,5 pour remblayer, caler et compacter."),
+      'Drainage': ('💧', "Cailloux 20/40 ou 40/80 pour drains, puisards et pieds de mur."),
+      'Allée & cour': ('🚗', "Concassé ou gravier calibré sur une fondation en grave compactée."),
+      'Décoration jardin': ('🌿', "Galets, graviers colorés, ardoise et schiste pour massifs et paillage minéral."),
+      'Terrassement & espaces verts': ('🌱', "Terre végétale pour engazonner, planter ou remettre à niveau."),
+      'Dallage & pavage': ('🔲', "Dalles, pavés et pas japonais en pierre naturelle.")} %}
+    {% for u, rx in c.usages %}
+    <a class="carte" href="{{ url_for('chatel_devis.parcours') }}?service=livraison#etape2" onclick="try{var s=JSON.parse(sessionStorage.getItem('cg_parcours')||'{}');s.usage='{{ u }}';s.famille='Tous';s.service='livraison';sessionStorage.setItem('cg_parcours',JSON.stringify(s))}catch(e){}">
+      <div class="icone">{{ (infos.get(u) or ('🪨', ''))[0] }}</div><h3>{{ u }}</h3><p class="muet">{{ (infos.get(u) or ('', ''))[1] }}</p><b>Voir les produits →</b></a>
+    {% endfor %}
+  </div>
+  <p style="margin-top:28px">Un doute sur le bon matériau ? Lisez <a href="{{ url_for('chatel_devis.article', slug='quel-granulat-pour-quel-usage') }}">notre guide</a> ou appelez-nous au <a href="{{ tel_lien }}">{{ soc.phone }}</a>.</p>
+</div></section>
+{% endblock %}
