@@ -163,8 +163,7 @@ s.append(tableau([
 ], [58 * mm, 82 * mm, 38 * mm]))
 s.append(Paragraph("Les prix sont des ordres de grandeur à confirmer sur devis. Le logiciel (DAP, page bascule, passerelle, e-mails, registres) est réalisé en interne sur Odoo et le relais existants, sans licence supplémentaire.", SMALL))
 
-s.append(Paragraph("6. Consignes affichées à la colonne", H2))
-s.append(Paragraph("1. Appuyez sur le bouton.<br/>2. Donnez votre immatriculation et votre numéro de DAP ou votre chantier.<br/>3. Avancez sur le pont quand on vous le dit.<br/>4. Déchargez dans la zone indiquée.<br/>5. Repassez sur le pont.<br/>6. Votre ticket arrive par e-mail.", NOTE))
+s.append(KeepTogether([Paragraph("6. Consignes affichées à la colonne", H2), Paragraph("1. Appuyez sur le bouton.<br/>2. Donnez votre immatriculation et votre numéro de DAP ou votre chantier.<br/>3. Avancez sur le pont quand on vous le dit.<br/>4. Déchargez dans la zone indiquée.<br/>5. Repassez sur le pont.<br/>6. Votre ticket arrive par e-mail.", NOTE)]))
 
 s.append(Paragraph("7. Mise en place", H2))
 s.append(tableau([
