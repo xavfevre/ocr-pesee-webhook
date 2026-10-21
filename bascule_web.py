@@ -26,6 +26,16 @@ SITES = {
         'entete': ["CHATEL'GRANULATS", 'Le Pautron - 86100 Châtellerault', 'Tél. 05 49 90 57 62'],
         'instrument': 'Bilanciai DD700 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,
         'client_comptoir_id': 35137,   # « Comptoir Chatel Granulats » : client de passage pour les tickets de caisse sans fiche
+        'caisse': True,                # point de vente Odoo sur le site : destination « ticket de caisse » possible
+    },
+    'maquignon': {
+        'nom': 'SARL MAQUIGNON', 'company_id': 1, 'sequence': 'x_pesee.maquignon',
+        'imprimante': '',              # pas d'imprimante ePOS connue sur le pont d'Usseau (réglable par poste dans la page)
+        'entete': ['SARL MAQUIGNON', '51 rue du Prieuré - 86230 Usseau', 'Tél. 05 49 02 72 63'],
+        'instrument': 'Bilanciai D400 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,   # mêmes commandes XB/XN/XT/XZ que le DD700 (sonde du 21/10/2026)
+        'caisse': False,               # pas de point de vente : bon de commande journalier ou pesée seule
+        # articles proposés : vendables à la tonne, de la société ou communs, hors contributions (le point de vente ne sert pas de filtre ici)
+        'produits_domaine': [['sale_ok', '=', True], ['uom_id.name', 'ilike', 'tonne'], ['categ_id.name', 'not in', ['Contribution Energie', 'Eco Contribution']]],
     },
 }
 
@@ -235,12 +245,12 @@ def api_config():
     if g:
         return g
     site = _site(); cfg = SITES[site]
-    prods = _call('product.product', 'search_read', [['available_in_pos', '=', True], ['sale_ok', '=', True], ['uom_id.name', 'ilike', 'tonne'],
-                                                     '|', ['company_id', '=', cfg['company_id']], ['company_id', '=', False]],
+    dom = cfg.get('produits_domaine') or [['available_in_pos', '=', True], ['sale_ok', '=', True], ['uom_id.name', 'ilike', 'tonne']]
+    prods = _call('product.product', 'search_read', dom + ['|', ['company_id', '=', cfg['company_id']], ['company_id', '=', False]],
                   fields=['name', 'default_code', 'list_price'], order='id', **_ctx(site))
     prods = sorted(({'id': p['id'], 'nom': p['name'], 'prix': p['list_price']} for p in prods), key=lambda p: p['nom'].lower())
     return jsonify({'site': site, 'nom': cfg['nom'], 'imprimante': cfg['imprimante'], 'entete': cfg['entete'], 'instrument': cfg['instrument'],
-                    'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'produits': prods, 'serveur': _maintenant()})
+                    'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'caisse': bool(cfg.get('caisse')), 'produits': prods, 'serveur': _maintenant()})
 
 
 @bp.route('/api/clients')

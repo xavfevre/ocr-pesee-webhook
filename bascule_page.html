@@ -276,6 +276,7 @@
   }
   async function imprimer(xml) {
     const ip = LS('imprimante') || CFG.imprimante;
+    if (!ip) { message('Pas d imprimante sur ce site : pesée enregistrée, ticket non imprimé (adresse réglable dans Réglages).', 'info'); return false; }
     const url = 'https://' + ip + '/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000';
     try {
       const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' }, body: xml });
@@ -296,6 +297,10 @@
   async function chargerConfig() {
     CFG = await api('config');
     $('titre').textContent = 'Pont-bascule ' + CFG.nom; document.title = 'Pont-bascule ' + CFG.nom;
+    if (!CFG.caisse) {   // site sans point de vente : pas de ticket de caisse à régler
+      const lt = document.querySelector('#destination input[value=ticket]').parentElement; lt.style.display = 'none';
+      if (lt.classList.contains('on')) { lt.classList.remove('on'); const lj = document.querySelector('#destination input[value=journalier]'); lj.checked = true; lj.parentElement.classList.add('on'); LSset('destination', 'journalier'); }
+    }
     const sel = $('produit'); sel.innerHTML = '<option value="">— choisir un produit —</option>' + CFG.produits.map(p => '<option value="' + p.id + '">' + p.nom.replace(/</g, '&lt;') + '</option>').join('');
     const dernierProduit = LS('produit'); if (dernierProduit) sel.value = dernierProduit;
     $('p-odoo').className = 'pastille ok'; $('t-odoo').textContent = 'Odoo connecté';
