@@ -42,9 +42,7 @@ Pour Chatel'Granulats, périmètre réaliste v1 : **Livraison de granulats** (pr
   Articles transport : 2544 « Transport » (forfait), 2575 « Transport à la tonne », 3228 location semi.
 - Sites web Odoo existants (module `website` + `website_sale`, `delivery`, `payment_stripe`) :
   1 Maquignon (maquignon.com), 2 Carrière d'Haims (carrierehaims.fr), 3 Châtel'Béton (chatelbeton.fr,
-  société 2), **4 Chatel Granulats (chatelgranulats.com, société 3)**, 5 « https://www.koncrete.fr/ »
-  (rattaché à Carrière d'Haims — créé récemment, probablement par Xavier en explorant : à clarifier
-  avec lui, sans doute à supprimer). Fournisseurs de paiement actifs pour Chatel'Granulats : **Stripe**
+  société 2), **4 Chatel Granulats (chatelgranulats.com, société 3)** (un site n° 5 nommé « koncrete.fr », vide, a été supprimé le 21/10/2026). Fournisseurs de paiement actifs pour Chatel'Granulats : **Stripe**
   (enabled) et virement. Donc un **paiement en ligne Stripe est déjà possible** via Odoo.
 - Clients : fiches `res.partner` société 3, codes `CGxxxxx` ; comptes portail possibles (Espace pro).
 - Pont-bascule Chatel : page `/bascule/?site=chatel` du relais (pesées `x_pesee`, bon de commande
