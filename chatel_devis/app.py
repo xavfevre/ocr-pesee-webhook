@@ -49,9 +49,10 @@ CFG_DEFAUT = {
         {'code': 'semi', 'nom': 'Semi-benne', 'charge': 28, 'mini_t': 20, 'fixe_t': 1.5, 'eur_km_t': 0.11},
     ],
     'forfait_mini': 0,
-    'article_transport': 2575,               # « Transport à la tonne »
-    'article_evacuation': 2574,              # « Reprise deblais inerte »
-    'article_affretement': 3228,             # location semi
+    # articles de service retrouvés par leur nom (mot cherché dans Odoo, regex de confirmation), société 3 en priorité
+    'articles': {'transport': ['transport', r'(?i)^transport.*tonne'],
+                 'evacuation': ['reprise', r'(?i)reprise.*d[ée]blai'],
+                 'affretement': ['location', r'(?i)location.*semi']},
     'contributions': [],                     # [{"id": 123, "nom": "Eco contribution", "eur_t": 0.5}] ajoutées par tonne
     'exclure': r'(?i)contribution|transport|reprise|location|livraison|forfait|acompte|remise|consigne',
     'exclure_ids': [],
@@ -73,11 +74,11 @@ CFG_DEFAUT = {
     'familles_ordre': ['Sable', 'Gravier', 'Caillou', 'Grave', 'Terre', 'Concassé déco', 'Galets', 'Ardoise et schiste',
                        'Dallage et pavage', 'Divers', 'Déstockage'],
     'usages': [   # [nom, regex sur nom d'article ou de catégorie]
-        ['Béton & maçonnerie', r'(?i)(sable.*0/4|0/4.*sable|4/10|4/20|6/10|6/14|10/20|gravillon|béton|maçon)'],
-        ['Tranchée canalisation', r'(?i)(sable|0/4|0/6|2/4|4/6|enrobage)'],
-        ['Tranchée technique & remblai', r'(?i)(grave|0/20|0/31|0/63|0/80|tout.?venant|remblai|gnt)'],
+        ['Béton & maçonnerie', r'(?i)(sable.*0/4|0/4.*sable|\b4/10|\b4/20|\b6/10|\b6/14|\b10/20|gravillon)'],
+        ['Tranchée canalisation', r'(?i)(sable|(^|\s)(0/4|0/6|2/4|4/6)\b|enrobage)'],
+        ['Tranchée technique & remblai', r'(?i)(grave|\b0/20|\b0/31|\b0/60|\b0/63|\b0/80|tout.?venant|remblai|gnt|béton concass)'],
         ['Drainage', r'(?i)(20/40|20/60|40/80|40/70|drain|ballast|caillou|cailloux)'],
-        ['Allée & cour', r'(?i)(allée|0/20|6/10|10/14|concassé|calcaire|gravier)'],
+        ['Allée & cour', r'(?i)(allée|(^|\s)(0/20|6/10|10/14)\b|concassé|gravier)'],
         ['Décoration jardin', r'(?i)(déco|galet|ardoise|schiste|marbre|paillage|blanc|rose|noir|ocre)'],
         ['Terrassement & espaces verts', r'(?i)(terre|végétale)'],
         ['Dallage & pavage', r'(?i)(dall|pavé|pavage|pas japonais|bordure)'],
@@ -202,6 +203,8 @@ def _famille(nom, categ):
                          ('caillou', 'Caillou'), ('ballast', 'Caillou'), ('enrochement', 'Caillou'), ('galet', 'Galets')):
             if n.startswith(mot) or f' {mot}' in n[:25]:
                 return fam
+        if re.search(r'(^|\s)0/(1[2-9]|[2-9]\d|\d{3})', n):
+            return 'Grave'                      # 0/20, 0/31,5, 0/60… : graves (y compris béton concassé)
         return 'Gravier'
     for mot, fam in (('galet', 'Galets'), ('ardoise', 'Ardoise et schiste'), ('schiste', 'Ardoise et schiste'),
                      ('dallage', 'Dallage et pavage'), ('pavage', 'Dallage et pavage'), ('concasse', 'Concassé déco'),
@@ -279,18 +282,29 @@ def _lire_catalogue():
         out.append({'id': p['id'], 'tmpl': p['product_tmpl_id'][0], 'nom': nom, 'famille': fam, 'categ': categ,
                     'prix_t': round(prix, 2), 'img': p['product_tmpl_id'][0] in avec_img,
                     'declasse': fam == 'Déstockage' or 'déclass' in nom.lower(),
-                    'usages': [u for u, rx in usages if rx.search(nom) or rx.search(categ)],
+                    'usages': [u for u, rx in usages if rx.search(nom)
+                               or (u == 'Décoration jardin' and fam in ('Concassé déco', 'Galets', 'Ardoise et schiste'))
+                               or (u == 'Dallage & pavage' and fam == 'Dallage et pavage')],
                     'densite': c['densites'].get(fam, 1.5), 'desc': (p['description_sale'] or '').strip()[:300]})
     ordre = {f: i for i, f in enumerate(c['familles_ordre'])}
     out.sort(key=lambda q: (ordre.get(q['famille'], 99), _sans_accent(q['nom'])))
-    # prix d'évacuation (article Reprise déblais)
-    evac = None
-    try:
-        e = _call('product.product', 'read', [c['article_evacuation']], ['lst_price', 'display_name'], **ctx)[0]
-        evac = {'id': e['id'], 'nom': e['display_name'], 'prix_t': e['lst_price']}
-    except Exception:  # noqa: BLE001
-        pass
-    return {'produits': out, 'evacuation': evac, 'maj': datetime.now(TZ).strftime('%d/%m/%Y %H:%M')}
+    # articles de service (transport, reprise de déblais, affrètement) retrouvés par leur nom
+    articles = {}
+    for cle, (mot, rx) in c['articles'].items():
+        try:
+            cand = _call('product.product', 'search_read', [['name', 'ilike', mot], ['sale_ok', '=', True], ['company_id', 'in', [soc, False]]],
+                         fields=['display_name', 'name', 'lst_price', 'company_id'], **ctx)
+            cand = sorted([x for x in cand if re.search(rx, x['name'] or '')], key=lambda x: (not x['company_id'], x['id']))
+            if cand:
+                articles[cle] = {'id': cand[0]['id'], 'nom': re.sub(r'^\[[^\]]+\]\s*', '', cand[0]['display_name']), 'prix_t': cand[0]['lst_price']}
+        except Exception:  # noqa: BLE001
+            pass
+    return {'produits': out, 'evacuation': articles.get('evacuation'), 'articles': articles, 'maj': datetime.now(TZ).strftime('%d/%m/%Y %H:%M')}
+
+
+def article_service(cle):
+    a = catalogue().get('articles', {}).get(cle)
+    return a['id'] if a else None
 
 
 def catalogue():
@@ -379,13 +393,13 @@ def estimer(d):
                 if x.get('eur_t'):
                     lignes.append({'id': x['id'], 'nom': x['nom'], 'qte': t, 'unite': 't', 'pu': x['eur_t']})
         else:
-            e = catalogue()['evacuation'] or {'id': c['article_evacuation'], 'nom': 'Reprise de déblais inertes', 'prix_t': 8.75}
+            e = catalogue()['evacuation'] or {'id': None, 'nom': 'Reprise de déblais inertes', 'prix_t': None}
             lignes.append({'id': e['id'], 'nom': f"{e['nom']} — {d.get('deblais') or 'déblais inertes'}", 'qte': t, 'unite': 't', 'pu': e['prix_t']})
         pu_tr = round(transport_t(k, km), 2)
         lib = f"Transport {k['nom']} ({k['charge']} t) — {km:.0f} km — {tours} tour{'s' if tours > 1 else ''}"
         if t_fact > t:
             notes.append(f"Minimum de {k['mini_t']:g} t facturées en transport pour un {k['nom']}.")
-        lignes.append({'id': c['article_transport'], 'nom': lib, 'qte': t_fact, 'unite': 't', 'pu': pu_tr, 'transport': True})
+        lignes.append({'id': article_service('transport'), 'nom': lib, 'qte': t_fact, 'unite': 't', 'pu': pu_tr, 'transport': True})
         if c['forfait_mini'] and t_fact * pu_tr < c['forfait_mini']:
             lignes[-1].update(qte=1, unite='forfait', pu=c['forfait_mini'])
             notes.append(f"Forfait transport minimum {c['forfait_mini']:.0f} € HT.")
@@ -396,7 +410,7 @@ def estimer(d):
         nb = max(1, min(int(d.get('nb') or 1), 30))
         if not k:
             raise ValueError('camion inconnu')
-        lignes.append({'id': c['article_affretement'], 'nom': f"Affrètement {k['nom']} — {'demi-journée' if duree == 'demi' else 'journée'}",
+        lignes.append({'id': article_service('affretement'), 'nom': f"Affrètement {k['nom']} — {'demi-journée' if duree == 'demi' else 'journée'}",
                        'qte': nb, 'unite': 'demi-j.' if duree == 'demi' else 'j', 'pu': k.get(duree)})
         resume = {'camion': k['code'], 'duree': duree, 'nb': nb}
     elif service == 'benne':
@@ -739,7 +753,7 @@ def api_catalogue():
     r = jsonify({'produits': prods, 'usages': [u for u, _ in c['usages']], 'familles': c['familles_ordre'],
                  'camions': c['camions'], 'affretement': c['affretement'], 'bennes': c['bennes'], 'deblais': c['deblais'],
                  'creneaux': c['creneaux'], 'dates': dates_livraison(), 'zone_km': c['zone_km'], 'km_mini': c['km_mini'],
-                 'evacuation': cat['evacuation'], 'contrib_t': contributions_t(), 'maj': cat['maj'], 'deco': DECO})
+                 'evacuation': cat['evacuation'], 'articles': cat.get('articles', {}), 'contrib_t': contributions_t(), 'maj': cat['maj'], 'deco': DECO})
     r.headers['Cache-Control'] = 'public, max-age=120'
     return r
 
