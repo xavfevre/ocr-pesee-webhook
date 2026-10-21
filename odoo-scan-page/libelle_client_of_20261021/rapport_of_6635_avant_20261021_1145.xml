@@ -1,0 +1,269 @@
+<t t-name="mrp.report_mrporder_copy_2_copy_1">
+    <t t-call="web.html_container">
+        <t t-foreach="docs" t-as="doc">
+            <t t-set="cat_id" t-value="doc.product_id.categ_id.id"/>
+            <t t-set="is_first" t-value="not any(d.id &lt; doc.id and d.product_id.categ_id.id == cat_id for d in docs)"/>
+
+            <t t-if="is_first">
+                <t t-set="group_total_qty" t-value="sum(d.product_qty for d in docs if d.product_id.categ_id.id == cat_id)"/>
+                <t t-set="group_total_volume" t-value="sum(d.x_studio_vol_total or 0 for d in docs if d.product_id.categ_id.id == cat_id)"/>
+                <t t-set="group_docs" t-value="docs.filtered(lambda d: d.product_id.categ_id.id == cat_id)"/>
+
+                <t t-call="web.internal_layout">
+                    <div class="page">
+                        <div class="oe_structure"/>
+
+                        <h2 class="text-center mb-2">
+                            <span t-field="doc.product_id.categ_id.name"/> – Total : <t t-esc="'{:.2f}'.format(group_total_volume)"/> m³
+                        </h2>
+<!-- Récapitulatif clients concernés - dédoublonné -->
+<div class="mb-3 p-2 border rounded text-center" style="font-size: 2rem; font-weight: bold;">
+    Clients concernés :
+    <t t-set="seen_clients" t-value="[]"/>
+    <t t-foreach="group_docs" t-as="item">
+        <t t-set="client_key" t-value="(item.x_studio_nom_du_client or '') + '|' + (item.x_studio_ref_commande_client or '')"/>
+        <t t-if="client_key not in seen_clients">
+            <t t-set="seen_clients" t-value="seen_clients + [client_key]"/>
+            <span style="font-size: 2rem; font-weight: normal;">
+                <t t-esc="item.x_studio_nom_du_client"/>
+                <t t-if="item.x_studio_ref_commande_client">
+                    – <t t-esc="item.x_studio_ref_commande_client"/>
+                </t>
+            </span>
+            <t t-if="client_key != seen_clients[-1]"> | </t>
+        </t>
+    </t>
+</div>
+<!-- Adresses client et livraison + téléphone -->
+<t t-set="seen_partners" t-value="[]"/>
+<t t-foreach="group_docs" t-as="item">
+    <t t-set="order" t-value="item.sale_line_id.order_id if item.sale_line_id else (item.env['sale.order'].search([('name','=',item.origin)], limit=1) if item.origin else item.env['sale.order'].browse())"/>
+    <t t-if="order and order.partner_id and order.partner_id.id not in seen_partners">
+        <t t-set="partner" t-value="order.partner_id"/>
+        <t t-set="shipping" t-value="order.partner_shipping_id"/>
+        <t t-set="dummy" t-value="seen_partners.append(partner.id)"/>
+        <div class="mb-3 p-2 border rounded" style="font-size: 1rem;">
+            <div>
+                <strong>Client :</strong> <span t-esc="partner.name"/>
+                <t t-if="partner.phone">
+                    &amp;nbsp;—&amp;nbsp; <strong>Tél :</strong> <span t-esc="partner.phone"/>
+                </t>
+                
+            </div>
+            <div>
+                <strong>Adresse :</strong>
+                <t t-if="partner.street"><span t-esc="partner.street"/></t><t t-if="partner.street2">, <span t-esc="partner.street2"/></t><t t-if="partner.zip">, <span t-esc="partner.zip"/></t><t t-if="partner.city"> <span t-esc="partner.city"/></t><t t-if="partner.country_id">, <span t-esc="partner.country_id.name"/></t>
+            </div>
+            <t t-if="shipping and shipping.id != partner.id">
+                <div>
+                    <strong>Livraison :</strong>
+                    <t t-if="shipping.name"><span t-esc="shipping.name"/> — </t><t t-if="shipping.street"><span t-esc="shipping.street"/></t><t t-if="shipping.street2">, <span t-esc="shipping.street2"/></t><t t-if="shipping.zip">, <span t-esc="shipping.zip"/></t><t t-if="shipping.city"> <span t-esc="shipping.city"/></t><t t-if="shipping.country_id">, <span t-esc="shipping.country_id.name"/></t>
+                </div>
+            </t>
+            <div t-if="order.x_studio_conducteur_travaux">
+                <strong>Conducteur de travaux :</strong> <span t-esc="order.x_studio_conducteur_travaux.name"/><t t-if="order.x_studio_conducteur_travaux.function"> (<span t-esc="order.x_studio_conducteur_travaux.function"/>)</t>
+                <t t-if="order.x_studio_conducteur_travaux.phone">
+                    &amp;nbsp;—&amp;nbsp; <strong>Tél :</strong> <span t-esc="order.x_studio_conducteur_travaux.phone"/>
+                </t>
+                
+            </div>
+        </div>
+    </t>
+</t>
+                            <div class="row mb-3">
+                            <div class="col-4" t-if="doc.origin">
+                                <strong>N° Bon de commande :</strong> <span t-field="doc.origin"/>
+                                <br/>
+                                <span t-field="doc.origin" t-options="{'widget': 'barcode', 'width': 300, 'height': 60, 'img_style': 'width:150px;height:30px'}"/>
+                            </div>
+                            <div class="col-4" t-if="doc.user_id">
+                                <strong>Responsable :</strong> <span t-field="doc.user_id"/>
+                            </div>
+                            <div class="col-4" t-if="doc.date_deadline">
+                                <strong>Échéance :</strong> <span t-field="doc.date_deadline" t-options="{&quot;widget&quot;: &quot;date&quot;, &quot;format&quot;: &quot;dd/MM/yyyy&quot;}"/>
+                            </div>
+                        </div>
+
+<table class="table table-sm" style="font-size: 14px;">
+    <thead>
+        <tr class="border-bottom border-2 border-dark fw-bold">
+            <th>Img</th>
+            <th>Produit</th>
+            <th>Qté</th>
+            <th>Client</th>
+            <th>Réf. Cmd</th>
+            <th>Ref. Pierre</th>
+            <th>Taille de P.</th>
+            <th>Palette</th>
+            <th class="text-center" style="font-size: 16px; font-weight: bold;">Nbr.</th>
+            <th class="text-center" style="font-size: 16px; font-weight: bold;">Long.</th>
+            <th class="text-center" style="font-size: 16px; font-weight: bold;">Larg.</th>
+            <th class="text-center" style="font-size: 16px; font-weight: bold; background-color: #fff3cd;">Haut.</th>
+            <th>Surf.</th>
+            <th>Vol.</th>
+            <th>Code OF</th>
+        </tr>
+    </thead>
+    <tbody>
+        <t t-foreach="group_docs" t-as="item">
+            <t t-set="cat_name" t-value="(item.product_id.categ_id.complete_name or '') + ' ' + (item.product_id.categ_id.name or '')"/>
+            <t t-set="haut_bg" t-value="'#fff3cd'"/>
+            <t t-if="'HAIMS' in cat_name">
+                <t t-set="haut_bg" t-value="'#26ce38'"/>
+            </t>
+            <t t-elif="'MIGNE' in cat_name">
+                <t t-set="haut_bg" t-value="'#f3b353'"/>
+            </t>
+            <t t-elif="'RICHEMONT' in cat_name">
+                <t t-set="haut_bg" t-value="'#12f6e4'"/>
+            </t>
+            <t t-elif="'SIREUIL' in cat_name">
+                <t t-set="haut_bg" t-value="'#ffe82a'"/>
+            </t>
+            <t t-elif="'TERVOUX' in cat_name">
+                <t t-set="haut_bg" t-value="'#f617f6'"/>
+            </t>
+            <t t-elif="'TUFFEAU' in cat_name">
+                <t t-set="haut_bg" t-value="'#58a2f0'"/>
+            </t>
+            <tr>
+                <td style="width:40px;">
+                    <span t-field="item.product_id.image_128" t-options-widget="'image'" t-options-qweb_img_raw_data="1" style="max-width:36px;"/>
+                </td>
+                <td>
+                    <span t-field="item.product_id.name"/>
+                    <t t-if="item.product_description_variants">
+                        <br/><small class="text-muted"><span t-field="item.product_description_variants"/></small>
+                    </t>
+                    <t t-if="item.x_studio_description_article">
+                        <br/><small class="text-muted"><span t-field="item.x_studio_description_article"/></small>
+                    </t>
+                </td>
+                <td>
+                    <span t-field="item.product_qty"/>
+                    <span t-field="item.product_uom_id.name" groups="uom.group_uom"/>
+                    <t t-if="item.qty_producing">
+                        <br/><small>En prod: <span t-field="item.qty_producing"/></small>
+                    </t>
+                </td>
+                <td><span t-field="item.x_studio_nom_du_client"/></td>
+                <td><span t-field="item.x_studio_ref_commande_client"/></td>
+                <td><span t-field="item.x_studio_ref_pierre"/></td>
+                <td><span t-if="item.sale_line_id.x_studio_taille_de_p" t-field="item.sale_line_id.x_studio_taille_de_p"/></td>
+                <td><span t-field="item.x_studio_palette"/></td>
+                <td class="text-center" style="font-size: 18px; font-weight: bold;"><span t-field="item.x_studio_nbr"/></td>
+                <td class="text-center" style="font-size: 18px; font-weight: bold;"><span t-field="item.x_studio_long_m_1"/></td>
+                <td class="text-center" style="font-size: 18px; font-weight: bold;"><span t-field="item.x_studio_larg_m_1"/></td>
+                <td class="text-center" t-attf-style="font-size: 18px; font-weight: bold; background-color: {{haut_bg}};"><span t-field="item.x_studio_haut_m_1"/></td>
+                <td><span t-field="item.x_studio_surf_total"/></td>
+                <td><span t-field="item.x_studio_vol_total"/></td>
+                <td class="text-center">
+                    <span t-field="item.name" t-options="{'widget': 'barcode', 'width': 600, 'height': 120, 'img_style': 'width:200px;height:50px'}"/>
+                    <br/>
+                    <strong style="font-size: 11px;"><span t-field="item.name"/></strong>
+                </td>
+            </tr>
+        </t>
+    </tbody>
+</table>
+
+                        <!-- CODES-BARRES ACTIONS -->
+                        <table class="table table-bordered" style="margin: 15px 0;">
+                            <tbody>
+                                <tr style="background-color: #f8f9fa;">
+                                    <td class="text-center" style="width: 33.33%; padding: 20px; border-right: 2px solid #dee2e6; vertical-align: middle;">
+                                        <div style="display: block;">
+                                            <div style="margin-bottom: 10px;">
+                                                <strong style="font-size: 14px; color: green;">▶️ DÉMARRER</strong>
+                                            </div>
+                                            <div>
+                                                <span t-esc="'WO-START'" t-options="{'widget': 'barcode', 'width': 500, 'height': 100, 'img_style': 'width:180px;height:55px'}"/>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center" style="width: 33.33%; padding: 20px; border-right: 2px solid #dee2e6; vertical-align: middle;">
+                                        <div style="display: block;">
+                                            <div style="margin-bottom: 10px;">
+                                                <strong style="font-size: 14px; color: orange;">⏸️ PAUSE</strong>
+                                            </div>
+                                            <div>
+                                                <span t-esc="'WO-PAUSE'" t-options="{'widget': 'barcode', 'width': 500, 'height': 100, 'img_style': 'width:180px;height:55px'}"/>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center" style="width: 33.33%; padding: 20px; vertical-align: middle;">
+                                        <div style="display: block;">
+                                            <div style="margin-bottom: 10px;">
+                                                <strong style="font-size: 14px; color: red;">⏹️ TERMINER</strong>
+                                            </div>
+                                            <div>
+                                                <span t-esc="'WO-END'" t-options="{'widget': 'barcode', 'width': 500, 'height': 100, 'img_style': 'width:180px;height:55px'}"/>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Section Opérations -->
+                        <t t-foreach="group_docs" t-as="item">
+                            <t t-if="item.workorder_ids" groups="mrp.group_mrp_routings">
+                                <h4 class="mt-3">Opérations - <span t-field="item.name"/></h4>
+                                <table class="table table-sm mb-3">
+                                    <thead>
+                                        <tr class="bg-light">
+                                            <th>Opération</th>
+                                            <th>Poste de travail</th>
+                                            <th>Assigné à</th>
+                                            <th>Durée prévue (min)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="item.workorder_ids" t-as="wo">
+                                            <td><span t-field="wo.name"/></td>
+                                            <td><span t-field="wo.workcenter_id.name"/></td>
+                                            <td>
+                                                <t t-if="wo.employee_assigned_ids">
+                                                    <span t-esc="', '.join(wo.employee_assigned_ids.mapped('name'))"/>
+                                                </t>
+                                            </td>
+                                            <td>
+                                                <span t-if="item.state != 'done'" t-field="wo.duration_expected"/>
+                                                <span t-if="item.state == 'done'" t-field="wo.duration"/>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </t>
+                        </t>
+
+                        <!-- Section Composants -->
+                        <t t-foreach="group_docs" t-as="item">
+                            <t t-if="item.move_raw_ids">
+                                <h4 class="mt-3">Composants - <span t-field="item.name"/></h4>
+                                <table class="table table-sm mb-3">
+                                    <thead>
+                                        <tr class="bg-light">
+                                            <th>Produit</th>
+                                            <th>Quantité</th>
+                                            <th>Unité</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="item.move_raw_ids" t-as="line">
+                                            <td><span t-field="line.product_id.name"/></td>
+                                            <td><span t-field="line.product_uom_qty"/></td>
+                                            <td><span t-field="line.product_uom.name" groups="uom.group_uom"/></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </t>
+                        </t>
+
+                        <div class="oe_structure"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </t>
+</t>
