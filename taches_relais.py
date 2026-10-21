@@ -240,8 +240,11 @@ def feries_feuilles_heures(call, option='', today=None):
 
 # ─── point d'entrée ──────────────────────────────────────────────────────────────────────────────────────────────────
 
+import relances_board
+
 TACHES = {'parc_controles_hebdo': parc_controles_hebdo, 'caces_hebdo': caces_hebdo,
-          'recup_hebdo': recup_hebdo, 'feries_feuilles_heures': feries_feuilles_heures}
+          'recup_hebdo': recup_hebdo, 'feries_feuilles_heures': feries_feuilles_heures,
+          'relances_board': relances_board.maj}          # ex action 2139 (outil manuel, 236 l.) : tableau de bord RELANCES
 
 
 def executer(call, tache_id, nom):
