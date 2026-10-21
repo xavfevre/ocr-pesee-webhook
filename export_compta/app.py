@@ -352,6 +352,15 @@ def _nouveaux_clients(clients_vus, marquer):
 def _journaux(comp):
     """Journaux à exporter : ventes/banque/caisse + journaux de session PoS
     (ex. « Cloture CAISSE » Châtel, type OD) — ces derniers au format caisse."""
+    prof = _profil(comp)
+    if prof and prof.get("journaux") == "ventes":
+        # cabinet extérieur (FITECO pour Distri Béton) : seul le journal des ventes lui est transmis
+        js = _q("account.journal", "search_read", [("company_id", "=", comp), ("type", "=", "sale")],
+                fields=["name", "code", "type"], order="id", context={"lang": "fr_FR"})
+        for j in js:
+            j["format_caisse"] = False
+            j["explication"] = "Factures et avoirs clients du mois — fichier transmis au cabinet %s" % prof["cabinet"]
+        return [j for j in js if j["id"] not in JOURNAUX_EXCLUS]
     # pour l'instant le cabinet n'importe que les VENTES et la CAISSE
     js = _q("account.journal", "search_read",
             [("company_id", "=", comp), ("type", "in", ["sale", "cash"])],
@@ -542,9 +551,51 @@ def _journaux_exclus(comp):
     return _q("account.journal", "search_read", [("company_id", "=", comp), ("id", "in", list(JOURNAUX_EXCLUS))],
               fields=["name", "code", "type"], context={"lang": "fr_FR"})
 
+
+# Sociétés dont la comptabilité est tenue par un cabinet extérieur (pas de dossier Sage chez Charlotte).
+# SAS DISTRI BETON VIENNE (2) -> FITECO Châtellerault : seul le fichier mensuel des VENTES (journal VE) lui est transmis,
+# avant le 15 du mois suivant pour la TVA ; achats et banque sont tenus par le cabinet, la banque reste rapprochée dans
+# Odoo. Format validé par Christine Fontenault (Fiteco) le 24/04/2025 : ventes en 7011 (plus 7071), une seule ligne
+# HT + taxe éco, TVA en 445711 — c'est le CSV générique de l'action 1459, inchangé. Profil demandé par Xavier le 21/10/2026.
+PROFILS = {
+    2: {
+        "cabinet": "FITECO",
+        "journaux": "ventes",            # seul le journal des ventes est transmis
+        "nouveaux_clients": False,       # pas de dossier Sage : fichier « nouveaux clients » inutile
+        "extension": "csv",
+        "prefixe_fichier": "ventes_DISTRIBETON",
+        "titre": "📤 Export des ventes Distri Béton → cabinet FITECO",
+        "sous_titre": ("Fichier mensuel des factures et avoirs clients de SAS Distri Béton Vienne, à envoyer au cabinet FITECO "
+                       "Châtellerault avant le 15 du mois suivant pour la TVA. Même format que les exports Sage (CSV « ; »), validé "
+                       "par Fiteco le 24/04/2025 : une ligne par compte et par facture, ventes en 7011, TVA en 445711, clients avec leur code DIS."),
+        "rappel": "à envoyer au cabinet avant le 15 du mois suivant",
+        "contacts": [("Christine Fontenault", "c.fontenault@fiteco.com"), ("Aurélia Colin", "aurelia.colin@fiteco.com")],
+        "boite_factures": "ventes+207082@fiteco.com",
+    },
+}
+
+
+def _profil(comp):
+    return PROFILS.get(int(comp))
+
+
+def _nom_fichier(comp, comp_nom, prefixe, journal_nom, du, au):
+    """Nom du fichier téléchargé : Sage = historique (.txt) ; cabinet extérieur = ventes_SOCIETE_AAAA-MM.csv
+    quand la plage est un mois entier, sinon la plage en clair."""
+    prof = _profil(comp)
+    if prof and prof.get("prefixe_fichier"):
+        ext = prof.get("extension", "csv")
+        fin_mois = "%s-%02d" % (du[:7], calendar.monthrange(int(du[:4]), int(du[5:7]))[1])
+        if du[8:] == "01" and au == fin_mois:
+            return "%s_%s.%s" % (prof["prefixe_fichier"], du[:7], ext)
+        return "%s_du_%s_au_%s.%s" % (prof["prefixe_fichier"], du, au, ext)
+    slug = comp_nom.replace(" ", "_").replace("/", "_")
+    return "%s_%s_%s_du_%s_au_%s.txt" % (prefixe, slug, journal_nom.replace(" ", "_"), du.replace("-", ""), au.replace("-", ""))
+
+
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Export comptable Sage</title><style>
+<title>__TITRE__</title><style>
 :root{--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--bg:#f1f5f9;}
 *{box-sizing:border-box;}
 body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);margin:0;padding:22px 16px 40px;color:var(--ink);}
@@ -603,9 +654,9 @@ details summary::-webkit-details-marker{display:none;}
 details summary:before{content:'▸ ';}details[open] summary:before{content:'▾ ';}
 .empty{color:var(--mut);font-size:14px;padding:10px 0;}
 </style></head><body><div class="wrap">
-<div class="head"><div><h1>📤 Export comptable Sage</h1>
-<p class="sub">Fichiers d'écritures au format d'import du cabinet + fichier des nouveaux clients à créer dans Sage. Un dossier Sage par société.</p></div>
-<div class="tools"><a href="rappro?token=__TOKEN__">🏦 Rapprochement bancaire Sage</a></div></div>
+<div class="head"><div><h1>__TITRE__</h1>
+<p class="sub">__SOUS__</p></div>
+<div class="tools">__OUTILS__</div></div>
 <div class="card">
 <form class="bar" method="get" action="">
 <input type="hidden" name="token" value="__TOKEN__">
@@ -631,6 +682,9 @@ def page():
     comps = _q("res.company", "search_read", [], fields=["name"], order="id")
     comp = int(request.args.get("societe") or comps[0]["id"])
     d = date.today()
+    prof = _profil(comp)                                   # cabinet extérieur (Distri Béton -> FITECO) ou None = Sage
+    dest = prof["cabinet"] if prof else "Sage"
+    ext = prof.get("extension", "txt") if prof else "txt"
 
     opts_soc = "".join('<option value="%s"%s>%s</option>' % (
         c["id"], " selected" if c["id"] == comp else "", c["name"]) for c in comps)
@@ -684,7 +738,7 @@ def page():
             tag = "<div style='margin-top:3px;'><span class='tag ok'>✓ %d déjà transférée(s) exclues</span></div>" % n_deja
         else:
             tag = ""
-        btn = ("<a class='btn sec' href='%s'>⬇ .txt</a>" % url) if n_sort else "<span class='tag mut'>rien à sortir</span>"
+        btn = ("<a class='btn sec' href='%s'>⬇ .%s</a>" % (url, ext)) if n_sort else "<span class='tag mut'>rien à sortir</span>"
         lignes_html += ("<tr><td><span class='tag mut'>%s</span></td><td><div class='jname'>%s</div><div class='jexp'>%s</div></td>"
                         "<td>%s</td><td class='num'><b>%d</b>%s</td>"
                         "<td class='num'>%s</td><td class='num'>%.2f €</td><td class='num'>%s</td></tr>" % (
@@ -693,8 +747,8 @@ def page():
     if lignes_html:
         for j in _journaux_exclus(comp):
             lignes_html += ("<tr style='opacity:.7'><td><span class='tag mut'>%s</span></td><td><div class='jname'>%s</div>"
-                            "<div class='jexp'>%s</div></td><td>%s</td><td colspan='4'><span class='tag warn'>🚫 hors export Sage</span></td></tr>"
-                            % (j["code"] or "—", j["name"], JOURNAUX_EXCLUS.get(j["id"], ""), TYPES.get(j["type"], j["type"])))
+                            "<div class='jexp'>%s</div></td><td>%s</td><td colspan='4'><span class='tag warn'>🚫 hors export %s</span></td></tr>"
+                            % (j["code"] or "—", j["name"], JOURNAUX_EXCLUS.get(j["id"], ""), TYPES.get(j["type"], j["type"]), dest))
 
     corps = ""
     if not lignes_html:
@@ -716,11 +770,11 @@ def page():
                        " checked" if inclure else "", base_url_page, total_deja))
             if inclure:
                 alertes += _alert("bad", "⚠", "Ré-export activé : %d pièce(s) déjà transférée(s) seront de nouveau dans les fichiers" % total_deja,
-                                  "Risque de doublon dans Sage. Décochez la case pour revenir au mode normal.", case)
+                                  "Risque de doublon dans %s. Décochez la case pour revenir au mode normal." % dest, case)
             else:
-                alertes += _alert("ok", "🛡", "Garde-fou : %d pièce(s) déjà transférée(s) à Sage sont exclues des fichiers" % total_deja,
+                alertes += _alert("ok", "🛡", "Garde-fou : %d pièce(s) déjà transférée(s) à %s sont exclues des fichiers" % (total_deja, dest),
                                   "Seules les pièces jamais transférées sortiront.", case)
-        if nouveaux:
+        if nouveaux and (not prof or prof.get("nouveaux_clients", True)):
             alertes += _alert("info", "👤", "%d nouveau(x) client(s) à créer dans Sage — inclus dans le ZIP (nouveaux_clients_*.txt)" % len(nouveaux),
                               " · ".join("<b>%s</b> %s" % (r, n) for r, n in nouveaux))
         r_au, r_fait, retro = _pieces_retro(comp, journaux)
@@ -729,8 +783,8 @@ def page():
                 r["name"], _dfr(r["date"]), r["journal_id"][1], r["amount_total"] or 0) for r in retro)
             alertes += _alert("bad", "⏪", "%d écriture(s) datée(s) dans une période déjà exportée (≤ %s) mais saisie(s) depuis" % (len(retro), _dfr(r_au)),
                               det + "<br>Elles ne sortiront pas avec la plage pré-remplie.",
-                              "<div style='margin-top:8px;'><a class='btn' href='retro?token=%s&societe=%s'>⬇ Exporter ces écritures pour Sage</a> "
-                              "<span class='hint'>même format — l'alerte s'efface une fois le fichier téléchargé</span></div>" % (token, comp))
+                              "<div style='margin-top:8px;'><a class='btn' href='retro?token=%s&societe=%s'>⬇ Exporter ces écritures pour %s</a> "
+                              "<span class='hint'>même format — l'alerte s'efface une fois le fichier téléchargé</span></div>" % (token, comp, dest))
         manq = _controle_analytique(comp, du, au, journaux)
         if manq:
             det = " · ".join("<b>%s</b> %s (%.2f €)" % (c, p, m) for p, c, m in manq[:20])
@@ -745,17 +799,45 @@ def page():
         # ── 2. Exporter ──
         champs = ("<input type='hidden' name='du' value='%s'><input type='hidden' name='au' value='%s'>%s"
                   % (du, au, "<input type='hidden' name='inclure' value='1'>" if inclure else ""))
+        if prof and len(journaux) == 1 and agg.get(journaux[0]["id"]):
+            # cabinet extérieur, un seul journal : un bouton direct vers le fichier, pas de ZIP ni de fichier Sage
+            lien = "fichier?token=%s&journal=%s&%s%s" % (token, journaux[0]["id"], periode_qs, "&inclure=1" if inclure else "")
+            actions = ("<div class='actions'><a class='btn big' href='%s'>⬇ Télécharger le fichier des ventes (.%s)</a>"
+                       "<span class='hint'>%s</span></div>" % (lien, ext, prof.get("rappel", "")))
+        else:
+            actions = ("<form method='post' action='export?token=%s' class='actions'>"
+                       "<input type='hidden' name='societe' value='%s'>%s"
+                       "<button type='submit' class='big'>📦 Télécharger le ZIP complet</button>"
+                       "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> Marquer les nouveaux clients comme transmis à Sage</label>"
+                       "</form>" % (token, comp, champs))
         corps += ("<div class='card'><h2><span class='n'>2</span>Exporter <small>%s · %d pièce(s) à sortir</small></h2>"
                   "<table><tr><th>Code</th><th>Journal</th><th>Type</th><th style='text-align:right'>Pièces</th>"
                   "<th style='text-align:right'>Lignes</th><th style='text-align:right'>Total débit</th><th></th></tr>%s</table>"
-                  "<form method='post' action='export?token=%s' class='actions'>"
-                  "<input type='hidden' name='societe' value='%s'>%s"
-                  "<button type='submit' class='big'>📦 Télécharger le ZIP complet</button>"
-                  "<label class='chk'><input type='checkbox' name='marquer' value='1' checked> Marquer les nouveaux clients comme transmis à Sage</label>"
-                  "</form></div>" % (libelle, total_pieces, lignes_html, token, comp, champs))
+                  "%s</div>" % (libelle, total_pieces, lignes_html, actions))
 
-        # ── 3. Verrouiller ──
-        corps += ("<div class='card'><h2><span class='n'>3</span>Verrouiller les ventes <small>une fois les fichiers importés dans Sage</small></h2>"
+        # ── 3 (cabinet extérieur). Envoyer au cabinet ──
+        n_verrou = "3"
+        if prof:
+            from urllib.parse import quote as _quote
+            n_verrou = "4"
+            to = prof["contacts"][0][1] if prof.get("contacts") else ""
+            cc = ",".join(c[1] for c in prof.get("contacts", [])[1:])
+            sujet = "Distri Béton — fichier des ventes %s" % libelle
+            corps_mail = ("Bonjour,\n\nVeuillez trouver ci-joint le fichier des ventes de SAS Distri Béton Vienne %s "
+                          "(format habituel, CSV « ; »).\n\nCordialement,\n" % libelle)
+            mailto = "mailto:%s?cc=%s&subject=%s&body=%s" % (to, cc, _quote(sujet), _quote(corps_mail))
+            contacts = " · ".join("<b>%s</b> &lt;%s&gt;" % (n, e) for n, e in prof.get("contacts", []))
+            corps += ("<div class='card'><h2><span class='n'>3</span>Envoyer au cabinet %s <small>%s</small></h2>"
+                      "<p style='margin:0 0 10px;font-size:13.5px;'>%s</p>"
+                      "<div class='actions' style='margin-top:0;padding-top:0;border-top:none;'>"
+                      "<a class='btn' href=\"%s\">📧 Préparer l'e-mail au cabinet</a>"
+                      "<span class='hint'>ouvre votre messagerie avec les destinataires et l'objet remplis : joindre le fichier téléchargé à l'étape 2</span></div>"
+                      "<p class='hint' style='margin:10px 0 0;'>Les factures envoyées une par une au cabinet partent sur %s ; le fichier mensuel, lui, va aux comptables ci-dessus (ou par MyFiteco).</p></div>"
+                      % (prof["cabinet"], prof.get("rappel", ""), contacts, mailto.replace('"', "%22"), prof.get("boite_factures", "—")))
+
+        # ── Verrouiller ──
+        corps += ("<div class='card'><h2><span class='n'>%s</span>Verrouiller les ventes <small>%s</small></h2>" % (
+                      n_verrou, "une fois le fichier envoyé au cabinet" if prof else "une fois les fichiers importés dans Sage") +
                   "<form method='post' action='verrou?token=%s' class='lockrow' "
                   "onsubmit=\"return confirm('Verrouiller les ventes de cette société jusqu\\'au ' + this.au.value.split('-').reverse().join('/') + ' ?');\">"
                   "<input type='hidden' name='societe' value='%s'><input type='hidden' name='du' value='%s'>"
@@ -791,8 +873,15 @@ def page():
               "<div class='card'><details%s><summary>🕘 Historique des exports (%d)</summary>%s</details></div>"
               "</div>" % (token, comp, "" if histo else " open", len(histo), histo_html))
 
+    if prof:
+        titre, sous, outils = prof["titre"], prof["sous_titre"], ""
+    else:
+        titre = "📤 Export comptable Sage"
+        sous = "Fichiers d'écritures au format d'import du cabinet + fichier des nouveaux clients à créer dans Sage. Un dossier Sage par société."
+        outils = "<a href='rappro?token=%s'>🏦 Rapprochement bancaire Sage</a>" % token
     html = (PAGE.replace("__SOCIETES__", opts_soc)
                 .replace("__DU__", du).replace("__AU__", au)
+                .replace("__TITRE__", titre).replace("__SOUS__", sous).replace("__OUTILS__", outils)
                 .replace("__TOKEN__", token).replace("__STATUS__", status).replace("__CORPS__", corps))
     return Response(html, mimetype="text/html")
 
@@ -835,9 +924,7 @@ def fichier():
     _marquer_transferees(sortis)
     _histo_add(j["company_id"][0], "%s — %s" % (j["code"] or "", j["name"]), du, au)
     _dernier_maj(j["company_id"][0], du, au)
-    slug = j["company_id"][1].replace(" ", "_").replace("/", "_")
-    nom = "%s_%s_%s_du_%s_au_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"),
-                                        du.replace("-", ""), au.replace("-", ""))
+    nom = _nom_fichier(j["company_id"][0], j["company_id"][1], prefixe, j["name"], du, au)
     return Response(contenu.encode("cp1252", errors="replace"),
                     mimetype="text/plain; charset=windows-1252",
                     headers={"Content-Disposition": "attachment; filename=%s" % nom})
@@ -993,10 +1080,11 @@ def export():
             contenu, prefixe = _fichier_journal(j, du, au, base_url, clients_vus, comp, sortis=sortis, inclure=inclure)
             if contenu is None:
                 continue
-            nom = "%s_%s_%s_%s.txt" % (prefixe, slug, j["name"].replace(" ", "_"), suffixe)
+            nom = _nom_fichier(comp, comp_nom, prefixe, j["name"], du, au)
             z.writestr(nom, contenu.encode("cp1252", errors="replace"))
             n_fichiers += 1
-        contenu_nc, n_nouveaux = _nouveaux_clients(clients_vus, marquer)
+        prof = _profil(comp)
+        contenu_nc, n_nouveaux = (None, 0) if (prof and not prof.get("nouveaux_clients", True)) else _nouveaux_clients(clients_vus, marquer)
         if contenu_nc:
             z.writestr("nouveaux_clients_%s_%s.txt" % (slug, suffixe),
                        contenu_nc.encode("cp1252", errors="replace"))

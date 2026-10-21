@@ -66,3 +66,27 @@ Les soldes 512 sont alignés sur la réalité bancaire par des écritures de
 société (contrepartie 89000000 Bilan d'ouverture), et non par des écritures
 de recalage en cours d'exercice. Vérifié au centime contre les soldes des
 connecteurs le 02/09/2026. La comptabilité de référence reste Sage.
+
+## Profil « cabinet extérieur » : Distri Béton → FITECO (21/10/2026)
+
+SAS DISTRI BETON VIENNE (société 2) n'a pas de dossier Sage : sa comptabilité est
+tenue par le cabinet **FITECO Châtellerault** (Christine Fontenault
+`c.fontenault@fiteco.com`, Aurélia Colin `aurelia.colin@fiteco.com` ; boîte de
+dépôt des factures `ventes+207082@fiteco.com`). Depuis mai 2025, Isabelle lui
+envoie chaque mois, **avant le 15**, le fichier des **ventes** (journal VE) ;
+achats et banque sont tenus par le cabinet, la banque reste rapprochée dans Odoo.
+
+Format : le CSV générique de l'action 1459 (16 colonnes `;`, cp1252), validé par
+Fiteco le 24/04/2025 avec trois demandes aujourd'hui satisfaites : ventes en
+7011 (plus 7071), une seule ligne HT + taxe éco (la REP béton est en 701100,
+donc fusionnée), TVA en 445711. Clients en 411100 avec leur code `DISxxxxx`
+(particuliers borne = `DIS99999`).
+
+`PROFILS` dans `app.py` (clé = id société) : pour Distri la page n'affiche que le
+journal des ventes, pas de fichier « nouveaux clients », bouton direct
+« ⬇ Télécharger le fichier des ventes (.csv) » (nom `ventes_DISTRIBETON_AAAA-MM.csv`
+pour un mois entier), carte « 3. Envoyer au cabinet » avec lien e-mail prérempli
+(destinataires, objet, corps — joindre le fichier), verrou des ventes en étape 4.
+Le garde-fou « déjà transférées » et l'historique fonctionnent comme pour Sage
+(`x_sage_envoye_le`, `maquignon.export_compta_dernier_2`).
+
