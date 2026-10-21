@@ -866,17 +866,25 @@ def _repartition(call, of_id):
     return lignes, sum(int(l['x_studio_qte'] or 0) for l in lignes)
 
 
+def _derniere_operation(call, of):
+    """Dernière opération de l'OF (par séquence) : dict avec nom, état, compteur « +1 pièce », employés assignés."""
+    if not of['workorder_ids']:
+        return None
+    wos = call('mrp.workorder', 'read', of['workorder_ids'],
+               fields=['sequence', 'name', 'x_studio_nbr_fait', 'state', 'employee_assigned_ids'])
+    wos.sort(key=lambda w: (w.get('sequence') or 0, w['id']))
+    return wos[-1]
+
+
 def _pieces_faites(call, of, total):
     """Pièces disponibles : tout si l'OF est terminé, sinon le compteur « +1 pièce » de la
     dernière opération (tablette)."""
     if of['state'] == 'done':
         return total
-    wos = call('mrp.workorder', 'read', of['workorder_ids'],
-               fields=['sequence', 'x_studio_nbr_fait', 'state']) if of['workorder_ids'] else []
-    if not wos:
+    der = _derniere_operation(call, of)
+    if not der:
         return 0
-    wos.sort(key=lambda w: (w.get('sequence') or 0, w['id']))
-    return total if wos[-1]['state'] == 'done' else int(wos[-1]['x_studio_nbr_fait'] or 0)
+    return total if der['state'] == 'done' else int(der['x_studio_nbr_fait'] or 0)
 
 
 def _verif_of(of, colis):
@@ -896,6 +904,13 @@ def _disponible(call, of):
     if dispo <= 0:
         if place >= total:
             raise WebErreur('ℹ️ %s est déjà entièrement réparti (%d pcs).' % (of['name'], total))
+        der = _derniere_operation(call, of) if of['state'] != 'done' else None
+        if der and der['state'] != 'done':
+            # cas fréquent : une opération suivante (ex. « Taille de pierre ») reste à faire sur cet OF
+            noms = [e['name'] for e in call('hr.employee', 'read', der['employee_assigned_ids'], ['name'])] if der['employee_assigned_ids'] else []
+            raise WebErreur("⚠️ %s : il reste l'opération « %s »%s sur cet OF (pièces comptées %d/%d, déjà sur palette %d). "
+                            "La pièce ira sur palette quand cette opération sera terminée, ou comptée (+1 pièce) sur la tablette."
+                            % (of['name'], der['name'], ' (%s)' % ', '.join(noms) if noms else '', faites, total, place))
         raise WebErreur("⚠️ %s : aucune pièce disponible (faites %d, déjà sur palette %d) — terminez l'OF "
                         "ou comptez les pièces (+1 pièce) sur la tablette." % (of['name'], faites, place))
     return total, lignes, place, dispo
