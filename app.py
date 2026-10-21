@@ -524,14 +524,12 @@ def _ocr_traite_1(worksheet_id, model):
 @require_secret
 def ocr_lvn():
     """{"_id": <feuille>} : relit les autres photos de la feuille pour trouver le N° LVN, sans refaire l'OCR du bon.
-    Avec "attendre": true, répond après la recherche (pour les essais) ; sinon en tâche de fond."""
+    Toujours en tâche de fond (le résultat s'écrit sur la feuille et la tâche en moins d'une minute)."""
     data = request.get_json(force=True)
     worksheet_id = data.get("_id") or data.get("id") or data.get("worksheet_id")
     model = data.get("_model") or data.get("model") or ODOO_WORKSHEET_MODEL
     if not worksheet_id:
         return jsonify({"error": "id requis"}), 400
-    if data.get("attendre"):
-        return jsonify({"worksheet_id": int(worksheet_id), "lvn": _lvn_seul(int(worksheet_id), model)})
     _thr.Thread(target=_lvn_seul, args=(int(worksheet_id), model), daemon=True).start()
     return jsonify({"status": "accepted", "worksheet_id": int(worksheet_id)})
 
