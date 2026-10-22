@@ -71,3 +71,19 @@ déclencheur (bouton côté PC ou validation sur l'indicateur), article et clien
   `x_sale_order_id`, `x_sale_line_id` ; numéro de commande imprimé sur le ticket.
 - Ticket ePOS : caractères hors police remplacés (« ° » -> « o », espaces de milliers normaux), lignes simples
   « libellé : valeur », net sur deux lignes (kg puis tonnes). Menu Ventes > Pont-bascule (1070, act_url 2141).
+
+## 22/10/2026 — changements demandés sur place par Xavier (Chatel)
+
+- **Produits** : plus de liste déroulante, une **recherche plein texte** (un ou plusieurs mots, accents ignorés, ex.
+  « sable 0/4 », « galet blanc ») dans la liste chargée avec la configuration ; la liste = **marchandises vendables à
+  la tonne ou au kg** (plus de condition « disponible en point de vente » : 162 articles à Chatel au lieu de 130),
+  prix et unité affichés. Texte libre toujours possible si aucun article n'est choisi (pas de ligne de commande alors).
+- **Véhicules (tares)** : toute immatriculation pesée crée sa fiche automatiquement à la pesée 1 (type entreprise si
+  la plaque est au parc, client / produit recopiés s'ils manquent) ; le **poids à vide mesuré** (vente : pesée 1,
+  réception : pesée 2) met la tare et sa date à jour à la fin de la double pesée. Le bouton « Mémoriser ce poids
+  comme tare » reste pour une pesée simple.
+- **Caméra** : la carte « Caméra du pont » s'alimente par le programme `bascule_passerelle.ps1` lancé sur le PC de
+  caisse en mode caméra seule (`-Port '' -Site chatel -Camera http://<ip>/<snapshot> -CamUser … -CamPwd …`) :
+  il envoie l'image toutes les 2 s au relais, la page la rafraîchit. Il faut une caméra IP (ou un enregistreur) avec
+  une URL d'image fixe (Hikvision `/ISAPI/Streaming/channels/101/picture`, Dahua `/cgi-bin/snapshot.cgi`…).
+

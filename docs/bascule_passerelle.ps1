@@ -9,6 +9,7 @@
 # Lancement automatique (une fois, en administrateur) :
 #   schtasks /Create /F /SC ONLOGON /RL HIGHEST /TN "Passerelle bascule" /TR "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\Maquignon\bascule_passerelle.ps1 -Site maquignon -Port COM1"
 # Journal : %TEMP%\bascule_passerelle.log
+# Camera seule (la page lit la bascule par le cable USB, ex. PC de caisse de Chatel) : -Port '' -Site chatel -Camera http://...
 param([string]$Site = 'maquignon', [string]$Port = 'COM1', [int]$Baud = 9600, [string]$Cle = '', [string]$Relais = 'https://ocr-pesee-webhook.onrender.com',
       [string]$Camera = '', [string]$CamUser = '', [string]$CamPwd = '', [double]$Intervalle = 1.0, [double]$ImageIntervalle = 2.0, [string]$Poste = $env:COMPUTERNAME)
 $ErrorActionPreference = 'Continue'
@@ -27,10 +28,10 @@ $cred = $null
 if ($CamUser) { $cred = New-Object System.Management.Automation.PSCredential($CamUser, (ConvertTo-SecureString $CamPwd -AsPlainText -Force)) }
 $derniers = New-Object System.Collections.ArrayList
 $p = $null; $derniereImage = [datetime]::MinValue; $nbEnvois = 0; $nbErreurs = 0
-Log "demarrage : site $Site, port $Port a $Baud bauds, relais $Relais, camera $(if ($Camera) { $Camera } else { 'aucune' }), poste $Poste"
+Log "demarrage : site $Site, port $(if ($Port) { $Port } else { 'aucun (camera seule)' }) a $Baud bauds, relais $Relais, camera $(if ($Camera) { $Camera } else { 'aucune' }), poste $Poste"
 while ($true) {
   $t0 = Get-Date
-  try {
+  if ($Port) { try {
     if (-not $p -or -not $p.IsOpen) {
       $p = New-Object System.IO.Ports.SerialPort $Port, $Baud, 'None', 8, 'One'
       $p.ReadTimeout = 800; $p.NewLine = "`n"; $p.Encoding = [Text.Encoding]::GetEncoding(28591)
@@ -54,7 +55,7 @@ while ($true) {
     Envoyer @{ site = $Site; k = $Cle; poids = $null; stable = $false; erreur = "port $Port : $($_.Exception.Message)"; poste = $Poste } | Out-Null
     try { if ($p) { $p.Close() } } catch {}
     $p = $null; Start-Sleep -Seconds 3
-  }
+  } }
   if ($Camera -and ((Get-Date) - $derniereImage).TotalSeconds -ge $ImageIntervalle) {
     try {
       if ($cred) { $img = Invoke-WebRequest -Uri $Camera -Credential $cred -TimeoutSec 4 -UseBasicParsing } else { $img = Invoke-WebRequest -Uri $Camera -TimeoutSec 4 -UseBasicParsing }
