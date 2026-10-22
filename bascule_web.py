@@ -127,7 +127,9 @@ def _commande(site, pesee_id, destination):
     ctx = _ctx(site)
     if destination == 'journalier':
         origine = 'BASCULE-%s-%s' % (site.upper(), jour)
-        so = _call('sale.order', 'search', [['partner_id', '=', partner], ['company_id', '=', cfg['company_id']], ['origin', '=', origine], ['state', 'in', ['draft', 'sent']]], limit=1, order='id desc', **ctx)
+        # le bon du jour est désormais confirmé dès la 1re pesée (BL validé) : on continue d'y ajouter les pesées suivantes
+        # tant qu'il n'est pas verrouillé (facturé et bloqué)
+        so = _call('sale.order', 'search', [['partner_id', '=', partner], ['company_id', '=', cfg['company_id']], ['origin', '=', origine], ['state', 'in', ['draft', 'sent', 'sale']], ['locked', '=', False]], limit=1, order='id desc', **ctx)
         so_id = so[0] if so else None
     else:
         origine = 'BASCULE-%s-TICKET' % site.upper()
@@ -144,7 +146,41 @@ def _commande(site, pesee_id, destination):
     line_id = _call('sale.order.line', 'create', {'order_id': so_id, 'product_id': p['x_product_id'], 'product_uom_qty': p['x_net_t'], 'name': libelle}, **ctx)
     line_id = line_id[0] if isinstance(line_id, list) else line_id
     _call('x_pesee', 'write', [pesee_id], {'x_destination': destination, 'x_sale_order_id': so_id, 'x_sale_line_id': line_id}, **ctx)
+    if destination == 'journalier':
+        # la marchandise est partie avec le camion : commande confirmée et bon de livraison validé tout de suite
+        # (Xavier, 22/10/2026 : « il faudrait pour les bons de commande journaliers que le BL en cours soit validé »)
+        try:
+            return _livrer(site, so_id)
+        except Exception as e:  # noqa: BLE001
+            return 'commande créée mais BL non validé (%s) : à valider dans Odoo' % str(e)[:120]
     return None
+
+
+def _livrer(site, so_id):
+    """Confirme la commande si elle est encore en devis, puis valide chaque bon de livraison ouvert avec les quantités
+    commandées (= pesées). Renvoie un avertissement texte si un BL reste à traiter, sinon None."""
+    ctx = _ctx(site)
+    so = _call('sale.order', 'read', [so_id], ['state', 'picking_ids', 'name'], **ctx)[0]
+    if so['state'] in ('draft', 'sent'):
+        _call('sale.order', 'action_confirm', [so_id], **ctx)
+        so = _call('sale.order', 'read', [so_id], ['state', 'picking_ids', 'name'], **ctx)[0]
+    restes = []
+    for p in _call('stock.picking', 'search_read', [['id', 'in', so['picking_ids'] or []], ['state', 'not in', ['done', 'cancel']]], fields=['name', 'state', 'move_ids'], **ctx):
+        if p['state'] == 'draft':
+            _call('stock.picking', 'action_confirm', [p['id']], **ctx)
+        for mv in _call('stock.move', 'read', p['move_ids'], ['product_uom_qty', 'state'], **ctx):
+            if mv['state'] not in ('done', 'cancel'):
+                _call('stock.move', 'write', [mv['id']], {'quantity': mv['product_uom_qty'], 'picked': True}, **ctx)
+        res = _call('stock.picking', 'button_validate', [p['id']], **ctx)
+        if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
+            # reliquat proposé : on livre sans reliquat (tout est pesé)
+            wiz = _call('stock.backorder.confirmation', 'create', {'pick_ids': [(4, p['id'])]}, context=dict(ctx['context'], button_validate_picking_ids=[p['id']]))
+            wiz = wiz[0] if isinstance(wiz, list) else wiz
+            _call('stock.backorder.confirmation', 'process_cancel_backorder', [wiz], context=dict(ctx['context'], button_validate_picking_ids=[p['id']]))
+        etat = _call('stock.picking', 'read', [p['id']], ['state'], **ctx)[0]['state']
+        if etat != 'done':
+            restes.append('%s (%s)' % (p['name'], etat))
+    return ('BL à valider dans Odoo : %s' % ', '.join(restes)) if restes else None
 CHAMPS_V = ['x_name', 'x_type', 'x_fleet_id', 'x_tare', 'x_tare_date', 'x_client', 'x_partner_id', 'x_produit', 'x_product_id', 'x_site', 'x_note', 'write_date']
 
 

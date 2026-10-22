@@ -86,4 +86,10 @@ déclencheur (bouton côté PC ou validation sur l'indicateur), article et clien
   caisse en mode caméra seule (`-Port '' -Site chatel -Camera http://<ip>/<snapshot> -CamUser … -CamPwd …`) :
   il envoie l'image toutes les 2 s au relais, la page la rafraîchit. Il faut une caméra IP (ou un enregistreur) avec
   une URL d'image fixe (Hikvision `/ISAPI/Streaming/channels/101/picture`, Dahua `/cgi-bin/snapshot.cgi`…).
+- **Bon de commande journalier = BL validé** (Xavier, 22/10/2026) : à chaque pesée terminée avec la destination
+  « Bon de commande journalier », le relais confirme le bon du jour s'il est encore en devis puis **valide le bon de
+  livraison** ouvert avec les quantités pesées (`_livrer` : `stock.move.quantity` = commandé, `picked`, `button_validate`,
+  reliquat refusé). Les pesées suivantes s'ajoutent au même bon confirmé (tant qu'il n'est pas verrouillé), chacune avec
+  son BL validé. Le bureau n'a plus qu'à facturer (articles en « quantités livrées »). En cas d'échec, l'avertissement
+  « BL à valider dans Odoo » s'affiche sur la page.
 
