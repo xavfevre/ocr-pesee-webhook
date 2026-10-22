@@ -259,7 +259,7 @@ def api_clients_csv():
     der = _dernier_export()
     nouveaux = _nouveaux_depuis(rows, der['x_date'] if der else '')
     sig = _clients_signature()
-    r = Response(data, mimetype='text/csv; charset=utf-8')
+    r = Response(data, mimetype='text/csv')
     r.headers['X-Nb-Clients'] = str(len(lignes)); r.headers['X-Sha'] = hashlib.sha256(data).hexdigest()
     r.headers['X-Signature'] = sig['sig']; r.headers['X-Nb-Nouveaux'] = str(len(nouveaux))
     r.headers['X-Nouveaux'] = json.dumps(nouveaux[:40], ensure_ascii=True); r.headers['X-Fichier'] = BORNE['fichier_clients']

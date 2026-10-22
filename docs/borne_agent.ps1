@@ -60,6 +60,11 @@ function FtpRenommer([string]$chemin, [string]$nouveau) {
 }
 
 # ─── relais
+function EnTete($rep, [string]$nom) {
+  # les en-tetes reviennent en minuscules derriere le proxy de Render
+  foreach ($k in $rep.Headers.Keys) { if ($k -ieq $nom) { return [string]$rep.Headers[$k] } }
+  return ''
+}
 function Relais([string]$chemin, $corps) {
   $sep = if ($chemin.Contains('?')) { '&' } else { '?' }; $url = "$($cfg.url)/borne/api/$chemin$sep$q"
   if ($null -ne $corps) {
@@ -90,9 +95,9 @@ function Clients($info) {
     Log "clients.csv : $($_.Exception.Message)"; return
   }
   $octets = $rep.Content; if ($octets -isnot [byte[]]) { $octets = [Text.Encoding]::UTF8.GetBytes([string]$octets) }
-  $sha = [string]$rep.Headers['X-Sha']; $nb = [int]$rep.Headers['X-Nb-Clients']; $nbNouveaux = [int]$rep.Headers['X-Nb-Nouveaux']
-  $nouveaux = @(); try { $nouveaux = @(($rep.Headers['X-Nouveaux'] | ConvertFrom-Json)) } catch {}
-  $fichier = if ($rep.Headers['X-Fichier']) { [string]$rep.Headers['X-Fichier'] } else { 'Contact (res.partner).csv' }
+  $sha = EnTete $rep 'X-Sha'; $nb = [int](EnTete $rep 'X-Nb-Clients'); $nbNouveaux = [int](EnTete $rep 'X-Nb-Nouveaux')
+  $nouveaux = @(); try { $nouveaux = @(((EnTete $rep 'X-Nouveaux') | ConvertFrom-Json)) } catch {}
+  $fichier = EnTete $rep 'X-Fichier'; if (-not $fichier) { $fichier = 'Contact (res.partner).csv' }
   if ($sha -eq $etat.sha -and -not $forcer) {
     $etat.signature = $sig; SauverEtat
     Journal 'inchange' $nb 0 @() $sha 'fichier identique au dernier depot'; return
