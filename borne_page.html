@@ -85,7 +85,7 @@
       <div id="export-nouveaux" style="margin-top:8px; font-size:13px"></div>
       <div id="export-problemes" style="margin-top:8px; font-size:13px"></div>
       <div class="ligne" style="margin-top:10px"><button class="btn petit gris" id="b-forcer">Forcer un dépôt au prochain passage</button><span class="petit">utile si un garde-fou bloque à tort</span></div>
-      <div class="ligne" style="margin-top:10px"><a class="btn petit" id="b-agent" href="#" download>Installer l'agent sur ce PC</a><span class="petit">à faire une fois sur un PC du réseau de Chatel qui reste allumé (PC de caisse) : l'installateur demande le mot de passe FTP de la borne, puis l'agent passe toutes les minutes et redémarre seul à chaque ouverture de session.</span></div>
+      <div class="ligne" style="margin-top:10px"><a class="btn petit" id="b-agent" href="#" download>Installer l'agent sur ce PC</a><span class="petit">à faire une fois sur l'ordinateur de caisse de Chatel (il voit la borne et reste allumé) : télécharge un installateur à ouvrir, rien à taper ; l'agent passe ensuite toutes les minutes et redémarre seul à chaque ouverture de session.</span></div>
       <details style="margin-top:10px"><summary>Comment ça marche</summary>
         Dès qu'un client Distri Béton est créé ou modifié dans Odoo, l'agent (qui passe toutes les minutes) récupère la liste complète (clients avec un code DIS)
         et la dépose sur la borne sous <code>/Imports/Contact (res.partner).csv</code>, au format exact de l'export Odoo. La borne la relit aussitôt : le badge
