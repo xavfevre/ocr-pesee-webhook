@@ -355,8 +355,7 @@
       const lt = document.querySelector('#destination input[value=ticket]').parentElement; lt.style.display = 'none';
       if (lt.classList.contains('on')) { lt.classList.remove('on'); const lj = document.querySelector('#destination input[value=journalier]'); lj.checked = true; lj.parentElement.classList.add('on'); LSset('destination', 'journalier'); }
     }
-    CFG.produits.forEach(p => { p.cle = normTexte(p.nom); });
-    const dernierProduit = CFG.produits.find(p => p.id === +LS('produit')); if (dernierProduit) choisirProduit(dernierProduit);
+    CFG.produits.forEach(p => { p.cle = normTexte(p.nom); });   // le champ Produit démarre vide (pas de dernier produit par défaut, Xavier 22/10/2026)
     $('p-odoo').className = 'pastille ok'; $('t-odoo').textContent = 'Odoo connecté';
   }
   async function chargerPesees() {
@@ -408,7 +407,6 @@
   }
   function formulaire() {
     const nomProduit = $('produit').value.trim();
-    if ($('product_id').value) LSset('produit', $('product_id').value);
     return { immat: $('immat').value.trim().toUpperCase(), client: $('client').value.trim(), partner_id: +$('partner_id').value || null,
              produit: nomProduit, product_id: +$('product_id').value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse'),
              manuel: manuelActif(), poids: effectif().poids, destination: destination() };
@@ -453,7 +451,7 @@
     } catch (e) { message(e.message, 'ko'); }
     majBoutons();
   }
-  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; }
+  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; $('produit').value = ''; $('product_id').value = ''; majProduitInfo(); }
 
   // ─── Recherche plein texte des produits au poids (liste chargée une fois avec la configuration) ───
   function normTexte(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
@@ -466,7 +464,7 @@
     const p = CFG && CFG.produits.find(q => q.id === +$('product_id').value);
     $('produit-info').textContent = p ? ('Article Odoo : ' + p.nom + (p.prix ? ' · ' + p.prix.toLocaleString('fr-FR') + ' € / ' + (p.unite || 't') : '')) : ($('produit').value.trim() ? 'Texte libre : aucun article Odoo choisi, pas de ligne de commande possible.' : '');
   }
-  function choisirProduit(p) { $('produit').value = p.nom; $('product_id').value = p.id; LSset('produit', p.id); $('produit-liste').style.display = 'none'; majProduitInfo(); }
+  function choisirProduit(p) { $('produit').value = p.nom; $('product_id').value = p.id; $('produit-liste').style.display = 'none'; majProduitInfo(); }
   $('produit').addEventListener('input', () => {
     $('product_id').value = ''; const ul = $('produit-liste'); const rows = rechercherProduits($('produit').value);
     ul.innerHTML = rows.map(p => '<li data-id="' + p.id + '">' + p.nom.replace(/</g, '&lt;') + (p.prix ? ' <small>' + p.prix.toLocaleString('fr-FR') + ' €/' + (p.unite || 't') + '</small>' : '') + '</li>').join('');
