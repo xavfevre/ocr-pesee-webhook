@@ -19,7 +19,7 @@ import re
 import threading
 import time
 import xmlrpc.client
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, Response, jsonify, request, send_from_directory
@@ -256,6 +256,49 @@ def outil_installer():
                     headers={'Content-Disposition': 'attachment; filename=installer_agent_borne.cmd', 'Cache-Control': 'no-store'})
 
 
+RAPPEL = {'jours': 3, 'a': 'granulats@maquignon.com', 'cc': 'xav.fevre@gmail.com', 'param': 'maquignon.borne_rappel'}   # Xavier, 22/10/2026 : « fais le mail »
+
+
+def _rappel_prises(forcer=False):
+    """Une fois par jour après 8 h (déclenché par le passage de l'agent) : si des prises attendent depuis plus de 3 jours,
+    mail à Delphine, Xavier en copie, envoyé par Odoo. Renvoie le nombre de prises signalées."""
+    maintenant = datetime.now(PARIS)
+    auj = maintenant.strftime('%Y-%m-%d')
+    if not forcer:
+        if maintenant.hour < 8 or (_call('ir.config_parameter', 'get_param', RAPPEL['param'], '') or '') == auj:
+            return 0
+        _call('ir.config_parameter', 'set_param', RAPPEL['param'], auj)      # un seul contrôle par jour, mail ou pas
+    limite = (datetime.utcnow() - timedelta(days=RAPPEL['jours'])).strftime('%Y-%m-%d %H:%M:%S')
+    vieux = _call('x_borne_bon', 'search_read', [['x_etat', 'in', ['a_valider', 'doublon']], ['x_date', '<', limite]],
+                  fields=['x_name', 'x_date', 'x_clinom', 'x_volume', 'x_anomalie'], order='x_date asc', limit=300, **_ctx())
+    if not vieux:
+        return 0
+    total = _call('x_borne_bon', 'search_count', [['x_etat', 'in', ['a_valider', 'doublon']]], **_ctx())
+    plus_vieille = datetime.strptime(vieux[0]['x_date'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc).astimezone(PARIS)
+    lignes = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td style="text-align:right">%s m³</td><td>%s</td></tr>' % (
+        datetime.strptime(v['x_date'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc).astimezone(PARIS).strftime('%d/%m %H:%M'), v['x_name'], v['x_clinom'] or '', ('%.2f' % v['x_volume']).replace('.', ','), v['x_anomalie'] or '') for v in vieux[:40])
+    corps = ('<p>Bonjour Delphine,</p><p><b>%d prise(s) de béton de la borne attendent d\'être validées dans Odoo</b>, dont %d depuis plus de %d jours '
+             '(la plus ancienne date du %s).</p><p>Pour les traiter : Odoo &gt; Logistiques &gt; Borne à béton &gt; <b>Page de validation</b>, cocher les lignes puis « Créer les commandes Odoo ». '
+             'Tant qu\'elles ne sont pas validées, il n\'y a ni commande ni facture pour ces prises.</p>'
+             '<table border="0" cellpadding="3" style="border-collapse:collapse;font-size:13px"><tr><th align="left">Date</th><th align="left">Bon</th><th align="left">Client</th><th>m³</th><th align="left">Remarque</th></tr>%s</table>%s'
+             '<p style="color:#64748b;font-size:12px">Message automatique du relais Maquignon, envoyé une fois par jour tant que des prises attendent.</p>'
+             % (total, len(vieux), RAPPEL['jours'], plus_vieille.strftime('%d/%m/%Y'), lignes, '<p>… et %d autre(s).</p>' % (len(vieux) - 40) if len(vieux) > 40 else ''))
+    mid = _call('mail.mail', 'create', [{'subject': 'Borne à béton : %d prise(s) à valider dans Odoo (la plus ancienne du %s)' % (total, plus_vieille.strftime('%d/%m')),
+                                         'email_to': RAPPEL['a'], 'email_cc': RAPPEL['cc'], 'body_html': corps, 'auto_delete': False}], **_ctx())
+    mid = _un(mid) if isinstance(mid, list) else mid
+    _call('mail.mail', 'send', [mid], **_ctx())
+    return len(vieux)
+
+
+@bp.route('/api/rappel-test', methods=['POST'])
+def api_rappel_test():
+    """Envoi immédiat du rappel (test depuis la page ou par Xavier), sans attendre le contrôle quotidien."""
+    g = _garde()
+    if g:
+        return g
+    return jsonify({'signalees': _rappel_prises(forcer=True)})
+
+
 @bp.route('/api/etat')
 def api_etat():
     """Pour l'agent (toutes les minutes) et la page : signature des clients, nombre de prises à valider, dernier export."""
@@ -264,6 +307,10 @@ def api_etat():
         return g
     if request.args.get('agent'):
         _agent_vu(request.args.get('poste'))
+        try:
+            _rappel_prises()
+        except Exception:  # noqa: BLE001
+            pass
     sig = _clients_signature()
     der = _dernier_export()
     a_valider = _call('x_borne_bon', 'search_count', [['x_etat', '=', 'a_valider']], **_ctx())

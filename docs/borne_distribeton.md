@@ -61,3 +61,10 @@ deviennent aussitôt des commandes Distri Béton confirmées (`x_valide_par` = �
 la page. Désactivée : tout passe par la page. Le bouton « Installer l'agent sur ce PC » de la page télécharge un installateur prérempli
 (clé, relais, mot de passe FTP lu dans le paramètre `maquignon.borne_ftp_mdp`, chiffré DPAPI sur le PC).
 
+## Rappel par mail (22/10/2026)
+
+À chaque passage de l'agent, le relais vérifie une fois par jour après 8 h (paramètre `maquignon.borne_rappel` = date du dernier contrôle)
+s'il reste des prises « à valider » ou « doublon » datées de plus de 3 jours. Si oui, Odoo envoie un mail (`mail.mail`) à Delphine
+(granulats@maquignon.com), Xavier en copie, avec le nombre total de prises en attente, la plus ancienne et la liste des 40 premières.
+`POST /borne/api/rappel-test` (avec la clé) force l'envoi immédiat pour tester.
+
