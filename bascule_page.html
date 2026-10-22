@@ -159,6 +159,10 @@
       <label>Adresse IP de l'imprimante Epson</label><input id="r-imprimante">
       <label>Clé d'accès</label><input id="r-cle">
       <div class="ligne" style="margin-top:10px"><button class="btn petit" id="b-sauver">Enregistrer</button><button class="btn petit gris" id="b-test-imp">Ticket de test</button><button class="btn petit gris" id="b-lire">Lire le poids une fois</button></div>
+      <div id="cameras-install" style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
+        <label>Caméras du site sur ce PC</label>
+        <div class="ligne"><a class="btn petit gris" id="b-cameras" href="#" download>Installer les caméras sur ce PC</a><span style="font-size:13px; color:var(--grey)">Télécharge un installateur à ouvrir : il demande le mot de passe caméra, puis envoie les deux vues à cette page et redémarre seul à chaque ouverture de session.</span></div>
+      </div>
       <details><summary>Aide</summary>
         Chrome ou Edge sont nécessaires. « Connecter la bascule » ouvre la liste des ports : choisir le câble USB-série (Prolific). L'autorisation est mémorisée.
         Le ticket est envoyé à l'imprimante par le réseau (ePOS) : l'adresse <code>https://IP</code> de l'imprimante doit être acceptée une fois dans ce navigateur.
@@ -579,6 +583,9 @@
   // en-tête collant : rappel du poids quand on a fait défiler le formulaire, et manifest du site pour « Ajouter à l'écran d'accueil »
   new MutationObserver(() => { $('poids-mini').textContent = $('poids').textContent.replace(/\s+/g, ' ').trim(); }).observe($('poids'), { childList: true, subtree: true, characterData: true });
   $('manifest').href = '/bascule/manifest.webmanifest?site=' + SITE;
+  // installateur des caméras (Réglages) : visible quand le site a des caméras configurées et que ce navigateur est un PC (pas un téléphone)
+  const majCamerasInstall = () => { const ok = CFG && CFG.cameras_installables && !/Android|iPhone|iPad/i.test(navigator.userAgent); $('cameras-install').style.display = ok ? '' : 'none'; if (ok) $('b-cameras').href = '/bascule/outils/cameras.cmd?site=' + SITE + '&k=' + encodeURIComponent(LS('cle')); };
+  setInterval(majCamerasInstall, 3000); majCamerasInstall();
   $('b-p1').addEventListener('click', pesee1);
   $('b-p2').addEventListener('click', pesee2);
   $('b-annuler-sel').addEventListener('click', () => { selectionner(null); viderFormulaire(); });

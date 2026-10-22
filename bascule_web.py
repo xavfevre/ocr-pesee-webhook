@@ -31,6 +31,8 @@ SITES = {
         'caisse': True,                # point de vente Odoo sur le site : destination « ticket de caisse » possible
         # enregistreur Dahua XVR7104 (192.168.1.208) : voie 1 = dôme du portail (pont), voie 2 = caméra IP de la borne Easy Béton
         'cameras': ['Caméra du portail (pont)', 'Borne Easy Béton'],
+        'cameras_urls': ['http://192.168.1.208/cgi-bin/snapshot.cgi?channel=1', 'http://192.168.1.208/cgi-bin/snapshot.cgi?channel=2'],
+        'cameras_user': 'delphine',    # compte de l'enregistreur ; le mot de passe est demandé à l'installation sur le PC
     },
     'maquignon': {
         'nom': 'SARL MAQUIGNON', 'company_id': 1, 'sequence': 'x_pesee.maquignon',
@@ -309,6 +311,58 @@ def page():
     return send_from_directory(ICI, 'bascule_page.html')
 
 
+@bp.route('/outils/bascule_passerelle.ps1')
+def outil_passerelle():
+    """La passerelle à jour, téléchargée par l'installateur des caméras (et utilisable à la main)."""
+    return send_from_directory(os.path.join(ICI, 'docs'), 'bascule_passerelle.ps1', mimetype='text/plain', max_age=0)
+
+
+def _installeur_cameras(site, cfg, cle, relais):
+    """Texte du .cmd d'installation des caméras (voir outil_cameras) ; isolé pour pouvoir le relire hors Flask.
+    Tout est entre guillemets simples côté PowerShell pour ne pas se battre avec cmd ; %MDP% est rempli par cmd à l'installation."""
+    urls = cfg.get('cameras_urls') or []
+    user = cfg.get('cameras_user', 'admin')
+    params = '-Site %s -Port "" -Cle "%s" -Camera "%s"' % (site, cle, urls[0]) + (' -Camera2 "%s"' % urls[1] if len(urls) > 1 else '') + ' -CamUser %s -CamPwd "%%MDP%%"' % user
+    ps_dl = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%s/bascule/outils/bascule_passerelle.ps1' -OutFile '%%DIR%%\\bascule_passerelle.ps1' -UseBasicParsing" % relais
+    ps_rac = ("$ws = New-Object -ComObject WScript.Shell; $r = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Startup')) 'Cameras pont-bascule.lnk')); "
+              "$r.TargetPath = '%%DIR%%\\cameras_%s.cmd'; $r.WindowStyle = 7; $r.Description = 'Cameras du pont-bascule vers la page'; $r.Save(); "
+              "Get-CimInstance Win32_Process -Filter 'Name = ''powershell.exe''' | Where-Object { $_.CommandLine -like '*bascule_passerelle.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }") % site
+    lignes = [
+        '@echo off', 'setlocal',
+        'set "DIR=%LOCALAPPDATA%\\Maquignon"', 'if not exist "%DIR%" mkdir "%DIR%"',
+        'echo Installation des cameras du pont-bascule (site %s) sur ce PC.' % site,
+        'echo Les images partent vers la page Pont-bascule ; la passerelle redemarre seule a chaque ouverture de session.', 'echo.',
+        'set /p MDP=Mot de passe camera (compte %s) : ' % user,
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "%s"' % ps_dl,
+        'if errorlevel 1 ( echo Telechargement de la passerelle impossible : verifier internet. & pause & exit /b 1 )',
+        '> "%%DIR%%\\cameras_%s.cmd" echo @echo off' % site,
+        '>> "%%DIR%%\\cameras_%s.cmd" echo powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%%DIR%%\\bascule_passerelle.ps1" %s' % (site, params),
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "%s"' % ps_rac,
+        'start "" /min "%%DIR%%\\cameras_%s.cmd"' % site,
+        'echo.', 'echo Passerelle cameras lancee. Journal : %TEMP%\\bascule_passerelle.log', 'echo Dans 10 secondes, les deux vues apparaissent sur la page Pont-bascule (F5).', 'pause',
+    ]
+    return '\r\n'.join(lignes) + '\r\n'
+
+
+@bp.route('/outils/cameras.cmd')
+def outil_cameras():
+    """Installateur des caméras pour le PC où la page est ouverte : site, clé et adresses des caméras préremplis, mot de passe demandé.
+    Télécharge la passerelle sur le relais, écrit le lanceur dans %LOCALAPPDATA%\\Maquignon, démarrage automatique à l'ouverture de session, lance tout de suite."""
+    g = _garde()
+    if g:
+        return g
+    site = _site(); cfg = SITES[site]
+    urls = cfg.get('cameras_urls') or []
+    if not urls:
+        return jsonify({'error': 'pas de caméra configurée pour ce site'}), 404
+    cle = request.args.get('k'); relais = request.url_root.rstrip('/')
+    if relais.startswith('http://') and 'localhost' not in relais:
+        relais = 'https://' + relais[7:]
+    corps = _installeur_cameras(site, cfg, cle, relais)
+    return Response(corps.encode('cp1252', errors='replace'), mimetype='application/octet-stream',
+                    headers={'Content-Disposition': 'attachment; filename=installer_cameras_%s.cmd' % site, 'Cache-Control': 'no-store'})
+
+
 @bp.route('/manifest.webmanifest')
 def manifest():
     """Application installable sur téléphone (« Ajouter à l'écran d'accueil ») : un raccourci par site, plein écran."""
@@ -342,7 +396,7 @@ def api_config():
                    key=lambda p: p['nom'].lower())   # display_name : variantes distinguées (0/20 Bleu…)
     return jsonify({'site': site, 'nom': cfg['nom'], 'imprimante': cfg['imprimante'], 'entete': cfg['entete'], 'instrument': cfg['instrument'],
                     'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'caisse': bool(cfg.get('caisse')), 'produits': prods, 'serveur': _maintenant(),
-                    'cameras': cfg.get('cameras') or ['Caméra du pont', 'Seconde caméra']})
+                    'cameras': cfg.get('cameras') or ['Caméra du pont', 'Seconde caméra'], 'cameras_installables': bool(cfg.get('cameras_urls'))})
 
 
 @bp.route('/api/clients')
