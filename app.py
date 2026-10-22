@@ -1654,6 +1654,14 @@ try:
 except Exception as _e:
     app.logger.warning(f"Module bascule_web non chargé: {_e}")
 
+# ─── BORNE À BÉTON DISTRI BÉTON : page de validation + navette FTP via l'agent du PC (borne_web.py) ─
+# /borne/?k=<maquignon.borne_key> ; modèles x_borne_bon / x_borne_export ; agent docs/borne_agent.ps1 (borne_installer.ps1).
+try:
+    from borne_web import bp as borne_bp
+    app.register_blueprint(borne_bp, url_prefix="/borne")
+except Exception as _e:
+    app.logger.warning(f"Module borne_web non chargé: {_e}")
+
 # ─── SCANNER -> FICHE VÉHICULE : page + réception des scans du PC (scan_vehicule.py) ─
 # /scan-vehicule/?veh=<id>&k=<maquignon.scan_key> ; veilleur PowerShell du poste dans
 # odoo-scan-page/scan_vehicule_20261014/poste/ ; action « Scanner un document » sur fleet.vehicle.

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Borne à béton Distri Béton</title>
+<style>
+  :root { --ink:#0f172a; --grey:#64748b; --line:#e2e8f0; --blue:#1d4ed8; --green:#15803d; --red:#b91c1c; --amber:#b45309; --bg:#f8fafc; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: system-ui, Segoe UI, Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  .etat { font-size:13px; color:var(--grey); }
+  .pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#cbd5e1; margin-right:6px; vertical-align:middle; }
+  .pastille.ok { background:var(--green); } .pastille.ko { background:var(--red); } .pastille.muet { background:var(--amber); }
+  main { display:grid; grid-template-columns: 1.5fr 1fr; gap:16px; padding:16px; max-width:1750px; margin:0 auto; }
+  @media (max-width: 1100px) { main { grid-template-columns:1fr; } }
+  .carte { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .carte h2 { font-size:15px; margin:0 0 10px; color:var(--grey); text-transform:uppercase; letter-spacing:.04em; }
+  .carte + .carte { margin-top:16px; }
+  input, select { font-size:15px; padding:7px 9px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; }
+  .btn { display:inline-block; font-size:15px; font-weight:700; padding:10px 14px; border-radius:10px; border:0; cursor:pointer; color:#fff; background:var(--blue); }
+  .btn.vert { background:var(--green); } .btn.gris { background:#475569; } .btn.rouge { background:var(--red); } .btn.petit { padding:5px 9px; font-size:13px; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:6px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--grey); font-weight:600; font-size:12px; white-space:nowrap; }
+  tr.jour td { background:#f1f5f9; font-weight:700; color:var(--grey); font-size:13px; }
+  tr.ko td { background:#fff7ed; }
+  .num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .ko { color:var(--red); font-weight:600; } .warn { color:var(--amber); font-size:12px; } .ok { color:var(--green); } .petit { font-size:12px; color:var(--grey); }
+  #message { margin:12px 16px 0; padding:10px 14px; border-radius:10px; display:none; font-weight:600; white-space:pre-line; }
+  #message.ok { display:block; background:#dcfce7; color:#166534; } #message.ko { display:block; background:#fee2e2; color:#991b1b; } #message.info { display:block; background:#dbeafe; color:#1e40af; }
+  .ligne { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .suggest { position:relative; display:inline-block; }
+  .suggest ul { position:absolute; left:0; top:100%; min-width:320px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin:0; padding:0; list-style:none; z-index:5; max-height:240px; overflow:auto; display:none; box-shadow:0 8px 24px rgba(15,23,42,.12); }
+  .suggest li { padding:7px 10px; cursor:pointer; font-size:14px; } .suggest li:hover { background:#eff6ff; }
+  details { font-size:13px; color:var(--grey); } summary { cursor:pointer; }
+  code { background:#f1f5f9; padding:1px 4px; border-radius:4px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+  .pill.depose { background:#dcfce7; color:#166534; } .pill.inchange { background:#f1f5f9; color:#475569; } .pill.refuse { background:#fee2e2; color:#991b1b; } .pill.erreur { background:#fee2e2; color:#991b1b; }
+  .pill.importe { background:#dcfce7; color:#166534; } .pill.rejete { background:#f1f5f9; color:#475569; } .pill.doublon { background:#fef3c7; color:#92400e; }
+  a { color:var(--blue); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Borne à béton — Distri Béton</h1>
+  <span class="etat"><span id="p-agent" class="pastille"></span><span id="t-agent">agent : ?</span></span>
+  <span class="etat"><span id="p-odoo" class="pastille"></span><span id="t-odoo">Odoo</span></span>
+  <span style="flex:1"></span>
+  <label class="etat">Je suis <input id="qui" placeholder="Prénom" style="width:120px"></label>
+  <button class="btn petit gris" id="b-rafraichir">Rafraîchir</button>
+</header>
+<div id="message"></div>
+<main>
+  <section>
+    <div class="carte">
+      <div class="ligne" style="margin-bottom:8px">
+        <h2 style="flex:1; margin:0">Prises de béton à valider <span id="nb-valider" class="petit"></span></h2>
+        <label class="petit"><input type="checkbox" id="tout"> tout cocher</label>
+        <button class="btn vert" id="b-valider" disabled>Créer les commandes Odoo</button>
+        <button class="btn gris petit" id="b-rejeter" disabled>Rejeter</button>
+      </div>
+      <table id="bons"><thead><tr><th></th><th>Heure</th><th>Bon</th><th>Client</th><th>Article</th><th class="num">m³</th><th class="num">Prix HT</th><th class="num">TTC borne</th><th>Chantier</th><th>Badge</th></tr></thead><tbody></tbody></table>
+      <div id="bons-vide" class="petit" style="padding:14px 0">Aucune prise en attente. Les fichiers de la borne arrivent chaque soir après 20 h (et à chaque passage de l'agent).</div>
+      <details style="margin-top:10px"><summary>Comment ça marche</summary>
+        La borne écrit un fichier par prise dans son dossier <code>/Exports</code>. L'agent du PC les transmet ici et les range dans <code>Sauv</code>.
+        Chaque ligne est rapprochée du client Odoo (code DIS) et de l'article (code recette). Cocher les lignes à importer puis « Créer les commandes Odoo » :
+        une commande Distri Béton confirmée par prise, badge, chantier et date de distribution remplis ; prix de la borne repris seulement s'il est renseigné (particuliers),
+        sinon tarif Odoo du client. Les lignes en orange ont un problème à corriger (client ou article à choisir) ou un doublon probable.
+      </details>
+    </div>
+    <div class="carte">
+      <h2>Historique des imports <span id="nb-histo" class="petit"></span></h2>
+      <table id="histo"><thead><tr><th>Validé le</th><th>Bon</th><th>Client</th><th>Article</th><th class="num">m³</th><th>Résultat</th><th>Commande</th><th>Par</th></tr></thead><tbody></tbody></table>
+      <div id="histo-vide" class="petit" style="padding:10px 0">Rien ce mois-ci ni le mois dernier.</div>
+    </div>
+  </section>
+  <section>
+    <div class="carte">
+      <h2>Export automatique des clients vers la borne</h2>
+      <div id="export-etat" style="font-size:14px; line-height:1.5">…</div>
+      <div id="export-nouveaux" style="margin-top:8px; font-size:13px"></div>
+      <div id="export-problemes" style="margin-top:8px; font-size:13px"></div>
+      <div class="ligne" style="margin-top:10px"><button class="btn petit gris" id="b-forcer">Forcer un dépôt au prochain passage</button><span class="petit">utile si un garde-fou bloque à tort</span></div>
+      <details style="margin-top:10px"><summary>Comment ça marche</summary>
+        Dès qu'un client Distri Béton est créé ou modifié dans Odoo, l'agent (qui passe toutes les minutes) récupère la liste complète (clients avec un code DIS)
+        et la dépose sur la borne sous <code>/Imports/Contact (res.partner).csv</code>, au format exact de l'export Odoo. La borne la relit aussitôt : le badge
+        du nouveau client fonctionne dans la minute. Garde-fous : jamais de codes en double, jamais une liste qui rétrécit de plus de 10 % (un fichier incomplet
+        efface des clients sur la borne).
+      </details>
+    </div>
+    <div class="carte">
+      <h2>Historique de l'export automatique</h2>
+      <table id="exports"><thead><tr><th>Date</th><th>Résultat</th><th class="num">Clients</th><th class="num">Nouveaux</th><th>Détail</th></tr></thead><tbody></tbody></table>
+      <div id="exports-vide" class="petit" style="padding:10px 0">Aucun export consigné pour l'instant.</div>
+    </div>
+  </section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const LS = k => localStorage.getItem('borne_' + k) || '';
+  const LSset = (k, v) => localStorage.setItem('borne_' + k, v);
+  const params = new URLSearchParams(location.search);
+  if (params.get('k')) { LSset('cle', params.get('k')); history.replaceState(null, '', location.pathname); }
+  const CLE = LS('cle');
+  let ODOO = '', bons = [], histo = [], exportsListe = [], derniereSel = new Set();
+  $('qui').value = LS('qui'); $('qui').addEventListener('change', () => LSset('qui', $('qui').value.trim()));
+
+  function message(t, type) { const m = $('message'); m.textContent = t; m.className = type || 'info'; if (type === 'ok') setTimeout(() => { if (m.textContent === t) m.className = ''; }, 6000); }
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const eur = v => v == null ? '' : Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const m3 = v => v == null ? '' : Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function local(utc) { if (!utc) return null; const d = new Date(utc.replace(' ', 'T') + 'Z'); return isNaN(d) ? null : d; }
+  const jour = utc => { const d = local(utc); return d ? d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '?'; };
+  const heure = utc => { const d = local(utc); return d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '?'; };
+  const dateHeure = utc => { const d = local(utc); return d ? d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''; };
+  const secondes = s => s == null ? '?' : (s < 90 ? Math.round(s) + ' s' : s < 5400 ? Math.round(s / 60) + ' min' : Math.round(s / 3600) + ' h');
+
+  async function api(chemin, corps) {
+    const url = '/borne/api/' + chemin + (chemin.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(CLE);
+    const r = corps ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ k: CLE }, corps)) }) : await fetch(url, { cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+  function lienOdoo(id, nom) { return ODOO && id ? '<a href="' + esc(ODOO) + '/odoo/sales/' + id + '" target="_blank">' + esc(nom) + '</a>' : esc(nom); }
+
+  function majBoutons() {
+    const sel = [...document.querySelectorAll('#bons input[type=checkbox][data-id]:checked')];
+    $('b-valider').disabled = !sel.length; $('b-rejeter').disabled = !sel.length;
+    $('b-valider').textContent = sel.length ? 'Créer ' + sel.length + ' commande' + (sel.length > 1 ? 's' : '') + ' Odoo' : 'Créer les commandes Odoo';
+  }
+  function rendreBons() {
+    const tb = $('bons').querySelector('tbody'); tb.innerHTML = '';
+    $('nb-valider').textContent = bons.length ? '(' + bons.length + ')' : ''; $('bons-vide').style.display = bons.length ? 'none' : '';
+    let j = '';
+    for (const b of bons) {
+      const jj = jour(b.x_date);
+      if (jj !== j) { j = jj; tb.insertAdjacentHTML('beforeend', '<tr class="jour"><td colspan="10">' + esc(jj) + '</td></tr>'); }
+      const pret = b.x_partner_id && b.x_product_id;
+      const client = b.x_partner_id ? esc(b.partner) + ' <span class="petit">' + esc(b.x_clicod || '') + '</span>'
+                                    : '<span class="ko">' + esc(b.x_clicod || '?') + ' ' + esc(b.x_clinom || '') + ' introuvable</span> <button class="btn petit gris" data-corr="client" data-id="' + b.id + '">Choisir</button>';
+      const article = b.x_product_id ? esc(b.produit) + ' <span class="petit">' + esc(b.x_reccod || '') + '</span>'
+                                     : '<span class="ko">' + esc(b.x_reccod || '?') + ' ' + esc(b.x_recnom || '') + ' introuvable</span> <button class="btn petit gris" data-corr="article" data-id="' + b.id + '">Choisir</button>';
+      const prix = b.x_ht > 0 ? '<b>' + eur(b.x_ht) + '</b><br><span class="petit">prix borne</span>' : '<span class="petit">tarif Odoo' + (b.prix_odoo != null ? '<br>(' + eur(b.prix_odoo) + ' catalogue)' : '') + '</span>';
+      const anomalie = b.x_anomalie ? '<div class="warn">⚠ ' + esc(b.x_anomalie) + '</div>' : '';
+      tb.insertAdjacentHTML('beforeend', '<tr class="' + (pret && !b.x_anomalie ? '' : 'ko') + '" data-id="' + b.id + '">' +
+        '<td><input type="checkbox" data-id="' + b.id + '"' + (pret ? '' : ' disabled') + (derniereSel.has(b.id) && pret ? ' checked' : '') + '></td>' +
+        '<td class="num">' + esc(heure(b.x_date)) + '</td><td>' + esc(b.x_name) + (b.x_etat === 'doublon' ? '<br><span class="pill doublon">doublon</span>' : '') + '</td>' +
+        '<td>' + client + anomalie + '</td><td>' + article + '</td><td class="num">' + m3(b.x_volume) + '</td><td class="num">' + prix + '</td>' +
+        '<td class="num">' + (b.x_ttc > 0 ? eur(b.x_ttc) : '') + '</td><td>' + esc(b.x_chantier || '') + '</td><td class="petit">' + esc(b.x_badge || '') + (b.x_badge_nom ? '<br>' + esc(b.x_badge_nom) : '') + '</td></tr>');
+    }
+    tb.querySelectorAll('input[type=checkbox]').forEach(c => c.addEventListener('change', () => { const id = +c.dataset.id; c.checked ? derniereSel.add(id) : derniereSel.delete(id); majBoutons(); }));
+    tb.querySelectorAll('[data-corr]').forEach(b => b.addEventListener('click', () => corriger(+b.dataset.id, b.dataset.corr, b)));
+    majBoutons();
+  }
+  function rendreHisto() {
+    const tb = $('histo').querySelector('tbody'); tb.innerHTML = '';
+    $('nb-histo').textContent = histo.length ? '(' + histo.length + ')' : ''; $('histo-vide').style.display = histo.length ? 'none' : '';
+    for (const b of histo.slice(0, 150)) {
+      tb.insertAdjacentHTML('beforeend', '<tr><td class="num">' + esc(dateHeure(b.x_valide_le)) + '</td><td>' + esc(b.x_name) + '</td><td>' + esc(b.partner || b.x_clinom || '') + '</td><td>' + esc(b.produit || b.x_recnom || '') + '</td>' +
+        '<td class="num">' + m3(b.x_volume) + '</td><td><span class="pill ' + esc(b.x_etat) + '">' + (b.x_etat === 'importe' ? 'importé' : 'rejeté') + '</span>' + (b.x_etat === 'rejete' && b.x_anomalie ? '<div class="petit">' + esc(b.x_anomalie) + '</div>' : '') + '</td>' +
+        '<td>' + lienOdoo(b.x_sale_order_id, b.commande || '') + '</td><td class="petit">' + esc(b.x_valide_par || '') + '</td></tr>');
+    }
+  }
+  function rendreExports() {
+    const tb = $('exports').querySelector('tbody'); tb.innerHTML = '';
+    $('exports-vide').style.display = exportsListe.length ? 'none' : '';
+    const lib = { depose: 'déposé sur la borne', inchange: 'inchangé', refuse: 'refusé (garde-fou)', erreur: 'erreur' };
+    for (const e of exportsListe) {
+      const detail = [e.x_detail, e.x_nouveaux ? e.x_nouveaux.split('\n').slice(0, 8).join(', ') + (e.x_nouveaux.split('\n').length > 8 ? '…' : '') : ''].filter(Boolean).join(' — ');
+      tb.insertAdjacentHTML('beforeend', '<tr><td class="num">' + esc(dateHeure(e.x_date)) + '</td><td><span class="pill ' + esc(e.x_resultat) + '">' + esc(lib[e.x_resultat] || e.x_resultat) + '</span>' + (e.x_poste ? '<div class="petit">' + esc(e.x_poste) + '</div>' : '') + '</td>' +
+        '<td class="num">' + (e.x_nb_clients || '') + '</td><td class="num">' + (e.x_nb_nouveaux || '') + '</td><td class="petit">' + esc(detail) + '</td></tr>');
+    }
+  }
+  function rendreExportEtat(etat, apercu) {
+    const a = etat.agent || {};
+    $('p-agent').className = 'pastille ' + (a.depuis_s == null ? '' : a.depuis_s < 180 ? 'ok' : 'muet');
+    $('t-agent').textContent = a.depuis_s == null ? 'agent jamais vu' : 'agent ' + (a.poste || '') + ' vu il y a ' + secondes(a.depuis_s);
+    const der = apercu.dernier;
+    let h = der ? '<b>Dernier dépôt sur la borne :</b> ' + esc(dateHeure(der.x_date)) + ' — ' + der.x_nb_clients + ' clients' + (der.x_poste ? ' (depuis ' + esc(der.x_poste) + ')' : '')
+                : '<b>Aucun dépôt automatique encore effectué.</b>';
+    h += '<br><b>Clients Distri Béton avec un code :</b> ' + apercu.nb + (etat.forcer ? ' <span class="warn">— dépôt forcé demandé au prochain passage</span>' : '');
+    $('export-etat').innerHTML = h;
+    const n = apercu.nouveaux || [];
+    $('export-nouveaux').innerHTML = n.length ? '<b>' + n.length + ' client' + (n.length > 1 ? 's' : '') + ' créé' + (n.length > 1 ? 's' : '') + ' ou modifié' + (n.length > 1 ? 's' : '') + ' depuis le dernier dépôt</b> (partira au prochain passage de l\'agent) :<br>' + n.slice(0, 15).map(esc).join('<br>') + (n.length > 15 ? '<br>…' : '')
+                                            : '<span class="ok">✓ La borne est à jour des clients Odoo.</span>';
+    const pb = apercu.problemes || [];
+    $('export-problemes').innerHTML = (pb.length ? '<div class="ko">⛔ Dépôt bloqué : ' + pb.map(esc).join(' ; ') + '</div>' : '') +
+      (apercu.hors_dis && apercu.hors_dis.length ? '<div class="warn">Clients avec un code hors DIS (exportés tels quels) : ' + apercu.hors_dis.map(esc).join(', ') + '</div>' : '');
+  }
+
+  async function corriger(id, quoi, bouton) {
+    const td = bouton.parentElement; if (td.querySelector('.suggest')) return;
+    const wrap = document.createElement('span'); wrap.className = 'suggest';
+    wrap.innerHTML = '<input placeholder="' + (quoi === 'client' ? 'Nom ou code client…' : 'Nom ou code article…') + '" style="width:260px"><ul></ul>';
+    td.appendChild(wrap); const inp = wrap.querySelector('input'), ul = wrap.querySelector('ul'); inp.focus();
+    let t = null;
+    inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(async () => {
+      const q = inp.value.trim(); if (q.length < 2) { ul.style.display = 'none'; return; }
+      const rows = await api('recherche?q=' + encodeURIComponent(q) + (quoi === 'article' ? '&quoi=article' : ''));
+      ul.innerHTML = rows.map(r => '<li data-id="' + r.id + '">' + esc(r.nom) + ' <span class="petit">' + esc(r.ref || r.code || '') + (r.ville ? ' · ' + esc(r.ville) : '') + (r.prix != null ? ' · ' + eur(r.prix) : '') + '</span></li>').join('') || '<li class="petit">aucun résultat</li>';
+      ul.style.display = '';
+      ul.querySelectorAll('li[data-id]').forEach(li => li.addEventListener('click', async () => {
+        try { const r = await api('corriger', { id, [quoi === 'client' ? 'partner_id' : 'product_id']: +li.dataset.id }); const i = bons.findIndex(b => b.id === id); if (i >= 0) bons[i] = r.bon; rendreBons(); message('Prise ' + r.bon.x_name + ' corrigée', 'ok'); }
+        catch (e) { message('Correction impossible : ' + e.message, 'ko'); }
+      }));
+    }, 250); });
+    inp.addEventListener('keydown', e => { if (e.key === 'Escape') wrap.remove(); });
+  }
+
+  async function charger() {
+    try {
+      const [b, e, ex, ap] = await Promise.all([api('bons'), api('etat'), api('exports?n=40'), api('clients/apercu')]);
+      ODOO = b.odoo || ODOO; bons = b.a_valider; histo = b.historique; exportsListe = ex;
+      $('p-odoo').className = 'pastille ok'; $('t-odoo').textContent = 'Odoo';
+      rendreBons(); rendreHisto(); rendreExports(); rendreExportEtat(e, ap);
+    } catch (err) { $('p-odoo').className = 'pastille ko'; $('t-odoo').textContent = 'Odoo : ' + err.message; message(CLE ? 'Chargement impossible : ' + err.message : 'Clé d\'accès absente : ouvrir la page avec ?k=<clé>', 'ko'); }
+  }
+  $('b-rafraichir').addEventListener('click', charger);
+  $('tout').addEventListener('change', () => { document.querySelectorAll('#bons input[type=checkbox][data-id]:not(:disabled)').forEach(c => { c.checked = $('tout').checked; c.checked ? derniereSel.add(+c.dataset.id) : derniereSel.delete(+c.dataset.id); }); majBoutons(); });
+  $('b-valider').addEventListener('click', async () => {
+    const ids = [...document.querySelectorAll('#bons input[type=checkbox][data-id]:checked')].map(c => +c.dataset.id);
+    if (!ids.length) return;
+    const qui = $('qui').value.trim(); if (!qui) { message('Indiquer votre prénom en haut à droite avant de valider.', 'ko'); $('qui').focus(); return; }
+    const total = ids.reduce((s, id) => s + ((bons.find(b => b.id === id) || {}).x_volume || 0), 0);
+    if (!confirm('Créer ' + ids.length + ' commande' + (ids.length > 1 ? 's' : '') + ' Distri Béton confirmée' + (ids.length > 1 ? 's' : '') + ' dans Odoo ?\n\nVolume total : ' + m3(total) + ' m³\nValidé par : ' + qui)) return;
+    $('b-valider').disabled = true; message('Création des commandes en cours…', 'info');
+    try {
+      const r = await api('valider', { ids, qui });
+      const ok = r.resultats.filter(x => x.ok), ko = r.resultats.filter(x => !x.ok);
+      message((ok.length ? ok.length + ' commande' + (ok.length > 1 ? 's' : '') + ' créée' + (ok.length > 1 ? 's' : '') + ' : ' + ok.map(x => x.commande).join(', ') : 'Aucune commande créée') + (ko.length ? '\n' + ko.map(x => 'Bon ' + x.bon + ' : ' + x.erreur).join('\n') : ''), ko.length ? 'ko' : 'ok');
+      derniereSel.clear();
+    } catch (e) { message('Validation impossible : ' + e.message, 'ko'); }
+    charger();
+  });
+  $('b-rejeter').addEventListener('click', async () => {
+    const ids = [...document.querySelectorAll('#bons input[type=checkbox][data-id]:checked')].map(c => +c.dataset.id);
+    if (!ids.length) return;
+    const motif = prompt('Rejeter ' + ids.length + ' prise' + (ids.length > 1 ? 's' : '') + ' (aucune commande ne sera créée). Motif :', 'déjà saisi à la main');
+    if (motif == null) return;
+    try { const r = await api('rejeter', { ids, motif, qui: $('qui').value.trim() }); message(r.rejetes + ' prise(s) rejetée(s)', 'ok'); derniereSel.clear(); } catch (e) { message('Rejet impossible : ' + e.message, 'ko'); }
+    charger();
+  });
+  $('b-forcer').addEventListener('click', async () => {
+    if (!confirm('Forcer le dépôt du fichier clients sur la borne au prochain passage de l\'agent, même si un garde-fou le bloque ?\n\nÀ n\'utiliser qu\'après avoir vérifié la liste des clients.')) return;
+    try { await api('forcer', { qui: $('qui').value.trim() }); message('Dépôt forcé demandé : l\'agent le fera à son prochain passage (dans la minute).', 'ok'); } catch (e) { message(e.message, 'ko'); }
+    charger();
+  });
+  charger(); setInterval(charger, 60000);
+</script>
+</body>
+</html>
