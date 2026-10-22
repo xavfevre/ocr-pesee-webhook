@@ -110,20 +110,6 @@
     </div>
   </section>
   <section>
-    <div class="carte" id="camera-carte">
-      <div style="display:flex; align-items:center; gap:8px"><h2 style="flex:1; margin:0" id="camera-titre">Caméra du pont</h2><button class="btn petit gris" id="b-camera">Masquer</button></div>
-      <div id="camera-corps">
-        <img id="camera-img" alt="Caméra du pont" style="display:none">
-        <div id="camera-vide">📷 Caméra non raccordée<br><small>Emplacement prévu : l'image du pont s'affichera ici dès que la caméra et la passerelle de la cabine seront installées.</small></div>
-        <div id="camera-info"></div>
-        <h2 id="camera2-titre">Seconde caméra</h2>
-        <img id="camera2-img" alt="Seconde caméra" style="display:none">
-        <div id="camera2-vide">📷 Seconde caméra non raccordée<br><small>Image envoyée par la passerelle du site (paramètre -Camera2).</small></div>
-        <div id="camera2-info"></div>
-      </div>
-    </div>
-  </section>
-  <section>
     <div class="carte">
       <h2>Camions en attente de 2<sup>e</sup> pesée</h2>
       <table id="ouvertes"><thead><tr><th>N°</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Pesée 1</th><th></th></tr></thead><tbody></tbody></table>
@@ -145,6 +131,20 @@
         Le ticket est envoyé à l'imprimante par le réseau (ePOS) : l'adresse <code>https://IP</code> de l'imprimante doit être acceptée une fois dans ce navigateur.
         Les pesées sont enregistrées dans Odoo, menu Logistiques, Pesées pont-bascule.
       </details>
+    </div>
+  </section>
+  <section>
+    <div class="carte" id="camera-carte">
+      <div style="display:flex; align-items:center; gap:8px"><h2 style="flex:1; margin:0" id="camera-titre">Caméra du pont</h2><button class="btn petit gris" id="b-camera">Masquer</button></div>
+      <div id="camera-corps">
+        <img id="camera-img" alt="Caméra du pont" style="display:none">
+        <div id="camera-vide">📷 Caméra non raccordée<br><small>Emplacement prévu : l'image du pont s'affichera ici dès que la caméra et la passerelle de la cabine seront installées.</small></div>
+        <div id="camera-info"></div>
+        <h2 id="camera2-titre">Seconde caméra</h2>
+        <img id="camera2-img" alt="Seconde caméra" style="display:none">
+        <div id="camera2-vide">📷 Seconde caméra non raccordée<br><small>Image envoyée par la passerelle du site (paramètre -Camera2).</small></div>
+        <div id="camera2-info"></div>
+      </div>
     </div>
   </section>
 </main>
