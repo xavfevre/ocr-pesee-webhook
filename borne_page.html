@@ -84,6 +84,7 @@
       <div id="export-nouveaux" style="margin-top:8px; font-size:13px"></div>
       <div id="export-problemes" style="margin-top:8px; font-size:13px"></div>
       <div class="ligne" style="margin-top:10px"><button class="btn petit gris" id="b-forcer">Forcer un dépôt au prochain passage</button><span class="petit">utile si un garde-fou bloque à tort</span></div>
+      <div class="ligne" style="margin-top:10px"><a class="btn petit" id="b-agent" href="#" download>Installer l'agent sur ce PC</a><span class="petit">à faire une fois sur un PC du réseau de Chatel qui reste allumé (PC de caisse) : l'installateur demande le mot de passe FTP de la borne, puis l'agent passe toutes les minutes et redémarre seul à chaque ouverture de session.</span></div>
       <details style="margin-top:10px"><summary>Comment ça marche</summary>
         Dès qu'un client Distri Béton est créé ou modifié dans Odoo, l'agent (qui passe toutes les minutes) récupère la liste complète (clients avec un code DIS)
         et la dépose sur la borne sous <code>/Imports/Contact (res.partner).csv</code>, au format exact de l'export Odoo. La borne la relit aussitôt : le badge
@@ -220,6 +221,7 @@
     } catch (err) { $('p-odoo').className = 'pastille ko'; $('t-odoo').textContent = 'Odoo : ' + err.message; message(CLE ? 'Chargement impossible : ' + err.message : 'Clé d\'accès absente : ouvrir la page avec ?k=<clé>', 'ko'); }
   }
   $('b-rafraichir').addEventListener('click', charger);
+  $('b-agent').href = '/borne/outils-installer.cmd?k=' + encodeURIComponent(CLE);
   $('tout').addEventListener('change', () => { document.querySelectorAll('#bons input[type=checkbox][data-id]:not(:disabled)').forEach(c => { c.checked = $('tout').checked; c.checked ? derniereSel.add(+c.dataset.id) : derniereSel.delete(+c.dataset.id); }); majBoutons(); });
   $('b-valider').addEventListener('click', async () => {
     const ids = [...document.querySelectorAll('#bons input[type=checkbox][data-id]:checked')].map(c => +c.dataset.id);

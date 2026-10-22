@@ -213,6 +213,42 @@ def page():
     return send_from_directory(ICI, 'borne_page.html')
 
 
+@bp.route('/outils/<nom>')
+def outil(nom):
+    """Fichiers de l'agent (téléchargés par l'installateur) : borne_agent.ps1, borne_installer.ps1."""
+    if nom not in ('borne_agent.ps1', 'borne_installer.ps1'):
+        return jsonify({'error': 'fichier inconnu'}), 404
+    return send_from_directory(os.path.join(ICI, 'docs'), nom, mimetype='text/plain', max_age=0)
+
+
+@bp.route('/outils-installer.cmd')
+def outil_installer():
+    """Installateur de l'agent pour le PC où la page est ouverte (Xavier, 22/10/2026 : « et pour la borne ? ») : clé et relais préremplis,
+    télécharge l'agent et l'installateur PowerShell sur le relais, qui demande le mot de passe FTP, chiffre, crée le démarrage automatique et lance."""
+    g = _garde()
+    if g:
+        return g
+    cle = request.args.get('k'); relais = request.url_root.rstrip('/')
+    if relais.startswith('http://') and 'localhost' not in relais:
+        relais = 'https://' + relais[7:]
+    ps_dl = ("[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; "
+             "Invoke-WebRequest -Uri '%s/borne/outils/borne_agent.ps1' -OutFile '%%DIR%%\\borne_agent.ps1' -UseBasicParsing; "
+             "Invoke-WebRequest -Uri '%s/borne/outils/borne_installer.ps1' -OutFile '%%DIR%%\\borne_installer.ps1' -UseBasicParsing") % (relais, relais)
+    lignes = [
+        '@echo off', 'setlocal',
+        'set "DIR=%LOCALAPPDATA%\\Maquignon\\borne"', 'if not exist "%DIR%" mkdir "%DIR%"',
+        'echo Installation de l agent borne Distri Beton sur ce PC (il doit voir la borne 192.168.1.200 et internet, et rester allume).',
+        'echo Le mot de passe FTP de la borne va etre demande, il est chiffre pour cette session Windows.', 'echo.',
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "%s"' % ps_dl,
+        'if errorlevel 1 ( echo Telechargement impossible : verifier internet. & pause & exit /b 1 )',
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "%%DIR%%\\borne_installer.ps1" -Cle "%s" -Url "%s" -Poste "%%COMPUTERNAME%%"' % (cle, relais),
+        'echo.', 'echo Termine. La page Borne a beton affiche « agent vu » dans la minute ; journal : %LOCALAPPDATA%\\BorneDistriBeton\\journal.txt', 'pause',
+    ]
+    corps = '\r\n'.join(lignes) + '\r\n'
+    return Response(corps.encode('cp1252', errors='replace'), mimetype='application/octet-stream',
+                    headers={'Content-Disposition': 'attachment; filename=installer_agent_borne.cmd', 'Cache-Control': 'no-store'})
+
+
 @bp.route('/api/etat')
 def api_etat():
     """Pour l'agent (toutes les minutes) et la page : signature des clients, nombre de prises à valider, dernier export."""
