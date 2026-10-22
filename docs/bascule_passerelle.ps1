@@ -16,8 +16,12 @@
 # Camera seule (la page lit la bascule par le cable USB, ex. PC de caisse de Chatel) : -Port '' -Site chatel -Camera http://...
 param([string]$Site = 'maquignon', [string]$Port = 'COM1', [int]$Baud = 9600, [string]$Cle = '', [string]$Relais = 'https://ocr-pesee-webhook.onrender.com',
       [string]$Camera = '', [string]$CamUser = '', [string]$CamPwd = '', [double]$Intervalle = 1.0, [double]$ImageIntervalle = 2.0, [string]$Poste = $env:COMPUTERNAME,
-      [string]$Camera2 = '', [double]$Image2Intervalle = 6.0, [int]$ImageLargeurMax = 1280)
+      [string]$Camera2 = '', [double]$Image2Intervalle = 6.0, [int]$ImageLargeurMax = 1280, [string]$CamPwdFichier = '')
 $ErrorActionPreference = 'Continue'
+# mot de passe camera chiffre (DPAPI, cette session Windows) par l'installateur : -CamPwdFichier C:\...\cam.sec
+if (-not $CamPwd -and $CamPwdFichier -and (Test-Path $CamPwdFichier)) {
+  try { $sec = ConvertTo-SecureString (Get-Content $CamPwdFichier -Raw).Trim(); $CamPwd = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)) } catch { Write-Host "mot de passe camera illisible : $($_.Exception.Message)" }
+}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 if (-not $Cle) { $f = Join-Path $PSScriptRoot 'bascule_cle.txt'; if (Test-Path $f) { $Cle = (Get-Content $f | Select-Object -First 1).Trim() } }
 if (-not $Cle) { Write-Host 'Cle manquante : parametre -Cle ou fichier bascule_cle.txt a cote du script.'; exit 1 }
@@ -47,12 +51,16 @@ function Reduire([byte[]]$octets, [int]$largeurMax) {
   } catch { Log "reduction image : $($_.Exception.Message)"; return $octets }
 }
 function EnvoyerImage([string]$source, [string]$cible) {
-  if ($cred) { $img = Invoke-WebRequest -Uri $source -Credential $cred -TimeoutSec 8 -UseBasicParsing } else { $img = Invoke-WebRequest -Uri $source -TimeoutSec 8 -UseBasicParsing }
+  try { if ($cred) { $img = Invoke-WebRequest -Uri $source -Credential $cred -TimeoutSec 8 -UseBasicParsing } else { $img = Invoke-WebRequest -Uri $source -TimeoutSec 8 -UseBasicParsing } }
+  catch { throw "lecture de la camera $source : $($_.Exception.Message)" }
   $octets = Reduire ([byte[]]$img.Content) $ImageLargeurMax
-  Invoke-RestMethod -Method Post -Uri $cible -ContentType 'image/jpeg' -Body $octets -TimeoutSec 8 | Out-Null
+  try { Invoke-RestMethod -Method Post -Uri $cible -ContentType 'image/jpeg' -Body $octets -TimeoutSec 8 | Out-Null }
+  catch { throw "envoi au relais ($($octets.Length) octets) : $($_.Exception.Message) (401 = cle d'acces fausse)" }
+  $script:nbImages++
+  if ($script:nbImages -le 2 -or $script:nbImages % 100 -eq 0) { Log "image envoyee au relais : $source -> $($octets.Length) octets (total $($script:nbImages))" }
 }
 $derniers = New-Object System.Collections.ArrayList
-$p = $null; $derniereImage = [datetime]::MinValue; $derniereImage2 = [datetime]::MinValue; $nbEnvois = 0; $nbErreurs = 0
+$p = $null; $derniereImage = [datetime]::MinValue; $derniereImage2 = [datetime]::MinValue; $nbEnvois = 0; $nbErreurs = 0; $script:nbImages = 0
 Log "demarrage : site $Site, port $(if ($Port) { $Port } else { 'aucun (camera seule)' }) a $Baud bauds, relais $Relais, camera $(if ($Camera) { $Camera } else { 'aucune' }), camera 2 $(if ($Camera2) { $Camera2 } else { 'aucune' }), poste $Poste"
 while ($true) {
   $t0 = Get-Date

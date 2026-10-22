@@ -322,8 +322,17 @@ def _installeur_cameras(site, cfg, cle, relais):
     Tout est entre guillemets simples côté PowerShell pour ne pas se battre avec cmd ; %MDP% est rempli par cmd à l'installation."""
     urls = cfg.get('cameras_urls') or []
     user = cfg.get('cameras_user', 'admin')
-    params = '-Site %s -Port "" -Cle "%s" -Camera "%s"' % (site, cle, urls[0]) + (' -Camera2 "%s"' % urls[1] if len(urls) > 1 else '') + ' -CamUser %s -CamPwd "%%MDP%%"' % user
+    # mot de passe caméra gardé dans Odoo (paramètre maquignon.cameras_<site>_mdp) : rien à taper sur place, chiffré DPAPI sur le PC
+    try:
+        mdp = _call('ir.config_parameter', 'get_param', 'maquignon.cameras_%s_mdp' % site, '') or ''
+    except Exception:  # noqa: BLE001
+        mdp = ''
+    mdp = mdp.replace('"', '').replace('%', '').replace('&', '').replace('|', '').replace('^', '').replace("'", '')
+    secret = '-CamPwdFichier "%DIR%\\cam.sec"' if mdp else '-CamPwd "%MDP%"'
+    params = '-Site %s -Port "" -Cle "%s" -Camera "%s"' % (site, cle, urls[0]) + (' -Camera2 "%s"' % urls[1] if len(urls) > 1 else '') + ' -CamUser %s %s' % (user, secret)
     ps_dl = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%s/bascule/outils/bascule_passerelle.ps1' -OutFile '%%DIR%%\\bascule_passerelle.ps1' -UseBasicParsing" % relais
+    if mdp:
+        ps_dl += "; ConvertTo-SecureString '%s' -AsPlainText -Force | ConvertFrom-SecureString | Set-Content -Path '%%DIR%%\\cam.sec'" % mdp
     ps_rac = ("$ws = New-Object -ComObject WScript.Shell; $r = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Startup')) 'Cameras pont-bascule.lnk')); "
               "$r.TargetPath = '%%DIR%%\\cameras_%s.cmd'; $r.WindowStyle = 7; $r.Description = 'Cameras du pont-bascule vers la page'; $r.Save(); "
               "Get-CimInstance Win32_Process -Filter 'Name = ''powershell.exe''' | Where-Object { $_.CommandLine -like '*bascule_passerelle.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }") % site
@@ -332,7 +341,7 @@ def _installeur_cameras(site, cfg, cle, relais):
         'set "DIR=%LOCALAPPDATA%\\Maquignon"', 'if not exist "%DIR%" mkdir "%DIR%"',
         'echo Installation des cameras du pont-bascule (site %s) sur ce PC.' % site,
         'echo Les images partent vers la page Pont-bascule ; la passerelle redemarre seule a chaque ouverture de session.', 'echo.',
-        'set /p MDP=Mot de passe camera (compte %s) : ' % user,
+        ('echo Mot de passe camera : fourni par le relais, chiffre sur ce PC.' if mdp else 'set /p MDP=Mot de passe camera (compte %s) : ' % user),
         'powershell -NoProfile -ExecutionPolicy Bypass -Command "%s"' % ps_dl,
         'if errorlevel 1 ( echo Telechargement de la passerelle impossible : verifier internet. & pause & exit /b 1 )',
         '> "%%DIR%%\\cameras_%s.cmd" echo @echo off' % site,
@@ -340,6 +349,7 @@ def _installeur_cameras(site, cfg, cle, relais):
         'powershell -NoProfile -ExecutionPolicy Bypass -Command "%s"' % ps_rac,
         'start "" /min "%%DIR%%\\cameras_%s.cmd"' % site,
         'echo.', 'echo Passerelle cameras lancee. Journal : %TEMP%\\bascule_passerelle.log', 'echo Dans 10 secondes, les deux vues apparaissent sur la page Pont-bascule (F5).', 'pause',
+        '(goto) 2>nul & del "%~f0"',   # l'installateur s'efface : il contenait la cle et le mot de passe
     ]
     return '\r\n'.join(lignes) + '\r\n'
 

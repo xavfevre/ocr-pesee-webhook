@@ -231,6 +231,12 @@ def outil_installer():
     cle = request.args.get('k'); relais = request.url_root.rstrip('/')
     if relais.startswith('http://') and 'localhost' not in relais:
         relais = 'https://' + relais[7:]
+    # mot de passe FTP gardé dans Odoo (paramètre maquignon.borne_ftp_mdp) : rien à taper sur place, chiffré DPAPI par l'installateur
+    try:
+        mdp = _call('ir.config_parameter', 'get_param', 'maquignon.borne_ftp_mdp', '') or ''
+    except Exception:  # noqa: BLE001
+        mdp = ''
+    mdp = mdp.replace('"', '').replace('%', '').replace('&', '').replace('|', '').replace('^', '')
     ps_dl = ("[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; "
              "Invoke-WebRequest -Uri '%s/borne/outils/borne_agent.ps1' -OutFile '%%DIR%%\\borne_agent.ps1' -UseBasicParsing; "
              "Invoke-WebRequest -Uri '%s/borne/outils/borne_installer.ps1' -OutFile '%%DIR%%\\borne_installer.ps1' -UseBasicParsing") % (relais, relais)
@@ -238,11 +244,12 @@ def outil_installer():
         '@echo off', 'setlocal',
         'set "DIR=%LOCALAPPDATA%\\Maquignon\\borne"', 'if not exist "%DIR%" mkdir "%DIR%"',
         'echo Installation de l agent borne Distri Beton sur ce PC (il doit voir la borne 192.168.1.200 et internet, et rester allume).',
-        'echo Le mot de passe FTP de la borne va etre demande, il est chiffre pour cette session Windows.', 'echo.',
+        ('echo Le mot de passe FTP de la borne est fourni par le relais et chiffre pour cette session Windows.' if mdp else 'echo Le mot de passe FTP de la borne va etre demande, il est chiffre pour cette session Windows.'), 'echo.',
         'powershell -NoProfile -ExecutionPolicy Bypass -Command "%s"' % ps_dl,
         'if errorlevel 1 ( echo Telechargement impossible : verifier internet. & pause & exit /b 1 )',
-        'powershell -NoProfile -ExecutionPolicy Bypass -File "%%DIR%%\\borne_installer.ps1" -Cle "%s" -Url "%s" -Poste "%%COMPUTERNAME%%"' % (cle, relais),
-        'echo.', 'echo Termine. La page Borne a beton affiche « agent vu » dans la minute ; journal : %LOCALAPPDATA%\\BorneDistriBeton\\journal.txt', 'pause',
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "%%DIR%%\\borne_installer.ps1" -Cle "%s" -Url "%s" -Poste "%%COMPUTERNAME%%"%s' % (cle, relais, (' -FtpPass "%s"' % mdp) if mdp else ''),
+        'echo.', 'echo Termine. La page Borne a beton affiche "agent vu" dans la minute ; journal : %LOCALAPPDATA%\\BorneDistriBeton\\journal.txt', 'pause',
+        '(goto) 2>nul & del "%~f0"',   # l'installateur s'efface : il contenait la cle et le mot de passe
     ]
     corps = '\r\n'.join(lignes) + '\r\n'
     return Response(corps.encode('cp1252', errors='replace'), mimetype='application/octet-stream',
