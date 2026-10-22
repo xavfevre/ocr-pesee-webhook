@@ -216,6 +216,8 @@ def page():
 @bp.route('/outils/<nom>')
 def outil(nom):
     """Fichiers de l'agent (téléchargés par l'installateur) : borne_agent.ps1, borne_installer.ps1."""
+    if nom == 'procedure.pdf':   # procédure Delphine (installation sur l'ordinateur de caisse + utilisation), sans secret dedans
+        return send_from_directory(os.path.join(ICI, 'docs'), 'Procedure_borne_DistriBeton_Delphine.pdf', mimetype='application/pdf', max_age=0)
     if nom not in ('borne_agent.ps1', 'borne_installer.ps1'):
         return jsonify({'error': 'fichier inconnu'}), 404
     return send_from_directory(os.path.join(ICI, 'docs'), nom, mimetype='text/plain', max_age=0)
