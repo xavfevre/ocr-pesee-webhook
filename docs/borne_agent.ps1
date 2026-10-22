@@ -26,15 +26,26 @@ $etat = @{ signature = ''; sha = ''; refus = '' }
 if (Test-Path $etatFichier) { try { $e = Get-Content $etatFichier -Raw -Encoding UTF8 | ConvertFrom-Json; $etat.signature = [string]$e.signature; $etat.sha = [string]$e.sha; $etat.refus = [string]$e.refus } catch {} }
 function SauverEtat { try { $etat | ConvertTo-Json | Out-File -FilePath $etatFichier -Encoding UTF8 } catch {} }
 
-# ─── certificat du serveur FTP : empreinte SHA-256 epinglee dans la configuration (sinon acceptee et journalisee une fois)
-$script:empreinteVue = ''
-[Net.ServicePointManager]::ServerCertificateValidationCallback = {
-  param($sender, $cert, $chain, $erreurs)
-  $sha = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($cert.GetRawCertData())).Replace('-', '').ToLower()
-  if ($cfg.empreinte) { return ($sha -eq $cfg.empreinte.ToLower()) }
-  if ($script:empreinteVue -ne $sha) { $script:empreinteVue = $sha; Log "certificat FTP accepte sans epinglage, empreinte $sha (a reporter dans config.json : empreinte)" }
-  return $true
+# ─── certificat du serveur FTP : empreinte SHA-256 epinglee dans la configuration (sinon acceptee et journalisee une fois).
+# Validation en C# (un scriptblock PowerShell 5.1 en rappel de certificat casse les appels HTTPS : « connexion sous-jacente fermee »).
+Add-Type -TypeDefinition @'
+using System; using System.Net; using System.Net.Security; using System.Security.Cryptography; using System.Security.Cryptography.X509Certificates;
+public static class BorneCert {
+  public static string FtpHost = ""; public static string Empreinte = ""; public static string Vue = "";
+  public static bool Valider(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors errors) {
+    string host = ""; try { WebRequest req = sender as WebRequest; if (req != null) host = req.RequestUri.Host; } catch {}
+    if (host != "" && host != FtpHost) return errors == SslPolicyErrors.None;   // HTTPS vers le relais : validation normale
+    using (SHA256 sha = SHA256.Create()) {
+      string h = BitConverter.ToString(sha.ComputeHash(cert.GetRawCertData())).Replace("-", "").ToLower(); Vue = h;
+      if (Empreinte != "") return h == Empreinte.ToLower();
+      return true;
+    }
+  }
+  public static void Installer() { ServicePointManager.ServerCertificateValidationCallback = Valider; }
 }
+'@
+[BorneCert]::FtpHost = [string]$cfg.ftp_host; [BorneCert]::Empreinte = [string]$cfg.empreinte; [BorneCert]::Installer()
+if (-not $cfg.empreinte) { Log 'certificat FTP accepte sans epinglage (renseigner config.json : empreinte, visible dans le journal apres le premier passage)' }
 
 # ─── FTP (FileZilla Server : TLS explicite obligatoire)
 function FtpReq([string]$chemin, [string]$methode) {
@@ -136,6 +147,7 @@ function Prises {
     } else { Log "$($f.nom) : $res" }
   }
   Log "prises : $($lot.Count) fichier(s) lu(s), $crees transmis, $deja deja connu(s)"
+  if (-not $cfg.empreinte -and [BorneCert]::Vue) { Log "empreinte du certificat FTP vue : $([BorneCert]::Vue)" }
 }
 
 Log "demarrage : relais $($cfg.url), borne $($cfg.ftp_host) ($($cfg.ftp_user)), poste $poste, toutes les $intervalle s"
