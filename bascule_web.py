@@ -37,9 +37,12 @@ SITES = {
         'instrument': 'Bilanciai D400 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,   # mêmes commandes XB/XN/XT/XZ que le DD700 (sonde du 21/10/2026)
         'caisse': False,               # pas de point de vente : bon de commande journalier ou pesée seule
         # articles proposés : vendables à la tonne, de la société ou communs, hors contributions (le point de vente ne sert pas de filtre ici)
-        'produits_domaine': [['sale_ok', '=', True], ['uom_id.name', 'ilike', 'tonne'], ['categ_id.name', 'not in', ['Contribution Energie', 'Eco Contribution']]],
+        'produits_domaine': [['sale_ok', '=', True], ['type', '=', 'consu'], '|', ['uom_id.name', 'ilike', 'tonne'], ['uom_id.name', 'ilike', 'kg'], ['categ_id.name', 'not in', ['Contribution Energie', 'Eco Contribution']]],
     },
 }
+
+# produits proposés à la pesée : marchandises (pas de service) vendables, à la tonne ou au kg
+PRODUITS_POIDS = [['sale_ok', '=', True], ['type', '=', 'consu'], '|', ['uom_id.name', 'ilike', 'tonne'], ['uom_id.name', 'ilike', 'kg']]
 
 _CONN = {}
 _LOCK = threading.Lock()
@@ -170,6 +173,31 @@ def _vehicule(site, immat):
     return v
 
 
+def _vehicule_auto(site, immat, vals_pesee, tare=None):
+    """Toute immatriculation pesée entre dans le fichier « Véhicules (tares) » (Xavier, 22/10/2026) : fiche créée si
+    besoin (type entreprise si la plaque est au parc), client / produit recopiés s'ils manquent, tare mise à jour
+    quand un poids à vide vient d'être mesuré (vente : pesée 1, réception : pesée 2)."""
+    n = _immat(immat)
+    if not n:
+        return None
+    v = _vehicule(site, n)
+    vals = {}
+    if not v:
+        parc = _parc(site, n).get(n)
+        vals = {'x_name': n, 'x_site': site, 'x_type': 'entreprise' if parc else 'client', 'x_fleet_id': parc[0] if parc else False, 'x_tare': 0}
+    for champ in ('x_client', 'x_partner_id', 'x_produit', 'x_product_id'):
+        if vals_pesee.get(champ) and (not v or not v.get(champ)):
+            vals[champ] = vals_pesee[champ]
+    if tare and tare > 0:
+        vals['x_tare'] = tare; vals['x_tare_date'] = _maintenant()
+    if vals:
+        if v:
+            _call('x_vehicule', 'write', [v['id']], vals, **_ctx(site))
+        else:
+            _call('x_vehicule', 'create', vals, **_ctx(site))
+    return _vehicule(site, n)
+
+
 def _vehicule_json(r):
     return {'immat': r['x_name'], 'type': r['x_type'] or 'client', 'fleet_id': r['x_fleet_id'] and (r['x_fleet_id'][0] if isinstance(r['x_fleet_id'], list) else r['x_fleet_id']),
             'tare': r['x_tare'], 'tare_date': r['x_tare_date'], 'client': r['x_client'] or '',
@@ -247,10 +275,13 @@ def api_config():
     if g:
         return g
     site = _site(); cfg = SITES[site]
-    dom = cfg.get('produits_domaine') or [['available_in_pos', '=', True], ['sale_ok', '=', True], ['uom_id.name', 'ilike', 'tonne']]
+    # produits au poids : marchandises vendables à la tonne ou au kg (Xavier, 22/10/2026 : recherche plein texte, plus de liste
+    # déroulante ni de condition « disponible en point de vente »)
+    dom = cfg.get('produits_domaine') or PRODUITS_POIDS
     prods = _call('product.product', 'search_read', dom + ['|', ['company_id', '=', cfg['company_id']], ['company_id', '=', False]],
-                  fields=['display_name', 'default_code', 'list_price'], order='id', **_ctx(site))
-    prods = sorted(({'id': p['id'], 'nom': p['display_name'], 'prix': p['list_price']} for p in prods), key=lambda p: p['nom'].lower())   # display_name : variantes distinguées (0/20 Bleu…)
+                  fields=['display_name', 'default_code', 'list_price', 'uom_id'], order='id', **_ctx(site))
+    prods = sorted(({'id': p['id'], 'nom': p['display_name'], 'prix': p['list_price'], 'unite': p['uom_id'][1] if p['uom_id'] else ''} for p in prods),
+                   key=lambda p: p['nom'].lower())   # display_name : variantes distinguées (0/20 Bleu…)
     return jsonify({'site': site, 'nom': cfg['nom'], 'imprimante': cfg['imprimante'], 'entete': cfg['entete'], 'instrument': cfg['instrument'],
                     'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'caisse': bool(cfg.get('caisse')), 'produits': prods, 'serveur': _maintenant()})
 
@@ -300,7 +331,7 @@ def api_pesee():
                 'x_immat': (d.get('immat') or '').strip().upper(), 'x_client': (d.get('client') or '').strip(), 'x_partner_id': d.get('partner_id') or False,
                 'x_produit': (d.get('produit') or '').strip(), 'x_product_id': d.get('product_id') or False,
                 'x_poste': (d.get('poste') or '')[:60], 'x_note': d.get('note') or False, 'x_manuel': bool(d.get('manuel'))}
-        v = _vehicule(site, d.get('immat'))
+        v = _vehicule_auto(site, d.get('immat'), vals)      # fiche véhicule créée ou complétée automatiquement
         if v:
             vals.update(x_vehicule_id=v['id'], x_vehicule_type=v['x_type'] or 'client')
         elif vals['x_immat'] and _parc(site, _immat(vals['x_immat'])).get(_immat(vals['x_immat'])):
@@ -349,6 +380,12 @@ def api_pesee():
             if d.get(cle):
                 vals[champ] = d[cle]
         _call('x_pesee', 'write', [rid], vals, **_ctx(site))
+        # poids à vide mesuré (vente : pesée 1, réception : pesée 2) -> tare du véhicule mise à jour dans le fichier
+        try:
+            vide = cur['x_p1'] if cur['x_sens'] == 'vente' else (poids if cur['x_sens'] == 'reception' else None)
+            _vehicule_auto(site, vals.get('x_immat') or cur['x_immat'], dict(cur, **vals), tare=vide)
+        except Exception:  # noqa: BLE001
+            pass
         avert = _commande(site, rid, d.get('destination'))
         return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
     elif action == 'commande':

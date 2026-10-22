@@ -81,8 +81,9 @@
       <div class="suggest"><input id="client" placeholder="Nom (recherche dans Odoo à partir de 2 lettres)" autocomplete="off"><ul id="client-liste"></ul></div>
       <input type="hidden" id="partner_id">
       <label>Produit</label>
-      <select id="produit"></select>
-      <input id="produit-libre" placeholder="Ou produit en texte libre" style="margin-top:6px">
+      <div class="suggest"><input id="produit" placeholder="Un ou plusieurs mots du produit (ex. sable 0/4, galet blanc)" autocomplete="off"><ul id="produit-liste"></ul></div>
+      <input type="hidden" id="product_id">
+      <div id="produit-info" style="margin-top:4px; font-size:13px; color:var(--grey)"></div>
       <label>Dans Odoo, à la fin de la pesée</label>
       <div class="sens" id="destination">
         <label class="on"><input type="radio" name="destination" value="journalier" checked>Bon de commande<br><small>journalier du client</small></label>
@@ -354,8 +355,8 @@
       const lt = document.querySelector('#destination input[value=ticket]').parentElement; lt.style.display = 'none';
       if (lt.classList.contains('on')) { lt.classList.remove('on'); const lj = document.querySelector('#destination input[value=journalier]'); lj.checked = true; lj.parentElement.classList.add('on'); LSset('destination', 'journalier'); }
     }
-    const sel = $('produit'); sel.innerHTML = '<option value="">— choisir un produit —</option>' + CFG.produits.map(p => '<option value="' + p.id + '">' + p.nom.replace(/</g, '&lt;') + '</option>').join('');
-    const dernierProduit = LS('produit'); if (dernierProduit) sel.value = dernierProduit;
+    CFG.produits.forEach(p => { p.cle = normTexte(p.nom); });
+    const dernierProduit = CFG.produits.find(p => p.id === +LS('produit')); if (dernierProduit) choisirProduit(dernierProduit);
     $('p-odoo').className = 'pastille ok'; $('t-odoo').textContent = 'Odoo connecté';
   }
   async function chargerPesees() {
@@ -384,7 +385,7 @@
     selection = p;
     if (p) {
       $('immat').value = p.x_immat || ''; $('client').value = p.x_client || ''; $('partner_id').value = p.x_partner_id || '';
-      if (p.x_product_id) $('produit').value = p.x_product_id; $('produit-libre').value = p.x_product_id ? '' : (p.x_produit || '');
+      $('produit').value = p.x_produit || ''; $('product_id').value = p.x_product_id || ''; majProduitInfo();
       $('note').value = p.x_note || '';
       document.querySelectorAll('input[name=sens]').forEach(r => { r.checked = r.value === p.x_sens; r.parentElement.classList.toggle('on', r.checked); });
       $('selection').innerHTML = 'Camion sélectionné : <b>' + p.x_name + '</b>, pesée 1 = <b>' + fmtKg(p.x_p1) + ' kg</b> à ' + heure(p.x_p1_date) + '.';
@@ -406,10 +407,10 @@
     if (manuelActif()) { $('stable').textContent = e.poids > 0 ? 'SAISIE MANUELLE : ' + fmtKg(e.poids) + ' kg' : 'saisie manuelle : taper le poids'; $('stable').className = 'mvt'; }
   }
   function formulaire() {
-    const sel = $('produit'); const nomProduit = sel.value ? sel.options[sel.selectedIndex].text : $('produit-libre').value.trim();
-    if (sel.value) LSset('produit', sel.value);
+    const nomProduit = $('produit').value.trim();
+    if ($('product_id').value) LSset('produit', $('product_id').value);
     return { immat: $('immat').value.trim().toUpperCase(), client: $('client').value.trim(), partner_id: +$('partner_id').value || null,
-             produit: nomProduit, product_id: +sel.value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse'),
+             produit: nomProduit, product_id: +$('product_id').value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse'),
              manuel: manuelActif(), poids: effectif().poids, destination: destination() };
   }
   async function chercherVehicule() {
@@ -426,7 +427,7 @@
         $('vehicule-info').textContent = typ + (exact.tare > 0 ? ' : tare mémorisée ' + fmtKg(exact.tare) + ' kg le ' + dateFr(exact.tare_date).slice(0, 10) : ' : pas encore de tare mémorisée') + (exact.client ? ' - ' + exact.client : '') + '.';
         $('veh-type').value = exact.type || 'client';
         if (!$('client').value && exact.client) { $('client').value = exact.client; $('partner_id').value = exact.partner_id || ''; }
-        if (!$('produit').value && exact.product_id) $('produit').value = exact.product_id;
+        if (!$('produit').value && exact.product_id) { const pr = CFG.produits.find(q => q.id === exact.product_id); if (pr) choisirProduit(pr); }
       } else { $('veh-type').value = 'client'; }
     } catch (e) { /* hors ligne */ }
     majBoutons();
@@ -452,7 +453,28 @@
     } catch (e) { message(e.message, 'ko'); }
     majBoutons();
   }
-  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; $('produit-libre').value = ''; }
+  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; }
+
+  // ─── Recherche plein texte des produits au poids (liste chargée une fois avec la configuration) ───
+  function normTexte(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function rechercherProduits(q) {
+    const mots = normTexte(q).split(/\s+/).filter(Boolean);
+    if (!mots.length) return [];
+    return CFG.produits.filter(p => mots.every(w => p.cle.includes(w))).slice(0, 12);
+  }
+  function majProduitInfo() {
+    const p = CFG && CFG.produits.find(q => q.id === +$('product_id').value);
+    $('produit-info').textContent = p ? ('Article Odoo : ' + p.nom + (p.prix ? ' · ' + p.prix.toLocaleString('fr-FR') + ' € / ' + (p.unite || 't') : '')) : ($('produit').value.trim() ? 'Texte libre : aucun article Odoo choisi, pas de ligne de commande possible.' : '');
+  }
+  function choisirProduit(p) { $('produit').value = p.nom; $('product_id').value = p.id; LSset('produit', p.id); $('produit-liste').style.display = 'none'; majProduitInfo(); }
+  $('produit').addEventListener('input', () => {
+    $('product_id').value = ''; const ul = $('produit-liste'); const rows = rechercherProduits($('produit').value);
+    ul.innerHTML = rows.map(p => '<li data-id="' + p.id + '">' + p.nom.replace(/</g, '&lt;') + (p.prix ? ' <small>' + p.prix.toLocaleString('fr-FR') + ' €/' + (p.unite || 't') + '</small>' : '') + '</li>').join('');
+    ul.style.display = rows.length ? 'block' : 'none';
+    ul.querySelectorAll('li').forEach(li => li.addEventListener('click', () => choisirProduit(CFG.produits.find(q => q.id === +li.dataset.id))));
+    majProduitInfo();
+  });
+  $('produit').addEventListener('focus', () => { if ($('produit').value.trim()) $('produit').dispatchEvent(new Event('input')); });
   async function pesee1() {
     const f = formulaire();
     if (!f.immat && f.sens !== 'simple') { message('Saisir l immatriculation du camion.', 'ko'); $('immat').focus(); return; }
@@ -487,7 +509,7 @@
     try { const rows = await api('clients?q=' + encodeURIComponent(q)); ul.innerHTML = rows.map(r => '<li data-id="' + r.id + '" data-nom="' + r.nom.replace(/"/g, '&quot;') + '">' + r.nom + (r.ville ? ' <small>' + r.ville + '</small>' : '') + '</li>').join(''); ul.style.display = rows.length ? 'block' : 'none';
       ul.querySelectorAll('li').forEach(li => li.addEventListener('click', () => { $('client').value = li.dataset.nom; $('partner_id').value = li.dataset.id; ul.style.display = 'none'; })); } catch (e) { ul.style.display = 'none'; }
   }, 250); });
-  document.addEventListener('click', e => { if (!e.target.closest('.suggest')) $('client-liste').style.display = 'none'; });
+  document.addEventListener('click', e => { if (!e.target.closest('.suggest')) document.querySelectorAll('.suggest ul').forEach(ul => { ul.style.display = 'none'; }); });
 
   // ─── Branchements ───
   document.querySelectorAll('#sens label').forEach(l => l.addEventListener('click', () => { document.querySelectorAll('#sens label').forEach(x => x.classList.remove('on')); l.classList.add('on'); l.querySelector('input').checked = true; majBoutons(); }));
