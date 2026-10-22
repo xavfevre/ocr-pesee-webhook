@@ -69,13 +69,43 @@ ENTETE = ("Numéro de pièce;Numéro facture;Code journal;Date facture;Code clie
 # 17e colonne (Sage, 22/10/2026) : base hors taxe de chaque ligne de TVA (tax_base_amount d'Odoo), vide sur les autres lignes.
 # Sans elle, Sage reconstitue la base d'un registre par « TTC de la pièce - taxe de la ligne », faux dès qu'une facture porte
 # deux TVA (marchandises + prestations) : écart cumulé de 201 585 € sur les bases « prestations » de juillet-août 2026.
-ENTETE_BASE = ENTETE + ";Base TVA"
+# 18e colonne « Code taxe » (22/10/2026) : code du taux de taxe Sage = numéro en tête de la description ou du libellé de la taxe Odoo
+# (« 9 - 20% » -> 9, « 11 - TVA 20% » -> 11), identique dans Sage d'après Xavier. Sur les lignes HT (taxe appliquée) et sur les
+# lignes de TVA : Sage recalcule alors lui-même la base de chaque registre, y compris au règlement (TVA sur encaissements).
+ENTETE_BASE = ENTETE + ";Code taxe"   # la base elle-même ne s'importe pas dans Sage (Xavier, 22/10/2026) : code taxe seul
+_CODES_TAXE = {}
 
 
 def _colonne_base(comp):
-    """Colonne « Base TVA » pour les dossiers Sage ; pas pour un cabinet qui a validé le fichier à 16 colonnes (Fiteco)."""
+    """Colonne « Code taxe » pour les dossiers Sage ; pas pour un cabinet qui a validé le fichier à 16 colonnes (Fiteco)."""
     prof = _profil(comp)
     return not prof or bool(prof.get("colonne_base", True))
+
+
+def _codes_taxe(comp):
+    """{id taxe Odoo: code Sage} pour la société (cache) : numéro en tête de la description, du libellé facture ou du groupe de taxes."""
+    import re as _re
+    if comp not in _CODES_TAXE:
+        codes = {}
+        for t in _q("account.tax", "search_read", [("company_id", "=", comp)], fields=["description", "invoice_label", "tax_group_id"],
+                    context={"allowed_company_ids": [comp], "active_test": False}):
+            for src in (_re.sub(r"<[^>]+>", "", t.get("description") or ""), t.get("invoice_label") or "", (t["tax_group_id"] or [0, ""])[1]):
+                m = _re.match(r"^\s*(\d{1,3})\s*-", src)
+                if m:
+                    codes[t["id"]] = m.group(1)
+                    break
+        _CODES_TAXE[comp] = codes
+    return _CODES_TAXE[comp]
+
+
+def _code_taxe_ligne(l, codes):
+    """Code taxe d'une ligne d'écriture : celui de sa taxe (ligne de TVA) ou de la première taxe codée appliquée (ligne HT)."""
+    if l.get("tax_line_id"):
+        return codes.get(l["tax_line_id"][0], "")
+    for tid in (l.get("tax_ids") or []):
+        if tid in codes:
+            return codes[tid]
+    return ""
 
 
 def _mois_bornes(mois):
@@ -206,13 +236,14 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
         sortis.update(mids)
     lines = _q("account.move.line", "search_read", [("move_id", "in", mids)],
                fields=["move_id", "account_id", "debit", "credit", "partner_id",
-                       "ref", "analytic_distribution", "tax_line_id", "tax_base_amount"], limit=0, order="id asc")
+                       "ref", "analytic_distribution", "tax_line_id", "tax_base_amount", "tax_ids"], limit=0, order="id asc")
     comptes, partenaires, analytiques = _referentiels(lines, comp)
     par_move = {}
     for l in lines:
         par_move.setdefault(l["move_id"][0], []).append(l)
 
     colb = _colonne_base(comp)
+    codes = _codes_taxe(comp) if colb else {}
     out = [ENTETE_BASE if colb else ENTETE]
     for m in moves:
         numero = m["name"] or ""
@@ -228,7 +259,8 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
             if not code_compte:
                 continue
             ana = _ana_libelle(l, analytiques)
-            cle = (code_compte, ana)
+            code_taxe = _code_taxe_ligne(l, codes) if colb else ""
+            cle = (code_compte, ana, code_taxe)
             if cle not in groupes:
                 part = partenaires.get(l["partner_id"] and l["partner_id"][0]) or {}
                 if code_compte.startswith("411"):
@@ -240,7 +272,7 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
                     code_client, url = "", ""
                 groupes[cle] = {"code_client": code_client, "ref_ligne": l["ref"] or "",
                                 "nom": part.get("name") or "", "url": url,
-                                "debit": 0, "credit": 0, "sections": {}, "base": 0.0}
+                                "debit": 0, "credit": 0, "sections": {}, "base": 0.0, "code_taxe": code_taxe}
             groupes[cle]["debit"] += debit
             groupes[cle]["credit"] += credit
             if l.get("tax_line_id"):
@@ -249,7 +281,7 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
                 s = groupes[cle]["sections"].setdefault(sid, [0.0, 0.0])
                 s[0] += debit * pct / 100.0
                 s[1] += credit * pct / 100.0
-        for (code_compte, ana), g in groupes.items():
+        for (code_compte, ana, _ct), g in groupes.items():
             libelle = "%s %s" % (numero, g["nom"])
             if g["debit"] > 0 and g["credit"] > 0:
                 montants = [(g["debit"], 0), (0, g["credit"])]
@@ -260,7 +292,7 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
                     piece, numero, journal["code"] or "", d_fac,
                     g["code_client"], g["ref_ligne"], g["nom"],
                     code_compte, libelle, d_ech, d, c, g["url"], a)
-            colb_g = ("" if not colb else (";%.2f" % g["base"] if g["base"] else ";"))
+            colb_g = ("" if not colb else ";" + g["code_taxe"])
             for debit, credit in montants:
                 out.append(base(debit, credit, ana) + "G" + colb_g)
             if ana and code_compte.startswith("7"):
@@ -279,7 +311,7 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=Non
         dom.append(("move_id.x_sage_envoye_le", "=", False))
     lines = _q("account.move.line", "search_read", dom,
                fields=["move_id", "date", "account_id", "debit", "credit", "partner_id",
-                       "name", "analytic_distribution", "tax_line_id", "tax_base_amount"], limit=0,
+                       "name", "analytic_distribution", "tax_line_id", "tax_base_amount", "tax_ids"], limit=0,
                order="date asc, move_id asc, id asc")
     if not lines:
         return None
@@ -298,6 +330,7 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=Non
         soeurs.setdefault(l["move_id"][0], []).append(l)
 
     colb = _colonne_base(comp)
+    codes = _codes_taxe(comp) if colb else {}
     out = [ENTETE_BASE if colb else ENTETE]
     for l in lines:
         m = moves[l["move_id"][0]]
@@ -332,7 +365,7 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=Non
             return "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f;%.2f;;1;%s;" % (
                 piece, numero, journal["code"] or "", d_fac, code_client, numero,
                 nom, code_compte, libelle, d_ech, d, c, a)
-        colb_l = ("" if not colb else (";%.2f" % abs(l["tax_base_amount"]) if l.get("tax_line_id") and l.get("tax_base_amount") else ";"))
+        colb_l = ("" if not colb else ";" + _code_taxe_ligne(l, codes))
         out.append(base(debit, credit, ana) + "G" + colb_l)
         if ana and code_compte.startswith("7"):
             sections = {sid: [debit * pct / 100.0, credit * pct / 100.0]
