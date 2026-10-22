@@ -105,7 +105,7 @@ CHAMPS = ['x_name', 'x_site', 'x_etat', 'x_sens', 'x_immat', 'x_client', 'x_part
           'x_vehicule_id', 'x_vehicule_type', 'x_destination', 'x_sale_order_id', 'x_sale_line_id', 'create_date']
 
 
-def _commande(site, pesee_id, destination):
+def _commande(site, pesee_id, destination, ajout_bc=False):
     """Après une pesée terminée : ligne de commande Odoo selon la destination.
     journalier = devis du jour du client sur ce site (créé s'il n'existe pas), une ligne par pesée, à confirmer/facturer
     par le bureau ; ticket = un devis par pesée à régler tout de suite en caisse (bouton Commandes du point de vente),
@@ -127,9 +127,11 @@ def _commande(site, pesee_id, destination):
     ctx = _ctx(site)
     if destination == 'journalier':
         origine = 'BASCULE-%s-%s' % (site.upper(), jour)
-        # le bon du jour est désormais confirmé dès la 1re pesée (BL validé) : on continue d'y ajouter les pesées suivantes
-        # tant qu'il n'est pas verrouillé (facturé et bloqué)
-        so = _call('sale.order', 'search', [['partner_id', '=', partner], ['company_id', '=', cfg['company_id']], ['origin', '=', origine], ['state', 'in', ['draft', 'sent', 'sale']], ['locked', '=', False]], limit=1, order='id desc', **ctx)
+        # fonctionnement normal (Xavier, 22/10/2026) : la pesée s'ajoute au devis du jour, le bureau confirme et valide le BL ;
+        # case « ajout sur le BC en cours » cochée : on s'ajoute aussi à un bon déjà confirmé (non verrouillé) et on valide le BL
+        dom = [['partner_id', '=', partner], ['company_id', '=', cfg['company_id']], ['origin', '=', origine]]
+        dom += [['state', 'in', ['draft', 'sent', 'sale']], ['locked', '=', False]] if ajout_bc else [['state', 'in', ['draft', 'sent']]]
+        so = _call('sale.order', 'search', dom, limit=1, order='id desc', **ctx)
         so_id = so[0] if so else None
     else:
         origine = 'BASCULE-%s-TICKET' % site.upper()
@@ -146,9 +148,8 @@ def _commande(site, pesee_id, destination):
     line_id = _call('sale.order.line', 'create', {'order_id': so_id, 'product_id': p['x_product_id'], 'product_uom_qty': p['x_net_t'], 'name': libelle}, **ctx)
     line_id = line_id[0] if isinstance(line_id, list) else line_id
     _call('x_pesee', 'write', [pesee_id], {'x_destination': destination, 'x_sale_order_id': so_id, 'x_sale_line_id': line_id}, **ctx)
-    if destination == 'journalier':
-        # la marchandise est partie avec le camion : commande confirmée et bon de livraison validé tout de suite
-        # (Xavier, 22/10/2026 : « il faudrait pour les bons de commande journaliers que le BL en cours soit validé »)
+    if destination == 'journalier' and ajout_bc:
+        # case cochée sur la page : commande confirmée et bon de livraison validé tout de suite (marchandise partie avec le camion)
         try:
             return _livrer(site, so_id)
         except Exception as e:  # noqa: BLE001
@@ -394,7 +395,7 @@ def api_pesee():
         vals['x_name'] = _call('ir.sequence', 'next_by_code', SITES[site]['sequence'])
         rid = _call('x_pesee', 'create', vals, **_ctx(site))
         rid = rid[0] if isinstance(rid, list) else rid
-        avert = _commande(site, rid, d.get('destination')) if action in ('tare', 'simple') else None
+        avert = _commande(site, rid, d.get('destination'), bool(d.get('ajout_bc'))) if action in ('tare', 'simple') else None
         return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
     rid = int(d.get('id') or 0)
     if not rid:
@@ -422,11 +423,11 @@ def api_pesee():
             _vehicule_auto(site, vals.get('x_immat') or cur['x_immat'], dict(cur, **vals), tare=vide)
         except Exception:  # noqa: BLE001
             pass
-        avert = _commande(site, rid, d.get('destination'))
+        avert = _commande(site, rid, d.get('destination'), bool(d.get('ajout_bc')))
         return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
     elif action == 'commande':
         # commande créée après coup depuis la liste du jour (pesée terminée sans commande)
-        avert = _commande(site, rid, d.get('destination'))
+        avert = _commande(site, rid, d.get('destination'), bool(d.get('ajout_bc')))
         return jsonify({'pesee': _lire(site, [rid])[0], 'avertissement': avert})
     elif action == 'annuler':
         _call('x_pesee', 'write', [rid], {'x_etat': 'annulee'}, **_ctx(site))

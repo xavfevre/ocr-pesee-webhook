@@ -90,6 +90,7 @@
         <label><input type="radio" name="destination" value="ticket">Ticket de caisse<br><small>à régler tout de suite</small></label>
         <label><input type="radio" name="destination" value="aucune">Pesée seule<br><small>sans commande</small></label>
       </div>
+      <label id="ajout-bc-bloc" style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:6px; font-size:14px; color:var(--ink)"><input type="checkbox" id="ajout-bc" style="width:auto; margin:0"> Ajouter sur le BC en cours déjà confirmé et valider le BL (sinon : devis du jour, le bureau confirme)</label>
       <label>Note (facultatif)</label>
       <input id="note" placeholder="Bon de commande, chantier…">
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer"><input type="checkbox" id="manuel-on" style="width:auto; margin:0"> Saisir le poids à la main (bascule hors service ou pesée à reprendre)</label>
@@ -375,7 +376,7 @@
       tr.innerHTML = '<td>' + p.x_name + (p.x_etat === 'annulee' ? ' <small>(annulée)</small>' : '') + '</td><td>' + heure(p.x_p2_date || p.x_p1_date) + '</td><td>' + (p.x_immat || '') + '</td><td>' + (p.x_client || '') + '</td><td>' + (p.x_produit || '') + '</td><td class="num"><b>' + (p.x_etat === 'annulee' ? '—' : fmtKg(p.x_net)) + '</b></td><td style="white-space:nowrap">' + cmd + ' ' + (p.x_etat === 'terminee' ? '<button class="btn petit gris" data-reimp="' + p.id + '">🖨</button>' : '') + '</td>';
       tj.appendChild(tr);
     }
-    tj.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', async () => { b.disabled = true; try { const r = await post({ action: 'commande', id: +b.dataset.id, destination: b.dataset.cmd }); apresPesee(r, 'Pesée ' + r.pesee.x_name + ' :'); if (r.pesee.x_sale_order_id && await imprimer(ticketXml(r.pesee))) await post({ action: 'imprime', id: r.pesee.id }); await chargerPesees(); } catch (e) { message(e.message, 'ko'); } }));
+    tj.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', async () => { b.disabled = true; try { const r = await post({ action: 'commande', id: +b.dataset.id, destination: b.dataset.cmd, ajout_bc: $('ajout-bc').checked }); apresPesee(r, 'Pesée ' + r.pesee.x_name + ' :'); if (r.pesee.x_sale_order_id && await imprimer(ticketXml(r.pesee))) await post({ action: 'imprime', id: r.pesee.id }); await chargerPesees(); } catch (e) { message(e.message, 'ko'); } }));
     $('jour-vide').style.display = pesees.jour.length ? 'none' : '';
     tb.querySelectorAll('[data-annule]').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = +b.dataset.annule; if (!confirm('Annuler cette pesée en attente ?')) return; try { await post({ action: 'annuler', id }); if (selection && selection.id === id) selectionner(null); await chargerPesees(); } catch (err) { message(err.message, 'ko'); } }));
     tj.querySelectorAll('[data-reimp]').forEach(b => b.addEventListener('click', async () => { const p = pesees.jour.find(q => q.id === +b.dataset.reimp); if (p && await imprimer(ticketXml(p))) message('Ticket ' + p.x_name + ' réimprimé', 'ok'); }));
@@ -409,7 +410,7 @@
     const nomProduit = $('produit').value.trim();
     return { immat: $('immat').value.trim().toUpperCase(), client: $('client').value.trim(), partner_id: +$('partner_id').value || null,
              produit: nomProduit, product_id: +$('product_id').value || null, note: $('note').value.trim(), sens: sens(), poste: LS('poste') || (SITE + ' - caisse'),
-             manuel: manuelActif(), poids: effectif().poids, destination: destination() };
+             manuel: manuelActif(), poids: effectif().poids, destination: destination(), ajout_bc: $('ajout-bc').checked };
   }
   async function chercherVehicule() {
     const n = normImmat($('immat').value);
@@ -451,7 +452,8 @@
     } catch (e) { message(e.message, 'ko'); }
     majBoutons();
   }
-  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; $('produit').value = ''; $('product_id').value = ''; majProduitInfo(); }
+  function viderFormulaire() { $('immat').value = ''; $('client').value = ''; $('partner_id').value = ''; $('note').value = ''; $('produit').value = ''; $('product_id').value = ''; majProduitInfo(); $('ajout-bc').checked = false; }
+  function majAjoutBc() { $('ajout-bc-bloc').style.display = destination() === 'journalier' ? 'flex' : 'none'; }
 
   // ─── Recherche plein texte des produits au poids (liste chargée une fois avec la configuration) ───
   function normTexte(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
@@ -511,8 +513,8 @@
 
   // ─── Branchements ───
   document.querySelectorAll('#sens label').forEach(l => l.addEventListener('click', () => { document.querySelectorAll('#sens label').forEach(x => x.classList.remove('on')); l.classList.add('on'); l.querySelector('input').checked = true; majBoutons(); }));
-  document.querySelectorAll('#destination label').forEach(l => l.addEventListener('click', () => { document.querySelectorAll('#destination label').forEach(x => x.classList.remove('on')); l.classList.add('on'); l.querySelector('input').checked = true; LSset('destination', l.querySelector('input').value); }));
-  (() => { const d = LS('destination'); if (d) document.querySelectorAll('#destination label').forEach(l => { const on = l.querySelector('input').value === d; l.classList.toggle('on', on); l.querySelector('input').checked = on; }); })();
+  document.querySelectorAll('#destination label').forEach(l => l.addEventListener('click', () => { document.querySelectorAll('#destination label').forEach(x => x.classList.remove('on')); l.classList.add('on'); l.querySelector('input').checked = true; LSset('destination', l.querySelector('input').value); majAjoutBc(); }));
+  (() => { const d = LS('destination'); if (d) document.querySelectorAll('#destination label').forEach(l => { const on = l.querySelector('input').value === d; l.classList.toggle('on', on); l.querySelector('input').checked = on; }); majAjoutBc(); })();
   $('b-connecter').addEventListener('click', () => connecter(false));
   $('b-p1').addEventListener('click', pesee1);
   $('b-p2').addEventListener('click', pesee2);
