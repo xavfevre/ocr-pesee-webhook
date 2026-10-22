@@ -32,6 +32,8 @@ TYPES_GNR = [('pelle_chenille', 'Pelle chenille', 100), ('pelle_pneus', 'Pelle p
              ('bourreuse', 'Bourreuse explosif', 100), ('taupeur', 'Engin taupeur', 50), ('terrassement', 'Autre engin de terrassement', 100), ('autre', 'Autre / non éligible', 0)]
 PCT_GNR = {c: p for c, _l, p in TYPES_GNR}
 PARAM_GNR = 'maquignon.gnr_engins'
+TAG_GNR = 'Taxe GNR'          # étiquette fleet.vehicle.tag : seule source de l'éligibilité (Xavier, 22/10/2026)
+_TAG = {'id': 0, 't': 0.0}
 MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
 MAX_H_JOUR = 24.0
 CTX = {'context': {'allowed_company_ids': [1, 3, 4], 'active_test': False}}
@@ -82,17 +84,46 @@ def _gnr_lire():
         return {}
 
 
+def _tag_gnr():
+    """Id de l'étiquette « Taxe GNR » du parc automobile (créée si elle manque), en cache 10 min."""
+    if not _TAG['id'] or time.time() - _TAG['t'] > 600:
+        ids = _call('fleet.vehicle.tag', 'search', [['name', '=', TAG_GNR]], limit=1)
+        if not ids:
+            ids = [_call('fleet.vehicle.tag', 'create', {'name': TAG_GNR})]
+        _TAG['id'], _TAG['t'] = (ids[0][0] if isinstance(ids[0], list) else ids[0]), time.time()
+    return _TAG['id']
+
+
+def _etiquete(v):
+    return _TAG['id'] in (v.get('tag_ids') or [])
+
+
 def _gnr_defaut(v):
-    """Proposition d'après la catégorie Odoo, tant que rien n'a été réglé dans la page."""
+    """Type et % proposés d'après la catégorie ou le nom, tant que rien n'a été réglé dans la page.
+    L'éligibilité elle-même ne vient que de l'étiquette « Taxe GNR » (posée dans Odoo ou par la case de la page)."""
     cat = (v['category_id'] and v['category_id'][1]) or ''
+    nom = (v['name'] or '').upper()
     if cat == 'Pelle':
-        t = 'pelle_pneus' if 'PNEUS' in (v['name'] or '').upper() else 'pelle_chenille'
-        return {'eligible': True, 'type': t, 'pct': PCT_GNR[t], 'defaut': True}
-    if cat == 'Chargeuse':
-        return {'eligible': True, 'type': 'chargeuse_pneus', 'pct': 90, 'defaut': True}
-    if cat == 'Tombereau':
-        return {'eligible': False, 'type': 'terrassement', 'pct': 100, 'defaut': True}
-    return {'eligible': False, 'type': 'autre', 'pct': 0, 'defaut': True}
+        t = 'pelle_pneus' if 'PNEUS' in nom else 'pelle_chenille'
+    elif cat == 'Chargeuse':
+        t = 'chargeuse_pneus'
+    elif 'HAVEUSE' in nom:
+        t = 'haveuse'
+    elif 'GROUPE' in nom and 'ELECTRO' in nom:
+        t = 'groupe_electrogene'
+    elif 'CONCASS' in nom or 'CRIBL' in nom:
+        t = 'groupe_mobile'
+    elif 'COMPRESSEUR' in nom:
+        t = 'compresseur'
+    elif 'NACELLE' in nom:
+        t = 'nacelle'
+    elif 'FOREUSE' in nom:
+        t = 'foreuse'
+    elif cat == 'Tombereau' or _etiquete(v):
+        t = 'terrassement'
+    else:
+        t = 'autre'
+    return {'eligible': _etiquete(v), 'type': t, 'pct': PCT_GNR[t], 'defaut': True}
 
 
 def _fin_mois(a, m):
@@ -110,7 +141,7 @@ def _sous_periodes(periodicite, annee):
     return [(date(annee, 3 * t - 2, 1), _fin_mois(annee, 3 * t), 'T%d %d' % (t, annee), '%s trimestre %d' % ('1er' if t == 1 else '%de' % t, annee)) for t in range(1, 5)]
 
 
-_CHAMPS_VEH = ['name', 'license_plate', 'category_id', 'odometer', 'odometer_unit', 'company_id', 'active', 'model_id', 'vin_sn']
+_CHAMPS_VEH = ['name', 'license_plate', 'category_id', 'odometer', 'odometer_unit', 'company_id', 'active', 'model_id', 'vin_sn', 'tag_ids']
 
 
 def _champs_vehicule():
@@ -125,8 +156,10 @@ def _champs_vehicule():
 
 
 def _engins(archives=False):
+    _tag_gnr()
     rows = _call('fleet.vehicle', 'search_read', [], fields=_champs_vehicule(), limit=1000, **CTX)
-    eng = [v for v in rows if (v['odometer_unit'] == 'miles' or (v['category_id'] and v['category_id'][1] in CATEGORIES)) and (archives or v['active'])]
+    # engins listés : horamètre (unité « miles » = heures), catégories d'engins, et tout véhicule portant l'étiquette « Taxe GNR »
+    eng = [v for v in rows if (v['odometer_unit'] == 'miles' or (v['category_id'] and v['category_id'][1] in CATEGORIES) or _etiquete(v)) and (archives or v['active'])]
     eng.sort(key=lambda v: ((v['company_id'] and v['company_id'][1]) or '', (v['category_id'] and v['category_id'][1]) or 'zzz', v['name']))
     return eng
 
@@ -169,7 +202,8 @@ def _declaration(periodicite, annee, prorata, archives, societes=None, eligibles
     tous = _engins(archives)
     gnr = _gnr_lire()
     for v in tous:
-        v['gnr'] = gnr.get(v['id']) or _gnr_defaut(v)
+        v['gnr'] = dict(gnr.get(v['id']) or _gnr_defaut(v))
+        v['gnr']['eligible'] = _etiquete(v)      # l'étiquette Odoo fait foi, la page et Odoo restent d'accord
     dispo = sorted({(v['company_id'][0], v['company_id'][1]) for v in tous if v['company_id']}, key=lambda c: c[1])
     eng = [v for v in tous if (not societes or (v['company_id'] and v['company_id'][0] in societes)) and (not eligibles or v['gnr']['eligible'])]
     rel = _releves([v['id'] for v in eng], fin) if eng else {}
@@ -308,6 +342,9 @@ def engin():
         g = _gnr_lire()
         g[vid] = {'eligible': bool(d.get('eligible')), 'type': typ, 'pct': pctv}
         _call('ir.config_parameter', 'set_param', PARAM_GNR, json.dumps({str(k): v for k, v in g.items()}))
+    # la case « éligible » pose ou retire l'étiquette « Taxe GNR » sur la fiche véhicule Odoo
+    tag = _tag_gnr()
+    _call('fleet.vehicle', 'write', [vid], {'tag_ids': [(4, tag)] if d.get('eligible') else [(3, tag)]}, **CTX)
     return jsonify({'ok': True, 'vals': g[vid]})
 
 
