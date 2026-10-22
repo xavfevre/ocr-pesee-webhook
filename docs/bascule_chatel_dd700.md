@@ -93,3 +93,26 @@ déclencheur (bouton côté PC ou validation sur l'indicateur), article et clien
   son BL validé. Le bureau n'a plus qu'à facturer (articles en « quantités livrées »). En cas d'échec, l'avertissement
   « BL à valider dans Odoo » s'affiche sur la page.
 
+## Caméras (22/10/2026)
+
+L'enregistreur Dahua **XVR7104HE-4KL-X** (`192.168.1.208`, n° de série 4K03190PAZA2795, application DMSS sur le compte
+granulats@maquignon.com) regroupe les deux caméras du site :
+
+| Voie | Caméra | Image `snapshot.cgi` | Usage sur la page |
+|---|---|---|---|
+| 1 | dôme analogique « Dome Portail » (portail / pont) | 352 × 288, ~10 Ko, 0,3 s | caméra du pont, toutes les 2 s |
+| 2 | caméra IP 4K « Easy Beton » (borne à béton, 192.168.1.210) | 2048 × 1536, ~870 Ko, 2,6 s | seconde caméra, toutes les 6 s, réduite à 1280 px par la passerelle |
+
+L'utilisateur `delphine` de l'enregistreur suffit (lecture des instantanés en Digest). Les flux secondaires (`subtype=1`) ne répondent pas.
+La page Pont-bascule est en **trois colonnes** (poids + pesée | caméras | camions en attente + pesées du jour) et affiche les deux vues ;
+le relais garde une image par caméra (`api/passerelle/image?n=1|2`, `api/camera?n=1|2`, réponse 304 si l'image n'a pas changé).
+
+Sur le PC de caisse de Chatel (celui qui tient le câble USB de la bascule, ou n'importe quel PC du réseau), passerelle en mode caméra seule :
+
+```
+powershell -ExecutionPolicy Bypass -File C:\Maquignonascule_passerelle.ps1 -Site chatel -Port '' -Cle <clé maquignon.bascule_key> ^
+  -Camera "http://192.168.1.208/cgi-bin/snapshot.cgi?channel=1" -Camera2 "http://192.168.1.208/cgi-bin/snapshot.cgi?channel=2" -CamUser delphine -CamPwd <mot de passe>
+```
+
+Lancement automatique : `schtasks /Create /F /SC ONLOGON /TN "Passerelle cameras" /TR "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\Maquignonascule_passerelle.ps1 -Site chatel -Port '' ..."`.
+

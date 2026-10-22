@@ -29,6 +29,8 @@ SITES = {
         'instrument': 'Bilanciai DD700 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,
         'client_comptoir_id': 35137,   # « Comptoir Chatel Granulats » : client de passage pour les tickets de caisse sans fiche
         'caisse': True,                # point de vente Odoo sur le site : destination « ticket de caisse » possible
+        # enregistreur Dahua XVR7104 (192.168.1.208) : voie 1 = dôme du portail (pont), voie 2 = caméra IP de la borne Easy Béton
+        'cameras': ['Caméra du portail (pont)', 'Borne Easy Béton'],
     },
     'maquignon': {
         'nom': 'SARL MAQUIGNON', 'company_id': 1, 'sequence': 'x_pesee.maquignon',
@@ -36,6 +38,7 @@ SITES = {
         'entete': ['SARL MAQUIGNON', '51 rue du Prieuré - 86230 Usseau', 'Tél. 05 49 02 72 63'],
         'instrument': 'Bilanciai D400 (48 t, e = 20 kg)', 'protocole': 'bilanciai_dd700', 'bauds': 9600,   # mêmes commandes XB/XN/XT/XZ que le DD700 (sonde du 21/10/2026)
         'caisse': False,               # pas de point de vente : bon de commande journalier ou pesée seule
+        'cameras': ['Caméra du pont', 'Seconde caméra'],
         # articles proposés : vendables à la tonne, de la société ou communs, hors contributions (le point de vente ne sert pas de filtre ici)
         'produits_domaine': [['sale_ok', '=', True], ['type', '=', 'consu'], '|', ['uom_id.name', 'ilike', 'tonne'], ['uom_id.name', 'ilike', 'kg'], ['categ_id.name', 'not in', ['Contribution Energie', 'Eco Contribution']]],
     },
@@ -320,7 +323,8 @@ def api_config():
     prods = sorted(({'id': p['id'], 'nom': p['display_name'], 'prix': p['list_price'], 'unite': p['uom_id'][1] if p['uom_id'] else ''} for p in prods),
                    key=lambda p: p['nom'].lower())   # display_name : variantes distinguées (0/20 Bleu…)
     return jsonify({'site': site, 'nom': cfg['nom'], 'imprimante': cfg['imprimante'], 'entete': cfg['entete'], 'instrument': cfg['instrument'],
-                    'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'caisse': bool(cfg.get('caisse')), 'produits': prods, 'serveur': _maintenant()})
+                    'protocole': cfg['protocole'], 'bauds': cfg['bauds'], 'caisse': bool(cfg.get('caisse')), 'produits': prods, 'serveur': _maintenant(),
+                    'cameras': cfg.get('cameras') or ['Caméra du pont', 'Seconde caméra']})
 
 
 @bp.route('/api/clients')
@@ -476,16 +480,21 @@ def api_passerelle():
     return jsonify({'ok': True, 'serveur': etat['horodatage']})
 
 
+def _ext_image():
+    """Deux caméras par site : n=1 (pont) -> .jpg, n=2 (seconde vue) -> .jpg2."""
+    return 'jpg2' if (request.args.get('n') or '1') == '2' else 'jpg'
+
+
 @bp.route('/api/passerelle/image', methods=['POST'])
 def api_passerelle_image():
-    """Image JPEG de la caméra du pont, corps brut (Content-Type image/jpeg), 2 Mo maximum."""
+    """Image JPEG d'une caméra (?n=1 pont, ?n=2 seconde vue), corps brut (Content-Type image/jpeg), 2 Mo maximum."""
     g = _garde()
     if g:
         return g
     data = request.get_data()
     if not data or len(data) > 2_000_000 or data[:2] != b'\xff\xd8':
         return jsonify({'error': 'image JPEG attendue (2 Mo maximum)'}), 400
-    _ecrire_atomique(_fichier(_site(), 'jpg'), data)
+    _ecrire_atomique(_fichier(_site(), _ext_image()), data)
     return jsonify({'ok': True})
 
 
@@ -497,10 +506,11 @@ def _direct(site):
         return None
     etat['age'] = round(time.time() - float(etat.get('t') or 0), 1)
     etat['connecte'] = etat['age'] < FRAICHEUR_POIDS and not etat.get('erreur') and etat.get('poids') is not None
-    try:
-        etat['image_age'] = round(time.time() - os.path.getmtime(_fichier(site, 'jpg')), 1)
-    except OSError:
-        etat['image_age'] = None
+    for cle, ext in (('image_age', 'jpg'), ('image2_age', 'jpg2')):
+        try:
+            etat[cle] = round(time.time() - os.path.getmtime(_fichier(site, ext)), 1)
+        except OSError:
+            etat[cle] = None
     return etat
 
 
@@ -516,16 +526,20 @@ def api_direct():
 
 @bp.route('/api/camera')
 def api_camera():
-    """Dernière image de la caméra du pont (JPEG), 204 s'il n'y en a pas de récente."""
+    """Dernière image d'une caméra (?n=1 pont, ?n=2 seconde vue), 204 s'il n'y en a pas de récente, 304 si inchangée (If-None-Match)."""
     g = _garde()
     if g:
         return g
-    chemin = _fichier(_site(), 'jpg')
+    chemin = _fichier(_site(), _ext_image())
     try:
-        if time.time() - os.path.getmtime(chemin) > FRAICHEUR_IMAGE:
+        mtime = os.path.getmtime(chemin)
+        if time.time() - mtime > FRAICHEUR_IMAGE:
             return '', 204
+        etag = '"%d"' % int(mtime * 1000)
+        if request.headers.get('If-None-Match') == etag:
+            return '', 304
         with open(chemin, 'rb') as f:
             data = f.read()
     except OSError:
         return '', 204
-    return Response(data, mimetype='image/jpeg', headers={'Cache-Control': 'no-store'})
+    return Response(data, mimetype='image/jpeg', headers={'Cache-Control': 'no-store', 'ETag': etag})

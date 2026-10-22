@@ -13,7 +13,8 @@
   .etat { font-size:13px; color:var(--grey); }
   .pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#cbd5e1; margin-right:6px; vertical-align:middle; }
   .pastille.ok { background:var(--green); } .pastille.ko { background:var(--red); }
-  main { display:grid; grid-template-columns: 1.1fr 1fr; gap:16px; padding:16px; max-width:1200px; margin:0 auto; }
+  main { display:grid; grid-template-columns: 1.1fr 1fr 1fr; gap:16px; padding:16px; max-width:1750px; margin:0 auto; }
+  @media (max-width: 1250px) { main { grid-template-columns: 1.1fr 1fr; } }
   @media (max-width: 900px) { main { grid-template-columns:1fr; } }
   .carte { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; }
   .carte h2 { font-size:15px; margin:0 0 10px; color:var(--grey); text-transform:uppercase; letter-spacing:.04em; }
@@ -44,9 +45,10 @@
   details { margin-top:10px; font-size:13px; color:var(--grey); }
   code { background:#f1f5f9; padding:1px 4px; border-radius:4px; }
   .pastille.distant { background:var(--green); box-shadow:0 0 0 2px #bbf7d0; } .pastille.muet { background:var(--amber); }
-  #camera-img { width:100%; max-height:270px; object-fit:contain; background:#0f172a; border-radius:8px; display:block; margin-top:8px; }
-  #camera-vide { margin-top:8px; color:var(--grey); font-size:14px; padding:34px 12px; text-align:center; border:2px dashed #cbd5e1; border-radius:8px; }
-  #camera-info { font-size:12px; color:var(--grey); margin-top:4px; }
+  #camera-img, #camera2-img { width:100%; max-height:340px; object-fit:contain; background:#0f172a; border-radius:8px; display:block; margin-top:8px; }
+  #camera-vide, #camera2-vide { margin-top:8px; color:var(--grey); font-size:14px; padding:34px 12px; text-align:center; border:2px dashed #cbd5e1; border-radius:8px; }
+  #camera-info, #camera2-info { font-size:12px; color:var(--grey); margin-top:4px; }
+  #camera2-titre { margin-top:16px; }
 </style>
 </head>
 <body>
@@ -109,14 +111,20 @@
   </section>
   <section>
     <div class="carte" id="camera-carte">
-      <div style="display:flex; align-items:center; gap:8px"><h2 style="flex:1; margin:0">Caméra du pont</h2><button class="btn petit gris" id="b-camera">Masquer</button></div>
+      <div style="display:flex; align-items:center; gap:8px"><h2 style="flex:1; margin:0" id="camera-titre">Caméra du pont</h2><button class="btn petit gris" id="b-camera">Masquer</button></div>
       <div id="camera-corps">
         <img id="camera-img" alt="Caméra du pont" style="display:none">
         <div id="camera-vide">📷 Caméra non raccordée<br><small>Emplacement prévu : l'image du pont s'affichera ici dès que la caméra et la passerelle de la cabine seront installées.</small></div>
         <div id="camera-info"></div>
+        <h2 id="camera2-titre">Seconde caméra</h2>
+        <img id="camera2-img" alt="Seconde caméra" style="display:none">
+        <div id="camera2-vide">📷 Seconde caméra non raccordée<br><small>Image envoyée par la passerelle du site (paramètre -Camera2).</small></div>
+        <div id="camera2-info"></div>
       </div>
     </div>
-    <div class="carte" style="margin-top:16px">
+  </section>
+  <section>
+    <div class="carte">
       <h2>Camions en attente de 2<sup>e</sup> pesée</h2>
       <table id="ouvertes"><thead><tr><th>N°</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Pesée 1</th><th></th></tr></thead><tbody></tbody></table>
       <div id="ouvertes-vide" style="color:var(--grey); font-size:14px">Aucun camion en attente.</div>
@@ -259,17 +267,26 @@
       $('t-serie').textContent = d.jamais ? 'bascule non connectée' : (d.erreur ? 'cabine : ' + d.erreur : 'cabine muette depuis ' + secondes(d.age));
     }
   }
+  const cams = { 1: { url: null, manques: 0, etag: '' }, 2: { url: null, manques: 0, etag: '' } };
   async function majCamera() {
     if (LS('camera') === 'off') return;
-    if (camManques >= 5 && (camManques - 5) % 15 !== 0) { camManques++; return; }   // sans caméra : on ne redemande que toutes les 30 s
-    try {
-      const r = await fetch('/bascule/api/camera?site=' + SITE + '&k=' + encodeURIComponent(LS('cle')) + '&t=' + Date.now(), { cache: 'no-store' });
-      if (r.status === 204) { camManques++; $('camera-img').style.display = 'none'; $('camera-vide').style.display = ''; $('camera-info').textContent = ''; return; }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const b = await r.blob(); if (camUrl) URL.revokeObjectURL(camUrl); camUrl = URL.createObjectURL(b);
-      $('camera-img').src = camUrl; $('camera-img').style.display = ''; $('camera-vide').style.display = 'none'; camManques = 0;
-      $('camera-info').textContent = 'Image reçue' + (distant && distant.image_age != null ? ' il y a ' + secondes(distant.image_age) : '') + (distant && distant.poste ? ' depuis ' + distant.poste : '');
-    } catch (e) { camManques++; $('camera-info').textContent = 'Caméra : ' + e.message; }
+    if (CFG && CFG.cameras) { $('camera-titre').textContent = CFG.cameras[0] || 'Caméra du pont'; $('camera2-titre').textContent = CFG.cameras[1] || 'Seconde caméra'; }
+    for (const n of [1, 2]) {
+      const c = cams[n], pre = n === 1 ? 'camera' : 'camera2';
+      if (c.manques >= 5 && (c.manques - 5) % 15 !== 0) { c.manques++; continue; }   // sans caméra : on ne redemande que toutes les 30 s
+      try {
+        const r = await fetch('/bascule/api/camera?site=' + SITE + '&n=' + n + '&k=' + encodeURIComponent(LS('cle')) + '&t=' + Date.now(),
+                              { cache: 'no-store', headers: c.etag ? { 'If-None-Match': c.etag } : {} });
+        if (r.status === 304) continue;   // image inchangée depuis la dernière fois
+        if (r.status === 204) { c.manques++; $(pre + '-img').style.display = 'none'; $(pre + '-vide').style.display = ''; $(pre + '-info').textContent = ''; continue; }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        c.etag = r.headers.get('ETag') || '';
+        const b = await r.blob(); if (c.url) URL.revokeObjectURL(c.url); c.url = URL.createObjectURL(b);
+        $(pre + '-img').src = c.url; $(pre + '-img').style.display = ''; $(pre + '-vide').style.display = 'none'; c.manques = 0;
+        const age = distant ? (n === 1 ? distant.image_age : distant.image2_age) : null;
+        $(pre + '-info').textContent = 'Image reçue' + (age != null ? ' il y a ' + secondes(age) : '') + (distant && distant.poste ? ' depuis ' + distant.poste : '');
+      } catch (e) { c.manques++; $(pre + '-info').textContent = 'Caméra : ' + e.message; }
+    }
   }
   function cameraVisible(on) { $('camera-corps').style.display = on ? '' : 'none'; $('b-camera').textContent = on ? 'Masquer' : 'Afficher'; LSset('camera', on ? 'on' : 'off'); }
   async function connecter(silencieux) {
