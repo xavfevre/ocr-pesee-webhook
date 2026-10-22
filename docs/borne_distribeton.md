@@ -52,3 +52,12 @@ Page de validation : `https://ocr-pesee-webhook.onrender.com/borne/?k=<clé>` (a
 * `/Imports` : `Contact (res.partner).csv` (498 clients, 27 sans code, 1 code `CELTAN`), `Recettes.csv`.
 * Prises : 7 h – 17 h, environ 9 par jour, 29 clients distincts, 19 codes recette (`BF250`, `BF300`, `BF350`, `BP…`, `M…`, `…RET`, `SABLE`) ;
   `ORDHT` / `ORDTTC` à 0 pour les professionnels (prix Odoo), renseignés seulement pour `DIS99999 PARTICULIER BORNE` (payé CB à la borne).
+
+## Import automatique (22/10/2026)
+
+Case « Import automatique dans Odoo » sur la page, **désactivée par défaut** (paramètre système Odoo `maquignon.borne_import_auto`, `1` = actif).
+Activée : à l'arrivée des fichiers, les prises dont le client (code DIS) et l'article (code recette) sont reconnus, sans doublon ni anomalie,
+deviennent aussitôt des commandes Distri Béton confirmées (`x_valide_par` = « import automatique ») ; les autres restent « à valider » sur
+la page. Désactivée : tout passe par la page. Le bouton « Installer l'agent sur ce PC » de la page télécharge un installateur prérempli
+(clé, relais, mot de passe FTP lu dans le paramètre `maquignon.borne_ftp_mdp`, chiffré DPAPI sur le PC).
+

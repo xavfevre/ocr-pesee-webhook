@@ -64,6 +64,7 @@
       </div>
       <table id="bons"><thead><tr><th></th><th>Heure</th><th>Bon</th><th>Client</th><th>Article</th><th class="num">m³</th><th class="num">Prix HT</th><th class="num">TTC borne</th><th>Chantier</th><th>Badge</th></tr></thead><tbody></tbody></table>
       <div id="bons-vide" class="petit" style="padding:14px 0">Aucune prise en attente. Les fichiers de la borne arrivent chaque soir après 20 h (et à chaque passage de l'agent).</div>
+      <label class="ligne" style="margin-top:10px; font-size:13px; cursor:pointer"><input type="checkbox" id="import-auto"> <b>Import automatique dans Odoo</b> <span class="petit">— désactivé par défaut. Activé : les prises dont le client et l'article sont reconnus deviennent des commandes dès leur arrivée, sans passer par cette page ; seules les prises à problème restent à valider ici. Réglage gardé dans Odoo (paramètre système maquignon.borne_import_auto).</span></label>
       <details style="margin-top:10px"><summary>Comment ça marche</summary>
         La borne écrit un fichier par prise dans son dossier <code>/Exports</code>. L'agent du PC les transmet ici et les range dans <code>Sauv</code>.
         Chaque ligne est rapprochée du client Odoo (code DIS) et de l'article (code recette). Cocher les lignes à importer puis « Créer les commandes Odoo » :
@@ -177,6 +178,7 @@
     }
   }
   function rendreExportEtat(etat, apercu) {
+    $('import-auto').checked = !!etat.import_auto;
     const a = etat.agent || {};
     $('p-agent').className = 'pastille ' + (a.depuis_s == null ? '' : a.depuis_s < 180 ? 'ok' : 'muet');
     $('t-agent').textContent = a.depuis_s == null ? 'agent jamais vu' : 'agent ' + (a.poste || '') + ' vu il y a ' + secondes(a.depuis_s);
@@ -221,6 +223,12 @@
     } catch (err) { $('p-odoo').className = 'pastille ko'; $('t-odoo').textContent = 'Odoo : ' + err.message; message(CLE ? 'Chargement impossible : ' + err.message : 'Clé d\'accès absente : ouvrir la page avec ?k=<clé>', 'ko'); }
   }
   $('b-rafraichir').addEventListener('click', charger);
+  $('import-auto').addEventListener('change', async () => {
+    const actif = $('import-auto').checked;
+    if (actif && !confirm('Activer l\'import automatique ?\n\nLes prochaines prises reconnues (client et article trouvés) seront créées en commandes Distri Béton confirmées sans validation sur cette page.')) { $('import-auto').checked = false; return; }
+    try { const r = await api('import-auto', { actif }); message(r.import_auto ? 'Import automatique activé' : 'Import automatique désactivé : les prises passent par cette page', 'ok'); }
+    catch (e) { message('Réglage impossible : ' + e.message, 'ko'); $('import-auto').checked = !actif; }
+  });
   $('b-agent').href = '/borne/outils-installer.cmd?k=' + encodeURIComponent(CLE);
   $('tout').addEventListener('change', () => { document.querySelectorAll('#bons input[type=checkbox][data-id]:not(:disabled)').forEach(c => { c.checked = $('tout').checked; c.checked ? derniereSel.add(+c.dataset.id) : derniereSel.delete(+c.dataset.id); }); majBoutons(); });
   $('b-valider').addEventListener('click', async () => {

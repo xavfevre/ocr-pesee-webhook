@@ -267,7 +267,7 @@ def api_etat():
     sig = _clients_signature()
     der = _dernier_export()
     a_valider = _call('x_borne_bon', 'search_count', [['x_etat', '=', 'a_valider']], **_ctx())
-    return jsonify({'clients': sig, 'a_valider': a_valider, 'agent': _agent_etat(), 'serveur': _maintenant(), 'forcer': _forcer_lu(),
+    return jsonify({'clients': sig, 'a_valider': a_valider, 'agent': _agent_etat(), 'serveur': _maintenant(), 'forcer': _forcer_lu(), 'import_auto': _import_auto(),
                     'dernier_export': {'date': der['x_date'], 'nb': der['x_nb_clients'], 'sha': der['x_sha']} if der else None})
 
 
@@ -453,15 +453,37 @@ def _bon_vals(nom, r):
             'x_csv': ';'.join(COLONNES_BON) + '\n' + ';'.join(r.get(c, '') for c in COLONNES_BON)}
 
 
+PARAM_IMPORT_AUTO = 'maquignon.borne_import_auto'   # '1' = les prises sans anomalie deviennent des commandes sans passer par la page (Xavier, 22/10/2026 : désactivé par défaut)
+
+
+def _import_auto():
+    try:
+        return (_call('ir.config_parameter', 'get_param', PARAM_IMPORT_AUTO, '') or '') == '1'
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@bp.route('/api/import-auto', methods=['POST'])
+def api_import_auto():
+    """Depuis la page : active ou désactive l'import automatique (paramètre Odoo maquignon.borne_import_auto, 0 par défaut)."""
+    g = _garde()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    _call('ir.config_parameter', 'set_param', PARAM_IMPORT_AUTO, '1' if d.get('actif') else '0')
+    return jsonify({'ok': True, 'import_auto': bool(d.get('actif'))})
+
+
 @bp.route('/api/depot', methods=['POST'])
 def api_depot():
     """L'agent dépose les CSV lus dans /Exports : {fichiers: [{nom, contenu}], poste}. Réponse par fichier :
-    cree | deja | erreur: ... (l'agent n'archive dans Sauv que cree et deja)."""
+    cree | cree+importe (import automatique actif et prise sans anomalie) | deja | erreur: ... (l'agent n'archive dans Sauv que cree et deja)."""
     g = _garde()
     if g:
         return g
     d = request.get_json(silent=True) or {}
     _agent_vu(d.get('poste'))
+    auto = _import_auto()
     res = {}
     for f in (d.get('fichiers') or [])[:200]:
         nom = os.path.basename(f.get('nom') or '')
@@ -470,11 +492,21 @@ def api_depot():
             ordcod = r.get('ORDCOD') or re.sub(r'^BL|\.csv$', '', nom, flags=re.I)
             if _call('x_borne_bon', 'search_count', [['x_name', '=', ordcod]], **_ctx()):
                 res[nom] = 'deja'; continue
-            _call('x_borne_bon', 'create', _bon_vals(nom, r), **_ctx())
+            vals = _bon_vals(nom, r)
+            bid = _call('x_borne_bon', 'create', vals, **_ctx()); bid = _un(bid) if isinstance(bid, list) else bid
             res[nom] = 'cree'
+            # import automatique : seulement les prises propres (client et article trouvés, pas de doublon ni d'anomalie)
+            if auto and vals['x_etat'] == 'a_valider' and vals['x_partner_id'] and vals['x_product_id'] and not vals['x_anomalie']:
+                try:
+                    b = _lire_bons([['id', '=', bid]])[0]
+                    so = _creer_commande(b)
+                    _call('x_borne_bon', 'write', [bid], {'x_etat': 'importe', 'x_sale_order_id': so, 'x_valide_par': 'import automatique', 'x_valide_le': _maintenant()}, **_ctx())
+                    res[nom] = 'cree+importe'
+                except Exception as e:  # noqa: BLE001
+                    _call('x_borne_bon', 'write', [bid], {'x_anomalie': 'import automatique impossible : %s' % str(e)[:150]}, **_ctx())
         except Exception as e:  # noqa: BLE001
             res[nom] = 'erreur: %s' % str(e)[:200]
-    return jsonify({'resultats': res, 'serveur': _maintenant()})
+    return jsonify({'resultats': res, 'serveur': _maintenant(), 'import_auto': auto})
 
 
 def _lire_bons(dom, limit=500, order='x_date desc'):
