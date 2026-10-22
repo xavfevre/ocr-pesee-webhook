@@ -157,11 +157,14 @@ def _clients_lignes():
                  fields=['ref', 'name', 'company_id', 'phone', 'email', 'street', 'street2', 'zip', 'city', 'country_id',
                          'property_payment_term_id', 'company_type', 'property_product_pricelist', 'write_date', 'create_date'],
                  order='name', **_ctx())
+    # nom de la liste de prix sans la devise (« Tarif Pro 2026 », pas « Tarif Pro 2026 (EUR) ») : comme l'export Odoo
+    pl_ids = list({_un(r['property_product_pricelist']) for r in rows if r['property_product_pricelist']})
+    pl = {x['id']: x['name'] for x in _call('product.pricelist', 'read', pl_ids, ['name'], **_ctx())} if pl_ids else {}
     lignes = []
     for r in sorted(rows, key=lambda r: (r['name'] or '').lower()):
         lignes.append([r['ref'] or '', r['name'] or '', _nom(r['company_id']), r['phone'] or '', r['email'] or '', r['street'] or '',
                        r['street2'] or '', r['zip'] or '', r['city'] or '', _nom(r['country_id']), _nom(r['property_payment_term_id']),
-                       'Société' if r['company_type'] == 'company' else 'Particulier', _nom(r['property_product_pricelist'])])
+                       'Société' if r['company_type'] == 'company' else 'Particulier', pl.get(_un(r['property_product_pricelist']), '')])
     return lignes, rows
 
 
