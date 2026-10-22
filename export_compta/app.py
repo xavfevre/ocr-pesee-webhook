@@ -562,12 +562,13 @@ PROFILS = {
         "cabinet": "FITECO",
         "journaux": "ventes",            # seul le journal des ventes est transmis
         "nouveaux_clients": False,       # pas de dossier Sage : fichier « nouveaux clients » inutile
-        "extension": "csv",
-        "prefixe_fichier": "ventes_DISTRIBETON",
+        "extension": "txt",              # fichier texte « ; » (Xavier, 22/10/2026 : « c'est un fichier txt et non excel »)
+        "nom_historique": True,          # même nom que l'ancien export : export_journal_SAS_DISTRI_BETON_VIENNE_Factures_clients_du_AAAAMMJJ_au_AAAAMMJJ.txt
+        "prefixe_fichier": "ventes_DISTRIBETON",   # fichiers d'une seule facture : ventes_DISTRIBETON_FAC-2026-00461.txt
         "titre": "📤 Export des ventes Distri Béton → cabinet FITECO",
         "sous_titre": ("Fichier mensuel des factures et avoirs clients de SAS Distri Béton Vienne, à envoyer au cabinet FITECO "
-                       "Châtellerault avant le 15 du mois suivant pour la TVA. Même format que les exports Sage (CSV « ; »), validé "
-                       "par Fiteco le 24/04/2025 : une ligne par compte et par facture, ventes en 7011, TVA en 445711, clients avec leur code DIS."),
+                       "Châtellerault avant le 15 du mois suivant pour la TVA. Fichier texte « ; » (.txt, pas Excel), même format que les exports "
+                       "Sage, vérifié sur l'envoi d'août 2026 : une ligne par compte et par facture, ventes en 701100, TVA en 445711, clients en 411100 avec leur code DIS."),
         "rappel": "à envoyer au cabinet avant le 15 du mois suivant",
         "contacts": [("Christine Fontenault", "c.fontenault@fiteco.com"), ("Aurélia Colin", "aurelia.colin@fiteco.com")],
         "boite_factures": "ventes+207082@fiteco.com",
@@ -583,14 +584,15 @@ def _nom_fichier(comp, comp_nom, prefixe, journal_nom, du, au):
     """Nom du fichier téléchargé : Sage = historique (.txt) ; cabinet extérieur = ventes_SOCIETE_AAAA-MM.csv
     quand la plage est un mois entier, sinon la plage en clair."""
     prof = _profil(comp)
-    if prof and prof.get("prefixe_fichier"):
+    if prof and prof.get("prefixe_fichier") and not prof.get("nom_historique"):
         ext = prof.get("extension", "csv")
         fin_mois = "%s-%02d" % (du[:7], calendar.monthrange(int(du[:4]), int(du[5:7]))[1])
         if du[8:] == "01" and au == fin_mois:
             return "%s_%s.%s" % (prof["prefixe_fichier"], du[:7], ext)
         return "%s_du_%s_au_%s.%s" % (prof["prefixe_fichier"], du, au, ext)
     slug = comp_nom.replace(" ", "_").replace("/", "_")
-    return "%s_%s_%s_du_%s_au_%s.txt" % (prefixe, slug, journal_nom.replace(" ", "_"), du.replace("-", ""), au.replace("-", ""))
+    ext = prof.get("extension", "txt") if prof else "txt"
+    return "%s_%s_%s_du_%s_au_%s.%s" % (prefixe, slug, journal_nom.replace(" ", "_"), du.replace("-", ""), au.replace("-", ""), ext)
 
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -824,7 +826,7 @@ def page():
             cc = ",".join(c[1] for c in prof.get("contacts", [])[1:])
             sujet = "Distri Béton — fichier des ventes %s" % libelle
             corps_mail = ("Bonjour,\n\nVeuillez trouver ci-joint le fichier des ventes de SAS Distri Béton Vienne %s "
-                          "(format habituel, CSV « ; »).\n\nCordialement,\n" % libelle)
+                          "(format habituel, fichier texte « ; »).\n\nCordialement,\n" % libelle)
             mailto = "mailto:%s?cc=%s&subject=%s&body=%s" % (to, cc, _quote(sujet), _quote(corps_mail))
             contacts = " · ".join("<b>%s</b> &lt;%s&gt;" % (n, e) for n, e in prof.get("contacts", []))
             corps += ("<div class='card'><h2><span class='n'>3</span>Envoyer au cabinet %s <small>%s</small></h2>"

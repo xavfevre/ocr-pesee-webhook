@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Procédure « Export mensuel des ventes Distri Béton vers le cabinet FITECO » (21/10/2026).
-  python build_procedure_export_distribeton.py  ->  Desktop/Maquignon/Procedure_export_ventes_DistriBeton_Fiteco_2026-10-21.pdf
+  python build_procedure_export_distribeton.py  ->  Desktop/Maquignon/Procedure_export_ventes_DistriBeton_Fiteco_2026-10-22.pdf
 Captures : docs/captures_export/distri_haut.jpg (formulaire + étapes 1-2) et distri_bas.jpg (étapes 3-4)."""
 import os, sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -11,7 +11,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
 
 ICI = os.path.dirname(os.path.abspath(__file__))
-SORTIE = r"C:\Users\xavfe\Desktop\Maquignon\Procedure_export_ventes_DistriBeton_Fiteco_2026-10-21.pdf"
+SORTIE = r"C:\Users\xavfe\Desktop\Maquignon\Procedure_export_ventes_DistriBeton_Fiteco_2026-10-22.pdf"
 CAPTURES = [os.path.join(ICI, 'captures_export', 'distri_haut.jpg'), os.path.join(ICI, 'captures_export', 'distri_bas.jpg')]
 INK = colors.HexColor('#0f172a'); GREY = colors.HexColor('#475569'); BLUE = colors.HexColor('#1d4ed8'); LIGHT = colors.HexColor('#eef2ff'); LINE = colors.HexColor('#cbd5e1')
 H1 = ParagraphStyle('h1', fontName='Helvetica-Bold', fontSize=16, leading=20, textColor=INK, spaceAfter=4)
@@ -72,7 +72,7 @@ s.append(KeepTogether([Paragraph("2. Vérifier (étape 1 de la page)", H2)] + pu
 ])))
 
 s.append(KeepTogether([Paragraph("3. Exporter (étape 2)", H2)] + etapes([
-    "Bouton <b>« Télécharger le fichier des ventes (.csv) »</b>. Le fichier arrive dans Téléchargements sous le nom <b>ventes_DISTRIBETON_AAAA-MM.csv</b> (ex. ventes_DISTRIBETON_2026-09.csv).",
+    "Bouton <b>« Télécharger le fichier des ventes (.txt) »</b>. Le fichier arrive dans Téléchargements sous son nom habituel <b>export_journal_SAS_DISTRI_BETON_VIENNE_Factures_clients_du_AAAAMMJJ_au_AAAAMMJJ.txt</b> (ex. …_du_20260901_au_20260930.txt) : fichier texte « ; », à envoyer tel quel, sans l'ouvrir dans Excel.",
     "Les factures du fichier sont marquées <b>« Transféré Sage »</b> dans Odoo : cela veut dire « transmises au cabinet ». Elles ne ressortiront plus dans un export suivant.",
     "Ne pas ouvrir le fichier avec Excel puis l'enregistrer : Excel abîme les dates et les accents. Pour y jeter un œil, l'ouvrir avec le Bloc-notes.",
 ])))
@@ -90,7 +90,7 @@ s.append(KeepTogether([Paragraph("5. Verrouiller les ventes (étape 4)", H2), Pa
 s.append(Paragraph("6. Cas particuliers", H2))
 s.append(tableau([
     ['Situation', 'Que faire'],
-    ["Une facture a été oubliée ou saisie après l'export", "Carte <b>Exporter une seule facture</b> : taper son numéro (ex. FAC/2026/00461), télécharger le fichier ventes_DISTRIBETON_FAC-2026-00461.csv et l'envoyer au cabinet avec un mot. Si la facture est déjà marquée transférée, la page demande confirmation."],
+    ["Une facture a été oubliée ou saisie après l'export", "Carte <b>Exporter une seule facture</b> : taper son numéro (ex. FAC/2026/00461), télécharger le fichier ventes_DISTRIBETON_FAC-2026-00461.txt et l'envoyer au cabinet avec un mot. Si la facture est déjà marquée transférée, la page demande confirmation."],
     ['Un avoir', "Il est dans le journal des ventes comme une facture : il part dans le fichier du mois, en sens inverse."],
     ["Le fichier du mois a été perdu ou jamais importé par le cabinet", "Cocher <b>Inclure les pièces déjà transférées</b> (bandeau rouge), retélécharger, et prévenir le cabinet qu'il s'agit d'un renvoi pour éviter un doublon."],
     ["Savoir ce qui a été envoyé", "<b>Historique des exports</b> en bas de page : date, journal, période. Le bloc « Dernier export » en haut rappelle la dernière période sortie."],
