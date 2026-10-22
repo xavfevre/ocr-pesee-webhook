@@ -66,6 +66,16 @@ def _check_token():
 ENTETE = ("Numéro de pièce;Numéro facture;Code journal;Date facture;Code client;"
           "Référence client;Nom client;Code compte;Libellé compte;Date échéance;"
           "Débit;Crédit;URL Facture;Plan;Analytique;Type écriture")
+# 17e colonne (Sage, 22/10/2026) : base hors taxe de chaque ligne de TVA (tax_base_amount d'Odoo), vide sur les autres lignes.
+# Sans elle, Sage reconstitue la base d'un registre par « TTC de la pièce - taxe de la ligne », faux dès qu'une facture porte
+# deux TVA (marchandises + prestations) : écart cumulé de 201 585 € sur les bases « prestations » de juillet-août 2026.
+ENTETE_BASE = ENTETE + ";Base TVA"
+
+
+def _colonne_base(comp):
+    """Colonne « Base TVA » pour les dossiers Sage ; pas pour un cabinet qui a validé le fichier à 16 colonnes (Fiteco)."""
+    prof = _profil(comp)
+    return not prof or bool(prof.get("colonne_base", True))
 
 
 def _mois_bornes(mois):
@@ -196,13 +206,14 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
         sortis.update(mids)
     lines = _q("account.move.line", "search_read", [("move_id", "in", mids)],
                fields=["move_id", "account_id", "debit", "credit", "partner_id",
-                       "ref", "analytic_distribution"], limit=0, order="id asc")
+                       "ref", "analytic_distribution", "tax_line_id", "tax_base_amount"], limit=0, order="id asc")
     comptes, partenaires, analytiques = _referentiels(lines, comp)
     par_move = {}
     for l in lines:
         par_move.setdefault(l["move_id"][0], []).append(l)
 
-    out = [ENTETE]
+    colb = _colonne_base(comp)
+    out = [ENTETE_BASE if colb else ENTETE]
     for m in moves:
         numero = m["name"] or ""
         piece = _piece(numero)
@@ -229,9 +240,11 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
                     code_client, url = "", ""
                 groupes[cle] = {"code_client": code_client, "ref_ligne": l["ref"] or "",
                                 "nom": part.get("name") or "", "url": url,
-                                "debit": 0, "credit": 0, "sections": {}}
+                                "debit": 0, "credit": 0, "sections": {}, "base": 0.0}
             groupes[cle]["debit"] += debit
             groupes[cle]["credit"] += credit
+            if l.get("tax_line_id"):
+                groupes[cle]["base"] += abs(l.get("tax_base_amount") or 0)
             for sid, pct in _sections_pct(l, analytiques).items():
                 s = groupes[cle]["sections"].setdefault(sid, [0.0, 0.0])
                 s[0] += debit * pct / 100.0
@@ -247,11 +260,12 @@ def _export_ventes(journal, du, au, base_url, clients_vus, comp, move_ids=None, 
                     piece, numero, journal["code"] or "", d_fac,
                     g["code_client"], g["ref_ligne"], g["nom"],
                     code_compte, libelle, d_ech, d, c, g["url"], a)
+            colb_g = ("" if not colb else (";%.2f" % g["base"] if g["base"] else ";"))
             for debit, credit in montants:
-                out.append(base(debit, credit, ana) + "G")
+                out.append(base(debit, credit, ana) + "G" + colb_g)
             if ana and code_compte.startswith("7"):
-                out.extend(_lignes_a(base, analytiques, g["sections"],
-                                     round(g["debit"], 2), round(g["credit"], 2)))
+                out.extend(la + (";" if colb else "") for la in _lignes_a(base, analytiques, g["sections"],
+                                                                        round(g["debit"], 2), round(g["credit"], 2)))
     return "\n".join(out)
 
 
@@ -265,7 +279,7 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=Non
         dom.append(("move_id.x_sage_envoye_le", "=", False))
     lines = _q("account.move.line", "search_read", dom,
                fields=["move_id", "date", "account_id", "debit", "credit", "partner_id",
-                       "name", "analytic_distribution"], limit=0,
+                       "name", "analytic_distribution", "tax_line_id", "tax_base_amount"], limit=0,
                order="date asc, move_id asc, id asc")
     if not lines:
         return None
@@ -283,7 +297,8 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=Non
     for l in lines:
         soeurs.setdefault(l["move_id"][0], []).append(l)
 
-    out = [ENTETE]
+    colb = _colonne_base(comp)
+    out = [ENTETE_BASE if colb else ENTETE]
     for l in lines:
         m = moves[l["move_id"][0]]
         numero = m["name"] or ""
@@ -317,12 +332,13 @@ def _export_caisse(journal, du, au, clients_vus, comp, move_ids=None, sortis=Non
             return "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f;%.2f;;1;%s;" % (
                 piece, numero, journal["code"] or "", d_fac, code_client, numero,
                 nom, code_compte, libelle, d_ech, d, c, a)
-        out.append(base(debit, credit, ana) + "G")
+        colb_l = ("" if not colb else (";%.2f" % abs(l["tax_base_amount"]) if l.get("tax_line_id") and l.get("tax_base_amount") else ";"))
+        out.append(base(debit, credit, ana) + "G" + colb_l)
         if ana and code_compte.startswith("7"):
             sections = {sid: [debit * pct / 100.0, credit * pct / 100.0]
                         for sid, pct in _sections_pct(l, analytiques).items()}
-            out.extend(_lignes_a(base, analytiques, sections,
-                                 round(debit, 2), round(credit, 2)))
+            out.extend(la + (";" if colb else "") for la in _lignes_a(base, analytiques, sections,
+                                                                    round(debit, 2), round(credit, 2)))
     return "\n".join(out)
 
 
@@ -564,6 +580,7 @@ PROFILS = {
         "nouveaux_clients": False,       # pas de dossier Sage : fichier « nouveaux clients » inutile
         "extension": "txt",              # fichier texte « ; » (Xavier, 22/10/2026 : « c'est un fichier txt et non excel »)
         "nom_historique": True,          # même nom que l'ancien export : export_journal_SAS_DISTRI_BETON_VIENNE_Factures_clients_du_AAAAMMJJ_au_AAAAMMJJ.txt
+        "colonne_base": False,           # Fiteco a validé le fichier à 16 colonnes : pas de colonne « Base TVA »
         "prefixe_fichier": "ventes_DISTRIBETON",   # fichiers d'une seule facture : ventes_DISTRIBETON_FAC-2026-00461.txt
         "titre": "📤 Export des ventes Distri Béton → cabinet FITECO",
         "sous_titre": ("Fichier mensuel des factures et avoirs clients de SAS Distri Béton Vienne, à envoyer au cabinet FITECO "

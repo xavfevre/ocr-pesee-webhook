@@ -90,3 +90,14 @@ pour un mois entier), carte « 3. Envoyer au cabinet » avec lien e-mail prérem
 Le garde-fou « déjà transférées » et l'historique fonctionnent comme pour Sage
 (`x_sage_envoye_le`, `maquignon.export_compta_dernier_2`).
 
+## Colonne « Base TVA » (22/10/2026)
+
+Les registres de TVA de Sage (TVA sur encaissements, « Registres taxe Règlement vente ») reconstituaient la base d'une ligne de
+TVA par **TTC de la pièce − montant de la ligne** : juste pour une facture à une seule TVA, faux dès qu'une facture porte à la fois
+la TVA collectée (marchandises, 44570009) et la TVA prestations (encaissements, 44570011) — bases surévaluées de 201 585 € sur
+juillet-août 2026 chez Maquignon (constaté par Charlotte sur les registres imprimés le 21/09/2026).
+
+Les fichiers Sage (formats ventes et caisse) ont donc une **17e colonne « Base TVA »** : la base hors taxe de chaque ligne de TVA
+(`tax_base_amount` d'Odoo, en valeur absolue), vide sur les autres lignes. Charlotte la mappe dans l'import Sage sur la base du
+registre. Le profil Fiteco (Distri Béton) reste à 16 colonnes (`colonne_base: False`).
+
