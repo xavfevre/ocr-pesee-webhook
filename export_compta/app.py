@@ -537,11 +537,11 @@ def _pieces_retro(comp, journaux):
 
 TYPES = {"sale": "Ventes", "bank": "Banque", "cash": "Caisse"}
 
-# Journaux volontairement HORS export Sage (consigne de Xavier du 21/10/2026) : le journal « Caisse » CSH2 de
-# Châtel'Granulats (id 42) porte les mouvements d'espèces (fond de caisse, apports de monnaie, remises en banque,
-# écarts de comptage, compte d'attente 471000) que Charlotte ne reprend pas dans Sage. Les clôtures de session
-# du point de vente (« Cloture CAISSE », pièces POSS : ventes comptoir, TVA) restent exportées.
-JOURNAUX_EXCLUS = {42: "mouvements d'espèces (fond de caisse, apports, remises en banque, écarts) : non transmis à Sage, consigne de Xavier du 21/10/2026"}
+# Journaux volontairement HORS export Sage : {id du journal: motif affiché sur la page}. Le journal « Caisse » CSH2 de
+# Châtel'Granulats (id 42, mouvements d'espèces : fond de caisse, apports, remises en banque, écarts) y a été mis le
+# 21/10/2026 puis REMIS DANS L'EXPORT le 22/10/2026 (Xavier : « c'est plus compliqué que prévu ») : ses pièces non
+# marquées transférées partent dans le prochain export de la période ou dans l'export rétroactif.
+JOURNAUX_EXCLUS = {}
 
 
 def _journaux_exclus(comp):
