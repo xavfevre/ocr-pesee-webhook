@@ -2,7 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pont-bascule">
+<link rel="manifest" id="manifest" href="/bascule/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/bascule/icone.png">
+<link rel="icon" type="image/png" href="/bascule/icone.png?taille=192">
 <title>Pont-bascule</title>
 <style>
   :root { --ink:#0f172a; --grey:#64748b; --line:#e2e8f0; --blue:#1d4ed8; --green:#15803d; --red:#b91c1c; --amber:#b45309; --bg:#f8fafc; }
@@ -49,6 +57,29 @@
   #camera-vide, #camera2-vide { margin-top:8px; color:var(--grey); font-size:14px; padding:34px 12px; text-align:center; border:2px dashed #cbd5e1; border-radius:8px; }
   #camera-info, #camera2-info { font-size:12px; color:var(--grey); margin-top:4px; }
   #camera2-titre { margin-top:16px; }
+  #poids-mini { display:none; font-weight:800; font-variant-numeric: tabular-nums; font-size:18px; margin-left:auto; }
+  /* Téléphone : une colonne tactile, en-tête collant avec le poids, champs à 17 px (pas de zoom iOS), tableaux défilants */
+  @media (max-width: 700px) {
+    header { position:sticky; top:0; z-index:20; padding:8px 10px; gap:8px; }
+    header h1 { font-size:15px; }
+    header .etat { font-size:12px; }
+    #poids-mini { display:inline-block; }
+    #b-connecter, #b-reglages { padding:6px 8px; font-size:12px; }
+    main { padding:10px; gap:10px; }
+    .carte { padding:12px; border-radius:10px; }
+    .carte h2 { font-size:13px; }
+    #poids { font-size:54px; }
+    label { font-size:14px; }
+    input, select, textarea { font-size:17px; padding:11px 12px; }
+    .sens label { padding:9px 4px; font-size:13px; }
+    .sens label small { font-size:11px; }
+    .btn { padding:14px 16px; font-size:17px; }
+    .btn.petit { padding:8px 10px; font-size:14px; }
+    #message { margin:8px 10px 0; font-size:14px; }
+    .tableau { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { font-size:13px; } th, td { padding:7px 5px; white-space:nowrap; }
+    #camera-img, #camera2-img { max-height:230px; }
+  }
 </style>
 </head>
 <body>
@@ -57,6 +88,7 @@
   <span class="etat"><span id="p-serie" class="pastille"></span><span id="t-serie">bascule non connectée</span></span>
   <span class="etat"><span id="p-odoo" class="pastille"></span><span id="t-odoo">Odoo</span></span>
   <span style="flex:1"></span>
+  <span id="poids-mini" title="Poids sur le pont"></span>
   <button class="btn petit" id="b-connecter">Connecter la bascule</button>
   <button class="btn petit gris" id="b-reglages">Réglages</button>
 </header>
@@ -112,12 +144,12 @@
   <section>
     <div class="carte">
       <h2>Camions en attente de 2<sup>e</sup> pesée</h2>
-      <table id="ouvertes"><thead><tr><th>N°</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Pesée 1</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="tableau"><table id="ouvertes"><thead><tr><th>N°</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Pesée 1</th><th></th></tr></thead><tbody></tbody></table></div>
       <div id="ouvertes-vide" style="color:var(--grey); font-size:14px">Aucun camion en attente.</div>
     </div>
     <div class="carte" style="margin-top:16px">
       <h2>Pesées du jour</h2>
-      <table id="jour"><thead><tr><th>N°</th><th>Heure</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Net kg</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="tableau"><table id="jour"><thead><tr><th>N°</th><th>Heure</th><th>Immat</th><th>Client</th><th>Produit</th><th class="num">Net kg</th><th></th></tr></thead><tbody></tbody></table></div>
       <div id="jour-vide" style="color:var(--grey); font-size:14px">Aucune pesée aujourd'hui.</div>
     </div>
     <div class="carte" id="reglages" style="margin-top:16px; display:none">
@@ -541,6 +573,11 @@
   document.querySelectorAll('#destination label').forEach(l => l.addEventListener('click', () => { document.querySelectorAll('#destination label').forEach(x => x.classList.remove('on')); l.classList.add('on'); l.querySelector('input').checked = true; LSset('destination', l.querySelector('input').value); majAjoutBc(); }));
   (() => { const d = LS('destination'); if (d) document.querySelectorAll('#destination label').forEach(l => { const on = l.querySelector('input').value === d; l.classList.toggle('on', on); l.querySelector('input').checked = on; }); majAjoutBc(); })();
   $('b-connecter').addEventListener('click', () => connecter(false));
+  // téléphone / tablette : pas de port série dans le navigateur, le poids vient de la passerelle de la cabine
+  if (!('serial' in navigator)) { $('b-connecter').style.display = 'none'; $('t-serie').textContent = 'poids via la cabine'; }
+  // en-tête collant : rappel du poids quand on a fait défiler le formulaire, et manifest du site pour « Ajouter à l'écran d'accueil »
+  new MutationObserver(() => { $('poids-mini').textContent = $('poids').textContent.replace(/\s+/g, ' ').trim(); }).observe($('poids'), { childList: true, subtree: true, characterData: true });
+  $('manifest').href = '/bascule/manifest.webmanifest?site=' + SITE;
   $('b-p1').addEventListener('click', pesee1);
   $('b-p2').addEventListener('click', pesee2);
   $('b-annuler-sel').addEventListener('click', () => { selectionner(null); viderFormulaire(); });

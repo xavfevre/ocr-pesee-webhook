@@ -309,6 +309,24 @@ def page():
     return send_from_directory(ICI, 'bascule_page.html')
 
 
+@bp.route('/manifest.webmanifest')
+def manifest():
+    """Application installable sur téléphone (« Ajouter à l'écran d'accueil ») : un raccourci par site, plein écran."""
+    site = (request.args.get('site') or 'chatel').lower()
+    nom = SITES.get(site, {}).get('nom', 'Pont-bascule')
+    data = {'name': 'Pont-bascule %s' % nom, 'short_name': 'Pont-bascule', 'start_url': '/bascule/?site=%s' % site, 'scope': '/bascule/',
+            'display': 'standalone', 'orientation': 'portrait', 'background_color': '#f8fafc', 'theme_color': '#1d4ed8', 'lang': 'fr',
+            'icons': [{'src': '/bascule/icone.png?taille=192', 'sizes': '192x192', 'type': 'image/png'},
+                      {'src': '/bascule/icone.png?taille=512', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'}]}
+    return Response(json.dumps(data, ensure_ascii=False), mimetype='application/manifest+json', headers={'Cache-Control': 'public, max-age=3600'})
+
+
+@bp.route('/icone.png')
+def icone():
+    taille = '512' if request.args.get('taille') == '512' else '192'
+    return send_from_directory(ICI, 'bascule_icone_%s.png' % taille, mimetype='image/png', max_age=86400)
+
+
 @bp.route('/api/config')
 def api_config():
     g = _garde()

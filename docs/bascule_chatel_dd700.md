@@ -116,3 +116,16 @@ powershell -ExecutionPolicy Bypass -File C:\Maquignonascule_passerelle.ps1 -Sit
 
 Lancement automatique : `schtasks /Create /F /SC ONLOGON /TN "Passerelle cameras" /TR "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\Maquignonascule_passerelle.ps1 -Site chatel -Port '' ..."`.
 
+## Version téléphone (22/10/2026)
+
+La même page s'adapte au téléphone (moins de 700 px) : une colonne, champs et boutons tactiles, en-tête collant qui rappelle le
+poids, tableaux défilants, caméras en bas. Le navigateur d'un téléphone ne sait pas lire le port série : le bouton « Connecter la
+bascule » disparaît et le poids vient de la passerelle de la cabine (PC de caisse), comme sur n'importe quel autre PC. L'impression
+du ticket depuis le téléphone dépend de l'acceptation du certificat de l'imprimante Epson par le navigateur mobile : en pratique,
+réimprimer depuis le PC de caisse (icône « réimprimer » de la liste du jour).
+
+Installation sur l'écran d'accueil (application plein écran, icône bleue « kg PONT BASCULE ») : ouvrir une fois
+`https://ocr-pesee-webhook.onrender.com/bascule/?site=chatel&k=<clé>` dans Chrome (Android) ou Safari (iPhone), puis menu
+« Ajouter à l'écran d'accueil ». La clé est mémorisée dans le navigateur ; le manifest est servi par `/bascule/manifest.webmanifest?site=…`,
+l'icône par `/bascule/icone.png`.
+
